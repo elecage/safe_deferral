@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Normalized Context Envelope with Trigger",
+  "description": "A normalized context envelope including the trigger event, explicitly designed for prototype experimental consistency and deterministic fault-injection. It strictly requires all environmental fields to conservatively evaluate missing-state faults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "trigger_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "button",
+            "sensor",
+            "system"
+          ]
+        },
+        "event_code": {
+          "type": "string"
+        },
+        "timestamp_ms": {
+          "type": "integer",
+          "description": "Epoch timestamp strictly used by Policy Router for staleness check and fault injection reproducibility. MUST be masked/ignored during LLM prompt composition to prevent hallucination."
+        }
+      },
+      "required": [
+        "event_type",
+        "event_code",
+        "timestamp_ms"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "button"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "event_code": {
+                "enum": [
+                  "single_click",
+                  "double_click",
+                  "long_press",
+                  "triple_hit"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "sensor"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "event_code": {
+                "enum": [
+                  "threshold_exceeded",
+                  "state_changed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "system"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "event_code": {
+                "enum": [
+                  "periodic_update"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "environmental_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "description": "Room temperature in Celsius"
+        },
+        "illuminance": {
+          "type": "number",
+          "description": "Light level in Lux"
+        },
+        "occupancy_detected": {
+          "type": "boolean",
+          "description": "True if motion/presence is detected"
+        },
+        "smoke_detected": {
+          "type": "boolean"
+        },
+        "gas_detected": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "temperature",
+        "illuminance",
+        "occupancy_detected",
+        "smoke_detected",
+        "gas_detected"
+      ]
+    },
+    "device_states": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Object map of all controllable smart home devices representing their current state",
+      "properties": {
+        "living_room_light": {
+          "type": "string",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        "bedroom_light": {
+          "type": "string",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        "living_room_blind": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "tv_main": {
+          "type": "string",
+          "enum": [
+            "on",
+            "off",
+            "playing",
+            "standby"
+          ],
+          "description": "Single compact state encoding that intentionally combines power and activity states to minimize context payload size."
+        }
+      },
+      "required": [
+        "living_room_light",
+        "bedroom_light",
+        "living_room_blind",
+        "tv_main"
+      ]
+    }
+  },
+  "required": [
+    "trigger_event",
+    "environmental_context",
+    "device_states"
+  ]
+}

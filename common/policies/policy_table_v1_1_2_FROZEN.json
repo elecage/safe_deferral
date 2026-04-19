@@ -1,0 +1,124 @@
+{
+  "version": "1.1.2",
+  "description": "Deterministic Routing Policy and Safety Constraints for Edge Smart Home",
+  "global_constraints": {
+    "freshness_threshold_ms": 3000,
+    "default_icr_timeout_ms": 15000,
+    "actuation_ack_timeout_ms": 5000,
+    "max_icr_attempts": 2
+  },
+  "routing_policies": {
+    "class_0_emergency": {
+      "description": "Life-critical emergencies requiring immediate deterministic override.",
+      "triggers": [
+        {
+          "id": "E001",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "threshold_crossing",
+          "minimal_triggering_predicate": {
+            "sensor": "temperature",
+            "operator": ">=",
+            "value": 50.0
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
+        },
+        {
+          "id": "E002",
+          "source_type": "button",
+          "severity": "high",
+          "type": "pattern_event",
+          "minimal_triggering_predicate": {
+            "event": "triple_hit"
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 10000
+        }
+      ],
+      "actions": [
+        "activate_siren",
+        "turn_on_all_lights",
+        "dispatch_emergency_alert"
+      ]
+    },
+    "class_1_low_risk": {
+      "description": "Bounded low-risk assistance handled by local LLM and Deterministic Validator.",
+      "allowed_actions_taxonomy": [
+        {
+          "action": "light_on",
+          "risk_level": "low",
+          "requires_ack": true,
+          "allowed_targets": [
+            "living_room_light",
+            "bedroom_light"
+          ]
+        },
+        {
+          "action": "light_off",
+          "risk_level": "low",
+          "requires_ack": true,
+          "allowed_targets": [
+            "living_room_light",
+            "bedroom_light"
+          ]
+        }
+      ],
+      "constraints": {
+        "require_single_admissible_action": true,
+        "fallback_on_conflict": "safe_deferral",
+        "fallback_on_missing_schema": "safe_deferral",
+        "fallback_on_staleness": "escalate_to_class_2"
+      },
+      "clarification": {
+        "mode": "button_based_icr",
+        "max_candidate_options": 3,
+        "timeout_ms": 15000,
+        "max_attempts": 2,
+        "action_on_success": "execute_validated_action",
+        "action_on_timeout": "escalate_to_class_2"
+      }
+    },
+    "class_2_escalation": {
+      "description": "Caregiver escalation for unresolved ambiguity, sensor staleness, missing critical context, or actuation failure.",
+      "triggers": [
+        {
+          "id": "C201",
+          "event": "icr_timeout",
+          "source_layer": "icr_handler",
+          "requires_notification": true
+        },
+        {
+          "id": "C202",
+          "event": "missing_policy_input",
+          "source_layer": "policy_router",
+          "requires_notification": true
+        },
+        {
+          "id": "C203",
+          "event": "unresolved_context_conflict",
+          "source_layer": "validator",
+          "requires_notification": true
+        },
+        {
+          "id": "C204",
+          "event": "sensor_staleness_detected",
+          "source_layer": "policy_router",
+          "requires_notification": true
+        },
+        {
+          "id": "C205",
+          "event": "actuation_ack_timeout",
+          "source_layer": "validator",
+          "requires_notification": true
+        }
+      ],
+      "payload_requirements": [
+        "event_summary",
+        "context_summary",
+        "unresolved_reason",
+        "manual_confirmation_path"
+      ]
+    }
+  }
+}
