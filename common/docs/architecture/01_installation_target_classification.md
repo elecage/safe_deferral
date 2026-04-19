@@ -25,17 +25,21 @@ It serves as a deployment-reference document for:
 | Python App | Outbound Notification Interface | Mac mini | Python virtual environment | Telegram or mock fallback integration |
 | Python App | Caregiver Confirmation Backend | Mac mini | Python virtual environment | Bounded caregiver confirmation handling |
 | Python App | Audit Logging Service / DB Access Layer | Mac mini | Python virtual environment | SQLite-backed audit pipeline |
+| Embedded / Physical Node | ESP32 Button Node | ESP32 device | PlatformIO / Arduino firmware | Physical bounded input node for button-based interaction |
+| Embedded / Physical Node | ESP32 Sensor Node | ESP32 device | PlatformIO / Arduino firmware | Physical sensor/event publishing node when used |
+| Embedded / Physical Node | ESP32 Actuator / Warning Interface Node | ESP32 device | PlatformIO / Arduino firmware | Low-risk actuator or warning-output interface when used |
 | Development / Experiment Tool | Virtual Sensor Nodes | Raspberry Pi 5 | Python virtual environment | Large-scale virtual sensor network |
 | Development / Experiment Tool | Virtual Emergency Sensors | Raspberry Pi 5 | Python virtual environment | Emergency event simulation |
 | Development / Experiment Tool | Fault Injector Harness | Raspberry Pi 5 | Python virtual environment | Injects stale / missing / conflict / timeout faults |
 | External Integration | Telegram Bot | External API | Account / token configuration | Caregiver alerts and limited approval path |
-| Frozen Configuration Assets | Policy tables / JSON schemas / output profiles / `.env` / YAML | Git repository + Mac mini deployment target | File deployment | Frozen reference assets before implementation |
+| Frozen Reference Assets | Policy tables / JSON schemas / output profiles / `.env` / YAML | Git repository + deployment targets | File deployment | Frozen shared reference assets before implementation |
 
 ---
 
 ## Architectural Interpretation
 
 - **Mac mini** is the primary operational hub.
+- **ESP32 devices** are embedded physical nodes for bounded input, sensing, or actuator/warning interfacing.
 - **Raspberry Pi 5** is the experiment and simulation node.
 - **External APIs** are limited to bounded outbound integrations such as Telegram.
 - **Frozen assets in the Git repository** are the single source of truth before runtime deployment.
@@ -52,6 +56,8 @@ This classification aligns with the repository structure below:
   - installation, configuration, verification scripts, runtime assets, and future hub-side code
 - `rpi/`
   - installation, configuration, verification scripts, and future simulation-side code
+- `esp32/`
+  - embedded firmware, device-specific code, and physical node implementation assets
 - `integration/`
   - end-to-end tests, experimental scenarios, and reproducibility assets
 
