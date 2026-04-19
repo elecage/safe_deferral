@@ -194,6 +194,8 @@ Connect and validate operational flows with real or semi-real devices.
 ### Repository locations
 - `integration/tests/`
 - `integration/scenarios/`
+- `esp32/code/`
+- `esp32/firmware/`
 
 ---
 
@@ -209,6 +211,7 @@ Extend the operational hub with Raspberry Pi-based simulation and experiment too
 
 ### Role separation
 - **Mac mini**: operational hub
+- **ESP32**: embedded physical node layer
 - **Raspberry Pi 5**: simulation and evaluation node
 
 ### Repository locations
@@ -223,8 +226,10 @@ Extend the operational hub with Raspberry Pi-based simulation and experiment too
 ## Architectural Summary
 
 - The **Mac mini** is the primary operational hub.
+- The **ESP32** is the embedded physical node layer for bounded input, sensing, and actuator/warning interfacing where used.
 - The **Raspberry Pi 5** is the simulation and experiment node.
 - Shared frozen assets are maintained under **`common/`**.
 - Hub-side setup, configuration, verification, and future code are maintained under **`mac_mini/`**.
+- Embedded device firmware and device-specific implementation assets are maintained under **`esp32/`**.
 - Simulation-side setup, configuration, verification, and future code are maintained under **`rpi/`**.
 - End-to-end validation and experiment scenarios are maintained under **`integration/`**.
