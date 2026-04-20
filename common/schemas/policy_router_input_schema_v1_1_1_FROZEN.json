@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "policy_router_input_schema_v1_1_1",
+  "description": "Policy Router 최상위 입력 래퍼(wrapper) 스키마 - 라우팅 메타데이터와 순수 상태 컨텍스트 분리",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_node_id",
+    "routing_metadata",
+    "pure_context_payload"
+  ],
+  "properties": {
+    "source_node_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이벤트를 발생시킨 센서 노드, 게이트웨이, 혹은 입력 경로 식별자"
+    },
+    "routing_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_correlation_id",
+        "ingest_timestamp_ms",
+        "network_status"
+      ],
+      "properties": {
+        "audit_correlation_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "로그, validator, actuator feedback을 하나의 이벤트 체인으로 묶는 상관관계 ID"
+        },
+        "ingest_timestamp_ms": {
+          "type": "integer",
+          "description": "게이트웨이 또는 라우터가 이벤트를 관측한 시각 (추적, 정렬, 로컬 안전 fallback 판단 용도)"
+        },
+        "network_status": {
+          "type": "string",
+          "enum": [
+            "online",
+            "offline",
+            "degraded"
+          ],
+          "description": "로컬 연결 상태를 나타내며, LLM 해석에는 사용되지 않고 안전 fallback에만 사용됨"
+        }
+      }
+    },
+    "pure_context_payload": {
+      "description": "LLM 프롬프트 조합에 전달 가능한 유일한 순수 컨텍스트",
+      "$ref": "context_schema_v1_0_0_FROZEN.json#"
+    }
+  }
+}

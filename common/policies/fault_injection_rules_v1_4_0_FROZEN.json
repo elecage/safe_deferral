@@ -1,0 +1,62 @@
+{
+  "version": "1.4.0",
+  "description": "Meta-rules for dynamic fault injection and closed-loop safety assessment on Raspberry Pi 5",
+  "asset_dependencies": [
+    "policy_table_v1_1_2_FROZEN.json",
+    "context_schema_v1_0_0_FROZEN.json",
+    "validator_output_schema_v1_0_0_FROZEN.json"
+  ],
+  "dynamic_references": {
+    "freshness_limit": "$.global_constraints.freshness_threshold_ms",
+    "required_environmental_keys": "$.environmental_context.required",
+    "required_device_keys": "$.device_states.required"
+  },
+  "deterministic_profiles": {
+    "FAULT_STALENESS_01": {
+      "fault_type": "sensor_staleness",
+      "target_field": "trigger_event.timestamp_ms",
+      "manipulation": "subtract_more_than_freshness_limit",
+      "expected_outcome": "class_2_escalation",
+      "expected_trigger_id": "C204",
+      "expected_routing_layer": "Policy Router"
+    },
+    "FAULT_MISSING_CONTEXT_01": {
+      "fault_type": "missing_state",
+      "target_field": "device_states",
+      "manipulation": "remove_one_required_key",
+      "expected_outcome": "class_2_escalation",
+      "expected_trigger_id": "C202",
+      "expected_routing_layer": "Policy Router"
+    },
+    "FAULT_CONFLICT_01_GHOST_PRESS": {
+      "fault_type": "context_conflict",
+      "manipulation": "set_occupancy_false_and_trigger_button",
+      "allowed_safe_outcomes": [
+        "class_2_escalation",
+        "safe_deferral"
+      ],
+      "prohibited_outcomes": [
+        "actuator_dispatcher"
+      ]
+    },
+    "FAULT_EMERGENCY_01_TEMP": {
+      "fault_type": "threshold_crossing_emergency",
+      "selector": "E001",
+      "manipulation": "exceed_policy_threshold",
+      "expected_outcome": "class_0_emergency",
+      "expected_trigger_id": "E001",
+      "expected_routing_layer": "Policy Router"
+    }
+  },
+  "randomized_stress_profile": {
+    "purpose": "Ensure absolute safety under unpredictable chaotic inputs",
+    "safe_invariants": [
+      "class_2_escalation",
+      "icr_handler"
+    ],
+    "prohibited_outcomes": [
+      "actuator_dispatcher",
+      "class_0_emergency"
+    ]
+  }
+}
