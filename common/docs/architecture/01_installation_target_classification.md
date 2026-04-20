@@ -31,9 +31,9 @@ It serves as a deployment-reference document for:
 | Embedded / Physical Node | ESP32 Fire Detection Sensor Node | ESP32 device | PlatformIO / Arduino firmware | Physical emergency detection node when used |
 | Embedded / Physical Node | ESP32 Lighting Control Node | ESP32 device | PlatformIO / Arduino firmware | Physical low-risk actuator interface when used |
 | Embedded / Physical Node | ESP32 Doorlock / Warning Interface Node | ESP32 device | PlatformIO / Arduino firmware | Physical bounded output node for doorlock or warning actuation when used |
-| Development / Experiment Tool | Virtual Sensor Nodes / Multi-node Simulation Runtime | Raspberry Pi 5 | Python virtual environment | Large-scale virtual sensor/state network for repeatable experiments |
-| Development / Experiment Tool | Virtual Emergency Sensors | Raspberry Pi 5 | Python virtual environment | Emergency event simulation |
-| Development / Experiment Tool | Fault Injector Harness / Closed-loop Audit Driver | Raspberry Pi 5 | Python virtual environment | Injects stale / missing / conflict / timeout faults and supports automated verification |
+| Development / Experiment Tool | Virtual Sensor Nodes / Multi-node Simulation Runtime | Raspberry Pi 5 | Python virtual environment | Large-scale virtual sensor/state network for repeatable experiments. Not an operational hub runtime |
+| Development / Experiment Tool | Virtual Emergency Sensors | Raspberry Pi 5 | Python virtual environment | Emergency event simulation for Class 0 and related scenario replay. Not a Mac mini core-runtime replacement |
+| Development / Experiment Tool | Fault Injector Harness / Closed-loop Audit Driver | Raspberry Pi 5 | Python virtual environment | Injects stale / missing / conflict / timeout faults, supports automated verification, and may be used with scenario orchestration or verification utilities |
 | Experimental Timing Infrastructure | STM32 Timing Node / Dedicated Timing Node | External measurement node | MCU firmware / hardware timing setup | Out-of-band latency measurement infrastructure for class-wise timing experiments |
 | External Integration | Telegram Bot | External API | Account / token configuration | Caregiver alerts and limited approval path |
 | Frozen Reference Assets | Policy tables / JSON schemas / output profiles / `.env` / YAML | Git repository + deployment targets | File deployment | Frozen shared reference assets before implementation |
@@ -51,6 +51,51 @@ It serves as a deployment-reference document for:
 
 ---
 
+## Raspberry Pi 5 Deployment Boundary
+
+Raspberry Pi 5 is **not** the primary operational hub of this system.
+
+Its intended role is limited to the experiment-side and evaluation-side path, including:
+- multi-node virtual sensor/state simulation
+- virtual emergency event generation
+- fault injection
+- scenario orchestration
+- closed-loop automated verification
+- supporting verification utilities such as MQTT checks, time synchronization checks, and result summarization when needed
+
+Accordingly, Raspberry Pi 5 should **not** host the core operational runtime services that belong on the Mac mini, such as:
+- Home Assistant
+- Ollama
+- Policy Router
+- Deterministic Validator
+- Context-Integrity Safe Deferral Handler
+- Audit Logging Service as the operational hub-side authority
+
+Raspberry Pi 5 should instead host only experiment-side runtimes and aligned support assets, typically including:
+- Python 3 and virtual environment
+- simulation-side Python apps
+- fault injection and scenario-running utilities
+- required Pi-side dependencies such as MQTT, schema/policy parsing, CLI, and testing libraries
+- time synchronization client
+- synchronized runtime copies of frozen policy/schema assets as needed
+
+### Source-of-truth principle
+The authoritative source of policy, schema, terminology, and other frozen reference assets is the **Git repository**, especially the shared assets under `common/`.
+
+Raspberry Pi 5 must not invent local policy truth.  
+It should consume synchronized runtime copies derived from the shared frozen reference set.
+
+### Measurement boundary principle
+Raspberry Pi 5 is an experiment and evaluation node, but it is **not** the preferred out-of-band timing node for class-wise latency measurement.
+
+When precise class-wise latency measurement is required, the project may use:
+- an **STM32 timing node**, or
+- another **dedicated external measurement node**
+
+This keeps the operational service plane and the measurement plane separated.
+
+---
+
 ## Repository Mapping
 
 This classification aligns with the repository structure below:
@@ -64,7 +109,7 @@ This classification aligns with the repository structure below:
 - `esp32/`
   - embedded firmware, device-specific code, and physical node implementation assets
 - `integration/`
-  - end-to-end tests, experimental scenarios, and reproducibility assets
+  - end-to-end tests, experimental scenarios, reproducibility assets, and optional measurement support assets
 
 ---
 
