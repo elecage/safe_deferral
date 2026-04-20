@@ -180,39 +180,56 @@ The previous label **iCR-based safe deferral stage** is deprecated.
 
 ---
 
-## Phase 7. Integration Testing
+## Phase 7. Integration Testing with Physical Nodes
 
-Connect and validate operational flows with real or semi-real devices.
+Connect and validate operational flows with real or semi-real physical nodes.
 
 1. Connect ESP32 button node
-2. Connect physical sensor inputs
-3. Connect low-risk actuator path
-4. Connect emergency warning output
-5. Validate end-to-end Class 0/1/2 behavior
-6. Validate safe deferral behavior under incomplete or conflicting context
+2. Connect ESP32 temperature / humidity sensor node
+3. Connect ESP32 gas sensor node
+4. Connect ESP32 fire detection sensor node
+5. Connect ESP32 lighting control node
+6. Connect ESP32 doorlock or warning interface node
+7. Validate end-to-end Class 0 / Class 1 / Class 2 behavior
+8. Validate safe deferral behavior under incomplete or conflicting context
+9. Validate bounded physical input/output behavior without bypassing policy control
+
+### Phase intent
+This phase corresponds to the **physical-node validation layer** of the project.
+It is intended to verify that real bounded input and output paths behave correctly under the operational hub architecture.
 
 ### Repository locations
 - `integration/tests/`
 - `integration/scenarios/`
 - `esp32/code/`
 - `esp32/firmware/`
+- `esp32/docs/`
 
 ---
 
-## Phase 8. Evaluation Extension
+## Phase 8. Evaluation Extension with Virtual Nodes and Timing Infrastructure
 
-Extend the operational hub with Raspberry Pi-based simulation and experiment tooling.
+Extend the operational hub with Raspberry Pi-based simulation, fault injection, and experiment orchestration tooling.
 
-1. Connect Raspberry Pi 5 as simulation node
-2. Deploy virtual sensor nodes
+1. Connect Raspberry Pi 5 as simulation and evaluation node
+2. Deploy multi-node virtual sensor/state runtime
 3. Deploy virtual emergency sensors
 4. Deploy fault injector harness
-5. Run routing, safety, latency, and fault-handling experiments
+5. Run stale / missing / conflict / fail-safe experiments
+6. Run closed-loop automated verification
+7. Prepare optional STM32 timing node or equivalent dedicated timing node
+8. Run out-of-band class-wise latency measurement
+9. Run scalable routing, safety, latency, and fault-handling experiments
+
+### Phase intent
+This phase corresponds to the **virtual-node evaluation and experimental validation layer** of the project.
+It is intended to support repeatable large-scale experiments that would be impractical with only physical ESP32 nodes.
 
 ### Role separation
 - **Mac mini**: operational hub
-- **ESP32**: embedded physical node layer
-- **Raspberry Pi 5**: simulation and evaluation node
+- **ESP32**: bounded physical node layer
+- **Raspberry Pi 5**: multi-node simulation, fault injection, and closed-loop evaluation node
+- **STM32 timing node or equivalent**: optional out-of-band latency measurement infrastructure
 
 ### Repository locations
 - `rpi/scripts/install/`
@@ -220,6 +237,7 @@ Extend the operational hub with Raspberry Pi-based simulation and experiment too
 - `rpi/scripts/verify/`
 - `rpi/code/`
 - `integration/scenarios/`
+- `integration/tests/`
 
 ---
 
@@ -227,7 +245,8 @@ Extend the operational hub with Raspberry Pi-based simulation and experiment too
 
 - The **Mac mini** is the primary operational hub.
 - The **ESP32** is the embedded physical node layer for bounded input, sensing, and actuator/warning interfacing where used.
-- The **Raspberry Pi 5** is the simulation and experiment node.
+- The **Raspberry Pi 5** is the scalable simulation and experiment orchestration node.
+- **STM32 timing nodes or equivalent dedicated measurement nodes** may be used for out-of-band class-wise latency measurement.
 - Shared frozen assets are maintained under **`common/`**.
 - Hub-side setup, configuration, verification, and future code are maintained under **`mac_mini/`**.
 - Embedded device firmware and device-specific implementation assets are maintained under **`esp32/`**.
