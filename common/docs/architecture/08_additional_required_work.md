@@ -44,6 +44,7 @@ A dedicated port allocation reference should be created and maintained.
 - hub-side FastAPI service ports
 - notification or confirmation endpoint ports
 - optional development-only local service ports
+- optional ESP32 OTA or device-maintenance ports when used
 
 ### Recommended location
 - `common/docs/architecture/`
@@ -67,12 +68,15 @@ A centralized environment-variable reference is required for both documentation 
 - simulation-related variables
 - audit topic variables
 - time synchronization host and bounds
+- ESP32-related topic namespace and device-ID conventions when embedded nodes are used
+- ESP32-side broker connection assumptions when embedded nodes are used
 
 ### Recommended location
 - `common/docs/runtime/`
 - linked to:
   - `mac_mini/scripts/configure/70_write_env_files.sh`
   - `rpi/scripts/configure/10_write_env_files_rpi.sh`
+  - `esp32/` implementation notes when applicable
 
 ---
 
@@ -121,11 +125,24 @@ Each major module should have explicit acceptance criteria before it is consider
 - randomized stress injection can run independently
 - closed-loop audit verification can be triggered from injected faults
 
+### ESP32 embedded modules when used
+
+#### Button Node Firmware
+- bounded button inputs are transmitted with stable device identity and expected topic structure
+- emergency-like and non-emergency button patterns are distinguishable as designed
+- device behavior does not bypass policy control on the hub side
+
+#### Sensor / Actuator / Warning Interface Firmware
+- device-side publish or subscribe behavior matches bounded topic and payload assumptions
+- warning or actuator interface behavior remains bounded and policy-dependent
+- reconnect behavior is predictable after broker or power interruption
+
 ### Recommended location
 - `common/docs/architecture/`
 - optionally mirrored into:
   - `integration/tests/`
   - `integration/scenarios/`
+  - `esp32/docs/`
 
 ---
 
@@ -141,6 +158,7 @@ A reusable test-data package should be created for implementation and verificati
 - representative fault-injection cases
 - expected safe-deferral cases
 - expected escalation cases
+- representative ESP32-linked bounded input/output cases when embedded nodes are used
 
 ### Recommended location
 - `integration/scenarios/`
@@ -159,12 +177,14 @@ A reset and recovery procedure is required so the system can be returned to a cl
 - how to rerun verification scripts cleanly
 - how to resync frozen assets onto the Raspberry Pi
 - how to reset simulation state before rerunning scenarios
+- how to rebuild, reflash, or reset ESP32 firmware when embedded nodes are used
 
 ### Recommended location
 - `common/docs/runtime/`
 - with references to:
   - `mac_mini/scripts/verify/`
   - `rpi/scripts/verify/`
+  - `esp32/docs/`
 
 ---
 
@@ -196,6 +216,7 @@ MQTT connectivity must support local distributed evaluation while maintaining se
 
 ### Required rules
 - the broker must be reachable from Raspberry Pi 5 over the same LAN
+- the broker must be reachable from ESP32 embedded clients over the intended trusted local network when those nodes are used
 - internet-originated inbound access must remain blocked
 - optional local authentication and topic ACL should be supported
 - verification should include both connectivity and isolation assumptions
@@ -203,9 +224,11 @@ MQTT connectivity must support local distributed evaluation while maintaining se
 ### Repository alignment
 - implementation/configuration:
   - `mac_mini/scripts/configure/`
+  - `esp32/` implementation assets when applicable
 - verification:
   - `mac_mini/scripts/verify/`
   - `rpi/scripts/verify/`
+  - integration checks involving `esp32/` when applicable
 
 ---
 
@@ -219,6 +242,7 @@ Audit logging must remain structurally safe and auditable.
 - only the Audit Logging Service writes to SQLite
 - log writers must not bypass the audit path
 - routing, validation, safe deferral, timeout, escalation, caregiver confirmation, and ACK events should be traceable
+- ESP32-linked bounded input/output events should be traceable through the same audit path when embedded nodes are used
 
 ### Repository alignment
 - configuration:
@@ -227,6 +251,7 @@ Audit logging must remain structurally safe and auditable.
   - `mac_mini/scripts/verify/40_verify_sqlite.sh`
 - implementation:
   - `mac_mini/code/`
+  - integration traces involving `esp32/` when applicable
 
 ---
 
@@ -240,3 +265,4 @@ The system should not be considered implementation-ready unless:
 - recovery procedures are documented
 - fault injection rules are dynamically grounded in frozen assets
 - audit logging remains single-writer and traceable
+- ESP32-related bounded physical node requirements are documented wherever embedded nodes are part of the target prototype
