@@ -8,7 +8,7 @@ It is intended to support:
 - vibe-coding workflows
 - staged implementation
 - repository-aligned development
-- traceable progress from frozen assets to integration testing
+- traceable progress from frozen assets to integration testing and evaluation
 
 ---
 
@@ -104,7 +104,7 @@ It is intended to support:
 - [ ] Implement schema validation
 - [ ] Implement action-domain validation
 - [ ] Implement bounded parameter checks
-- [ ] Implement single-action resolution
+- [ ] Implement single-admissible-action resolution
 - [ ] Implement safe deferral output
 - [ ] Require state ACK feedback before confirming successful actuation
 - [ ] Keep actuation execution delegated to dispatcher / actuator interface
@@ -156,12 +156,14 @@ It is intended to support:
 
 ---
 
-## T9. Implement Raspberry Pi Simulation Layer
+## T9. Implement Raspberry Pi Simulation and Evaluation Layer
 
 - [ ] Create virtual context nodes
 - [ ] Create virtual emergency nodes
+- [ ] Create multi-node simulation runtime
 - [ ] Create policy-driven deterministic fault cases
 - [ ] Create randomized stress injection
+- [ ] Prepare repeatable large-scale evaluation scenarios
 - [ ] Parse shared frozen assets dynamically to derive:
   - [ ] thresholds
   - [ ] freshness bounds
@@ -174,6 +176,7 @@ It is intended to support:
   - [ ] missing state injection
 - [ ] Distinguish policy-input omissions from validator/action-schema omissions
 - [ ] Distinguish threshold-crossing emergency cases from context-conflict cases
+- [ ] Support closed-loop automated verification against expected safe outcomes
 
 ### Repository focus
 - `rpi/code/`
@@ -181,12 +184,15 @@ It is intended to support:
 
 ---
 
-## T10. Implement ESP32 Embedded Node Layer
+## T10. Implement ESP32 Embedded Physical Node Layer
 
 - [ ] Implement bounded button input node firmware
-- [ ] Implement MQTT publish/subscription behavior required for the button node
-- [ ] Implement sensor node firmware when physical sensing is used
-- [ ] Implement actuator or warning interface firmware when physical output is used
+- [ ] Implement temperature / humidity sensor node firmware when physical sensing is used
+- [ ] Implement gas sensor node firmware when physical sensing is used
+- [ ] Implement fire detection sensor node firmware when physical sensing is used
+- [ ] Implement lighting control node firmware when physical output is used
+- [ ] Implement doorlock or warning interface firmware when physical output is used
+- [ ] Implement MQTT publish/subscription behavior required for bounded physical nodes
 - [ ] Align broker connection parameters, topic namespaces, and device identifiers with the operational hub assumptions
 - [ ] Keep embedded behavior bounded and policy-aligned rather than autonomous
 
@@ -197,9 +203,24 @@ It is intended to support:
 
 ---
 
-## T11. Verify MQTT Connectivity and Isolation
+## T11. Implement Timing and Measurement Support
+
+- [ ] Define out-of-band class-wise latency measurement plan
+- [ ] Prepare optional STM32 timing node or equivalent dedicated measurement node when used
+- [ ] Define timing capture points for Class 0 / Class 1 / Class 2 paths
+- [ ] Define measurement wiring and trigger/capture assumptions
+- [ ] Prepare timing capture scripts, notes, or result templates
+- [ ] Ensure measurement infrastructure remains separate from the operational decision path
+
+### Repository focus
+- `integration/measurement/`
+
+---
+
+## T12. Verify MQTT Connectivity and Isolation
 
 - [ ] Ensure Mosquitto is LAN-reachable for Raspberry Pi 5
+- [ ] Ensure Mosquitto is LAN-reachable for ESP32 embedded clients when used
 - [ ] Ensure internet-originated inbound access is blocked by firewall
 - [ ] Add optional local authentication and/or topic ACL
 
@@ -209,7 +230,7 @@ It is intended to support:
 
 ---
 
-## T12. Verification and Testing
+## T13. Verification and Testing
 
 - [ ] Unit test Policy Router
 - [ ] Unit test Deterministic Validator
@@ -221,12 +242,15 @@ It is intended to support:
 - [ ] Verify no unsafe autonomous actuation occurs under conflict, staleness, or missing-state conditions
 - [ ] Verify closed-loop audit behavior under injected faults
 - [ ] Verify ESP32-linked bounded physical input/output behavior through integration tests when used
+- [ ] Verify out-of-band class-wise latency measurement when timing infrastructure is used
+- [ ] Verify timing capture path and measurement reproducibility when timing infrastructure is used
 
 ### Repository focus
 - `mac_mini/scripts/verify/`
 - `rpi/scripts/verify/`
 - `integration/tests/`
 - `integration/scenarios/`
+- `integration/measurement/`
 
 ---
 
@@ -234,8 +258,9 @@ It is intended to support:
 
 - [ ] Shared frozen assets in `common/` must remain the single source of truth
 - [ ] Mac mini remains the operational hub
-- [ ] Raspberry Pi 5 remains the simulation and evaluation node
+- [ ] Raspberry Pi 5 remains the multi-node simulation and evaluation node
 - [ ] ESP32 remains the embedded physical node layer for bounded input, sensing, or actuator/warning interfacing when used
+- [ ] Optional timing infrastructure remains evaluation-only and separate from the operational decision path
 - [ ] Deterministic safety logic remains authoritative before bounded LLM assistance
 - [ ] Safe deferral must be preferred over unsafe autonomous actuation
 - [ ] Verification must be possible at both service level and closed-loop system level
