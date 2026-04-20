@@ -55,7 +55,7 @@ Provide a stable reference set for implementation planning and vibe-coding promp
 
 ## 3. Stabilize Repository Structure
 
-Prepare the repository structure so implementation can proceed in a device-aware way.
+Prepare the repository structure so implementation can proceed in a device-aware and experiment-aware way.
 
 ### Required top-level areas
 - `common/`
@@ -64,8 +64,13 @@ Prepare the repository structure so implementation can proceed in a device-aware
 - `esp32/`
 - `integration/`
 
+### Important integration sub-areas
+- `integration/tests/`
+- `integration/scenarios/`
+- `integration/measurement/`
+
 ### Goal
-Ensure shared assets, Mac mini scripts/code, Raspberry Pi scripts/code, ESP32 embedded assets, and integration assets are clearly separated.
+Ensure shared assets, Mac mini scripts/code, Raspberry Pi scripts/code, ESP32 embedded assets, and integration assets including measurement support are clearly separated.
 
 ---
 
@@ -86,8 +91,14 @@ Complete and organize the staged shell-script workflow for Mac mini and Raspberr
 - `esp32/firmware/`
 - `esp32/docs/`
 
+### Measurement workflow readiness
+- `integration/measurement/`
+- optional timing-node support notes
+- latency capture references
+- reproducible measurement templates
+
 ### Goal
-Ensure implementation begins only after the setup, configuration, validation, and embedded-node workflow assumptions are reproducible.
+Ensure implementation begins only after the setup, configuration, validation, embedded-node workflow assumptions, and optional timing/measurement workflow assumptions are reproducible.
 
 ---
 
@@ -134,6 +145,7 @@ Before implementation begins, confirm that the installed and configured services
 - SQLite read/write and WAL mode work
 - notification path works
 - environment variables and runtime assets validate correctly
+- out-of-band latency measurement support path validates correctly when used
 
 ### Goal
 Avoid starting code implementation on top of an unstable runtime base.
@@ -163,14 +175,36 @@ When the target prototype includes physical bounded nodes, prepare the ESP32 imp
 
 ### Immediate targets
 - bounded button node firmware
-- optional sensor node firmware
-- optional actuator or warning interface firmware
+- temperature / humidity sensor node firmware when physical sensing is used
+- gas sensor node firmware when physical sensing is used
+- fire detection sensor node firmware when physical sensing is used
+- lighting control node firmware when physical output is used
+- doorlock or warning interface firmware when physical output is used
 - broker connection assumptions
 - topic namespace and device identity conventions
 - firmware build, flash, and reset workflow notes
 
 ### Goal
 Ensure the embedded node layer can be integrated without bypassing policy control, auditability, or bounded interaction assumptions.
+
+---
+
+## 10. Prepare the Simulation and Measurement Evaluation Path
+
+When the target experiment package includes large-scale virtual-node evaluation or class-wise latency measurement, prepare the Raspberry Pi and timing infrastructure path explicitly.
+
+### Immediate targets
+- multi-node virtual sensor/state runtime
+- virtual emergency sensor runtime
+- fault injection harness
+- repeatable scenario orchestration
+- closed-loop automated verification support
+- optional STM32 timing node or equivalent dedicated measurement node
+- out-of-band class-wise latency capture notes
+- measurement result templates for reproducible evaluation
+
+### Goal
+Ensure the evaluation path supports scalable fault-injection experiments and trustworthy latency measurement without becoming part of the operational decision path.
 
 ---
 
@@ -184,3 +218,4 @@ Do not begin full implementation until:
 - the Mac mini operational platform is ready
 - core services pass independent verification
 - embedded node assumptions are documented when ESP32 is part of the prototype
+- measurement infrastructure assumptions are documented when out-of-band class-wise latency evaluation is part of the target experiment package
