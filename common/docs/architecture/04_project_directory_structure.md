@@ -6,8 +6,8 @@ This document defines the recommended repository structure for the safe deferral
 
 It reflects:
 - the current frozen asset strategy
-- device-level separation between Mac mini, Raspberry Pi, and ESP32
-- the distinction between shared assets, operational scripts, embedded firmware, and integration assets
+- device-level separation between Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure
+- the distinction between shared assets, operational scripts, embedded firmware, measurement assets, and integration assets
 - the canonical terminology of the project
 
 ---
@@ -44,7 +44,8 @@ safe_deferral/
 │   └── docs/
 └── integration/
     ├── tests/
-    └── scenarios/
+    ├── scenarios/
+    └── measurement/
 ```
 
 ---
@@ -88,7 +89,7 @@ Stores shared documentation, including:
 - output profile references
 - evaluation planning documents
 
-Recommended subfolder:
+Recommended subfolders:
 - `common/docs/architecture/`
 
 ### `common/terminology/`
@@ -157,7 +158,7 @@ Stores Mac mini-specific implementation notes if needed.
 
 The `rpi/` directory contains Raspberry Pi-side simulation and evaluation assets.
 
-The Raspberry Pi is the primary simulation and experiment node.
+The Raspberry Pi is the primary multi-node simulation, fault-injection, and experiment orchestration node.
 
 ### `rpi/scripts/install/`
 Installation scripts for:
@@ -185,9 +186,11 @@ Verification scripts for:
 Stores Raspberry Pi-side future code, including:
 - virtual sensor nodes
 - virtual emergency sensors
+- multi-node simulation runtime
 - fault injector harness
 - simulation publishers
-- experiment-side orchestration logic
+- closed-loop evaluation orchestration logic
+- large-scale experiment-side control logic
 
 ### `rpi/docs/`
 Stores Raspberry Pi-specific implementation notes if needed.
@@ -204,9 +207,12 @@ ESP32 devices are used for bounded physical interaction, sensing, or actuator/wa
 Stores device-specific source code and embedded logic.
 
 Representative targets:
-- button node logic
-- sensor node logic
-- warning or actuator interface logic
+- bounded button node logic
+- temperature / humidity sensor node logic
+- gas sensor node logic
+- fire detection sensor node logic
+- lighting control node logic
+- doorlock or warning interface logic
 - MQTT publish/subscribe client behavior
 
 ### `esp32/firmware/`
@@ -217,9 +223,14 @@ Representative contents:
 - Arduino sketches
 - board-specific configuration files
 - firmware build artifacts or references
+- representative physical node profiles
 
 ### `esp32/docs/`
-Stores ESP32-specific implementation notes if needed.
+Stores ESP32-specific implementation notes, including:
+- node role descriptions
+- wiring notes
+- firmware flash guides
+- bounded physical node validation notes
 
 ---
 
@@ -240,6 +251,14 @@ Stores:
 - stress scenarios
 - experiment profiles
 - reproducible paper evaluation setups
+
+### `integration/measurement/`
+Stores:
+- class-wise latency experiment profiles
+- out-of-band timing notes
+- measurement wiring references
+- timing capture scripts or result templates
+- optional STM32 or dedicated timing-node support notes
 
 ---
 
@@ -262,8 +281,14 @@ This keeps the build lifecycle explicit and script responsibilities clear.
 - code stores executable application logic
 - firmware stores embedded-device build targets and deployable node logic
 
-### D. Integration assets should remain independent from device-local scripts
-System-wide tests and scenarios belong in `integration/`, not inside a single device folder.
+### D. Integration and measurement assets should remain independent from device-local scripts
+System-wide tests, scenarios, and timing/measurement assets belong in `integration/`, not inside a single device folder.
+
+### E. Physical-node validation and virtual-node evaluation should both be representable
+The repository should support:
+- **ESP32-based physical bounded input/output validation**
+- **Raspberry Pi-based scalable virtual-node and fault-injection evaluation**
+- **optional timing-node-based out-of-band latency measurement**
 
 ---
 
@@ -288,13 +313,16 @@ should be replaced with terminology aligned to the current canonical term.
 
 - `common/` stores shared frozen assets and reference documents
 - `mac_mini/` stores hub-side scripts, runtime files, and future code
-- `rpi/` stores simulation-side scripts and future experiment code
-- `esp32/` stores embedded firmware and device-specific implementation assets
-- `integration/` stores end-to-end tests and evaluation scenarios
+- `rpi/` stores simulation-side scripts and future experiment orchestration code
+- `esp32/` stores embedded firmware and device-specific physical node implementation assets
+- `integration/` stores end-to-end tests, evaluation scenarios, and timing/measurement assets
 
 This structure is intended to support:
 - repository clarity
 - implementation planning
 - reproducibility
 - vibe-coding guidance
+- physical-node validation
+- scalable virtual-node experimentation
+- out-of-band latency measurement
 - long-term system extension
