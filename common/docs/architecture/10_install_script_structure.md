@@ -3,7 +3,7 @@
 ## Install Script Structure
 
 ## Goal
-Install the required components for the Mac mini, Raspberry Pi 5, and supporting embedded node workflow in a way that is:
+Install the required components for the Mac mini, Raspberry Pi 5, supporting embedded node workflow, and optional timing/measurement workflow in a way that is:
 
 - rerunnable where possible
 - stage-verifiable
@@ -21,6 +21,7 @@ Install the required components for the Mac mini, Raspberry Pi 5, and supporting
 - Treat the Mac mini as the **primary operational hub**.
 - Treat the Raspberry Pi 5 as the **simulation and evaluation node**.
 - Treat ESP32 as the **embedded physical node layer** when bounded button, sensor, or actuator/warning nodes are used.
+- Treat optional timing/measurement infrastructure as an **evaluation-only support path**, not part of the operational control path.
 - Ensure scripts fail fast and emit clear logs.
 - Complete **shared frozen assets** before implementation-side installation logic depends on them.
 
@@ -57,7 +58,8 @@ safe_deferral/
 │   └── docs/
 └── integration/
     ├── tests/
-    └── scenarios/
+    ├── scenarios/
+    └── measurement/
 ```
 
 ---
@@ -240,7 +242,7 @@ Recommended responsibilities:
 - `esp32/docs/`
 
 ### Role
-ESP32 nodes do not necessarily follow the same shell-script installation flow as Mac mini and Raspberry Pi.
+ESP32 nodes do not necessarily follow the same shell-script installation flow as Mac mini and Raspberry Pi.  
 Instead, they require an embedded build and flash workflow that should still be documented and structured.
 
 ### Recommended responsibilities
@@ -253,8 +255,36 @@ Instead, they require an embedded build and flash workflow that should still be 
 
 ### Typical embedded targets
 - bounded button input node
-- optional physical sensor node
-- optional actuator or warning interface node
+- temperature / humidity sensor node
+- gas sensor node
+- fire detection sensor node
+- lighting control node
+- doorlock or warning interface node
+
+---
+
+## Timing and Measurement Install Readiness
+
+### Directory
+- `integration/measurement/`
+
+### Role
+Timing and measurement support is not part of the operational decision path.  
+It is an optional evaluation support path for out-of-band class-wise latency measurement.
+
+### Recommended responsibilities
+- prepare timing-node support notes when used
+- prepare optional timing-node toolchain assumptions
+- prepare measurement workspace and result templates
+- prepare latency capture references
+- prepare measurement wiring or capture notes
+- prepare reusable measurement profile files when needed
+
+### Typical support targets
+- optional STM32 timing node
+- optional dedicated measurement node
+- class-wise latency experiment profiles
+- timing capture templates
 
 ---
 
@@ -263,15 +293,15 @@ Instead, they require an embedded build and flash workflow that should still be 
 Installation or build preparation is not responsible for full runtime correctness.
 
 ### Installation
-Goal:
+Goal:  
 Software, runtimes, toolchains, or build prerequisites are present on the target platform.
 
 ### Configuration
-Goal:
+Goal:  
 Installed components are aligned with the safe deferral architecture.
 
 ### Verification
-Goal:
+Goal:  
 Each component works correctly before integration begins.
 
 Related directories:
@@ -282,6 +312,7 @@ Related directories:
 - `esp32/docs/`
 - `integration/tests/`
 - `integration/scenarios/`
+- `integration/measurement/`
 
 ---
 
@@ -306,13 +337,21 @@ bash rpi/scripts/install/40_install_time_sync_client_rpi.sh
 ```
 
 ### ESP32
-Typical workflow should be documented rather than assumed to match shell-based host installation.
+Typical workflow should be documented rather than assumed to match shell-based host installation.  
 Examples may include:
 - board selection
 - firmware build
 - firmware flash
 - serial verification
 - broker connectivity check
+
+### Optional timing / measurement path
+Typical workflow may include:
+- timing support notes check
+- measurement workspace preparation
+- optional timing-node toolchain preparation
+- latency capture reference check
+- result template preparation
 
 ---
 
@@ -345,6 +384,7 @@ These should remain auxiliary utilities, not replace the device-specific install
 - keep installation logic separate from verification logic
 - avoid placing application logic inside install scripts
 - keep embedded build logic documented separately from host-side operational scripts when ESP32 nodes are used
+- keep timing/measurement support documented separately from the operational control path when out-of-band evaluation is used
 
 ---
 
@@ -353,6 +393,7 @@ These should remain auxiliary utilities, not replace the device-specific install
 - Mac mini install scripts prepare the operational hub
 - Raspberry Pi install scripts prepare the simulation/evaluation node
 - ESP32 embedded workflow documentation prepares bounded physical node deployment
+- optional timing/measurement readiness prepares out-of-band latency evaluation support
 - shared frozen assets in `common/` define the reference state
 - install scripts and embedded build preparation establish the platform only
 - configuration and verification remain separate follow-on stages
