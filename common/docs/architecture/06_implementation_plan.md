@@ -14,6 +14,7 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 ## Architecture Scope
 - The Mac mini hosts all core operational runtime services
 - Raspberry Pi 5 is used only as a simulation, virtual sensing, and fault-injection node
+- ESP32 devices are used as embedded physical nodes for bounded button input, sensing, or actuator/warning interfacing where required
 - The LLM is sandboxed and invoked only after policy approval
 - Shared frozen assets in the Git repository act as the single source of truth before runtime deployment
 
@@ -40,6 +41,11 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `rpi/scripts/verify/`
 - `rpi/code/`
 
+### ESP32 embedded assets
+- `esp32/code/`
+- `esp32/firmware/`
+- `esp32/docs/`
+
 ### End-to-end and experiment assets
 - `integration/tests/`
 - `integration/scenarios/`
@@ -61,6 +67,11 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 8. Virtual Emergency Sensor Runtime
 9. Fault Injection Harness
 10. Closed-loop Audit Evaluation Harness
+
+### ESP32 embedded modules when used
+11. Button Node Firmware
+12. Sensor Node Firmware
+13. Actuator / Warning Interface Firmware
 
 ---
 
@@ -179,6 +190,8 @@ Connect the operational hub to real or semi-real inputs and outputs.
 #### Primary repository locations
 - `integration/tests/`
 - `integration/scenarios/`
+- `esp32/code/`
+- `esp32/firmware/`
 
 #### Completion criterion
 End-to-end operational flows are validated against the intended policy behavior.
@@ -218,12 +231,13 @@ The LLM is only used in the bounded Class 1 assistance path after policy approva
 ### C. Device-role separation
 - Mac mini = operational hub
 - Raspberry Pi 5 = simulation and evaluation node
+- ESP32 = embedded physical node layer for bounded input, sensing, or actuator/warning interfacing where required
 
 ### D. Auditable outcomes
 All meaningful routing and validation outcomes should be observable through logs, notifications, or audit channels.
 
 ### E. Repository-structured implementation
-Code, scripts, frozen assets, and integration scenarios should be placed according to the repository structure rather than mixed into a single flat project layout.
+Code, scripts, frozen assets, embedded firmware, and integration scenarios should be placed according to the repository structure rather than mixed into a single flat project layout.
 
 ---
 
@@ -233,4 +247,5 @@ The final prototype should demonstrate that:
 - the Mac mini can safely host the operational decision pipeline
 - bounded LLM assistance is restricted to approved low-risk contexts
 - incomplete, stale, or conflicting context leads to safe deferral rather than unsafe autonomous actuation
+- ESP32-based bounded physical input/output paths can be integrated without bypassing policy control
 - the Raspberry Pi-based evaluation environment can reproduce fault-handling behavior in a controlled and auditable way
