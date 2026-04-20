@@ -13,8 +13,9 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 
 ## Architecture Scope
 - The Mac mini hosts all core operational runtime services
-- Raspberry Pi 5 is used only as a simulation, virtual sensing, and fault-injection node
+- Raspberry Pi 5 is used as the multi-node simulation, virtual sensing, fault-injection, and closed-loop evaluation node
 - ESP32 devices are used as embedded physical nodes for bounded button input, sensing, or actuator/warning interfacing where required
+- Optional STM32 timing nodes or equivalent dedicated measurement nodes may be used for out-of-band class-wise latency evaluation
 - The LLM is sandboxed and invoked only after policy approval
 - Shared frozen assets in the Git repository act as the single source of truth before runtime deployment
 
@@ -46,9 +47,10 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `esp32/firmware/`
 - `esp32/docs/`
 
-### End-to-end and experiment assets
+### End-to-end, experiment, and measurement assets
 - `integration/tests/`
 - `integration/scenarios/`
+- `integration/measurement/`
 
 ---
 
@@ -67,11 +69,16 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 8. Virtual Emergency Sensor Runtime
 9. Fault Injection Harness
 10. Closed-loop Audit Evaluation Harness
+11. Large-scale Simulation Orchestration Runtime
 
 ### ESP32 embedded modules when used
-11. Button Node Firmware
-12. Sensor Node Firmware
-13. Actuator / Warning Interface Firmware
+12. Button Node Firmware
+13. Environmental / Safety Sensor Node Firmware
+14. Actuator / Warning Interface Firmware
+
+### Optional timing and measurement support when used
+15. Out-of-band Timing Measurement Support
+16. Timing Capture and Latency Evaluation Support
 
 ---
 
@@ -177,24 +184,29 @@ The system can safely escalate approved external communication events without by
 
 ---
 
-### M5. Integration Ready
-Connect the operational hub to real or semi-real inputs and outputs.
+### M5. Physical Integration Ready
+Connect the operational hub to real or semi-real physical inputs and outputs.
 
 #### Tasks
 - connect ESP32 button node
-- connect physical sensor input
-- connect low-risk actuator or warning output
+- connect ESP32 temperature / humidity sensor node
+- connect ESP32 gas sensor node
+- connect ESP32 fire detection sensor node
+- connect ESP32 lighting control node
+- connect ESP32 doorlock or warning interface node
 - validate Class 0 / Class 1 / Class 2 transitions
 - validate safe deferral under incomplete or conflicting context
+- validate bounded physical input/output behavior without bypassing policy control
 
 #### Primary repository locations
 - `integration/tests/`
 - `integration/scenarios/`
 - `esp32/code/`
 - `esp32/firmware/`
+- `esp32/docs/`
 
 #### Completion criterion
-End-to-end operational flows are validated against the intended policy behavior.
+End-to-end operational flows with bounded physical nodes are validated against the intended policy behavior.
 
 ---
 
@@ -202,20 +214,24 @@ End-to-end operational flows are validated against the intended policy behavior.
 Prepare the Raspberry Pi-based evaluation and experiment environment.
 
 #### Tasks
-- deploy virtual sensor network on Raspberry Pi 5
+- deploy multi-node virtual sensor network on Raspberry Pi 5
 - deploy virtual emergency sensors
 - deploy fault injector
+- run stale / missing / conflict / fail-safe experiments
 - run scenario-based routing, safety, latency, and fault-handling experiments
 - validate closed-loop audit behavior under injected faults
+- prepare optional STM32 timing node or equivalent dedicated timing node
+- run out-of-band class-wise latency measurement
 
 #### Primary repository locations
 - `rpi/code/`
 - `rpi/scripts/configure/`
 - `rpi/scripts/verify/`
 - `integration/scenarios/`
+- `integration/measurement/`
 
 #### Completion criterion
-The system supports reproducible simulation and fault-injection experiments.
+The system supports reproducible multi-node simulation, fault-injection experiments, and out-of-band latency evaluation when measurement infrastructure is used.
 
 ---
 
@@ -225,19 +241,20 @@ The system supports reproducible simulation and fault-injection experiments.
 All runtime logic must respect frozen policy assets before any actuation-related decision path is allowed.
 
 ### B. Deterministic safety before bounded LLM assistance
-The deterministic validator and safe deferral logic must remain authoritative.
+The deterministic validator and safe deferral logic must remain authoritative.  
 The LLM is only used in the bounded Class 1 assistance path after policy approval.
 
 ### C. Device-role separation
 - Mac mini = operational hub
-- Raspberry Pi 5 = simulation and evaluation node
+- Raspberry Pi 5 = multi-node simulation, fault injection, and closed-loop evaluation node
 - ESP32 = embedded physical node layer for bounded input, sensing, or actuator/warning interfacing where required
+- STM32 timing node or equivalent = optional out-of-band latency measurement infrastructure
 
 ### D. Auditable outcomes
 All meaningful routing and validation outcomes should be observable through logs, notifications, or audit channels.
 
 ### E. Repository-structured implementation
-Code, scripts, frozen assets, embedded firmware, and integration scenarios should be placed according to the repository structure rather than mixed into a single flat project layout.
+Code, scripts, frozen assets, embedded firmware, integration scenarios, and measurement assets should be placed according to the repository structure rather than mixed into a single flat project layout.
 
 ---
 
@@ -248,4 +265,5 @@ The final prototype should demonstrate that:
 - bounded LLM assistance is restricted to approved low-risk contexts
 - incomplete, stale, or conflicting context leads to safe deferral rather than unsafe autonomous actuation
 - ESP32-based bounded physical input/output paths can be integrated without bypassing policy control
-- the Raspberry Pi-based evaluation environment can reproduce fault-handling behavior in a controlled and auditable way
+- the Raspberry Pi-based evaluation environment can reproduce multi-node fault-handling behavior in a controlled and auditable way
+- optional timing infrastructure can support trustworthy out-of-band class-wise latency measurement
