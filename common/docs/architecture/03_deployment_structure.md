@@ -95,6 +95,7 @@ Each service, dependency, runtime path, and experimental validation path works c
 - `rpi/scripts/verify/`
 - `integration/tests/`
 - `integration/scenarios/`
+- `integration/measurement/`
 
 ### Interpretation
 Verification is performed before full integration in order to confirm that each service and runtime layer behaves correctly in isolation, and that the experimental validation infrastructure is trustworthy.
@@ -131,7 +132,17 @@ It hosts the core runtime services, hub-side applications, and operational verif
 
 ### Raspberry Pi 5
 The Raspberry Pi 5 is the simulation and evaluation node.  
-It hosts virtual sensor nodes, multi-node simulation, emergency simulation, fault injection, and closed-loop experiment workflows.
+It hosts virtual sensor nodes, multi-node simulation, emergency simulation, fault injection, scenario orchestration, and closed-loop experiment workflows.
+
+It does **not** host the core operational hub services of the system, such as:
+- Home Assistant
+- Ollama
+- Policy Router
+- Deterministic Validator
+- Context-Integrity Safe Deferral Handler
+- hub-side operational audit authority
+
+Instead, it consumes synchronized runtime copies of frozen assets and supports experiment-side execution only.
 
 ### ESP32
 ESP32 devices are embedded physical nodes used for bounded button input, sensing, or actuator/warning interfacing where required.  
@@ -149,7 +160,8 @@ Its role is to support out-of-band class-wise latency measurement without interf
 - **Configuration** aligns each platform with the safe deferral architecture and experimental validation assumptions.
 - **Verification** confirms that each configured component works correctly before integration and large-scale evaluation.
 - **Shared frozen assets** in `common/` provide the reference state used by Mac mini, Raspberry Pi, and ESP32-related implementation work.
+- **Mac mini** remains the only operational hub for core runtime services.
+- **Raspberry Pi 5** remains an experiment-side simulation, fault-injection, and evaluation node rather than a replacement for the Mac mini runtime.
 - **ESP32 physical nodes** support bounded real-world input/output validation.
-- **Raspberry Pi virtual nodes** support scalable simulation, fault injection, and closed-loop automated verification.
 - **Optional STM32 timing infrastructure** supports out-of-band latency measurement.
 - **Integration assets** validate cross-device behavior after isolated verification is complete.
