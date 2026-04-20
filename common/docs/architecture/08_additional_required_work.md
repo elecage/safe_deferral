@@ -45,6 +45,7 @@ A dedicated port allocation reference should be created and maintained.
 - notification or confirmation endpoint ports
 - optional development-only local service ports
 - optional ESP32 OTA or device-maintenance ports when used
+- optional timing or measurement support interfaces when out-of-band latency evaluation is used
 
 ### Recommended location
 - `common/docs/architecture/`
@@ -70,6 +71,7 @@ A centralized environment-variable reference is required for both documentation 
 - time synchronization host and bounds
 - ESP32-related topic namespace and device-ID conventions when embedded nodes are used
 - ESP32-side broker connection assumptions when embedded nodes are used
+- optional measurement profile or timing-capture settings when out-of-band latency evaluation is used
 
 ### Recommended location
 - `common/docs/runtime/`
@@ -77,6 +79,7 @@ A centralized environment-variable reference is required for both documentation 
   - `mac_mini/scripts/configure/70_write_env_files.sh`
   - `rpi/scripts/configure/10_write_env_files_rpi.sh`
   - `esp32/` implementation notes when applicable
+  - `integration/measurement/` when applicable
 
 ---
 
@@ -124,6 +127,7 @@ Each major module should have explicit acceptance criteria before it is consider
 - deterministic scenarios can be reproduced
 - randomized stress injection can run independently
 - closed-loop audit verification can be triggered from injected faults
+- repeatable large-scale multi-node simulation can be executed
 
 ### ESP32 embedded modules when used
 
@@ -137,11 +141,20 @@ Each major module should have explicit acceptance criteria before it is consider
 - warning or actuator interface behavior remains bounded and policy-dependent
 - reconnect behavior is predictable after broker or power interruption
 
+### Timing / Measurement Support when used
+
+#### Out-of-band Latency Measurement Support
+- timing capture points for Class 0 / Class 1 / Class 2 paths are documented
+- measurement path remains separate from the operational decision path
+- timing capture is reproducible across repeated runs
+- class-wise latency output can be exported into paper-ready result formats when needed
+
 ### Recommended location
 - `common/docs/architecture/`
 - optionally mirrored into:
   - `integration/tests/`
   - `integration/scenarios/`
+  - `integration/measurement/`
   - `esp32/docs/`
 
 ---
@@ -159,11 +172,14 @@ A reusable test-data package should be created for implementation and verificati
 - expected safe-deferral cases
 - expected escalation cases
 - representative ESP32-linked bounded input/output cases when embedded nodes are used
+- class-wise latency experiment profiles when out-of-band measurement is used
+- measurement result templates or capture reference formats when needed
 
 ### Recommended location
 - `integration/scenarios/`
 - optionally:
   - `integration/tests/data/`
+  - `integration/measurement/`
 
 ---
 
@@ -178,6 +194,7 @@ A reset and recovery procedure is required so the system can be returned to a cl
 - how to resync frozen assets onto the Raspberry Pi
 - how to reset simulation state before rerunning scenarios
 - how to rebuild, reflash, or reset ESP32 firmware when embedded nodes are used
+- how to reset or restart timing/measurement sessions when out-of-band latency evaluation is used
 
 ### Recommended location
 - `common/docs/runtime/`
@@ -185,6 +202,7 @@ A reset and recovery procedure is required so the system can be returned to a cl
   - `mac_mini/scripts/verify/`
   - `rpi/scripts/verify/`
   - `esp32/docs/`
+  - `integration/measurement/`
 
 ---
 
@@ -243,6 +261,7 @@ Audit logging must remain structurally safe and auditable.
 - log writers must not bypass the audit path
 - routing, validation, safe deferral, timeout, escalation, caregiver confirmation, and ACK events should be traceable
 - ESP32-linked bounded input/output events should be traceable through the same audit path when embedded nodes are used
+- measurement-support events may be logged for experiment traceability, but timing infrastructure must not become part of the operational control path
 
 ### Repository alignment
 - configuration:
@@ -252,10 +271,30 @@ Audit logging must remain structurally safe and auditable.
 - implementation:
   - `mac_mini/code/`
   - integration traces involving `esp32/` when applicable
+  - `integration/measurement/` when applicable
 
 ---
 
-## 10. Final Readiness Principle
+## 10. Timing and Measurement Support Requirements
+
+When class-wise latency evaluation is part of the experiment package, the timing and measurement layer should be explicitly documented.
+
+### Required rules
+- out-of-band latency capture should remain separate from the operational service plane
+- timing capture points for Class 0 / Class 1 / Class 2 should be documented
+- wiring assumptions or capture references should be recorded when hardware timing support is used
+- result formats should be reusable for reproducible paper evaluation
+- optional STM32 timing node or dedicated measurement node support notes should be maintained when used
+
+### Repository alignment
+- measurement assets:
+  - `integration/measurement/`
+- supporting experiment assets:
+  - `integration/scenarios/`
+
+---
+
+## 11. Final Readiness Principle
 
 The system should not be considered implementation-ready unless:
 - shared frozen assets are complete
@@ -266,3 +305,4 @@ The system should not be considered implementation-ready unless:
 - fault injection rules are dynamically grounded in frozen assets
 - audit logging remains single-writer and traceable
 - ESP32-related bounded physical node requirements are documented wherever embedded nodes are part of the target prototype
+- timing and measurement infrastructure requirements are documented wherever out-of-band class-wise latency evaluation is part of the target experiment package
