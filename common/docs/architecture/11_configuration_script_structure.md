@@ -3,7 +3,7 @@
 ## Configuration Script Structure
 
 ## Goal
-Configure installed services, runtimes, and embedded-node assumptions so that they are aligned with the current safe deferral architecture in a consistent and reproducible way.
+Configure installed services, runtimes, embedded-node assumptions, and optional measurement support assumptions so that they are aligned with the current safe deferral architecture in a consistent and reproducible way.
 
 ---
 
@@ -19,6 +19,7 @@ Configure installed services, runtimes, and embedded-node assumptions so that th
 - Allow service restart behavior to branch according to the **deployment mode**.
 - Complete the shared frozen asset set before implementation-side configuration depends on it.
 - Treat ESP32 embedded nodes as bounded physical clients whose connection parameters, topic structure, and device identity assumptions must be configured consistently when they are used.
+- Treat optional timing/measurement support as an **evaluation-only alignment layer**, not part of the operational control path.
 
 ---
 
@@ -77,7 +78,8 @@ safe_deferral/
 │   └── docs/
 └── integration/
     ├── tests/
-    └── scenarios/
+    ├── scenarios/
+    └── measurement/
 ```
 
 ---
@@ -91,10 +93,11 @@ safe_deferral/
 - `mac_mini/` contains hub-side configuration scripts and runtime deployment assets
 - `rpi/` contains simulation-side configuration scripts and synchronized runtime assets
 - `esp32/` contains embedded-node implementation assets and configuration assumptions for bounded physical nodes when those nodes are used
+- `integration/measurement/` contains optional timing and measurement support assets for out-of-band latency evaluation when that evaluation path is used
 
 ### Principle
 The Git repository stores the frozen reference state.  
-The Mac mini, Raspberry Pi, and embedded-node workflow receive runtime-ready deployed copies or aligned configuration assumptions as needed.
+The Mac mini, Raspberry Pi, embedded-node workflow, and optional measurement workflow receive runtime-ready deployed copies or aligned configuration assumptions as needed.
 
 ---
 
@@ -224,7 +227,7 @@ Recommended environment variables include:
 - `DEPLOYMENT_MODE`
 
 #### Terminology note
-Old variable names or labels containing `ICR` should be renamed over time to align with the canonical term:
+Old variable names or labels containing `ICR` should be renamed over time to align with the canonical term:  
 **context-integrity-based safe deferral stage**
 
 ---
@@ -262,7 +265,7 @@ Recommended responsibilities:
 - verify required synchronized runtime assets exist
 
 ### Principle
-The Raspberry Pi should not invent local policy truth.
+The Raspberry Pi should not invent local policy truth.  
 It should consume synchronized frozen artifacts derived from the shared reference set.
 
 ---
@@ -283,6 +286,7 @@ Recommended responsibilities:
 - configure simulation log paths
 - configure scenario directories
 - configure verification directories
+- configure multi-node runtime assumptions
 - verify required runtime variables for simulation are present
 - verify required Python runtime dependencies for simulation-side execution
 
@@ -306,19 +310,42 @@ Recommended responsibilities:
 - `esp32/docs/`
 
 ### Role
-ESP32 nodes do not necessarily follow the same shell-script configuration flow as Mac mini and Raspberry Pi.
+ESP32 nodes do not necessarily follow the same shell-script configuration flow as Mac mini and Raspberry Pi.  
 Instead, the project should explicitly document and align embedded-node configuration assumptions.
 
 ### Recommended configuration concerns
 - broker host, port, and authentication assumptions
 - topic namespace and device identifier conventions
 - button pattern or sensor event encoding assumptions
+- environmental and safety sensor topic assumptions when physical sensing is used
 - actuator or warning interface topic assumptions when physical output is used
 - Wi-Fi, reconnect, and fallback behavior assumptions
 - firmware build, flash, and reset procedure references
 
 ### Principle
 Embedded nodes should remain bounded physical clients under hub-side policy control rather than becoming independent policy authorities.
+
+---
+
+## Optional Timing and Measurement Configuration Alignment
+
+### Directory
+- `integration/measurement/`
+
+### Role
+Timing and measurement support is not part of the operational decision path.  
+When used, it should be configured as an evaluation-only support layer for out-of-band class-wise latency measurement.
+
+### Recommended configuration concerns
+- timing capture assumptions for Class 0 / Class 1 / Class 2 paths
+- measurement profile alignment
+- latency capture reference formats
+- wiring or trigger/capture note alignment
+- optional STM32 timing node or dedicated measurement node assumptions
+- result-template or export-format alignment for reproducible evaluation
+
+### Principle
+Measurement infrastructure should support trustworthy latency evaluation without influencing operational runtime decisions.
 
 ---
 
@@ -371,13 +398,21 @@ bash rpi/scripts/configure/50_configure_fault_profiles_rpi.sh
 ```
 
 ### ESP32
-Typical workflow should be documented rather than assumed to match shell-based host configuration.
+Typical workflow should be documented rather than assumed to match shell-based host configuration.  
 Examples may include:
 - set or confirm broker connection assumptions
 - set or confirm topic namespace and device identity
 - build or rebuild firmware with aligned configuration
 - flash firmware to device
 - verify broker connectivity on the trusted local network
+
+### Optional timing / measurement path
+Typical workflow may include:
+- confirm measurement support notes
+- align timing capture settings
+- align measurement profile files
+- confirm wiring or trigger/capture assumptions
+- prepare result-template or export-format references
 
 ---
 
@@ -392,6 +427,7 @@ Examples may include:
 - verify configuration by handing off to the verify stage
 - do not embed application logic inside configuration scripts
 - keep embedded-node configuration assumptions documented separately from host-side operational scripts when ESP32 nodes are used
+- keep timing/measurement configuration support documented separately from the operational control path when out-of-band evaluation is used
 
 ---
 
@@ -401,5 +437,6 @@ Examples may include:
 - `mac_mini/scripts/configure/` configures the operational hub
 - `rpi/scripts/configure/` configures the simulation and evaluation node
 - `esp32/` stores embedded-node implementation assets and aligned configuration assumptions
-- configuration scripts and embedded configuration alignment deploy runtime-ready values and assumptions
+- `integration/measurement/` stores optional timing and measurement support alignment assets
+- configuration scripts and embedded/measurement configuration alignment deploy runtime-ready values and assumptions
 - runtime correctness is confirmed later in the verify stage
