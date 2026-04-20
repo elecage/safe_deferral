@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # 1. MQTT Broker: 로컬망 내 모든 센서 및 기기 통신의 핵심 허브
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: edge_mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./volumes/mosquitto/config:/mosquitto/config:ro
+      - ./volumes/mosquitto/data:/mosquitto/data
+      - ./volumes/mosquitto/log:/mosquitto/log
+    # 보안 원칙: 외부 노출을 막기 위해 필요 시 방화벽 설정과 결합됨
+
+  # 2. Home Assistant: 기기 연동 및 상태 관리 플랫폼
+  homeassistant:
+    image: lscr.io/linuxserver/homeassistant:latest
+    container_name: edge_homeassistant
+    restart: unless-stopped
+    network_mode: host  # mDNS 및 로컬 기기 디스커버리를 위해 host 모드 사용
+    environment:
+      - TZ=Asia/Seoul
+    volumes:
+      - ./volumes/homeassistant/config:/config
+
+  # 3. Local LLM Engine (Ollama): 클라우드 의존 없는 맥락 인지 추론
+  ollama:
+    image: ollama/ollama:latest
+    container_name: edge_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./volumes/ollama/data:/root/.ollama
+    # Mac mini의 Metal(GPU) 가속을 활용하기 위한 추가 설정이 배포 시 환경에 맞게 주입될 수 있음
+
+  # 4. 스마트홈 엣지 통합 컨트롤러 (Policy Router, Validator, iCR Handler 포함)
+  edge_controller_app:
+    build: 
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: edge_controller_app
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - ollama
+    environment:
+      - MQTT_HOST=localhost
+      - MQTT_PORT=1883
+      - OLLAMA_URL=http://localhost:11434
+    volumes:
+      # Phase 0 동결 자산들은 런타임 변조 방지를 위해 읽기 전용(ro)으로 마운트
+      - ./volumes/app/config/policies:/app/policies:ro
+      - ./volumes/app/config/schemas:/app/schemas:ro
+      # 단일 작성자(Single-writer) 원칙이 적용된 안전한 감사 로깅 DB
+      - ./volumes/sqlite/db:/app/db
+    network_mode: host
