@@ -181,7 +181,23 @@ It is intended to support:
 
 ---
 
-## T10. Verify MQTT Connectivity and Isolation
+## T10. Implement ESP32 Embedded Node Layer
+
+- [ ] Implement bounded button input node firmware
+- [ ] Implement MQTT publish/subscription behavior required for the button node
+- [ ] Implement sensor node firmware when physical sensing is used
+- [ ] Implement actuator or warning interface firmware when physical output is used
+- [ ] Align broker connection parameters, topic namespaces, and device identifiers with the operational hub assumptions
+- [ ] Keep embedded behavior bounded and policy-aligned rather than autonomous
+
+### Repository focus
+- `esp32/code/`
+- `esp32/firmware/`
+- `esp32/docs/`
+
+---
+
+## T11. Verify MQTT Connectivity and Isolation
 
 - [ ] Ensure Mosquitto is LAN-reachable for Raspberry Pi 5
 - [ ] Ensure internet-originated inbound access is blocked by firewall
@@ -193,7 +209,7 @@ It is intended to support:
 
 ---
 
-## T11. Verification and Testing
+## T12. Verification and Testing
 
 - [ ] Unit test Policy Router
 - [ ] Unit test Deterministic Validator
@@ -204,11 +220,13 @@ It is intended to support:
 - [ ] Run fault-injection test suite
 - [ ] Verify no unsafe autonomous actuation occurs under conflict, staleness, or missing-state conditions
 - [ ] Verify closed-loop audit behavior under injected faults
+- [ ] Verify ESP32-linked bounded physical input/output behavior through integration tests when used
 
 ### Repository focus
 - `mac_mini/scripts/verify/`
 - `rpi/scripts/verify/`
 - `integration/tests/`
+- `integration/scenarios/`
 
 ---
 
@@ -217,6 +235,7 @@ It is intended to support:
 - [ ] Shared frozen assets in `common/` must remain the single source of truth
 - [ ] Mac mini remains the operational hub
 - [ ] Raspberry Pi 5 remains the simulation and evaluation node
+- [ ] ESP32 remains the embedded physical node layer for bounded input, sensing, or actuator/warning interfacing when used
 - [ ] Deterministic safety logic remains authoritative before bounded LLM assistance
 - [ ] Safe deferral must be preferred over unsafe autonomous actuation
 - [ ] Verification must be possible at both service level and closed-loop system level
