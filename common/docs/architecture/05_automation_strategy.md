@@ -6,8 +6,8 @@ This document defines the recommended automation strategy for the safe deferral 
 
 It reflects:
 - the current frozen asset structure
-- device-level separation between Mac mini, Raspberry Pi, and ESP32
-- the staged workflow of installation, configuration, and verification
+- device-level separation between Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure
+- the staged workflow of installation, configuration, verification, and measurement-oriented evaluation
 - the need for orchestration-friendly execution during development and vibe-coding
 
 ---
@@ -15,14 +15,16 @@ It reflects:
 ## 1. Recommended Automation Layers
 
 ### A. Installation Scripts
-Purpose:
-Prepare software, runtimes, and system dependencies on each target device.
+Purpose:  
+Prepare software, runtimes, system dependencies, and optional measurement toolchains on each target device.
 
 Repository locations:
 - `mac_mini/scripts/install/`
 - `rpi/scripts/install/`
 - `esp32/firmware/`
 - `esp32/code/`
+- measurement-related notes or support assets under:
+  - `integration/measurement/`
 
 Examples:
 - developer tools installation
@@ -31,11 +33,12 @@ Examples:
 - system package installation
 - time synchronization client installation
 - ESP32 toolchain or firmware project preparation when needed
+- optional timing-node toolchain preparation when out-of-band latency measurement is used
 
 ---
 
 ### B. Configuration Scripts
-Purpose:
+Purpose:  
 Apply project-specific settings and deploy runtime-ready configuration.
 
 Repository locations:
@@ -44,6 +47,8 @@ Repository locations:
 - embedded node-side configuration when needed:
   - `esp32/code/`
   - `esp32/firmware/`
+- measurement-related configuration notes or assets when needed:
+  - `integration/measurement/`
 
 Examples:
 - Home Assistant configuration
@@ -55,18 +60,21 @@ Examples:
 - policy/schema deployment or synchronization
 - simulation runtime configuration
 - embedded node-side connection parameters aligned with the operational hub when needed
+- timing-node measurement assumptions aligned when used
+- out-of-band measurement profile preparation when class-wise latency evaluation is required
 
 ---
 
 ### C. Verification Scripts
-Purpose:
-Verify that each configured service, dependency, and runtime path works correctly before integration begins.
+Purpose:  
+Verify that each configured service, dependency, runtime path, and measurement path works correctly before integration or large-scale evaluation begins.
 
 Repository locations:
 - `mac_mini/scripts/verify/`
 - `rpi/scripts/verify/`
 - `integration/tests/`
 - `integration/scenarios/`
+- `integration/measurement/`
 
 Examples:
 - Docker service checks
@@ -78,6 +86,8 @@ Examples:
 - Raspberry Pi base runtime checks
 - closed-loop audit verification
 - ESP32-linked bounded input/output path validation through integration testing
+- out-of-band class-wise latency measurement validation
+- timing capture path validation when measurement infrastructure is used
 
 ---
 
@@ -109,10 +119,12 @@ Examples:
 ### Recommended
 - shell scripts under device-specific script folders
 - a top-level `Makefile` or `justfile` for orchestration
+- optional measurement-oriented targets for timing and latency evaluation
 
 ### Why
 - macOS-friendly and Raspberry Pi-friendly
 - embedded-node-friendly when ESP32 build steps are introduced
+- measurement-friendly when timing-node workflows are introduced
 - easy to rerun individual stages
 - explicit separation of responsibilities
 - easier fault isolation and debugging
@@ -122,7 +134,7 @@ Examples:
 
 ## 4. Recommended Execution Model
 
-Because the project is split across Mac mini, Raspberry Pi, and ESP32, orchestration should be device-aware.
+Because the project is split across Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure, orchestration should be device-aware and evaluation-aware.
 
 ### Recommended examples
 ```bash
@@ -142,6 +154,12 @@ make esp32-flash
 make esp32-check
 ```
 
+### Measurement-oriented examples
+```bash
+make measure-latency
+make timing-check
+```
+
 ### Optional grouped targets
 ```bash
 make common-check
@@ -149,12 +167,15 @@ make mac-all
 make rpi-all
 make verify-all
 make integration-test
+make measure-latency
+make timing-check
 ```
 
 ### Interpretation
 - `mac-*` targets operate on the Mac mini workflow
 - `rpi-*` targets operate on the Raspberry Pi workflow
 - `esp32-*` targets operate on embedded device build or flash workflows when needed
+- measurement targets operate on timing or latency evaluation workflows when used
 - shared assets in `common/` should be validated before deployment-dependent steps run
 
 ---
@@ -165,16 +186,19 @@ make integration-test
 Do not merge these concerns into one large script.
 
 ### B. Keep device-specific workflows separate
-Do not collapse Mac mini, Raspberry Pi, and ESP32 automation into a single opaque execution path.
+Do not collapse Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure automation into a single opaque execution path.
 
 ### C. Let orchestration call scripts, not replace them
-The `Makefile` or `justfile` should orchestrate the workflow, while the actual operational logic remains in shell scripts or device-specific build targets.
+The `Makefile` or `justfile` should orchestrate the workflow, while the actual operational logic remains in shell scripts, embedded build targets, or measurement-oriented support assets.
 
 ### D. Preserve rerunnability
 Every step should be safe to rerun independently whenever possible.
 
 ### E. Respect frozen assets
 Configuration and verification logic should use shared frozen assets from `common/` as reference inputs.
+
+### F. Keep measurement automation bounded to evaluation use
+Timing capture and latency evaluation should support reproducible experiments without becoming part of the operational decision path.
 
 ---
 
@@ -187,16 +211,19 @@ As implementation grows, the automation layer may be extended with:
 - `make benchmark`
 - `make fault-eval`
 - `make esp32-sim-check`
+- `make latency-eval`
+- `make timing-capture`
 
-These targets should call device-specific scripts and shared integration assets, rather than bypassing the structured repository layout.
+These targets should call device-specific scripts and shared integration or measurement assets, rather than bypassing the structured repository layout.
 
 ---
 
 ## 7. Architectural Summary
 
-- Installation prepares each device or target platform
+- Installation prepares each device, target platform, or optional measurement toolchain
 - Configuration aligns each platform with the safe deferral architecture
 - Verification confirms correct behavior before integration
 - Shared frozen assets in `common/` provide the reference state
 - `Makefile` or `justfile` should orchestrate, not replace, the structured script hierarchy
 - ESP32 workflows should be treated as embedded-node build and validation paths, not collapsed into Mac mini or Raspberry Pi automation
+- Optional timing-node workflows should be treated as experimental measurement automation, not as part of the operational control path
