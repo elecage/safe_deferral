@@ -5,6 +5,29 @@ This repository contains the frozen assets, scripts, schemas, policies, and futu
 ## System Overview
  신체 및 언어적 제약 상황에서의 접근성 높은 상호작용을 위한 맥락 인지형 LLM 보조 기반 프라이버시 인지 엣지 스마트홈 시스템(A Privacy-Aware Edge Smart Home System with Context-Aware LLM Assistance for Accessible Interaction under Physical and Speech Limitations)
 
+## Target User Group
+본 시스템의 최우선 사용자 대상은 **신체적, 언어적 제약(Physical and Speech Limitations)을 복합적으로 겪고 있어 상용 스마트홈 기기(일반 음성 비서, 터치스크린 등)를 독자적으로 사용하기 어려운 취약 계층**
+구체적인 타겟 사용자 그룹은 다음과 같이 분류
+
+### 1. 중증 신체 장애인 및 운동 기능 저하 사용자
+  * 뇌성마비(Cerebral Palsy), 근육병(Myopathy), 소아마비(Polio), 척수 손상이나 뇌졸중 등으로 인해 상/하지의 미세한 운동 제어나 이동이 어려운 사용자들.
+  * 스마트폰 터치나 정교한 스위치 조작이 불가능하여, 주먹으로 내리치거나 발로 차는 형태의 **단일 물리 타격 버튼(Kick buttons)과 같이 극도로 제한된 입력 수단**에 의존해야 하는 그룹을 포함.
+    
+### 2. 언어 및 발화 제약이 있는 사용자 (조음장애 등)
+  * 조음장애(Dysarthria)를 앓고 있거나 신체적 피로감 등으로 인해 명확한 발음이 어려운 사용자들.
+  * 기존 상용 음성 비서(Google Home, Alexa 등)는 명확한 발음을 요구하기 때문에 이들의 명령을 제대로 인식하지 못하는 한계가 있으며, 심한 경우 신체적 장애와 발화 장애가 동반되어 나타나기 때문에 입력 수단이 극히 제한.
+  * 본 시스템은 이러한 표준 밖의 입력 환경에서도 엣지 LLM을 활용해 사용자의 의도를 추론하여 이들을 지원.
+    
+### 3. 일상 기능 저하를 겪는 고령층 (Aging Population)
+  * 노화로 인해 근력 및 시력이 떨어지거나 인지 기능이 저하되어 일상적인 가사 활동, 전자기기 조작, 안전 관리에 어려움을 겪는 노인들.
+    
+### 4. 보호자 및 활동지원사 (Caregivers and Support Staff)
+  * 직접적인 1차 사용자는 아니지만, 시스템 생태계의 필수적인 2차 사용자.
+  * 스마트홈 시스템이 입력의 모호성을 감지하여 '안전 보류(Safe Deferral)' 상태로 전환하거나 응급 상황(Class 0, Class 2)을 판단했을 때, **보안 처리된 아웃바운드 통신(Telegram 등)을 통해 상황 알림과 수동 제어 권한을 에스컬레이션(Escalation) 받는 주체**
+   
+자유로운 대화나 정교한 조작이 불가능한 복합 장애 당사자 및 고령자가 단일 타격 버튼과 같은 최소한의 입력만으로도 안전하게 자율 제어 혜택을 누릴 수 있도록 돕는 **포용적(Inclusive) 접근성 지원 시스템**
+
+
 ## Core Objectives
   * **포용적 접근성 제공** (Inclusive Accessibility):
     * 신체적, 언어적 제약이 있는 사용자도 단일 물리 타격 버튼과 같이 극도로 제한된 입력 수단만으로 시스템과 원활하게 상호작용할 수 있도록 지원하는 것을 일차적 목적으로 함
@@ -63,6 +86,38 @@ Class 1 경로에서 LLM이 제안한 액션은 곧바로 실행되지 않고 **
   * 프라이버시 인지 로컬 로깅:
     * 모든 라우팅 이벤트, Validator의 승인/거부 판정, 안전 보류 사유 등은 클라우드로 전송되지 않고 Mac mini 내부의 SQLite 단일 작성자(Single-writer) DB에 감사 로그(Audit Log)로 안전하게 격리 저장
     * 이러한 다단계 시나리오를 통해, 본 시스템은 사용자 편의를 제공하면서도 "**모호하거나 정보가 부족할 때는 절대 임의로 물리적 기기를 제어하지 않고 멈춘다**"는 결정론적 안전성(Deterministic Safety)을 보장
+
+## System Verification Scenario    
+### 1. 정책 분기 정확성 및 안전성 검증 (Policy Routing Correctness & Safety)
+정상적인 환경 및 모호한 상황에서 입력 이벤트와 센서 컨텍스트가 의도한 Class 0, 1, 2로 올바르게 라우팅되는지 확인하는 시나리오
+  * **입력 이벤트 조건**: 버튼 1회 타격, 응급 연속 타격(triple-hit), 길게 누르기(long-press), 센서 임계치 초과.
+  * **환경 컨텍스트 조건**: 온도, 조도, 기기 상태, 센서 최신화(freshness), 통신 상태.
+  * **기대 동작 시나리오**:
+    * **Class 0** (응급): 생명 위협 시 LLM을 거치지 않고 즉각적인 로컬 보호 조치 실행.
+    * **Class 1** (저위험 보조): 단일 저위험 액션(low-risk local assistance) 승인 및 실행.
+    * **Class 2** (보호자 개입) 및 안전 보류: 컨텍스트가 부족하거나 대상이 모호할 경우, 자율 실행(Unsafe Actuation)을 즉시 차단하고 안전 보류(Safe Deferral + iCR) 상태로 전환하거나 보호자에게 에스컬레이션.
+      
+### 2. 클래스별 지연 시간 검증 (Class-wise Latency)
+제안한 아키텍처가 엣지(Edge) 환경에서 실용적인 반응 속도를 보장하는지 경로별로 분리하여 계측하는 시나리오
+  * **Class 0 지연 시간**: 응급 트리거 발생부터 로컬 보호 액션 실행 및 외부 알림망(Dispatch) 전송까지의 시간.
+  * **Class 1 지연 시간**: 버튼 이벤트 발생부터 LLM 추론을 거쳐 저위험 로컬 액션이 승인되거나, 안전 보류(Safe Deferral)가 결정되기까지의 시간.
+  * **Class 2 지연 시간**: 버튼 이벤트 발생 후 모호성을 감지하고 보호자에게 알림(Notification)이 발송되기까지의 시간.
+  * 측정 지표: p50(중간값), p95(Tail Latency), p99 등 지연 시간 분포.
+    
+### 3. 결함 주입 기반 강건성 검증 (Robustness under Fault Injection)
+네트워크나 센서 상태가 정상적이지 않은 장애 조건 하에서 보수적인 안전 정책이 흔들림 없이 유지되는지 Raspberry Pi 5를 통해 검증하는 시나리오. 
+하드코딩 없이 사전 동결된 스키마와 정책표(policy_table.json, context_schema.json)를 동적으로 파싱하여 결함을 생성.
+
+  * **임계치 초과 응급 주입** (Threshold-crossing emergency): 정책표의 최소 트리거 조건을 명시적으로 초과하여 생명 위협 이벤트가 Class 0으로 즉각 라우팅되는지 확인.
+  * **문맥 상충 주입** (Context conflict): 상충하는 제어 근거가 동시에 존재하도록 주입하여, 물리적 자율 제어(Actuation)를 멈추고 Safe Deferral이나 Class 2로 전환되는지 확인.
+  * **센서/상태 데이터 지연 주입** (Sensor/State staleness): 신선도(freshness limit) 한계를 초과한 과거의 타임스탬프를 주입하여 오래된 데이터에 대한 Fail-safe 동작을 확인.
+  * **상태 누락 주입** (Missing state): 필수 키(Required keys)를 의도적으로 누락시켜, 불완전한 상태 정보 하에서 즉시 Class 2로 빠지거나 실행을 차단하는지 확인.
+
+### 4. 폐루프 자동 검증 (Closed-loop Automated Verification)
+Raspberry Pi 5 노드를 통해 주입된 결함 시나리오 결과가 사람의 수동 개입 없이 시스템 내부에서 기계적으로 판정되는 시나리오.
+
+  * **자동 판정 흐름**: Pi 5의 검증 스크립트가 결함 페이로드를 Publish함과 동시에 Mac mini의 **'검증용 감사 스트림(verification-safe audit MQTT stream)'**을 백그라운드에서 구독.
+  * **단언(Assert) 기준**: Mac mini의 최종 라우팅 및 로깅 결과가 기대되는 안전 귀결(Safe Outcome: Safe Deferral, Class 2, Class 0)과 일치하는지 비교하여 자동으로 Pass/Fail을 판정. 특히 결함 주입 상황에서 **Unsafe Actuation Rate(위험 작동률)가 0%**로 완벽하게 억제되는지가 핵심 합격 기준
     
 ## Repository Structure
 
