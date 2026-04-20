@@ -8,7 +8,7 @@ They are designed to generate implementation artifacts that conform to:
 - the frozen shared assets
 - the current repository structure
 - the canonical terminology of the project
-- the Mac mini / Raspberry Pi / ESP32 role separation
+- the Mac mini / Raspberry Pi / ESP32 / optional timing-measurement role separation
 
 ---
 
@@ -23,8 +23,8 @@ After implementation, provide:
 3. test results as evidence,
 4. any known limitations or follow-up tasks.
 
-Do not invent schemas, thresholds, policy rules, timeout values, topic namespaces, device identifiers, or action domains.
-Always read them from the provided frozen artifacts first.
+Do not invent schemas, thresholds, policy rules, timeout values, topic namespaces, device identifiers, timing capture assumptions, latency thresholds, action domains, or measurement profiles.
+Always read them from the provided frozen artifacts and aligned project documents first.
 
 The following frozen artifacts must be loaded into the agent knowledge base before implementation:
 - common/policies/policy_table_v1_1_2_FROZEN.json
@@ -45,6 +45,12 @@ Do not use deprecated terminology such as:
 
 Use the canonical term:
 context-integrity-based safe deferral stage
+
+Respect repository separation:
+- mac_mini/ = operational hub
+- rpi/ = simulation / fault injection / closed-loop evaluation
+- esp32/ = bounded physical node layer
+- integration/measurement/ = optional out-of-band timing and latency evaluation support
 ```
 
 ---
@@ -243,7 +249,7 @@ Target repository area:
 - rpi/code/
 
 Requirements:
-- Publish periodic context data for:
+- Publish periodic context data for multi-node simulation, such as:
   - temperature
   - illuminance
   - occupancy
@@ -255,6 +261,7 @@ Requirements:
   - configurable publish interval
 - Provide a launcher that can start 30-40 virtual nodes.
 - Include deterministic sample profiles for repeatable experiments.
+- Include hooks suitable for closed-loop evaluation and scenario replay.
 - Read schema field definitions from the frozen context schema artifact.
 ```
 
@@ -348,6 +355,7 @@ Requirements:
 - Compare observed route/validator outputs against expected outputs.
 - Produce a machine-readable summary and a markdown report.
 - Verify that no unsafe autonomous actuation occurs during conflict, staleness, or missing-state scenarios.
+- When measurement artifacts are provided, support optional linkage to class-wise latency summary outputs or reproducibility reports.
 ```
 
 ---
@@ -361,6 +369,7 @@ Requirements:
 - Respect the repository structure:
   - mac_mini/scripts/install/
   - rpi/scripts/install/
+  - integration/measurement/ when optional timing support assets are needed
 - Use the current frozen script naming and structure where applicable.
 - Support:
   - Home Assistant
@@ -370,6 +379,7 @@ Requirements:
   - Python dependency installation
   - Raspberry Pi runtime preparation
   - time synchronization client installation
+  - optional timing-node support notes or measurement workspace preparation when out-of-band latency evaluation is used
 - Scripts must be idempotent where possible.
 - Use clear log messages and fail fast on errors.
 - Do not collapse Mac mini and Raspberry Pi install workflows into a single flat script directory.
@@ -386,6 +396,7 @@ Requirements:
 - Respect the repository structure:
   - mac_mini/scripts/configure/
   - rpi/scripts/configure/
+  - integration/measurement/ when optional timing support alignment is needed
 - Configure:
   - Mosquitto
   - Home Assistant
@@ -396,6 +407,7 @@ Requirements:
   - Telegram or mock notification settings
   - Raspberry Pi simulation runtime
   - Raspberry Pi fault profile setup
+  - optional measurement profile alignment and timing-capture support references when out-of-band latency evaluation is used
 - Use template-based or deployment-target-aware file generation where possible.
 - Do not hardcode secrets into tracked files.
 - Inject configuration files into target runtime paths rather than fixed hardcoded paths.
@@ -419,8 +431,11 @@ Target repository areas:
 Requirements:
 - Support one or more bounded embedded node roles as needed:
   - button input node
-  - sensor node
-  - actuator or warning interface node
+  - temperature / humidity sensor node
+  - gas sensor node
+  - fire detection sensor node
+  - lighting control node
+  - doorlock or warning interface node
 - Keep ESP32 behavior bounded and policy-dependent rather than autonomous.
 - Align broker host assumptions, topic namespace, and device identity conventions with the documented hub-side architecture.
 - Do not invent payload fields or routing rules that are not grounded in the frozen shared assets.
@@ -431,4 +446,31 @@ Requirements:
   - expected topic publish/subscribe behavior
   - bounded button or device behavior
   - recovery after reset or reconnect
+```
+
+---
+
+## Prompt 14. Implement Timing and Measurement Support
+
+```text
+Implement optional timing and measurement support for out-of-band class-wise latency evaluation.
+
+Target repository area:
+- integration/measurement/
+
+Requirements:
+- Treat the timing and measurement layer as evaluation-only support, never as part of the operational control path.
+- Support optional STM32 timing node or equivalent dedicated measurement node assumptions when used.
+- Define or generate:
+  - class-wise latency experiment profiles
+  - timing capture point descriptions for CLASS_0 / CLASS_1 / CLASS_2
+  - measurement workspace notes
+  - capture result templates
+  - reproducibility-oriented measurement summaries
+- Do not invent timing thresholds or measurement criteria unless grounded in the project’s aligned documents and frozen assets.
+- Keep all measurement support compatible with repeatable paper evaluation workflows.
+- Include checks or templates for:
+  - capture path consistency
+  - reproducible repeated-run summaries
+  - exportable latency result formats
 ```
