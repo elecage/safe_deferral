@@ -19,7 +19,7 @@ It is intended to be used as a reference for:
 ## A. Installation
 
 ### Goal
-Software, runtimes, and services are present on the target machine.
+Software, runtimes, services, and required build or measurement toolchains are present on the target platform.
 
 ### Examples
 - Home Assistant installed
@@ -29,6 +29,7 @@ Software, runtimes, and services are present on the target machine.
 - system packages installed
 - time synchronization client installed
 - ESP32 development toolchain prepared when needed
+- optional timing-node toolchain prepared when out-of-band latency measurement is used
 
 ### Repository mapping
 - `mac_mini/scripts/install/`
@@ -44,7 +45,7 @@ Installation means the required platform dependencies are available, but not yet
 ## B. Configuration
 
 ### Goal
-Installed services and runtimes are configured for the safe deferral system architecture.
+Installed services, runtimes, and experimental node assumptions are configured for the safe deferral system architecture.
 
 ### Examples
 - Home Assistant MQTT integration configured
@@ -56,6 +57,7 @@ Installed services and runtimes are configured for the safe deferral system arch
 - runtime `.env` files written
 - simulation runtime parameters configured
 - ESP32 node-side connection parameters aligned with the operational hub when needed
+- timing-node measurement assumptions aligned when out-of-band latency measurement is used
 
 ### Repository mapping
 - source of truth: `common/`
@@ -67,14 +69,14 @@ Installed services and runtimes are configured for the safe deferral system arch
   - `esp32/firmware/`
 
 ### Interpretation
-Configuration means the installed components are now aligned with the project architecture, frozen assets, and runtime assumptions.
+Configuration means the installed components are now aligned with the project architecture, frozen assets, runtime assumptions, and experimental validation design.
 
 ---
 
 ## C. Verification
 
 ### Goal
-Each service, dependency, and runtime path works correctly before integration begins.
+Each service, dependency, runtime path, and experimental validation path works correctly before full integration or large-scale evaluation begins.
 
 ### Examples
 - MQTT pub/sub test passes
@@ -86,6 +88,7 @@ Each service, dependency, and runtime path works correctly before integration be
 - Raspberry Pi simulation runtime passes base checks
 - closed-loop audit verification passes
 - ESP32-linked bounded input/output path can be validated during integration testing
+- out-of-band class-wise latency measurement passes when timing infrastructure is used
 
 ### Repository mapping
 - `mac_mini/scripts/verify/`
@@ -94,7 +97,7 @@ Each service, dependency, and runtime path works correctly before integration be
 - `integration/scenarios/`
 
 ### Interpretation
-Verification is performed before full integration in order to confirm that each service and runtime layer behaves correctly in isolation.
+Verification is performed before full integration in order to confirm that each service and runtime layer behaves correctly in isolation, and that the experimental validation infrastructure is trustworthy.
 
 ---
 
@@ -123,23 +126,30 @@ These files act as the single source of truth before runtime deployment.
 ## Role of Device-Specific Layers
 
 ### Mac mini
-The Mac mini is the primary operational hub.
+The Mac mini is the primary operational hub.  
 It hosts the core runtime services, hub-side applications, and operational verification flow.
 
 ### Raspberry Pi 5
-The Raspberry Pi 5 is the simulation and evaluation node.
-It hosts virtual sensor nodes, emergency simulation, fault injection, and closed-loop experiment workflows.
+The Raspberry Pi 5 is the simulation and evaluation node.  
+It hosts virtual sensor nodes, multi-node simulation, emergency simulation, fault injection, and closed-loop experiment workflows.
 
 ### ESP32
-ESP32 devices are embedded physical nodes used for bounded button input, sensing, or actuator/warning interfacing where required.
-They are implementation targets, but their end-to-end behavioral validation is typically completed through the integration layer.
+ESP32 devices are embedded physical nodes used for bounded button input, sensing, or actuator/warning interfacing where required.  
+They are implementation targets and also form the physical bounded input/output validation layer during integration testing.
+
+### STM32 Timing Node or Equivalent
+An STM32 timing node or another dedicated measurement node may be used as optional experimental timing infrastructure.  
+Its role is to support out-of-band class-wise latency measurement without interfering with the operational service plane.
 
 ---
 
 ## Architectural Summary
 
 - **Installation** prepares each target platform.
-- **Configuration** aligns each platform with the safe deferral architecture.
-- **Verification** confirms that each configured component works correctly before integration.
+- **Configuration** aligns each platform with the safe deferral architecture and experimental validation assumptions.
+- **Verification** confirms that each configured component works correctly before integration and large-scale evaluation.
 - **Shared frozen assets** in `common/` provide the reference state used by Mac mini, Raspberry Pi, and ESP32-related implementation work.
+- **ESP32 physical nodes** support bounded real-world input/output validation.
+- **Raspberry Pi virtual nodes** support scalable simulation, fault injection, and closed-loop automated verification.
+- **Optional STM32 timing infrastructure** supports out-of-band latency measurement.
 - **Integration assets** validate cross-device behavior after isolated verification is complete.
