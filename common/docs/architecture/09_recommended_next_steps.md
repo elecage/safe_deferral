@@ -61,16 +61,17 @@ Prepare the repository structure so implementation can proceed in a device-aware
 - `common/`
 - `mac_mini/`
 - `rpi/`
+- `esp32/`
 - `integration/`
 
 ### Goal
-Ensure shared assets, Mac mini scripts/code, Raspberry Pi scripts/code, and integration assets are clearly separated.
+Ensure shared assets, Mac mini scripts/code, Raspberry Pi scripts/code, ESP32 embedded assets, and integration assets are clearly separated.
 
 ---
 
 ## 4. Prepare Install / Configure / Verify Script Sets
 
-Complete and organize the staged shell-script workflow for both Mac mini and Raspberry Pi.
+Complete and organize the staged shell-script workflow for Mac mini and Raspberry Pi, and make the embedded workflow explicit for ESP32-based nodes.
 
 ### Required script groups
 - `mac_mini/scripts/install/`
@@ -80,8 +81,13 @@ Complete and organize the staged shell-script workflow for both Mac mini and Ras
 - `rpi/scripts/configure/`
 - `rpi/scripts/verify/`
 
+### Embedded workflow readiness
+- `esp32/code/`
+- `esp32/firmware/`
+- `esp32/docs/`
+
 ### Goal
-Ensure implementation begins only after the setup and validation workflow is reproducible.
+Ensure implementation begins only after the setup, configuration, validation, and embedded-node workflow assumptions are reproducible.
 
 ---
 
@@ -151,6 +157,23 @@ Ensure implementation proceeds on top of a stable, reproducible, policy-first fo
 
 ---
 
+## 9. Prepare the Embedded Node Implementation Path
+
+When the target prototype includes physical bounded nodes, prepare the ESP32 implementation path explicitly.
+
+### Immediate targets
+- bounded button node firmware
+- optional sensor node firmware
+- optional actuator or warning interface firmware
+- broker connection assumptions
+- topic namespace and device identity conventions
+- firmware build, flash, and reset workflow notes
+
+### Goal
+Ensure the embedded node layer can be integrated without bypassing policy control, auditability, or bounded interaction assumptions.
+
+---
+
 ## Final Principle
 
 Do not begin full implementation until:
@@ -160,3 +183,4 @@ Do not begin full implementation until:
 - install/configure/verify scripts are in place
 - the Mac mini operational platform is ready
 - core services pass independent verification
+- embedded node assumptions are documented when ESP32 is part of the prototype
