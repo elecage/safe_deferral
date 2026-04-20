@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "candidate_action_schema_v1_0_0",
+  "description": "Local LLM output sandbox boundary for single candidate action or safe deferral",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "proposed_action",
+    "target_device"
+  ],
+  "properties": {
+    "rationale_summary": {
+      "type": "string",
+      "maxLength": 160,
+      "description": "Optional short summary for logging and debugging. Not used for safety routing."
+    },
+    "proposed_action": {
+      "type": "string",
+      "enum": [
+        "light_on",
+        "light_off",
+        "safe_deferral"
+      ]
+    },
+    "target_device": {
+      "type": "string",
+      "enum": [
+        "living_room_light",
+        "bedroom_light",
+        "none"
+      ]
+    },
+    "deferral_reason": {
+      "type": "string",
+      "enum": [
+        "ambiguous_target",
+        "insufficient_context",
+        "policy_restriction",
+        "unresolved_multi_candidate"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "proposed_action": { "const": "safe_deferral" }
+        }
+      },
+      "then": {
+        "properties": {
+          "target_device": { "const": "none" }
+        },
+        "required": ["deferral_reason"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "proposed_action": { "enum": ["light_on", "light_off"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "target_device": { "enum": ["living_room_light", "bedroom_light"] }
+        },
+        "not": {
+          "required": ["deferral_reason"]
+        }
+      }
+    }
+  ]
+}
