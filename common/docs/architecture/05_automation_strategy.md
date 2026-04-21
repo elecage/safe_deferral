@@ -112,6 +112,10 @@ Examples:
 - output profiles
 - canonical terminology documents
 
+### Authority principle
+- The authoritative reference state is the frozen asset set in the Git repository.
+- Mac mini and Raspberry Pi consume deployed or synchronized runtime copies as needed, but they must not redefine local policy truth.
+
 ---
 
 ## 3. Recommended Orchestration Layer
@@ -167,13 +171,14 @@ make mac-all
 make rpi-all
 make verify-all
 make integration-test
+make scenario-run
 make measure-latency
 make timing-check
 ```
 
 ### Interpretation
 - `mac-*` targets operate on the Mac mini workflow
-- `rpi-*` targets operate on the Raspberry Pi workflow
+- `rpi-*` targets operate on the Raspberry Pi workflow and must remain bounded to simulation, fault-injection, and evaluation tasks rather than hub-side operational runtime control
 - `esp32-*` targets operate on embedded device build or flash workflows when needed
 - measurement targets operate on timing or latency evaluation workflows when used
 - shared assets in `common/` should be validated before deployment-dependent steps run
@@ -200,6 +205,13 @@ Configuration and verification logic should use shared frozen assets from `commo
 ### F. Keep measurement automation bounded to evaluation use
 Timing capture and latency evaluation should support reproducible experiments without becoming part of the operational decision path.
 
+### G. Preserve Raspberry Pi evaluation boundary
+Raspberry Pi automation should prepare and run experiment-side simulation, fault-injection, scenario orchestration, and closed-loop verification workflows only.  
+It should not automate Mac mini hub-side operational runtime control.
+
+### H. Prefer closed-loop automation over bypassed shortcuts
+Automation should support scenario publication through the same input plane used by the operational system and should validate outcomes through observed audit behavior rather than bypassed internal control paths.
+
 ---
 
 ## 6. Recommended Future Extension
@@ -213,6 +225,7 @@ As implementation grows, the automation layer may be extended with:
 - `make esp32-sim-check`
 - `make latency-eval`
 - `make timing-capture`
+- `make closed-loop-check`
 
 These targets should call device-specific scripts and shared integration or measurement assets, rather than bypassing the structured repository layout.
 
@@ -226,4 +239,5 @@ These targets should call device-specific scripts and shared integration or meas
 - Shared frozen assets in `common/` provide the reference state
 - `Makefile` or `justfile` should orchestrate, not replace, the structured script hierarchy
 - ESP32 workflows should be treated as embedded-node build and validation paths, not collapsed into Mac mini or Raspberry Pi automation
+- Raspberry Pi workflows should remain bounded to simulation, fault-injection, scenario orchestration, and closed-loop evaluation rather than hub-side runtime control
 - Optional timing-node workflows should be treated as experimental measurement automation, not as part of the operational control path
