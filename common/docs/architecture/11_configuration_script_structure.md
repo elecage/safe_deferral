@@ -19,6 +19,7 @@ Configure installed services, runtimes, embedded-node assumptions, and optional 
 - Allow service restart behavior to branch according to the **deployment mode**.
 - Complete the shared frozen asset set before implementation-side configuration depends on it.
 - Treat ESP32 embedded nodes as bounded physical clients whose connection parameters, topic structure, and device identity assumptions must be configured consistently when they are used.
+- Treat Raspberry Pi 5 as an **evaluation-side node**, not as a target for hub-side operational runtime configuration.
 - Treat optional timing/measurement support as an **evaluation-only alignment layer**, not part of the operational control path.
 
 ---
@@ -237,6 +238,26 @@ Old variable names or labels containing `ICR` should be renamed over time to ali
 ### Directory
 - `rpi/scripts/configure/`
 
+### Role Boundary
+Raspberry Pi 5 is a **simulation, fault-injection, and evaluation node**.
+
+It should be configured only for:
+- multi-node simulation runtime
+- virtual emergency sensing
+- fault injection
+- scenario orchestration
+- closed-loop automated verification
+- Pi-side time synchronization and verification utilities
+- synchronized runtime copies of frozen artifacts
+
+It should **not** be configured as a host for Mac mini operational hub services such as:
+- Home Assistant
+- Ollama
+- Policy Router
+- Deterministic Validator
+- Context-Integrity Safe Deferral Handler
+- hub-side operational audit authority
+
 ### Frozen / expected script set
 - `10_write_env_files_rpi.sh`
 - `20_sync_phase0_artifacts_rpi.sh`
@@ -260,8 +281,8 @@ Recommended responsibilities:
 ### `20_sync_phase0_artifacts_rpi.sh`
 
 Recommended responsibilities:
-- synchronize frozen policy assets from the authoritative hub-side source
-- synchronize frozen schema assets from the authoritative hub-side source
+- synchronize frozen policy assets from the authoritative shared repository state
+- synchronize frozen schema assets from the authoritative shared repository state
 - verify required synchronized runtime assets exist
 
 ### Principle
@@ -274,7 +295,7 @@ It should consume synchronized frozen artifacts derived from the shared referenc
 
 Recommended responsibilities:
 - configure LAN-referenced time synchronization
-- align the Raspberry Pi time client with the Mac mini reference host
+- align the Raspberry Pi time client with the Mac mini reference host or agreed LAN time reference
 - record offset and RMS offset measurements if available
 - verify acceptable time-sync bounds
 
@@ -299,6 +320,11 @@ Recommended responsibilities:
 - validate deterministic and randomized profiles
 - verify structural consistency of fault definitions
 - generate runtime configuration for fault execution and audit validation
+
+### Raspberry Pi Configuration Notes
+- Raspberry Pi configuration should stay bounded to the evaluation path.
+- It should prepare experiment-side execution only, not recreate the Mac mini hub runtime.
+- Shared frozen assets remain authoritative at the repository level, and Raspberry Pi consumes synchronized runtime copies only.
 
 ---
 
@@ -435,7 +461,8 @@ Typical workflow may include:
 
 - `common/` stores the frozen shared reference assets
 - `mac_mini/scripts/configure/` configures the operational hub
-- `rpi/scripts/configure/` configures the simulation and evaluation node
+- `rpi/scripts/configure/` configures the simulation and evaluation node only
+- Raspberry Pi does not replace the Mac mini hub runtime
 - `esp32/` stores embedded-node implementation assets and aligned configuration assumptions
 - `integration/measurement/` stores optional timing and measurement support alignment assets
 - configuration scripts and embedded/measurement configuration alignment deploy runtime-ready values and assumptions
