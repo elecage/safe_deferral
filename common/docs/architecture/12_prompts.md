@@ -263,6 +263,7 @@ Requirements:
 - Include deterministic sample profiles for repeatable experiments.
 - Include hooks suitable for closed-loop evaluation and scenario replay.
 - Read schema field definitions from the frozen context schema artifact.
+- Include unit tests for payload/schema compliance.
 ```
 
 ---
@@ -284,6 +285,8 @@ Requirements:
 - Support deterministic scenario replay for experiments.
 - Include a small set of predefined emergency scenarios.
 - Derive triggering conditions from the frozen policy artifacts instead of hardcoding them.
+- For each emergency rule, derive the minimal triggering predicate dynamically.
+- If the rule is composite, generate the minimal sensor combination needed to satisfy it.
 ```
 
 ---
@@ -336,7 +339,94 @@ Requirements:
 
 ---
 
-## Prompt 10. Implement Integration Test Runner
+## Prompt 10. Implement Scenario Orchestrator
+
+```text
+Implement a scenario orchestrator for Raspberry Pi 5.
+
+Target repository areas:
+- rpi/code/
+- integration/scenarios/
+
+Requirements:
+- Load scenario definition files.
+- Launch normal context simulation, emergency simulation, and fault injection in controlled sequences.
+- Support deterministic scenario replay and batch runs.
+- Record scenario timestamps, run metadata, and machine-readable summaries.
+- Make no direct assumptions about policy rules beyond what is explicitly defined in the frozen artifacts.
+- Ensure simulation and fault traffic enters through the same MQTT input plane used by the operational system.
+```
+
+---
+
+## Prompt 11. Implement Artifact Sync Utility
+
+```text
+Implement an artifact synchronization utility for Raspberry Pi 5.
+
+Target repository areas:
+- rpi/code/
+- rpi/scripts/configure/
+
+Requirements:
+- Synchronize runtime copies of the frozen shared assets needed for simulation and fault injection.
+- The authoritative source remains the shared frozen repository state, not Pi-local files.
+- Support synchronization of:
+  - common/policies/policy_table_v1_1_2_FROZEN.json
+  - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
+  - common/schemas/context_schema_v1_0_0_FROZEN.json
+  - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
+  - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
+  - common/schemas/validator_output_schema_v1_0_0_FROZEN.json
+- Verify checksum, version, or structural consistency after sync.
+- Keep synced runtime copies read-only for Pi-side runtime modules where appropriate.
+- Expose synced artifact paths to the rest of the experiment-side system.
+```
+
+---
+
+## Prompt 12. Implement Time Sync Check Utility
+
+```text
+Implement a time synchronization verification utility for Raspberry Pi 5.
+
+Target repository areas:
+- rpi/code/
+- rpi/scripts/verify/
+
+Requirements:
+- Check synchronization status against the Mac mini reference host or agreed LAN time reference.
+- Measure and log clock offset before experiments.
+- Report whether the measured offset is within the configured target bound.
+- Do not claim absolute or perfect millisecond synchronization.
+- Provide machine-readable output for experiment logs.
+- Keep the utility suitable for reproducibility-oriented evaluation workflows.
+```
+
+---
+
+## Prompt 13. Implement Raspberry Pi Verification Script
+
+```text
+Implement a verification script for the Raspberry Pi 5 experiment environment.
+
+Target repository areas:
+- rpi/scripts/verify/
+- rpi/code/
+
+Requirements:
+- Verify MQTT broker connectivity.
+- Verify topic namespace configuration.
+- Verify artifact sync consistency.
+- Verify time sync offset measurement.
+- Verify deterministic scenario reproducibility.
+- Verify closed-loop audit observation path when available.
+- Produce a pass/fail summary and exit nonzero on failure.
+```
+
+---
+
+## Prompt 14. Implement Integration Test Runner
 
 ```text
 Implement an integration test runner for the safety-oriented edge smart-home architecture.
@@ -360,7 +450,7 @@ Requirements:
 
 ---
 
-## Prompt 11. Generate Install Scripts
+## Prompt 15. Generate Install Scripts
 
 ```text
 Generate bash scripts for the safe deferral project setup.
@@ -387,7 +477,7 @@ Requirements:
 
 ---
 
-## Prompt 12. Generate Configuration Scripts
+## Prompt 16. Generate Configuration Scripts
 
 ```text
 Generate bash scripts that deploy configuration for the safe deferral architecture.
@@ -407,6 +497,7 @@ Requirements:
   - Telegram or mock notification settings
   - Raspberry Pi simulation runtime
   - Raspberry Pi fault profile setup
+  - artifact synchronization support for Raspberry Pi runtime copies
   - optional measurement profile alignment and timing-capture support references when out-of-band latency evaluation is used
 - Use template-based or deployment-target-aware file generation where possible.
 - Do not hardcode secrets into tracked files.
@@ -418,7 +509,7 @@ Requirements:
 
 ---
 
-## Prompt 13. Implement ESP32 Embedded Node Firmware
+## Prompt 17. Implement ESP32 Embedded Node Firmware
 
 ```text
 Implement bounded ESP32 firmware and supporting notes for the safe deferral prototype.
@@ -450,7 +541,7 @@ Requirements:
 
 ---
 
-## Prompt 14. Implement Timing and Measurement Support
+## Prompt 18. Implement Timing and Measurement Support
 
 ```text
 Implement optional timing and measurement support for out-of-band class-wise latency evaluation.
