@@ -270,8 +270,69 @@ Prepare the Raspberry Pi-based evaluation and experiment environment.
 - `integration/scenarios/`
 - `integration/measurement/`
 
+#### Raspberry Pi Verification / Acceptance Criteria
+The Raspberry Pi 5 experiment environment is accepted only if the following conditions are satisfied.
+
+##### A. Broker connectivity
+- Raspberry Pi can connect to the Mac mini Mosquitto broker over the trusted LAN
+- broker host, port, credentials, and topic namespace are correctly applied from `.env` or equivalent configuration
+- publish tests succeed without manual reconfiguration
+
+##### B. Throughput and publish stability
+- 30-40 virtual nodes can publish concurrently without crashes
+- publish loops remain within the configured interval bounds
+- deterministic scenario execution does not silently skip intended message publication
+
+##### C. Reproducibility
+- deterministic fault scenarios generate the same fault metadata under the same settings
+- scenario run summaries remain consistent across repeated runs of the same deterministic setup
+
+##### D. Fault generation correctness
+- all generated faults are derived from the frozen policy/schema artifacts rather than hardcoded values
+- threshold-crossing emergency injections satisfy the intended minimal triggering predicates
+- context-conflict injections include the expected safe-outcome labeling
+- missing-state injections distinguish:
+  1. policy-input omissions,
+  2. validator/action-schema omissions
+
+##### E. Artifact sync correctness
+- local synchronized runtime copies match the shared frozen repository state by checksum, version, or structural verification
+- experiment-side runtime modules consume the synchronized runtime copies rather than redefining local policy truth
+- unattended synchronization does not block automated evaluation runs
+
+##### F. Time sync validity
+- Raspberry Pi uses the Mac mini reference host or agreed LAN time reference
+- external WAN time dependency is not required for the experiment workflow
+- clock offset is measured and logged before experiments
+- measured offset stays within the configured target bound when the environment is considered healthy
+- stale-fault margins are configured to exceed measured offset plus jitter by a sufficient margin
+
+Note: the requirement is not an absolute fixed millisecond guarantee.  
+The requirement is a measurable, recorded, and verifiable target bound.
+
+##### G. Closed-loop automated verification
+- the verification workflow publishes test or fault payloads and subscribes to a verification-safe audit stream
+- observed routing or logging outcomes are automatically compared against expected safe outcomes
+- Class 0, Safe Deferral, and Class 2 results can be asserted automatically
+- pass/fail judgments can be produced without relying on manual screen inspection
+
+##### H. Security and configuration hygiene
+- broker credentials are not hardcoded in source files
+- `.env` or equivalent external configuration is used
+- topic namespace separation is preserved
+- if local authentication is enabled, both successful and failed authentication behavior can be verified
+
 #### Completion criterion
 The system supports reproducible multi-node simulation, fault-injection experiments, closed-loop safe-outcome verification, and out-of-band latency evaluation when measurement infrastructure is used.
+
+The Raspberry Pi evaluation path is considered accepted only when all of the following are satisfied:
+1. MQTT connectivity PASS
+2. artifact sync PASS
+3. time sync check PASS
+4. deterministic scenario reproducibility PASS
+5. fault generation correctness PASS
+6. publish stability PASS
+7. closed-loop verification PASS
 
 ---
 
