@@ -2,7 +2,7 @@
   "version": "1.4.0",
   "description": "Meta-rules for dynamic fault injection and closed-loop safety assessment on Raspberry Pi 5",
   "asset_dependencies": [
-    "policy_table_v1_1_2_FROZEN.json",
+    "policy_table_v1_2_0_FROZEN.json",
     "context_schema_v1_0_0_FROZEN.json",
     "validator_output_schema_v1_0_0_FROZEN.json"
   ],
@@ -46,17 +46,43 @@
       "expected_outcome": "class_0_emergency",
       "expected_trigger_id": "E001",
       "expected_routing_layer": "Policy Router"
+    },
+    "FAULT_EMERGENCY_02_SMOKE": {
+      "fault_type": "state_trigger_emergency",
+      "selector": "E003",
+      "manipulation": "set_smoke_detected_true",
+      "expected_outcome": "class_0_emergency",
+      "expected_trigger_id": "E003",
+      "expected_routing_layer": "Policy Router"
+    },
+    "FAULT_EMERGENCY_03_GAS": {
+      "fault_type": "state_trigger_emergency",
+      "selector": "E004",
+      "manipulation": "set_gas_detected_true",
+      "expected_outcome": "class_0_emergency",
+      "expected_trigger_id": "E004",
+      "expected_routing_layer": "Policy Router"
+    },
+    "FAULT_EMERGENCY_04_FALL": {
+      "fault_type": "event_trigger_emergency",
+      "selector": "E005",
+      "manipulation": "set_trigger_event_type_sensor_and_event_code_fall_detected",
+      "expected_outcome": "class_0_emergency",
+      "expected_trigger_id": "E005",
+      "expected_routing_layer": "Policy Router",
+      "schema_dependency_note": "Requires trigger_event.event_code support for fall_detected in context_schema_v1_0_0_FROZEN.json"
     }
   },
   "randomized_stress_profile": {
     "purpose": "Ensure absolute safety under unpredictable chaotic inputs",
     "safe_invariants": [
       "class_2_escalation",
-      "icr_handler"
+      "context_integrity_safe_deferral_handler"
     ],
     "prohibited_outcomes": [
       "actuator_dispatcher",
       "class_0_emergency"
-    ]
+    ],
+    "generator_note": "Randomized stress injection should avoid intentionally satisfying declared class_0 emergency predicates unless the profile is explicitly configured as an emergency-focused stress run."
   }
 }
