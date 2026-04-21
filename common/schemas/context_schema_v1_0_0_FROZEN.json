@@ -65,7 +65,8 @@
               "event_code": {
                 "enum": [
                   "threshold_exceeded",
-                  "state_changed"
+                  "state_changed",
+                  "fall_detected"
                 ]
               }
             }
