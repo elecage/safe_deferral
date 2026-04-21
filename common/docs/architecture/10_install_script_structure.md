@@ -19,7 +19,7 @@ Install the required components for the Mac mini, Raspberry Pi 5, supporting emb
 - Keep **installation**, **configuration**, and **verification** separated.
 - Install Python-based applications inside **virtual environments**.
 - Treat the Mac mini as the **primary operational hub**.
-- Treat the Raspberry Pi 5 as the **simulation and evaluation node**.
+- Treat the Raspberry Pi 5 as the **simulation and evaluation node**, not as a replacement for the Mac mini runtime.
 - Treat ESP32 as the **embedded physical node layer** when bounded button, sensor, or actuator/warning nodes are used.
 - Treat optional timing/measurement infrastructure as an **evaluation-only support path**, not part of the operational control path.
 - Ensure scripts fail fast and emit clear logs.
@@ -176,6 +176,25 @@ Recommended responsibilities:
 ### Directory
 - `rpi/scripts/install/`
 
+### Role Boundary
+Raspberry Pi 5 is an **evaluation-side node**, not the operational hub.
+
+It should install only the dependencies required for:
+- virtual context generation
+- virtual emergency sensing
+- fault injection
+- scenario orchestration
+- closed-loop automated verification
+- Pi-side verification utilities
+
+It should **not** install or host Mac mini operational hub services such as:
+- Home Assistant
+- Ollama
+- Policy Router
+- Deterministic Validator
+- Context-Integrity Safe Deferral Handler
+- hub-side operational audit authority
+
 ### Frozen / expected script set
 - `00_preflight_rpi.sh`
 - `10_install_system_packages_rpi.sh`
@@ -193,7 +212,9 @@ Recommended responsibilities:
 - verify Python availability
 - verify package manager availability
 - verify network reachability
+- verify disk space
 - prepare workspace directories
+- confirm evaluation-node-only installation assumptions
 
 #### `10_install_system_packages_rpi.sh`
 Install Raspberry Pi system packages.
@@ -214,13 +235,20 @@ Create the Raspberry Pi Python virtual environment.
 Recommended virtual environment:
 - `.venv-rpi`
 
+Recommended responsibilities:
+- create virtual environment
+- upgrade pip / setuptools / wheel
+- verify interpreter and pip versions
+
 #### `30_install_python_deps_rpi.sh`
 Install Raspberry Pi Python dependencies.
 
 Representative dependencies:
 - paho-mqtt
 - pytest
+- pytest-asyncio
 - PyYAML
+- jsonschema
 - click or typer
 - optional data-generation libraries
 - optional numeric libraries if needed by simulation logic
@@ -230,7 +258,14 @@ Install the time synchronization client for the simulation/evaluation node.
 
 Recommended responsibilities:
 - install chrony or equivalent supported client
-- prepare the node for Mac mini–referenced time synchronization
+- prepare the node for Mac mini-referenced or agreed LAN-referenced time synchronization
+- record that actual offset validation belongs to the verify stage, not the install stage
+
+### Raspberry Pi Install Design Notes
+
+- Raspberry Pi 5 should consume synchronized runtime copies of frozen assets later during configuration, not invent local policy truth during installation.
+- Install scripts should remain **rerunnable**, **stage-verifiable**, and clearly bounded to the evaluation path.
+- The purpose of the Raspberry Pi install layer is to prepare a stable base for simulation and experiment execution, not to recreate the Mac mini runtime stack.
 
 ---
 
@@ -391,7 +426,8 @@ These should remain auxiliary utilities, not replace the device-specific install
 ## Architectural Summary
 
 - Mac mini install scripts prepare the operational hub
-- Raspberry Pi install scripts prepare the simulation/evaluation node
+- Raspberry Pi install scripts prepare the simulation/evaluation node only
+- Raspberry Pi does not replace the Mac mini runtime stack
 - ESP32 embedded workflow documentation prepares bounded physical node deployment
 - optional timing/measurement readiness prepares out-of-band latency evaluation support
 - shared frozen assets in `common/` define the reference state
