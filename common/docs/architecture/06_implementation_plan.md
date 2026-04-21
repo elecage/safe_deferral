@@ -147,7 +147,7 @@ Freeze the shared reference assets before implementation begins.
 - installation/configuration/verification script set
 
 #### Representative frozen files
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_0_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/policies/output_profile_v1_0_0.json`
