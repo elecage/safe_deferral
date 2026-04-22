@@ -11,6 +11,9 @@ It is intended to guide:
 - staged implementation readiness
 - vibe-coding startup order
 
+This document does not replace the canonical frozen baseline.  
+Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
 ---
 
 ## 1. Finalize and Commit Shared Frozen Assets
@@ -19,23 +22,28 @@ Before implementation begins, complete and commit the shared frozen assets under
 
 ### Priority targets
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
-- `common/policies/low_risk_actions_v1_0_0_FROZEN.json`
+- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/policies/output_profile_v1_0_0.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
+- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+### Optional or version-sensitive companion assets
+- output profile assets
+- auxiliary deployment templates
+- reproducibility support assets
 
 ### Goal
 Ensure the shared frozen assets become the single source of truth before code generation or runtime implementation proceeds.
 
 ---
 
-## 2. Finalize Core Architecture Documents
+## 2. Finalize and Align Core Architecture Documents
 
-Prepare the architecture reference documents under `common/docs/architecture/`.
+Finalize the architecture reference documents under `common/docs/architecture/` and confirm cross-document consistency.
 
 ### Priority documents
 - installation target classification
@@ -49,7 +57,7 @@ Prepare the architecture reference documents under `common/docs/architecture/`.
 - recommended next steps
 
 ### Goal
-Provide a stable reference set for implementation planning and vibe-coding prompts.
+Provide a stable and internally aligned reference set for implementation planning and vibe-coding prompts.
 
 ---
 
@@ -145,6 +153,8 @@ Before implementation begins, confirm that the installed and configured services
 - SQLite read/write and WAL mode work
 - notification path works
 - environment variables and runtime assets validate correctly
+- deployed frozen assets are readable and version-aligned
+- canonical policy/schema/rules consistency checks pass
 - out-of-band latency measurement support path validates correctly when used
 
 ### Goal
@@ -173,16 +183,21 @@ Ensure implementation proceeds on top of a stable, reproducible, policy-first fo
 
 When the target prototype includes physical bounded nodes, prepare the ESP32 implementation path explicitly.
 
-### Immediate targets
+### Current canonical targets
 - bounded button node firmware
-- temperature / humidity sensor node firmware when physical sensing is used
-- gas sensor node firmware when physical sensing is used
-- fire detection sensor node firmware when physical sensing is used
 - lighting control node firmware when physical output is used
-- doorlock or warning interface firmware when physical output is used
+- representative environmental sensing node firmware used in the current validation baseline
 - broker connection assumptions
 - topic namespace and device identity conventions
 - firmware build, flash, and reset workflow notes
+
+### Optional experimental targets
+- gas sensor node firmware when physical sensing is used
+- fire detection sensor node firmware when physical sensing is used
+- fall-detection interface firmware when physical sensing is used
+
+### Planned extension targets
+- doorlock or warning interface firmware when physical output is used beyond the current canonical low-risk scope
 
 ### Goal
 Ensure the embedded node layer can be integrated without bypassing policy control, auditability, or bounded interaction assumptions.
@@ -199,6 +214,8 @@ When the target experiment package includes large-scale virtual-node evaluation 
 - fault injection harness
 - repeatable scenario orchestration
 - closed-loop automated verification support
+- canonical policy/schema/rules consistency checks
+- canonical emergency trigger alignment for `E001`~`E005`
 - optional STM32 timing node or equivalent dedicated measurement node
 - out-of-band class-wise latency capture notes
 - measurement result templates for reproducible evaluation
@@ -219,3 +236,4 @@ Do not begin full implementation until:
 - core services pass independent verification
 - embedded node assumptions are documented when ESP32 is part of the prototype
 - measurement infrastructure assumptions are documented when out-of-band class-wise latency evaluation is part of the target experiment package
+- deployment-local runtime files and synchronized copies are prevented from overriding canonical frozen policy truth
