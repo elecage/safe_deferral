@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "class_2_notification_payload_schema_v1_0_0",
+  "description": "Schema for caregiver escalation payload emitted when the system transitions to Class 2 escalation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "event_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Short summary of the triggering event."
+    },
+    "context_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800,
+      "description": "Short summary of the relevant environmental and device context."
+    },
+    "unresolved_reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Human-readable reason why autonomous handling was not completed."
+    },
+    "manual_confirmation_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Instruction or route by which a caregiver can review, confirm, or intervene."
+    },
+    "audit_correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Correlation ID linking the escalation payload to audit logs and upstream events."
+    },
+    "timestamp_ms": {
+      "type": "integer",
+      "description": "Emission timestamp in epoch milliseconds."
+    },
+    "notification_channel": {
+      "type": "string",
+      "enum": [
+        "telegram",
+        "local_dashboard",
+        "sms",
+        "other"
+      ],
+      "description": "Outbound channel used to deliver the escalation payload."
+    },
+    "source_layer": {
+      "type": "string",
+      "enum": [
+        "policy_router",
+        "validator",
+        "icr_handler",
+        "dispatcher",
+        "system"
+      ],
+      "description": "System layer that initiated the Class 2 escalation."
+    },
+    "exception_trigger_id": {
+      "type": "string",
+      "enum": [
+        "C201",
+        "C202",
+        "C203",
+        "C204",
+        "C205"
+      ],
+      "description": "Canonical Class 2 trigger identifier."
+    }
+  },
+  "required": [
+    "event_summary",
+    "context_summary",
+    "unresolved_reason",
+    "manual_confirmation_path"
+  ]
+}
