@@ -154,7 +154,7 @@ Freeze the shared reference assets before implementation begins.
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
+- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 
 #### Completion criterion
