@@ -10,6 +10,9 @@ It reflects:
 - the distinction between shared assets, operational scripts, embedded firmware, measurement assets, and integration assets
 - the canonical terminology of the project
 
+This document does not redefine policy truth.  
+Canonical policy, schema, terminology, and related reference assets remain anchored in the shared frozen asset set under `common/`.
+
 ---
 
 ## Repository Root Structure
@@ -61,13 +64,17 @@ Stores shared policy assets, including:
 - routing policy tables
 - low-risk action policies
 - fault injection rules
-- output profiles
+- optional or version-sensitive companion policy assets
 
-Representative files:
+Representative canonical files:
 - `policy_table_v1_1_2_FROZEN.json`
-- `low_risk_actions_v1_0_0_FROZEN.json`
+- `low_risk_actions_v1_1_0_FROZEN.json`
 - `fault_injection_rules_v1_4_0_FROZEN.json`
-- `output_profile_v1_0_0.json`
+
+Optional or version-sensitive companion assets may include:
+- output profile assets
+- auxiliary policy references
+- transitional policy support files
 
 ### `common/schemas/`
 Stores shared schema assets, including:
@@ -75,19 +82,21 @@ Stores shared schema assets, including:
 - candidate action schema
 - policy router input schema
 - validator output schema
+- escalation payload schema
 
-Representative files:
+Representative canonical files:
 - `context_schema_v1_0_0_FROZEN.json`
 - `candidate_action_schema_v1_0_0_FROZEN.json`
 - `policy_router_input_schema_v1_1_1_FROZEN.json`
-- `validator_output_schema_v1_0_0_FROZEN.json`
+- `validator_output_schema_v1_1_0_FROZEN.json`
+- `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 
 ### `common/docs/`
 Stores shared documentation, including:
 - installation and deployment references
 - architecture documents
-- output profile references
 - evaluation planning documents
+- implementation-boundary guidance
 
 Recommended subfolders:
 - `common/docs/architecture/`
@@ -97,6 +106,10 @@ Stores frozen terminology and naming records.
 
 Representative file:
 - `TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+### Interpretation
+The `common/` directory is the canonical reference layer.  
+Runtime copies may be deployed elsewhere, but the authoritative frozen baseline is maintained here.
 
 ---
 
@@ -121,7 +134,7 @@ Configuration scripts for:
 - SQLite
 - notification settings
 - environment file generation
-- policy deployment
+- frozen asset deployment
 
 ### `mac_mini/scripts/verify/`
 Verification scripts for:
@@ -131,14 +144,17 @@ Verification scripts for:
 - SQLite access
 - notification path
 - runtime environment validation
+- deployed asset/version consistency checks
 
 ### `mac_mini/runtime/`
 Stores runtime deployment templates and service-oriented runtime assets.
 
 Examples:
+- deployed runtime copies of frozen assets
 - Docker Compose templates
 - runtime configuration templates
 - deployment-side environment scaffolding
+- service-oriented local runtime files
 
 ### `mac_mini/code/`
 Stores hub-side application code, including future implementations of:
@@ -151,6 +167,10 @@ Stores hub-side application code, including future implementations of:
 
 ### `mac_mini/docs/`
 Stores Mac mini-specific implementation notes if needed.
+
+### Interpretation
+`mac_mini/runtime/` is a deployment/runtime zone, not the canonical source of frozen policy truth.  
+Canonical policy and schema definitions remain under `common/`.
 
 ---
 
@@ -181,6 +201,7 @@ Verification scripts for:
 - network reachability
 - simulation environment checks
 - closed-loop audit validation
+- evaluation-side asset consistency checks
 
 ### `rpi/code/`
 Stores Raspberry Pi-side future code, including:
@@ -195,25 +216,38 @@ Stores Raspberry Pi-side future code, including:
 ### `rpi/docs/`
 Stores Raspberry Pi-specific implementation notes if needed.
 
+### Interpretation
+The Raspberry Pi consumes synchronized runtime copies derived from canonical frozen assets.  
+It supports experiment-side execution and evaluation scaling, but it does not redefine canonical operational policy truth.
+
 ---
 
 ## 4. `esp32/`
 
 The `esp32/` directory contains embedded-device implementation assets.
 
-ESP32 devices are used for bounded physical interaction, sensing, or actuator/warning interfacing where needed.
+ESP32 devices are used for bounded physical interaction, sensing, or actuator/warning interfacing within the applicable scope.
 
 ### `esp32/code/`
 Stores device-specific source code and embedded logic.
 
-Representative targets:
-- bounded button node logic
-- temperature / humidity sensor node logic
-- gas sensor node logic
-- fire detection sensor node logic
-- lighting control node logic
-- doorlock or warning interface logic
+Representative target categories:
+- **current canonical targets**
+  - bounded button node logic
+  - lighting control node logic
+  - representative environmental sensing node logic used in the current validation baseline
+- **optional experimental targets**
+  - gas sensor node logic
+  - fire detection sensor node logic
+  - fall-detection interface logic
+- **planned extension targets**
+  - doorlock or warning interface logic beyond the current canonical low-risk action scope
+
+Common embedded behaviors may include:
 - MQTT publish/subscribe client behavior
+- bounded input interpretation
+- sensing payload generation
+- actuator/warning interfacing logic
 
 ### `esp32/firmware/`
 Stores firmware projects and build-system files.
@@ -232,6 +266,10 @@ Stores ESP32-specific implementation notes, including:
 - firmware flash guides
 - bounded physical node validation notes
 
+### Interpretation
+The ESP32 directory supports both present validation targets and future physical-node extensions.  
+Not every node profile listed here is required in the minimum canonical deployment.
+
 ---
 
 ## 5. `integration/`
@@ -242,6 +280,7 @@ The `integration/` directory contains cross-device validation and experiment ass
 Stores:
 - end-to-end test harnesses
 - integration validation logic
+- canonical asset consistency tests
 - reproducibility scripts
 - system-level behavioral checks
 
@@ -259,6 +298,10 @@ Stores:
 - measurement wiring references
 - timing capture scripts or result templates
 - optional STM32 or dedicated timing-node support notes
+
+### Interpretation
+`integration/` is the cross-device validation layer.  
+It should contain system-wide tests and evaluation assets that do not belong to only one device-specific directory.
 
 ---
 
@@ -282,13 +325,16 @@ This keeps the build lifecycle explicit and script responsibilities clear.
 - firmware stores embedded-device build targets and deployable node logic
 
 ### D. Integration and measurement assets should remain independent from device-local scripts
-System-wide tests, scenarios, and timing/measurement assets belong in `integration/`, not inside a single device folder.
+System-wide tests, scenarios, timing/measurement assets, and canonical consistency tests belong in `integration/`, not inside a single device folder.
 
 ### E. Physical-node validation and virtual-node evaluation should both be representable
 The repository should support:
 - **ESP32-based physical bounded input/output validation**
 - **Raspberry Pi-based scalable virtual-node and fault-injection evaluation**
 - **optional timing-node-based out-of-band latency measurement**
+
+### F. Deployment-local files must not be confused with canonical frozen assets
+Host-local runtime files, `.env`, credentials, and machine-specific configuration belong to deployment/runtime handling and must not be treated as canonical frozen policy truth.
 
 ---
 
@@ -301,11 +347,7 @@ The canonical project term is:
 Deprecated label:
 - `iCR-based safe deferral stage`
 
-Any old references such as:
-- `icr_mapping`
-- `icr_handler`
-
-should be replaced with terminology aligned to the current canonical term.
+Older internal names may still appear in transitional assets or source-layer references, but new architecture-facing naming should align with the current canonical term.
 
 ---
 
@@ -315,7 +357,7 @@ should be replaced with terminology aligned to the current canonical term.
 - `mac_mini/` stores hub-side scripts, runtime files, and future code
 - `rpi/` stores simulation-side scripts and future experiment orchestration code
 - `esp32/` stores embedded firmware and device-specific physical node implementation assets
-- `integration/` stores end-to-end tests, evaluation scenarios, and timing/measurement assets
+- `integration/` stores end-to-end tests, evaluation scenarios, timing/measurement assets, and canonical consistency checks
 
 This structure is intended to support:
 - repository clarity
