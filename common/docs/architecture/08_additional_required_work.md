@@ -11,6 +11,9 @@ It is intended to support:
 - evaluation readiness
 - operational recovery planning
 
+This document does not replace the canonical frozen baseline.  
+Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
 ---
 
 ## 1. Shared Frozen Asset Completeness
@@ -19,14 +22,19 @@ The following shared frozen assets must exist and be treated as the single sourc
 
 ### Required shared assets
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
-- `common/policies/low_risk_actions_v1_0_0_FROZEN.json`
+- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/policies/output_profile_v1_0_0.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
+- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+### Optional or version-sensitive companion assets
+- output profile assets
+- auxiliary deployment templates
+- reproducibility support assets
 
 ### Requirement
 These assets must be frozen before implementation-side code generation begins.
@@ -50,6 +58,9 @@ A dedicated port allocation reference should be created and maintained.
 ### Recommended location
 - `common/docs/architecture/`
 - or `common/docs/runtime/`
+
+### Requirement note
+Port allocation references support deployment consistency, but they do not define canonical policy truth.
 
 ---
 
@@ -81,6 +92,10 @@ A centralized environment-variable reference is required for both documentation 
   - `esp32/` implementation notes when applicable
   - `integration/measurement/` when applicable
 
+### Deployment-local separation principle
+Environment-variable sheets document deployment consistency, but `.env`, credentials, tokens, host paths, and machine-specific configuration remain deployment-local assets.  
+They must not be treated as canonical frozen policy truth.
+
 ---
 
 ## 4. Acceptance Criteria per Module
@@ -105,7 +120,8 @@ Each major module should have explicit acceptance criteria before it is consider
 - timeout or unresolved ambiguity escalates safely rather than enabling unsafe actuation
 
 #### Outbound Notification Interface
-- expected payload is emitted successfully
+- outbound escalation payload is emitted successfully
+- payload structure is aligned with `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - mock fallback works when external notification is not available
 
 #### Caregiver Confirmation Backend
@@ -128,6 +144,8 @@ Each major module should have explicit acceptance criteria before it is consider
 - randomized stress injection can run independently
 - closed-loop audit verification can be triggered from injected faults
 - repeatable large-scale multi-node simulation can be executed
+- canonical policy/schema/rules consistency checks pass
+- emergency simulation and fault generation remain aligned with canonical trigger family `E001`~`E005`
 
 ### ESP32 embedded modules when used
 
@@ -171,7 +189,10 @@ A reusable test-data package should be created for implementation and verificati
 - representative fault-injection cases
 - expected safe-deferral cases
 - expected escalation cases
+- representative Class 2 notification payload examples
 - representative ESP32-linked bounded input/output cases when embedded nodes are used
+- canonical policy/fault/schema consistency fixtures
+- representative emergency trigger-aligned cases for `E001`~`E005`
 - class-wise latency experiment profiles when out-of-band measurement is used
 - measurement result templates or capture reference formats when needed
 
@@ -212,11 +233,12 @@ Fault injection behavior must remain dynamically grounded in shared frozen asset
 
 ### Required rules
 - thresholds and freshness limits must be parsed dynamically from policy and schema assets
-- emergency threshold crossing and context conflict must be treated as separate test classes
+- emergency injection and context conflict must be treated as separate test classes
 - missing-state faults must distinguish:
   - policy-layer missing inputs
   - validator or action-schema missing fields
 - stale, missing, conflict, and timeout conditions must be distinguishable in evaluation
+- fault injection must remain aligned with canonical trigger family `E001`~`E005`
 
 ### Repository alignment
 - frozen source of truth:
@@ -225,6 +247,7 @@ Fault injection behavior must remain dynamically grounded in shared frozen asset
 - implementation and execution:
   - `rpi/code/`
   - `integration/scenarios/`
+  - `integration/tests/`
 
 ---
 
@@ -261,6 +284,7 @@ Audit logging must remain structurally safe and auditable.
 - log writers must not bypass the audit path
 - routing, validation, safe deferral, timeout, escalation, caregiver confirmation, and ACK events should be traceable
 - ESP32-linked bounded input/output events should be traceable through the same audit path when embedded nodes are used
+- a verification-safe audit subset or equivalent verification-safe audit stream should be available for closed-loop experiment-side evaluation
 - measurement-support events may be logged for experiment traceability, but timing infrastructure must not become part of the operational control path
 
 ### Repository alignment
@@ -285,6 +309,7 @@ When class-wise latency evaluation is part of the experiment package, the timing
 - wiring assumptions or capture references should be recorded when hardware timing support is used
 - result formats should be reusable for reproducible paper evaluation
 - optional STM32 timing node or dedicated measurement node support notes should be maintained when used
+- timing and measurement support must remain evaluation-only and must not become part of the operational control path
 
 ### Repository alignment
 - measurement assets:
@@ -303,6 +328,7 @@ The system should not be considered implementation-ready unless:
 - reusable test data exists
 - recovery procedures are documented
 - fault injection rules are dynamically grounded in frozen assets
+- canonical policy/schema/rules consistency checks pass
 - audit logging remains single-writer and traceable
 - ESP32-related bounded physical node requirements are documented wherever embedded nodes are part of the target prototype
 - timing and measurement infrastructure requirements are documented wherever out-of-band class-wise latency evaluation is part of the target experiment package
