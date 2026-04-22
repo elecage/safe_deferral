@@ -11,6 +11,9 @@ Install the required components for the Mac mini, Raspberry Pi 5, supporting emb
 - aligned with the frozen asset strategy
 - suitable for vibe-coding and reproducible bring-up
 
+This document does not replace the canonical frozen baseline.  
+Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
 ---
 
 ## Core Principles
@@ -68,15 +71,25 @@ safe_deferral/
 
 The following shared assets should be prepared before implementation depends on them:
 
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
+### Required canonical frozen assets
+- `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/policies/output_profile_v1_1_0.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
+- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+### Optional or version-sensitive companion assets
+- output profile assets
+- auxiliary deployment templates
+- reproducibility support assets
+
+### Principle
+Install scripts may depend on the existence of the frozen baseline, but they do not redefine it.  
+Canonical policy and schema truth remains under `common/`.
 
 ---
 
@@ -106,6 +119,7 @@ Recommended responsibilities:
 - verify disk space
 - verify network connectivity
 - prepare workspace directories
+- verify that required frozen asset baseline is present before install-dependent implementation proceeds
 
 #### `10_install_homebrew_deps.sh`
 Install or verify required macOS package dependencies.
@@ -168,6 +182,7 @@ Recommended responsibilities:
   - Caregiver Confirmation Backend
 
   should live under `mac_mini/code/`, not inside install scripts.
+- Compose files, runtime directories, and local runtime assets under `mac_mini/runtime/` are deployment/runtime surfaces, not the canonical source of policy truth.
 
 ---
 
@@ -266,6 +281,7 @@ Recommended responsibilities:
 - Raspberry Pi 5 should consume synchronized runtime copies of frozen assets later during configuration, not invent local policy truth during installation.
 - Install scripts should remain **rerunnable**, **stage-verifiable**, and clearly bounded to the evaluation path.
 - The purpose of the Raspberry Pi install layer is to prepare a stable base for simulation and experiment execution, not to recreate the Mac mini runtime stack.
+- Canonical policy/schema/rules consistency verification belongs to the **verify** stage, while install scripts only prepare the dependencies and runtime needed for those checks.
 
 ---
 
@@ -289,11 +305,18 @@ Instead, they require an embedded build and flash workflow that should still be 
 - define reset and recovery steps for embedded nodes
 
 ### Typical embedded targets
+
+#### Current canonical targets
 - bounded button input node
-- temperature / humidity sensor node
+- lighting control node
+- representative environmental sensing node used in the current validation baseline
+
+#### Optional experimental targets
 - gas sensor node
 - fire detection sensor node
-- lighting control node
+- fall-detection interface node
+
+#### Planned extension targets
 - doorlock or warning interface node
 
 ---
@@ -305,7 +328,7 @@ Instead, they require an embedded build and flash workflow that should still be 
 
 ### Role
 Timing and measurement support is not part of the operational decision path.  
-It is an optional evaluation support path for out-of-band class-wise latency measurement.
+It is an optional evaluation support path for out-of-band class-wise latency measurement and must not become part of the operational control plane.
 
 ### Recommended responsibilities
 - prepare timing-node support notes when used
@@ -352,6 +375,12 @@ Related directories:
 ---
 
 ## Recommended Execution Order
+
+### Recommended preflight baseline check
+Before device-specific installation proceeds:
+- verify required frozen assets exist
+- verify canonical baseline version set is present
+- ensure install-dependent work is not starting from an incomplete frozen reference state
 
 ### Mac mini
 ```bash
@@ -420,6 +449,7 @@ These should remain auxiliary utilities, not replace the device-specific install
 - avoid placing application logic inside install scripts
 - keep embedded build logic documented separately from host-side operational scripts when ESP32 nodes are used
 - keep timing/measurement support documented separately from the operational control path when out-of-band evaluation is used
+- prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
 
 ---
 
