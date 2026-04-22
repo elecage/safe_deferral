@@ -10,6 +10,9 @@ It is intended to support:
 - repository-aligned development
 - traceable progress from frozen assets to integration testing and evaluation
 
+This document does not replace the canonical frozen baseline.  
+Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
 ---
 
 ## T0. Freeze Shared Reference Assets
@@ -18,18 +21,23 @@ It is intended to support:
 - [ ] Finalize schema assets under `common/schemas/`
 - [ ] Finalize canonical terminology under `common/terminology/`
 - [ ] Finalize supporting reference docs under `common/docs/`
-- [ ] Upload all frozen shared artifacts to the agent knowledge base before code generation
+- [ ] Ensure frozen shared artifacts are available as implementation reference inputs before code generation
 
-### Representative frozen assets
+### Representative canonical frozen assets
 - [ ] `common/policies/policy_table_v1_1_2_FROZEN.json`
-- [ ] `common/policies/low_risk_actions_v1_0_0_FROZEN.json`
+- [ ] `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - [ ] `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- [ ] `common/policies/output_profile_v1_0_0.json`
 - [ ] `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - [ ] `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - [ ] `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- [ ] `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
+- [ ] `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- [ ] `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - [ ] `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+### Optional or version-sensitive companion assets
+- [ ] output profile assets
+- [ ] auxiliary deployment templates
+- [ ] reproducibility support assets
 
 ---
 
@@ -44,8 +52,9 @@ It is intended to support:
   - [ ] policy router input
   - [ ] candidate action
   - [ ] validator output
+  - [ ] Class 2 notification payload
 - [ ] Finalize `fault_injection_rules`
-- [ ] Finalize output profile constraints
+- [ ] Finalize optional or version-sensitive companion asset constraints where used
 
 ---
 
@@ -87,7 +96,7 @@ It is intended to support:
 
 - [ ] Define router input strictly from frozen assets
 - [ ] Implement Class 0 routing rules
-- [ ] Implement ambiguous emergency downgrade rules
+- [ ] Implement conservative handling for malformed or non-matching emergency-like inputs
 - [ ] Implement context sufficiency checks
 - [ ] Implement Class 2 escalation rules
 - [ ] Ensure freshness/fault metadata is not passed into the bounded LLM execution context
@@ -146,8 +155,9 @@ It is intended to support:
 
 ## T8. Implement External Notification and Confirmation
 
-- [ ] Create Telegram / mock payload schema
-- [ ] Implement outbound alert sender
+- [ ] Implement Class 2 notification payload generation aligned with `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- [ ] Validate outbound escalation payload completeness against the canonical schema
+- [ ] Implement Telegram / mock outbound alert sender
 - [ ] Implement caregiver confirmation endpoint
 - [ ] Restrict confirmation to bounded low-risk actions
 
@@ -170,31 +180,39 @@ It is intended to support:
   - [ ] minimal triggering predicates
   - [ ] required keys
 - [ ] Implement the following fault categories separately:
-  - [ ] threshold-crossing emergency injection
+  - [ ] policy-declared emergency injection
   - [ ] context conflict injection
   - [ ] sensor/state staleness injection
   - [ ] missing state injection
 - [ ] Distinguish policy-input omissions from validator/action-schema omissions
-- [ ] Distinguish threshold-crossing emergency cases from context-conflict cases
+- [ ] Distinguish policy-declared emergency cases from context-conflict cases
+- [ ] Align emergency simulation and fault generation with canonical trigger family `E001`~`E005`
 - [ ] Support closed-loop automated verification against expected safe outcomes
 
 ### Repository focus
 - `rpi/code/`
 - `integration/scenarios/`
+- `integration/tests/`
 
 ---
 
 ## T10. Implement ESP32 Embedded Physical Node Layer
 
+### Current canonical targets
 - [ ] Implement bounded button input node firmware
-- [ ] Implement temperature / humidity sensor node firmware when physical sensing is used
-- [ ] Implement gas sensor node firmware when physical sensing is used
-- [ ] Implement fire detection sensor node firmware when physical sensing is used
 - [ ] Implement lighting control node firmware when physical output is used
-- [ ] Implement doorlock or warning interface firmware when physical output is used
+- [ ] Implement representative environmental sensing node firmware used in the current validation baseline
 - [ ] Implement MQTT publish/subscription behavior required for bounded physical nodes
 - [ ] Align broker connection parameters, topic namespaces, and device identifiers with the operational hub assumptions
 - [ ] Keep embedded behavior bounded and policy-aligned rather than autonomous
+
+### Optional experimental targets
+- [ ] Implement gas sensor node firmware when physical sensing is used
+- [ ] Implement fire detection sensor node firmware when physical sensing is used
+- [ ] Implement fall-detection interface firmware when physical sensing is used
+
+### Planned extension targets
+- [ ] Implement doorlock or warning interface firmware when physical output is used beyond the current canonical low-risk scope
 
 ### Repository focus
 - `esp32/code/`
@@ -241,6 +259,8 @@ It is intended to support:
 - [ ] Run fault-injection test suite
 - [ ] Verify no unsafe autonomous actuation occurs under conflict, staleness, or missing-state conditions
 - [ ] Verify closed-loop audit behavior under injected faults
+- [ ] Verify canonical policy/fault/schema consistency tests pass
+- [ ] Verify synchronized runtime copies remain version-consistent with the canonical frozen baseline
 - [ ] Verify ESP32-linked bounded physical input/output behavior through integration tests when used
 - [ ] Verify out-of-band class-wise latency measurement when timing infrastructure is used
 - [ ] Verify timing capture path and measurement reproducibility when timing infrastructure is used
@@ -259,8 +279,9 @@ It is intended to support:
 - [ ] Shared frozen assets in `common/` must remain the single source of truth
 - [ ] Mac mini remains the operational hub
 - [ ] Raspberry Pi 5 remains the multi-node simulation and evaluation node
-- [ ] ESP32 remains the embedded physical node layer for bounded input, sensing, or actuator/warning interfacing when used
+- [ ] ESP32 remains the embedded physical node layer for bounded input, sensing, or actuator/warning interfacing within the applicable scope
 - [ ] Optional timing infrastructure remains evaluation-only and separate from the operational decision path
 - [ ] Deterministic safety logic remains authoritative before bounded LLM assistance
 - [ ] Safe deferral must be preferred over unsafe autonomous actuation
 - [ ] Verification must be possible at both service level and closed-loop system level
+- [ ] Deployment-local runtime files and synchronized copies must not override canonical frozen policy truth
