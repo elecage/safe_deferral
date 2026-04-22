@@ -14,7 +14,7 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 ## Architecture Scope
 - The Mac mini hosts all core operational runtime services
 - Raspberry Pi 5 is used as the multi-node simulation, virtual sensing, fault-injection, scenario replay, and closed-loop evaluation node
-- ESP32 devices are used as embedded physical nodes for bounded button input, sensing, or actuator/warning interfacing where required
+- ESP32 devices are used as embedded physical nodes for bounded button input, sensing, or actuator/warning interfacing within the applicable scope
 - Optional STM32 timing nodes or equivalent dedicated measurement nodes may be used for out-of-band class-wise latency evaluation
 - The LLM is sandboxed and invoked only after policy approval
 - Shared frozen assets in the Git repository act as the single source of truth before runtime deployment
@@ -51,6 +51,11 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `integration/tests/`
 - `integration/scenarios/`
 - `integration/measurement/`
+
+### Repository interpretation principle
+- `common/` contains the canonical frozen reference layer
+- `mac_mini/runtime/` and other deployed runtime locations contain synchronized runtime copies and host-local execution assets
+- deployment-local runtime files must not be treated as canonical policy truth
 
 ---
 
@@ -94,11 +99,32 @@ The canonical project term is:
 Deprecated label:
 - `iCR-based safe deferral stage`
 
-Any implementation references such as:
-- `iCR Handler`
-- `iCR mapping`
+Older internal names may still appear in transitional assets or source-layer references, but new architecture-facing and implementation-facing naming should align with the current canonical term.
 
-should be replaced with names aligned to the canonical term.
+---
+
+## Canonical Emergency Alignment
+
+The implementation must remain aligned with the canonical policy-declared emergency trigger family.
+
+At the current canonical policy level, the project recognizes:
+- `E001`: high temperature threshold crossing
+- `E002`: emergency triple-hit bounded input
+- `E003`: smoke detected state trigger
+- `E004`: gas detected state trigger
+- `E005`: fall detected event trigger
+
+Accordingly:
+- physical sensing paths
+- virtual emergency simulation
+- fault injection logic
+- verification logic
+- routing outcome assertions
+
+must remain semantically consistent with the same trigger set.
+
+This implementation plan does not redefine emergency semantics.  
+The authoritative trigger definitions remain in the shared policy table.
 
 ---
 
@@ -140,22 +166,27 @@ Freeze the shared reference assets before implementation begins.
 - routing policy table
 - low-risk action policy
 - fault injection rules
-- output profile
 - JSON schemas
+- Class 2 notification payload schema
 - canonical terminology
 - environment variable templates
 - installation/configuration/verification script set
 
 #### Representative frozen files
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
+- `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/policies/output_profile_v1_1_0.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+#### Optional or version-sensitive companion assets
+- output profile assets
+- auxiliary deployment templates
+- reproducibility support assets
 
 #### Completion criterion
 The shared frozen assets are committed in the repository and treated as the single source of truth.
@@ -180,6 +211,9 @@ Prepare the Mac mini operational platform.
 
 #### Completion criterion
 All core services are present and configured on the Mac mini.
+
+#### Boundary note
+Host-local runtime files and deployed copies are necessary for execution, but they do not replace the canonical frozen policy/schema baseline under `common/`.
 
 ---
 
@@ -219,16 +253,29 @@ The system can safely escalate approved external communication events without by
 ### M5. Physical Integration Ready
 Connect the operational hub to real or semi-real physical inputs and outputs.
 
-#### Tasks
+#### Current canonical physical-node validation targets
 - connect ESP32 button node
-- connect ESP32 temperature / humidity sensor node
-- connect ESP32 gas sensor node
-- connect ESP32 fire detection sensor node
 - connect ESP32 lighting control node
-- connect ESP32 doorlock or warning interface node
+- connect representative environmental sensing node used in the current canonical validation baseline
 - validate Class 0 / Class 1 / Class 2 transitions
 - validate safe deferral under incomplete or conflicting context
 - validate bounded physical input/output behavior without bypassing policy control
+
+#### Optional experimental physical-node targets
+- connect ESP32 gas sensor node
+- connect ESP32 fire detection sensor node
+- connect ESP32 fall-detection interface node
+
+#### Planned extension targets
+- connect ESP32 doorlock or warning interface node beyond the current canonical low-risk action scope
+
+#### Canonical emergency alignment
+Physical integration and validation must remain aligned with the canonical emergency family:
+- `E001`
+- `E002`
+- `E003`
+- `E004`
+- `E005`
 
 #### Primary repository locations
 - `integration/tests/`
@@ -238,7 +285,7 @@ Connect the operational hub to real or semi-real physical inputs and outputs.
 - `esp32/docs/`
 
 #### Completion criterion
-End-to-end operational flows with bounded physical nodes are validated against the intended policy behavior.
+End-to-end operational flows with bounded physical nodes are validated against the intended policy behavior within the applicable current, optional, and planned scope boundaries.
 
 ---
 
@@ -269,6 +316,7 @@ Prepare the Raspberry Pi-based evaluation and experiment environment.
 - `rpi/scripts/verify/`
 - `integration/scenarios/`
 - `integration/measurement/`
+- `integration/tests/`
 
 #### Raspberry Pi Verification / Acceptance Criteria
 The Raspberry Pi 5 experiment environment is accepted only if the following conditions are satisfied.
@@ -294,6 +342,7 @@ The Raspberry Pi 5 experiment environment is accepted only if the following cond
 - missing-state injections distinguish:
   1. policy-input omissions,
   2. validator/action-schema omissions
+- emergency simulation and fault generation remain aligned with the canonical trigger family `E001`~`E005`
 
 ##### E. Artifact sync correctness
 - local synchronized runtime copies match the shared frozen repository state by checksum, version, or structural verification
@@ -316,7 +365,12 @@ The requirement is a measurable, recorded, and verifiable target bound.
 - Class 0, Safe Deferral, and Class 2 results can be asserted automatically
 - pass/fail judgments can be produced without relying on manual screen inspection
 
-##### H. Security and configuration hygiene
+##### H. Canonical asset consistency
+- canonical policy/schema/rules consistency checks pass
+- synchronized runtime copies remain version-consistent with the canonical frozen asset set
+- evaluation-side validation logic does not silently drift from the shared baseline
+
+##### I. Security and configuration hygiene
 - broker credentials are not hardcoded in source files
 - `.env` or equivalent external configuration is used
 - topic namespace separation is preserved
@@ -333,6 +387,7 @@ The Raspberry Pi evaluation path is considered accepted only when all of the fol
 5. fault generation correctness PASS
 6. publish stability PASS
 7. closed-loop verification PASS
+8. canonical asset consistency PASS
 
 ---
 
@@ -348,7 +403,7 @@ The LLM is only used in the bounded Class 1 assistance path after policy approva
 ### C. Device-role separation
 - Mac mini = operational hub
 - Raspberry Pi 5 = multi-node simulation, fault injection, scenario replay, and closed-loop evaluation node
-- ESP32 = embedded physical node layer for bounded input, sensing, or actuator/warning interfacing where required
+- ESP32 = embedded physical node layer for bounded input, sensing, or actuator/warning interfacing within the applicable scope
 - STM32 timing node or equivalent = optional out-of-band latency measurement infrastructure
 
 ### D. Auditable outcomes
@@ -360,6 +415,9 @@ Code, scripts, frozen assets, embedded firmware, integration scenarios, and meas
 ### F. Closed-loop evaluation discipline
 Experiment-side execution should not bypass the operational decision path.  
 Raspberry Pi-based simulation and fault injection must exercise the same input plane and must verify outcomes through observed audit behavior rather than assumed internal state.
+
+### G. Deployment-local separation
+Deployment-local configuration and runtime copies are necessary for execution, but they must not override the canonical frozen architecture baseline.
 
 ---
 
