@@ -34,6 +34,44 @@
           },
           "local_action_immediate": true,
           "external_dispatch_grace_period_ms": 10000
+        },
+        {
+          "id": "E003",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "state_trigger",
+          "minimal_triggering_predicate": {
+            "sensor": "smoke_detected",
+            "operator": "==",
+            "value": true
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
+        },
+        {
+          "id": "E004",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "state_trigger",
+          "minimal_triggering_predicate": {
+            "sensor": "gas_detected",
+            "operator": "==",
+            "value": true
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
+        },
+        {
+          "id": "E005",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "event_trigger",
+          "minimal_triggering_predicate": {
+            "event_type": "sensor",
+            "event_code": "fall_detected"
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
         }
       ],
       "actions": [
