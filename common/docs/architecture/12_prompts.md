@@ -28,9 +28,9 @@ Always read them from the provided frozen artifacts and aligned project document
 
 The following frozen artifacts must be loaded into the agent knowledge base before implementation:
 - common/policies/policy_table_v1_2_0_FROZEN.json
-- common/policies/low_risk_actions_v1_0_0_FROZEN.json
+- common/policies/low_risk_actions_v1_1_0_FROZEN.json
 - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
-- common/policies/output_profile_v1_0_0.json
+- common/policies/output_profile_v1_1_0.json
 - common/schemas/context_schema_v1_0_0_FROZEN.json
 - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
 - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
@@ -376,7 +376,9 @@ Requirements:
 - The authoritative source remains the shared frozen repository state, not Pi-local files.
 - Support synchronization of:
   - common/policies/policy_table_v1_2_0_FROZEN.json
+  - common/policies/low_risk_actions_v1_1_0_FROZEN.json
   - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
+  - common/policies/output_profile_v1_1_0.json
   - common/schemas/context_schema_v1_0_0_FROZEN.json
   - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
   - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
