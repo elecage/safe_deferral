@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "class_2_notification_payload_schema_v1_0_0",
-  "description": "Schema for caregiver escalation payload emitted when the system transitions to Class 2 escalation.",
+  "description": "Authoritative schema for caregiver escalation payload emitted when the system transitions to Class 2 escalation. This schema governs the outbound Class 2 notification contract and should not be overridden by companion output-profile assets.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -54,7 +54,7 @@
       "enum": [
         "policy_router",
         "validator",
-        "icr_handler",
+        "context_integrity_safe_deferral_handler",
         "dispatcher",
         "system"
       ],
