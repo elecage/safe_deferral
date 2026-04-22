@@ -10,6 +10,9 @@ They are designed to generate implementation artifacts that conform to:
 - the canonical terminology of the project
 - the Mac mini / Raspberry Pi / ESP32 / optional timing-measurement role separation
 
+This document does not replace the canonical frozen baseline.  
+Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
 ---
 
 ## Common Instruction Block (apply to all prompts)
@@ -26,24 +29,29 @@ After implementation, provide:
 Do not invent schemas, thresholds, policy rules, timeout values, topic namespaces, device identifiers, timing capture assumptions, latency thresholds, action domains, or measurement profiles.
 Always read them from the provided frozen artifacts and aligned project documents first.
 
-The following frozen artifacts must be loaded into the agent knowledge base before implementation:
-- common/policies/policy_table_v1_2_0_FROZEN.json
+The following required canonical frozen artifacts must be loaded into the agent knowledge base before implementation:
+- common/policies/policy_table_v1_1_2_FROZEN.json
 - common/policies/low_risk_actions_v1_1_0_FROZEN.json
 - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
-- common/policies/output_profile_v1_1_0.json
 - common/schemas/context_schema_v1_0_0_FROZEN.json
 - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
 - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
-- common/schemas/validator_output_schema_v1_0_0_FROZEN.json
+- common/schemas/validator_output_schema_v1_1_0_FROZEN.json
+- common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
 - common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md
 
-All parsing, validation, and generation logic must conform to those artifacts.
-Do not use deprecated terminology such as:
+Optional or version-sensitive companion assets may also be loaded when needed:
+- output profile assets
+- auxiliary deployment templates
+- reproducibility support assets
+
+All parsing, validation, synchronization, and generation logic must conform to those artifacts.
+Do not introduce user-facing or architecture-facing deprecated terminology such as:
 - iCR
 - iCR Handler
 - iCR mapping
 
-Use the canonical term:
+Older internal names may still appear in transitional assets or source-layer references, but new implementation-facing and architecture-facing outputs should use the canonical term:
 context-integrity-based safe deferral stage
 
 Respect repository separation:
@@ -51,6 +59,8 @@ Respect repository separation:
 - rpi/ = simulation / fault injection / closed-loop evaluation
 - esp32/ = bounded physical node layer
 - integration/measurement/ = optional out-of-band timing and latency evaluation support
+
+Do not let deployment-local files, synced runtime copies, or host-specific settings redefine canonical frozen policy or schema truth.
 ```
 
 ---
@@ -67,8 +77,8 @@ Requirements:
 - The service receives normalized event/context JSON input.
 - It deterministically routes each event into CLASS_0, CLASS_1, or CLASS_2.
 - It must NOT call the LLM directly except when routing result is CLASS_1 and llm_invocation_allowed=true.
-- Emergency routing has the highest priority.
-- Ambiguous emergency-like button patterns must be downgraded to CLASS_2.
+- Policy-declared emergency routing has the highest priority.
+- Handle malformed or non-matching emergency-like inputs conservatively according to policy rather than inventing downgraded emergency semantics.
 - Context insufficiency must route to CLASS_2.
 - The output must include:
   - route_class
@@ -81,10 +91,11 @@ Requirements:
   - Implement deterministic hard-routing only.
   - Do not include freshness, fault status, or validation metadata in the LLM execution context.
   - Read thresholds and routing rules from the frozen policy and schema artifacts instead of hardcoding them.
+  - Keep routing behavior aligned with the canonical emergency trigger family E001~E005.
 - Include unit tests for:
   1. emergency sensor event
-  2. valid emergency gesture
-  3. ambiguous emergency pattern
+  2. valid emergency gesture or bounded emergency input pattern
+  3. malformed or non-matching emergency-like input
   4. context sufficient event
   5. context insufficient event
 ```
@@ -190,6 +201,7 @@ Requirements:
   - payload summary
 - Include a script to initialize the schema.
 - Include unit tests for DB creation and insert/query behavior.
+- Where needed for evaluation support, make a verification-safe audit subset or equivalent verification-safe audit stream possible without turning evaluation tooling into an operational control authority.
 ```
 
 ---
@@ -205,14 +217,12 @@ Target repository area:
 Requirements:
 - Support Telegram Bot API first.
 - Support a mock fallback mode.
-- Input payload should include:
-  - event summary
-  - context summary
-  - unresolved reason
-  - manual confirmation options when applicable
+- Input payload behavior must align with:
+  - common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
 - Provide a clean Python interface:
   - send_class0_alert(payload)
   - send_class2_escalation(payload)
+- Do not invent ad hoc payload fields that are not grounded in the canonical notification payload schema.
 - Include tests for payload validation and dry-run mode.
 ```
 
@@ -277,10 +287,13 @@ Target repository area:
 - rpi/code/
 
 Requirements:
-- Simulate:
-  - gas leak
-  - smoke/fire
-  - possible fall
+- Simulate emergency behavior aligned with the canonical trigger family E001~E005.
+- Support policy-aligned generation for:
+  - E001 high temperature threshold crossing
+  - E003 smoke/fire-related trigger
+  - E004 gas-related trigger
+  - E005 fall-detected trigger
+- If bounded emergency input simulation is included, ensure it remains aligned with the policy-declared semantics for E002 rather than inventing ad hoc emergency patterns.
 - Publish policy-consistent emergency events to MQTT.
 - Support deterministic scenario replay for experiments.
 - Include a small set of predefined emergency scenarios.
@@ -304,9 +317,11 @@ Target repository areas:
 Requirements:
 - Do NOT hardcode arbitrary fault values in scripts.
 - Dynamically derive thresholds, freshness bounds, required keys, and admissible action constraints from the frozen policy and schema artifacts.
+- Keep generated faults and expected safe outcomes aligned with the canonical policy/schema/rules baseline.
+- Keep emergency-related fault and scenario behavior aligned with canonical trigger family E001~E005.
 - Implement fault categories separately:
 
-  A. Threshold-crossing emergency injection
+  A. Policy-declared emergency injection
   - Purpose: verify immediate routing to CLASS_0.
   - Generation rule: derive the minimal triggering predicate of each emergency rule from the routing policy artifact.
   - If the rule is single-threshold based, exceed that threshold explicitly.
@@ -374,15 +389,16 @@ Target repository areas:
 Requirements:
 - Synchronize runtime copies of the frozen shared assets needed for simulation and fault injection.
 - The authoritative source remains the shared frozen repository state, not Pi-local files.
-- Support synchronization of:
-  - common/policies/policy_table_v1_2_0_FROZEN.json
+- Support synchronization of required canonical frozen assets such as:
+  - common/policies/policy_table_v1_1_2_FROZEN.json
   - common/policies/low_risk_actions_v1_1_0_FROZEN.json
   - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
-  - common/policies/output_profile_v1_1_0.json
   - common/schemas/context_schema_v1_0_0_FROZEN.json
   - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
   - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
-  - common/schemas/validator_output_schema_v1_0_0_FROZEN.json
+  - common/schemas/validator_output_schema_v1_1_0_FROZEN.json
+  - common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+- Optional or version-sensitive companion assets may also be synchronized when needed, including output profile assets.
 - Verify checksum, version, or structural consistency after sync.
 - Keep synced runtime copies read-only for Pi-side runtime modules where appropriate.
 - Expose synced artifact paths to the rest of the experiment-side system.
@@ -423,6 +439,7 @@ Requirements:
 - Verify MQTT broker connectivity.
 - Verify topic namespace configuration.
 - Verify artifact sync consistency.
+- Verify canonical policy/schema/rules consistency checks pass.
 - Verify time sync offset measurement.
 - Verify deterministic scenario reproducibility.
 - Verify closed-loop audit observation path when available.
@@ -510,6 +527,7 @@ Requirements:
 - Add deployment-mode-dependent restart/reload steps where needed.
 - Configure Mosquitto to remain LAN-reachable for Raspberry Pi while keeping WAN-originated inbound blocked by firewall.
 - Preserve SQLite single-writer assumptions.
+- Treat `.env`, secrets, and other host-local values as deployment-local configuration that must not redefine canonical frozen policy or schema truth.
 ```
 
 ---
@@ -525,13 +543,17 @@ Target repository areas:
 - esp32/docs/
 
 Requirements:
-- Support one or more bounded embedded node roles as needed:
-  - button input node
-  - temperature / humidity sensor node
-  - gas sensor node
-  - fire detection sensor node
-  - lighting control node
-  - doorlock or warning interface node
+- Support one or more bounded embedded node roles as needed, while respecting scope distinctions:
+  - current canonical targets:
+    - button input node
+    - lighting control node
+    - representative environmental sensing node used in the current validation baseline
+  - optional experimental targets:
+    - gas sensor node
+    - fire detection sensor node
+    - fall-detection interface node
+  - planned extension targets:
+    - doorlock or warning interface node
 - Keep ESP32 behavior bounded and policy-dependent rather than autonomous.
 - Align broker host assumptions, topic namespace, and device identity conventions with the documented hub-side architecture.
 - Do not invent payload fields or routing rules that are not grounded in the frozen shared assets.
@@ -556,6 +578,7 @@ Target repository area:
 
 Requirements:
 - Treat the timing and measurement layer as evaluation-only support, never as part of the operational control path.
+- It must not become part of the operational control plane.
 - Support optional STM32 timing node or equivalent dedicated measurement node assumptions when used.
 - Define or generate:
   - class-wise latency experiment profiles
