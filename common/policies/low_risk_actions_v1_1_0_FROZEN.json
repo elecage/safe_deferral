@@ -1,12 +1,17 @@
 {
   "version": "1.1.0",
-  "description": "Authoritative bounded low-risk action catalog for Class 1 assistance consumed by policy and validation components.",
+  "description": "Authoritative bounded low-risk action catalog for Class 1 assistance and bounded caregiver-confirmable action scope. This asset defines the canonical low-risk action domain and should not be overridden by summarized policy-table copies or companion output-profile assets.",
   "catalog_role": "authoritative_low_risk_action_catalog",
   "used_by": [
     "policy_router",
     "deterministic_validator",
     "caregiver_confirmation_backend"
   ],
+  "policy_notes": {
+    "authoritative_scope_note": "This file is the authoritative low-risk action source for policy routing summaries, deterministic validation, and bounded caregiver confirmation support.",
+    "caregiver_confirmation_boundary": "Caregiver confirmation support must not authorize actions outside this catalog.",
+    "context_schema_alignment_note": "Allowed target devices should remain aligned with the current device_states schema used by the operational context contract."
+  },
   "allowed_actions_taxonomy": [
     {
       "action": "light_on",
