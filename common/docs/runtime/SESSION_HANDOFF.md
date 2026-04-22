@@ -59,6 +59,12 @@ These assets are treated as the current authoritative frozen baseline unless exp
 - `.env`, secrets, host paths, runtime copies, synchronized copies, and machine-local configuration are **deployment-local**.
 - They must **not** redefine canonical frozen policy or schema truth.
 
+### Authority hierarchy
+- `policy_table_v1_1_2_FROZEN.json` = routing and safety interpretation authority
+- `low_risk_actions_v1_1_0_FROZEN.json` = authoritative low-risk action catalog
+- `class_2_notification_payload_schema_v1_0_0_FROZEN.json` = authoritative Class 2 payload contract
+- `output_profile_v1_1_0.json` = companion output guidance asset, not canonical policy/schema authority
+
 ---
 
 ## 4. Canonical Emergency Family
@@ -78,6 +84,7 @@ All of the following must remain aligned with this trigger family:
 - closed-loop verification
 - physical sensing path interpretation
 - test scenario expectations
+- required experiments mapping
 
 ---
 
@@ -104,13 +111,18 @@ All of the following must remain aligned with this trigger family:
 
 ## 6. Recent Important Repository Cleanup
 
-The following obsolete / legacy policy assets were intentionally removed and should **not** be reintroduced casually.
+The following obsolete / legacy assets were intentionally removed and should **not** be reintroduced casually.
 
 ### Deleted legacy policy assets
 - `common/policies/LOW_RISK_ACTIONS_FREEZE_MANIFEST.md`
 - `common/policies/low_risk_actions_v1_0_0_FROZEN.json`
 - `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/output_profile_v1_0_0.json`
+
+### Deleted legacy / manifest schema assets
+- `common/schemas/CONTEXT_SCHEMA_FREEZE_MANIFEST.md`
+- `common/schemas/VALIDATOR_OUTPUT_SCHEMA_FREEZE_MANIFEST.md`
+- `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
 
 ### Why they were removed
 - To reduce ambiguity and drift
@@ -132,6 +144,7 @@ The following architecture docs were reviewed and updated to match the current c
 - `common/docs/architecture/10_install_script_structure.md`
 - `common/docs/architecture/11_configuration_script_structure.md`
 - `common/docs/architecture/12_prompts.md`
+- `common/docs/required_experiments.md`
 
 ### Alignment themes already applied
 - canonical baseline version cleanup
@@ -141,10 +154,31 @@ The following architecture docs were reviewed and updated to match the current c
 - current / optional / planned scope distinction for ESP32-related targets
 - canonical consistency check expectations
 - prompt anti-drift updates
+- deterministic fault profile mapping alignment in `required_experiments.md`
 
 ---
 
-## 8. Non-Negotiable Rules for Future Sessions
+## 8. Recent Structured Update Bundles Completed
+
+### Bundle 1 completed
+- terminology cleanup from legacy `icr` naming toward canonical safe-deferral terminology
+- Class 2 payload contract cleanup
+- policy table / notification schema / output profile alignment
+
+### Bundle 2 completed
+- `fault_injection_rules_v1_4_0_FROZEN.json` updated with `E002` deterministic emergency profile
+- conflict profile operationalized and reproducibility notes added
+- randomized stress profile labeling clarified
+- `common/docs/required_experiments.md` updated to match deterministic emergency profile numbering and `E001`~`E005` mapping
+
+### Bundle 3 completed
+- `low_risk_actions_v1_1_0_FROZEN.json` strengthened as authoritative low-risk catalog
+- `policy_table_v1_1_2_FROZEN.json` clarified as routing/safety interpretation layer with summarized Class 1 taxonomy
+- `output_profile_v1_1_0.json` clarified as companion asset with bounded output guidance notes
+
+---
+
+## 9. Non-Negotiable Rules for Future Sessions
 
 Any future assistant continuing this project should follow these rules.
 
@@ -169,15 +203,19 @@ Any future assistant continuing this project should follow these rules.
 7. **Preserve cross-document consistency.**  
    Before changing one architecture file, check whether the same concept appears in the other aligned docs.
 
+8. **Preserve authority hierarchy.**  
+   Do not let policy table summaries, output profiles, or docs override the authoritative low-risk catalog or canonical notification schema.
+
 ---
 
-## 9. Known Risks / Drift Risks
+## 10. Known Risks / Drift Risks
 
 ### A. Legacy file name reintroduction
 Old names such as:
 - `policy_table_v1_2_0_FROZEN.json`
 - `low_risk_actions_v1_0_0_FROZEN.json`
 - `output_profile_v1_0_0.json`
+- `validator_output_schema_v1_0_0_FROZEN.json`
 
 may accidentally reappear in prompts, scripts, or docs if a future session relies on stale context.
 
@@ -203,39 +241,42 @@ Class 2 outbound escalation must stay aligned with:
 Future work must preserve:
 - policy/schema/rules consistency checking
 - trigger-family alignment for `E001`~`E005`
+- deterministic fault profile mapping consistency in `required_experiments.md`
 
 ---
 
-## 10. Recommended Next Actions
+## 11. Recommended Next Actions
 
 These are the recommended next steps after this handoff point.
 
-1. Review remaining directories or runtime docs that have not yet been aligned, if any remain.
-2. Verify that no scripts, prompts, or code still reference deleted legacy policy assets.
-3. Optionally add a lightweight index/readme under `common/policies/` that explicitly lists the current canonical policy asset set.
-4. When implementation begins, keep Llama 3.1 as the primary baseline.
+1. Begin implementation-facing work against the stabilized baseline.
+2. Verify that no scripts, prompts, or code still reference deleted legacy policy/schema assets.
+3. Optionally add a lightweight index/readme under `common/policies/` and/or `common/schemas/` listing the current canonical asset set.
+4. Keep Llama 3.1 as the primary baseline during implementation and early evaluation.
 5. If model comparison becomes necessary later, create an explicit A/B evaluation plan rather than switching directly to Gemma 4.
 
 ---
 
-## 11. Recommended Checks Before Any Future Edit
+## 12. Recommended Checks Before Any Future Edit
 
 Before editing code or documents, the next session should verify:
 
 - the current canonical policy file still exists:
   - `common/policies/policy_table_v1_1_2_FROZEN.json`
-- the current low-risk action catalog still exists:
+- the current authoritative low-risk action catalog still exists:
   - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - the current fault rules still exist:
   - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- the notification payload schema still exists:
+- the current notification payload schema still exists:
   - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- the current validator output schema still exists:
+  - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - no deleted legacy assets were accidentally reintroduced
-- prompts and architecture docs still point to the same baseline versions
+- prompts, required experiments, and architecture docs still point to the same baseline versions
 
 ---
 
-## 12. If a New Session Continues This Project
+## 13. If a New Session Continues This Project
 
 The next assistant should do the following first:
 
@@ -243,7 +284,7 @@ The next assistant should do the following first:
 2. Treat the listed canonical frozen assets as the source of truth.
 3. Confirm current repo state before proposing edits.
 4. Avoid reintroducing deleted legacy files or version names.
-5. Preserve document-to-document consistency across architecture docs.
+5. Preserve document-to-document consistency across architecture docs and required experiments docs.
 6. Keep Llama 3.1 as the active local model baseline unless the user explicitly asks for a model evaluation change.
 7. If modifying prompts, scripts, or implementation plans, ensure they still align with:
    - `policy_table_v1_1_2_FROZEN.json`
@@ -251,13 +292,16 @@ The next assistant should do the following first:
    - `fault_injection_rules_v1_4_0_FROZEN.json`
    - `validator_output_schema_v1_1_0_FROZEN.json`
    - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+   - `common/docs/required_experiments.md`
 
 ---
 
-## 13. Commit / Traceability Snapshot
+## 14. Commit / Traceability Snapshot
 
 ### Important recent commits mentioned in conversation
-- `5c2137820faa792284f96bfeb1e24ff6e8a73484`  
+- `419bb1a473ac989dbc0c1289d4ac146a03a9da31`  
+  added `common/docs/runtime/SESSION_HANDOFF.md`
+- `c554f18e8502691c442b964dcf6b14b122a2421b`  
   prompt-set alignment work on `12_prompts.md`
 - `351d07dd137943e46c962afcc108bb9e6e82ec45`  
   `11_configuration_script_structure.md` alignment
@@ -276,7 +320,19 @@ The next assistant should do the following first:
 - `dbfbd2c4ed1e2d87c58088276876b504c979b2b7`  
   `04_project_directory_structure.md` alignment
 
-### Recent policy cleanup commits
+### Recent cleanup and structured alignment commits
+- `eba196877ad74416c9960063959f981d55f5ea78`  
+  removed obsolete schema manifests and legacy validator schema
+- `ded8ac5befad8a401231c32c3b5e6d0234b4c302`  
+  Bundle 1: terminology cleanup and Class 2 payload contract alignment
+- `97c01c80ba7d3cd121b8e0e21d399c5814eed479`  
+  Bundle 2: `E002` deterministic profile and conflict profile refinement
+- `1f20642950b85d6a4e2a85da1e7a51f4b650bd42`  
+  aligned `common/docs/required_experiments.md` with updated deterministic fault profiles
+- `88a07880491cc32cc61e35d190ffa2dfe7bdfcf3`  
+  Bundle 3: authority hierarchy and companion asset clarification across policy files
+
+### Earlier policy cleanup commits
 - `189d164abc510b2e8e64f2d8d78ba0e2216193a4`  
   removed `policy_table_v1_2_0_FROZEN.json`
 - `b2be040fe0af6b41b8f8820330e25aef61827c39`  
@@ -288,7 +344,7 @@ The next assistant should do the following first:
 
 ---
 
-## 14. Short Operational Summary
+## 15. Short Operational Summary
 
 If a future session needs a very short summary:
 
@@ -301,7 +357,8 @@ If a future session needs a very short summary:
   - `validator_output_schema_v1_1_0_FROZEN.json`
   - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - Canonical emergency family is `E001`~`E005`.
-- Legacy policy assets were intentionally deleted.
+- `required_experiments.md` is already aligned with the updated deterministic emergency profile numbering.
+- Legacy policy/schema assets and manifest files were intentionally deleted.
 - Do not let deployment-local config override frozen truth.
 - Keep Mac mini / RPi / ESP32 / measurement role separation.
 - Prefer safe deferral over unsafe autonomous actuation.
