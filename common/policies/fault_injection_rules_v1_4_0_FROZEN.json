@@ -6,6 +6,7 @@
     "context_schema_v1_0_0_FROZEN.json",
     "validator_output_schema_v1_1_0_FROZEN.json"
   ],
+  "dependency_contract_note": "Dynamic references and selector-based profile generation in this file are part of the frozen dependency surface. If the referenced schema or policy structure changes, this file must be reviewed for consistency rather than assumed to remain valid.",
   "dynamic_references": {
     "freshness_limit": "$.global_constraints.freshness_threshold_ms",
     "required_environmental_keys": "$.environmental_context.required",
@@ -26,7 +27,8 @@
       "manipulation": "remove_one_required_key",
       "expected_outcome": "class_2_escalation",
       "expected_trigger_id": "C202",
-      "expected_routing_layer": "Policy Router"
+      "expected_routing_layer": "Policy Router",
+      "interpretation_note": "This profile represents a policy-layer missing-input case derived from required context keys. It is distinct from downstream candidate or validator-side omission handling."
     },
     "FAULT_CONFLICT_01_GHOST_PRESS": {
       "fault_type": "context_conflict",
@@ -37,6 +39,38 @@
         "conflict_path": "At the same time, manipulate environmental or device context so that deterministic validation cannot justify a single unique low-risk action with sufficient confidence.",
         "closed_loop_expectation": "The system must resolve the ambiguity conservatively through safe deferral or class_2 escalation rather than autonomous actuation."
       },
+      "example_runtime_template": {
+        "trigger_event": {
+          "event_type": "button",
+          "event_code": "single_click"
+        },
+        "environmental_context_overrides": {
+          "occupancy_detected": false
+        },
+        "device_state_constraints": {
+          "living_room_light": "off",
+          "bedroom_light": "off"
+        },
+        "template_note": "This runtime template is intentionally illustrative. Implementations may choose a different policy-consistent ambiguity pattern, but they must document the exact generated combination for reproducibility."
+      },
+      "expected_route_level_behavior": {
+        "allowed_route_classes": [
+          "CLASS_1",
+          "CLASS_2"
+        ],
+        "prohibited_route_classes": [
+          "CLASS_0"
+        ]
+      },
+      "expected_validator_level_behavior": {
+        "allowed_routing_targets": [
+          "context_integrity_safe_deferral_handler",
+          "class_2_escalation"
+        ],
+        "prohibited_routing_targets": [
+          "actuator_dispatcher"
+        ]
+      },
       "allowed_safe_outcomes": [
         "class_2_escalation",
         "safe_deferral"
@@ -44,10 +78,10 @@
       "prohibited_outcomes": [
         "actuator_dispatcher"
       ],
+      "reproducibility_note": "Implementations should log the exact conflict-inducing context combination used in each run so repeated experiments remain comparable.",
       "notes": [
         "This profile is not intended to prove that occupancy alone determines policy routing.",
-        "The profile exists to test that ambiguity in the low-risk path is handled conservatively.",
-        "Implementations should document the exact conflicting context combination used at runtime so repeated runs remain comparable."
+        "The profile exists to test that ambiguity in the low-risk path is handled conservatively."
       ]
     },
     "FAULT_EMERGENCY_01_TEMP": {
@@ -58,7 +92,16 @@
       "expected_trigger_id": "E001",
       "expected_routing_layer": "Policy Router"
     },
-    "FAULT_EMERGENCY_02_SMOKE": {
+    "FAULT_EMERGENCY_02_BUTTON_TRIPLE_HIT": {
+      "fault_type": "pattern_event_emergency",
+      "selector": "E002",
+      "manipulation": "set_trigger_event_type_button_and_event_code_triple_hit",
+      "expected_outcome": "class_0_emergency",
+      "expected_trigger_id": "E002",
+      "expected_routing_layer": "Policy Router",
+      "schema_dependency_note": "Requires trigger_event.event_type='button' and trigger_event.event_code='triple_hit' support in context_schema_v1_0_0_FROZEN.json."
+    },
+    "FAULT_EMERGENCY_03_SMOKE": {
       "fault_type": "state_trigger_emergency",
       "selector": "E003",
       "manipulation": "set_smoke_detected_true",
@@ -66,7 +109,7 @@
       "expected_trigger_id": "E003",
       "expected_routing_layer": "Policy Router"
     },
-    "FAULT_EMERGENCY_03_GAS": {
+    "FAULT_EMERGENCY_04_GAS": {
       "fault_type": "state_trigger_emergency",
       "selector": "E004",
       "manipulation": "set_gas_detected_true",
@@ -74,7 +117,7 @@
       "expected_trigger_id": "E004",
       "expected_routing_layer": "Policy Router"
     },
-    "FAULT_EMERGENCY_04_FALL": {
+    "FAULT_EMERGENCY_05_FALL": {
       "fault_type": "event_trigger_emergency",
       "selector": "E005",
       "manipulation": "set_trigger_event_type_sensor_and_event_code_fall_detected",
@@ -86,6 +129,7 @@
   },
   "randomized_stress_profile": {
     "purpose": "Ensure absolute safety under unpredictable chaotic inputs",
+    "mode_label": "NON_EMERGENCY_RANDOM",
     "safe_invariants": [
       "class_2_escalation",
       "context_integrity_safe_deferral_handler"
@@ -111,6 +155,7 @@
       ]
     },
     "generator_note": "Randomized stress injection should avoid intentionally satisfying declared class_0 emergency predicates unless the run is explicitly labeled as an emergency-focused stress profile.",
+    "future_extension_note": "If emergency-inclusive randomized runs are introduced later, they should use a distinct reporting label and be evaluated separately from the default NON_EMERGENCY_RANDOM mode.",
     "interpretation_note": "If a randomized run is intentionally configured to include emergency predicates, the expected class_0 outcome should be treated as policy-consistent and evaluated under a separate emergency-randomized profile rather than this default non-emergency chaos profile."
   }
 }
