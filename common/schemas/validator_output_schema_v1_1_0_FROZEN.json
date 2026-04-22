@@ -61,8 +61,7 @@
         "C202",
         "C203",
         "C204",
-        "C205",
-        "C206"
+        "C205"
       ],
       "description": "Policy trigger ID used for Class 2 escalation. Must be 'none' for approved or safe_deferral."
     },
@@ -148,8 +147,7 @@
               "C202",
               "C203",
               "C204",
-              "C205",
-              "C206"
+              "C205"
             ]
           },
           "executable_payload": false,
