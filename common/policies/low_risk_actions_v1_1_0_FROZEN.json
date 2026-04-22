@@ -1,0 +1,35 @@
+{
+  "version": "1.1.0",
+  "description": "Authoritative bounded low-risk action catalog for Class 1 assistance consumed by policy and validation components.",
+  "catalog_role": "authoritative_low_risk_action_catalog",
+  "used_by": [
+    "policy_router",
+    "deterministic_validator",
+    "caregiver_confirmation_backend"
+  ],
+  "allowed_actions_taxonomy": [
+    {
+      "action": "light_on",
+      "risk_level": "low",
+      "requires_ack": true,
+      "allowed_targets": [
+        "living_room_light",
+        "bedroom_light"
+      ]
+    },
+    {
+      "action": "light_off",
+      "risk_level": "low",
+      "requires_ack": true,
+      "allowed_targets": [
+        "living_room_light",
+        "bedroom_light"
+      ]
+    }
+  ],
+  "implementation_notes": {
+    "llm_role": "The LLM may propose bounded Class 1 candidate actions, but it is not the autonomous execution authority.",
+    "validator_role": "The deterministic validator remains the approval authority for single admissible low-risk actions before dispatch.",
+    "actuation_note": "Requires ACK before final success confirmation when requires_ack=true."
+  }
+}
