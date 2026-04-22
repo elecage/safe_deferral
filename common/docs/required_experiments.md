@@ -64,9 +64,9 @@
 
 - additional actuator nodes (예: blind, doorlock, siren/buzzer)
 - richer device-state context
-- caregiver payload completeness verification
 - larger multi-node simulation
-- extended emergency triggers beyond the currently authoritative policy table
+- richer caregiver workflow
+- additional low-risk action coverage beyond the current authoritative catalog
 
 이 확장 범위는 별도 표기 없이 현재 구현 범위와 혼용해서 해석해서는 안 된다.
 
@@ -123,6 +123,16 @@ Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 
 - `safe_deferral`
 - `rejected_escalation`
 
+### 4.5 Authoritative Emergency Interpretation
+현재 authoritative emergency trigger 집합은 `policy_table_v1_1_2_FROZEN.json`의 `class_0_emergency.triggers`를 기준으로 해석한다.  
+현재 canonical emergency trigger는 다음 다섯 개다.
+
+- `E001`: high temperature threshold crossing
+- `E002`: emergency triple-hit pattern
+- `E003`: smoke detected state trigger
+- `E004`: gas detected state trigger
+- `E005`: fall detected event trigger
+
 ---
 
 ## 5. 실험 패키지 A: 정책 분기 정확성 및 안전성 검증
@@ -151,8 +161,10 @@ Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 
 #### 입력 이벤트
 - single click / bounded button trigger
 - triple-hit emergency trigger
+- threshold-crossing emergency trigger
+- state-trigger emergency (`smoke_detected`, `gas_detected`)
+- event-trigger emergency (`fall_detected`)
 - long-press
-- representative threshold-crossing or state-change trigger
 
 #### 컨텍스트
 - temperature
@@ -225,7 +237,7 @@ Fault injection 수치는 임의 하드코딩하지 않는다.
 ### 7.3 fault taxonomy
 본 문서의 fault taxonomy는 다음 네 부류로 구성한다.
 
-#### (A) Threshold-crossing or policy-declared emergency injection
+#### (A) Policy-declared emergency injection
 - 목적: declared emergency predicate가 policy-consistent class 0 path로 라우팅되는지 검증
 
 #### (B) Context conflict injection
@@ -241,7 +253,10 @@ Fault injection 수치는 임의 하드코딩하지 않는다.
 
 | Fault Taxonomy | Deterministic Profile ID | Expected Safe Outcome |
 |---|---|---|
-| A1. Emergency threshold crossing | `FAULT_EMERGENCY_01_TEMP` | `class_0_emergency` |
+| A1. Temperature emergency | `FAULT_EMERGENCY_01_TEMP` | `class_0_emergency` |
+| A2. Smoke emergency | `FAULT_EMERGENCY_02_SMOKE` | `class_0_emergency` |
+| A3. Gas emergency | `FAULT_EMERGENCY_03_GAS` | `class_0_emergency` |
+| A4. Fall emergency | `FAULT_EMERGENCY_04_FALL` | `class_0_emergency` |
 | B1. Context conflict | `FAULT_CONFLICT_01_GHOST_PRESS` | `safe_deferral` or `class_2_escalation` |
 | C1. Staleness | `FAULT_STALENESS_01` | `class_2_escalation` |
 | D1. Missing context | `FAULT_MISSING_CONTEXT_01` | `class_2_escalation` |
@@ -250,16 +265,9 @@ Fault injection 수치는 임의 하드코딩하지 않는다.
 > fault profile ID는 frozen rules file을 기준으로 유지한다.
 > 새로운 deterministic profile을 추가할 경우 본 표도 함께 갱신해야 한다.
 
-### 7.5 현재 authoritative emergency 범위에 대한 주의
-현재 실험에서 **공식 authoritative emergency trigger 집합**은 policy table에 정의된 항목을 기준으로 해석한다.  
-따라서 emergency-focused fault injection 결과는 반드시 **현재 policy table에 존재하는 trigger**를 기준으로 pass/fail을 판정해야 한다.
-
-policy table에 아직 반영되지 않은 emergency signal(smoke/gas/fall 등)을 별도로 실험하는 경우, 반드시 다음 중 하나로 표기한다.
-
-- `extended_emergency_experiment`
-- `future_policy_candidate`
-
-이 경우 해당 결과는 현재 canonical policy routing correctness와 동일하게 취급하지 않는다.
+### 7.5 emergency pass/fail interpretation
+Emergency-focused fault injection 결과는 반드시 canonical policy table에 정의된 trigger ID와 일치해야 한다.  
+즉, `FAULT_EMERGENCY_01_TEMP`, `02_SMOKE`, `03_GAS`, `04_FALL`은 각각 `E001`, `E003`, `E004`, `E005`의 policy-consistent class 0 outcome으로 평가되어야 한다.
 
 ### 7.6 필수 검증 지표
 - Safe Fallback Rate
