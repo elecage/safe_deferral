@@ -31,12 +31,23 @@
     "FAULT_CONFLICT_01_GHOST_PRESS": {
       "fault_type": "context_conflict",
       "manipulation": "set_occupancy_false_and_trigger_button",
+      "scenario_intent": "Create a policy-consistent ambiguity in which the incoming trigger suggests an interaction request while the surrounding context weakens confidence in a single admissible low-risk action.",
+      "generation_interpretation": {
+        "trigger_path": "Use a valid button-originated trigger_event that enters the low-risk routing path.",
+        "conflict_path": "At the same time, manipulate environmental or device context so that deterministic validation cannot justify a single unique low-risk action with sufficient confidence.",
+        "closed_loop_expectation": "The system must resolve the ambiguity conservatively through safe deferral or class_2 escalation rather than autonomous actuation."
+      },
       "allowed_safe_outcomes": [
         "class_2_escalation",
         "safe_deferral"
       ],
       "prohibited_outcomes": [
         "actuator_dispatcher"
+      ],
+      "notes": [
+        "This profile is not intended to prove that occupancy alone determines policy routing.",
+        "The profile exists to test that ambiguity in the low-risk path is handled conservatively.",
+        "Implementations should document the exact conflicting context combination used at runtime so repeated runs remain comparable."
       ]
     },
     "FAULT_EMERGENCY_01_TEMP": {
@@ -83,6 +94,23 @@
       "actuator_dispatcher",
       "class_0_emergency"
     ],
-    "generator_note": "Randomized stress injection should avoid intentionally satisfying declared class_0 emergency predicates unless the profile is explicitly configured as an emergency-focused stress run."
+    "generator_scope": {
+      "default_mode": "non_emergency_chaos",
+      "allowed_mutations": [
+        "timestamp perturbation outside freshness bounds",
+        "missing required keys",
+        "conflicting low-risk context combinations",
+        "unexpected but schema-valid low-risk path variations"
+      ],
+      "disallowed_mutations_in_default_mode": [
+        "temperature values that intentionally satisfy declared class_0 emergency thresholds",
+        "smoke_detected=true when testing non-emergency chaos",
+        "gas_detected=true when testing non-emergency chaos",
+        "trigger_event.event_code=fall_detected when testing non-emergency chaos",
+        "button patterns that intentionally satisfy the emergency trigger"
+      ]
+    },
+    "generator_note": "Randomized stress injection should avoid intentionally satisfying declared class_0 emergency predicates unless the run is explicitly labeled as an emergency-focused stress profile.",
+    "interpretation_note": "If a randomized run is intentionally configured to include emergency predicates, the expected class_0 outcome should be treated as policy-consistent and evaluated under a separate emergency-randomized profile rather than this default non-emergency chaos profile."
   }
 }
