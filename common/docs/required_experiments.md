@@ -1,125 +1,176 @@
 # 필수 실험 내용 및 검증 지표 정리
+# Required Experiments and Verification Metrics
 
-## 1. 실험 설계의 전체 원칙
+## 0. 문서의 역할과 적용 범위
 
-본 논문의 실험은 시스템이 얼마나 “똑똑한가”보다, **얼마나 안전하게 분기하고, 멈추고, 위임하는가**를 검증하는 데 초점을 두어야 한다.  
-따라서 실험은 다음 네 가지 축을 중심으로 구성하는 것이 적절하다.
+본 문서는 제안 시스템의 실험 설계, 검증 대상, 평가 지표, 그리고 frozen asset 간의 연결 관계를 정의하는 **실험 기준 문서(experiment baseline manifest)**이다.  
+본 문서는 단순 개념 설명이 아니라, 실제 실험 스크립트·결과 표·논문 본문과 정합성을 유지하기 위한 기준 문서로 사용한다.
 
-1. 정책 분기 정확성 (Policy Routing Correctness)
-2. 안전성 (Safety under Ambiguity and Insufficient Context)
-3. 지연 시간 (Class-wise Latency)
-4. 강건성 (Robustness under Fault Injection)
+본 문서의 목적은 다음과 같다.
 
-필수 실험은 아래 3개 패키지로 묶어 제시하는 것이 가장 적절하다.
+1. 어떤 실험을 반드시 수행해야 하는지 정의한다.
+2. 각 실험이 어떤 frozen policy/schema asset에 의존하는지 명시한다.
+3. 현재 구현 범위(Current Implemented Scope)와 향후 확장 범위(Extended Experimental Scope)를 구분한다.
+4. fault taxonomy와 실제 deterministic fault profile ID를 매핑한다.
+5. 논문 표/그림에 직접 연결될 수 있는 평가 지표를 고정한다.
 
-- **패키지 A**: 정책 분기 정확성 + 안전성
+---
+
+## 1. Canonical Frozen Asset Versions
+
+본 문서는 아래 frozen asset version을 기준으로 해석한다.
+
+- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
+- `common/schemas/context_schema_v1_0_0_FROZEN.json`
+- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
+- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
+- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+
+> 주의:
+> frozen asset 간 버전이 변경되면, 본 문서도 함께 갱신되어야 한다.
+> 특히 policy table, validator output schema, fault injection rules 간 trigger ID 집합의 정합성을 유지해야 한다.
+
+---
+
+## 2. 현재 구현 범위와 확장 범위
+
+### 2.1 Current Implemented Scope
+
+현재 검증의 우선 대상은 **Class 1 bounded low-risk assistance**의 최소 구현 범위이다.
+
+#### 현재 공식 low-risk action 범위
+- `light_on`
+- `light_off`
+
+#### 현재 공식 target device 범위
+- `living_room_light`
+- `bedroom_light`
+
+#### 현재 Safe Deferral 후보 출력 범위
+- `safe_deferral`
+- `deferral_reason`:
+  - `ambiguous_target`
+  - `insufficient_context`
+  - `policy_restriction`
+  - `unresolved_multi_candidate`
+
+따라서 현재 실험에서 **자율 low-risk actuation**은 조명 2개 on/off 경로를 기준으로 검증한다.
+
+### 2.2 Extended Experimental Scope
+
+다음 항목은 시스템의 확장 실험 범위로 간주한다.
+
+- additional actuator nodes (예: blind, doorlock, siren/buzzer)
+- richer device-state context
+- caregiver payload completeness verification
+- larger multi-node simulation
+- extended emergency triggers beyond the currently authoritative policy table
+
+이 확장 범위는 별도 표기 없이 현재 구현 범위와 혼용해서 해석해서는 안 된다.
+
+---
+
+## 3. 실험 설계의 전체 원칙
+
+본 연구의 실험은 시스템이 얼마나 “똑똑한가”보다, **얼마나 안전하게 분기하고, 멈추고, 위임하는가**를 검증하는 데 초점을 둔다.
+
+필수 실험은 다음 세 가지 패키지로 구성한다.
+
+- **패키지 A**: 정책 분기 정확성 및 안전성
 - **패키지 B**: 클래스별 지연 시간
 - **패키지 C**: Fault Injection 기반 강건성
 
----
+필요 시 다음 선택 실험을 추가할 수 있다.
 
-## 2. 실험 노드 구성 원칙
-
-본 연구의 실험 노드는 다음 세 계층으로 구분한다.
-
-### 2.1 ESP32 실물 노드
-ESP32 기반 실물 노드는 실제 물리 입력 및 출력 경로를 검증하기 위해 사용한다.
-
-#### 대표 입력 실물 노드
-- bounded button touch / kick-style button node
-- 온습도 센서 노드
-- 가스 센서 노드
-- 화재 감지 센서 노드
-
-#### 대표 출력 실물 노드
-- 전등 on/off 노드
-- 도어락 노드
-- 필요 시 경고 부저 또는 사이렌 노드
-
-### 2.2 Raspberry Pi 기반 가상 노드
-Raspberry Pi 5 기반 가상 노드는 다음과 같은 실험에 사용한다.
-
-- 다중 노드 시나리오
-- 대량 센서/상태 시뮬레이션
-- fault injection
-- stale / missing / conflict 조건 검증
-- fail-safe 및 closed-loop automated verification
-
-실물 ESP32 노드를 다수 제작하는 것은 비용과 관리 측면에서 비효율적이므로, 다중 노드 및 결함 주입 실험은 Raspberry Pi 가상 노드 계층이 담당하는 것이 적절하다.
-
-### 2.3 Optional STM32 Timing Node
-클래스별 지연 시간은 가능하면 서비스망과 분리된 **out-of-band hardware measurement network**에서 측정한다.
-
-이를 위해 다음과 같은 별도 계측 노드를 사용할 수 있다.
-
-- STM32 기반 timing node
-- 또는 별도의 dedicated timing / measurement node
-
-이 노드는 trigger-to-action 경로를 운영 트래픽과 독립적으로 계측하기 위한 실험용 계측 인프라이다.
+- **패키지 D (선택)**: Class 2 notification payload completeness
+- **패키지 E (선택)**: Grace period cancellation / false dispatch suppression
 
 ---
 
-## 3. 실험 패키지 A: 정책 분기 정확성 및 안전성 검증
+## 4. 정책 및 스키마 해석 기준
 
-### 3.1 목적
-입력 이벤트와 센서 컨텍스트가 의도한 **Class 0 / Class 1 / Class 2**로 올바르게 라우팅되는지 확인하고, 특히 모호하거나 문맥이 부족한 상황에서 **unsafe actuation** 없이 **Safe Deferral** 또는 **Caregiver Escalation**으로 안전하게 처리되는지 검증한다.
+### 4.1 Policy Router 입력 기준
+Policy Router는 다음 정보를 입력으로 받는다.
 
-### 3.2 권장 노드 구성
-이 패키지는 **실물 노드 중심**으로 구성하는 것이 적절하다.
+- `source_node_id`
+- `routing_metadata`
+- `pure_context_payload`
 
-#### 권장 최소 구성
-- **ESP32 실물 입력 노드: 4개**
-  - bounded button node 1개
-  - 온습도 센서 노드 1개
-  - 가스 센서 노드 1개
-  - 화재 감지 센서 노드 1개
-- **ESP32 실물 출력 노드: 2개**
-  - 전등 on/off 노드 1개
-  - 도어락 또는 경고 출력 노드 1개
-- **Raspberry Pi 가상 노드: 0~2개**
-  - 필요 시 보조 컨텍스트 제공용
-- **Timing node: 0개**
-  - 필수 아님
+이 중 LLM prompt 구성에 전달 가능한 것은 오직 `pure_context_payload`이다.  
+`routing_metadata`의 ingest timestamp, network status, audit correlation 정보는 안전 fallback 및 감사 추적을 위한 정보이며, LLM 해석 입력으로 직접 혼합하지 않는다.
 
-#### 권장 표준 구성
-- ESP32 실물 노드 총 **6개**
-- Raspberry Pi 가상 노드 **0~4개**
-- STM32 timing node **0개**
+### 4.2 Context 해석 기준
+실험 입력은 `context_schema_v1_0_0_FROZEN.json`을 만족해야 한다.  
+즉, 다음 세 블록이 모두 존재해야 한다.
 
-### 3.3 실험 시나리오 구성
-시나리오 기반 테스트셋을 구축한다. 각 시나리오는 다음 요소를 포함한다.
+- `trigger_event`
+- `environmental_context`
+- `device_states`
 
+### 4.3 Candidate Action 해석 기준
+Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 후보는 `candidate_action_schema_v1_0_0_FROZEN.json`을 만족해야 한다.  
+후보는 다음 두 부류만 허용한다.
+
+1. 단일 저위험 액션 후보
+2. `safe_deferral`
+
+### 4.4 Deterministic Validator 해석 기준
+후보 검증 결과는 `validator_output_schema_v1_1_0_FROZEN.json`을 만족해야 하며, 최종 결과는 다음 셋 중 하나다.
+
+- `approved`
+- `safe_deferral`
+- `rejected_escalation`
+
+---
+
+## 5. 실험 패키지 A: 정책 분기 정확성 및 안전성 검증
+
+### 5.1 목적
+입력 이벤트와 센서/상태 컨텍스트가 의도한 **Class 0 / Class 1 / Class 2** 또는 **Safe Deferral**로 올바르게 처리되는지 검증한다.
+
+### 5.2 현재 구현 범위에서의 핵심 질문
+- current policy table 기준 emergency event는 올바르게 Class 0으로 라우팅되는가?
+- current low-risk action catalog 범위 내에서 단일 admissible action만 승인되는가?
+- ambiguity 또는 insufficient context 상황에서 unsafe actuation 없이 `safe_deferral` 또는 `class_2_escalation`으로 전환되는가?
+
+### 5.3 권장 노드 구성
+#### 최소 구성
+- ESP32 실물 입력 노드: 2~4개
+  - bounded button node
+  - representative environmental sensor node
+  - optional emergency representative node
+- ESP32 실물 출력 노드: 1~2개
+  - living_room_light representative output
+  - bedroom_light representative output or warning output
+- Raspberry Pi virtual node: 0~2개
+- STM32 timing node: 필수 아님
+
+### 5.4 시나리오 구성 요소
 #### 입력 이벤트
-- 버튼 1회 타격
-- emergency triple-hit
+- single click / bounded button trigger
+- triple-hit emergency trigger
 - long-press
-- 센서 임계치 초과
+- representative threshold-crossing or state-change trigger
 
 #### 컨텍스트
-- 온도
-- 조도
-- 기기 상태
-- 센서 freshness
-- 통신 상태
+- temperature
+- illuminance
+- occupancy_detected
+- smoke_detected
+- gas_detected
+- living_room_light
+- bedroom_light
+- other device states if included in the current experiment profile
 
-#### 기대 클래스
-- Class 0
-- Class 1
-- Class 2
+### 5.5 기대 결과 분류
+- Class 0 emergency
+- Class 1 validated low-risk action
+- Safe Deferral
+- Class 2 escalation
 
-#### 기대 동작
-- 즉시 로컬 보호조치
-- low-risk local assistance
-- Safe Deferral + context-integrity-based safe deferral stage
-- caregiver escalation
-
-### 3.4 시나리오 최소 권장 수
-- Class 0 관련: 15~20개
-- Class 1 관련: 20~25개
-- Class 2 관련: 20~25개
-- 총합: 최소 50~70개
-
-### 3.5 필수 검증 지표
+### 5.6 필수 검증 지표
 - Class Routing Accuracy
 - Emergency Miss Rate
 - Unsafe Actuation Rate (UAR)
@@ -128,112 +179,89 @@ Raspberry Pi 5 기반 가상 노드는 다음과 같은 실험에 사용한다.
 
 ---
 
-## 4. 실험 패키지 B: 클래스별 지연 시간 검증
+## 6. 실험 패키지 B: 클래스별 지연 시간 검증
 
-### 4.1 목적
-제안한 아키텍처가 실제 edge 환경에서 충분히 빠르게 작동하는지 검증한다.  
-특히 **Class 0, Class 1, Class 2**는 서로 다른 동작 경로를 가지므로, 지연 시간도 **경로별로 분리하여 측정**해야 한다.
+### 6.1 목적
+Class 0, Class 1, Class 2가 서로 다른 경로를 가지므로, 경로별 지연 시간을 분리 계측한다.
 
-### 4.2 권장 노드 구성
-이 패키지는 **실물 노드 + timing node** 조합이 핵심이다.
+### 6.2 권장 구성
+#### 최소 구성
+- ESP32 입력 노드: 2개
+- ESP32 출력 노드: 1~2개
+- STM32 timing node: 1개 권장
+- Raspberry Pi virtual node: 0개
 
-#### 권장 최소 구성
-- **ESP32 실물 입력 노드: 2개**
-  - bounded button node 1개
-  - emergency representative input node 1개
-- **ESP32 실물 출력 노드: 2개**
-  - 전등/릴레이 계열 노드 1개
-  - 도어락 또는 경고 출력 노드 1개
-- **Raspberry Pi 가상 노드: 0개**
-- **STM32 timing node: 1개 필수**
-
-#### 권장 표준 구성
-- ESP32 실물 노드 총 **4~5개**
-- STM32 timing node **1개**
-- 여유가 있으면 STM32 timing node **2개**
-  - 1개: 입력 기준 타이밍
-  - 1개: 출력/ACK 기준 타이밍
-
-### 4.3 권장 계측 방식
-가능하면 **Out-of-band hardware measurement network**를 사용한다.
-
-예를 들어 STM32 또는 별도 계측 노드를 이용해 서비스망과 분리된 상태에서 GPIO / interrupt 기반 timestamp를 수집하는 방식이 바람직하다.
-
-### 4.4 필수 측정 경로
+### 6.3 필수 측정 경로
 - Class 0: emergency trigger → local protective action / external dispatch
-- Class 1: button event → validated low-risk local action / Safe Deferral decision
-- Class 2: button event → caregiver notification dispatch
+- Class 1: button trigger → validated low-risk action OR safe deferral decision
+- Class 2: button or policy failure event → caregiver notification dispatch
 
-### 4.5 필수 검증 지표
+### 6.4 필수 측정 지표
 - p50 latency
 - p95 latency
-- p99 latency (선택)
-- Deferral decision latency
-- Notification dispatch latency
+- p99 latency (optional)
+- deferral decision latency
+- notification dispatch latency
+
+### 6.5 계측 원칙
+가능하면 서비스망과 분리된 **out-of-band hardware measurement network**를 사용한다.  
+GPIO/interrupt 기반 timestamp를 통해 trigger-to-action 경로를 독립 측정하는 것이 바람직하다.
 
 ---
 
-## 5. 실험 패키지 C: Fault Injection 기반 강건성 검증
+## 7. 실험 패키지 C: Fault Injection 기반 강건성 검증
 
-### 5.1 목적
-정상 상황이 아니라 **센서 오류, 통신 지연, stale context, 버튼 패턴 오류** 같은 장애 조건에서도 안전 정책이 유지되는지 검증한다.
+### 7.1 목적
+정상 상황이 아니라 stale context, missing state, ambiguity, 통신 지연 등 장애 조건에서도 안전 정책이 유지되는지 검증한다.
 
-### 5.2 권장 노드 구성
-이 패키지는 **Raspberry Pi 기반 가상 노드 중심**으로 구성하는 것이 적절하다.
-
-#### 권장 최소 구성
-- **ESP32 실물 입력 노드: 1~2개**
-  - bounded button node 1개
-  - 필요 시 representative physical sensor node 1개
-- **ESP32 실물 출력 노드: 1개**
-  - representative actuator or warning output node 1개
-- **Raspberry Pi 가상 노드: 20개**
-- **Timing node: 0개**
-
-#### 권장 표준 구성
-- ESP32 실물 노드 총 **2~3개**
-- Raspberry Pi 가상 노드 **30개**
-- 확장 실험 시 Raspberry Pi 가상 노드 **40개**까지 가능
-
-### 5.3 Fault Injection 구현 원칙
-결함 주입 수치는 스크립트에 임의로 하드코딩하지 않는다. 반드시 다음 frozen artifacts에서 규칙과 임계치를 파싱하여 동적으로 생성한다.
+### 7.2 authoritative generation principle
+Fault injection 수치는 임의 하드코딩하지 않는다.  
+반드시 다음 frozen asset을 파싱하여 동적으로 생성한다.
 
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 
-### 5.4 필수 fault 유형
+### 7.3 fault taxonomy
+본 문서의 fault taxonomy는 다음 네 부류로 구성한다.
 
-#### (A) Threshold-crossing emergency injection
-- 목적: 생명 위협 이벤트가 Class 0으로 즉각 라우팅되는지 검증
-- 생성 규칙:
-  - routing policy artifact에서 각 emergency rule의 minimal triggering predicate를 파싱
-  - 단일 임계치 기반이면 해당 threshold를 명시적으로 초과
-  - 복합 조건이면 정책을 만족시키는 최소 센서 조합 생성
+#### (A) Threshold-crossing or policy-declared emergency injection
+- 목적: declared emergency predicate가 policy-consistent class 0 path로 라우팅되는지 검증
 
 #### (B) Context conflict injection
-- 목적: 상충하는 저위험 제어 근거가 동시에 존재할 때, 시스템이 Unsafe Actuation 없이 Safe Deferral 또는 Class 2로 전환하는지 검증
-- 생성 규칙:
-  - 동일 액추에이터에 대해 둘 이상의 bounded low-risk candidate가 동시에 admissible하게 남도록 주입
-  - 기대 안전 귀결은 정책표에서 도출
-    - clarification 가능 시: SAFE_DEFERRAL + context-integrity-based safe deferral stage
-    - 필수 문맥이 여전히 부족할 시: CLASS_2 escalation
-  - 어떤 경우에도 autonomous physical actuation이 발생하면 안 된다
+- 목적: low-risk path에서 ambiguity 발생 시 unsafe actuation 없이 safe fallback으로 전환되는지 검증
 
 #### (C) Sensor/State staleness injection
-- 목적: 오래된 데이터에 대한 fail-safe 동작 검증
-- 생성 규칙:
-  - routing policy artifact에 정의된 freshness limit를 초과하는 타임스탬프를 freshness-critical sensor field 또는 device-state field에 주입
+- 목적: freshness limit 초과 시 fail-safe escalation이 이루어지는지 검증
 
 #### (D) Missing state injection
-- 목적: 불완전한 상태 정보 하에서의 보수적 안전 동작 검증
-- 생성 규칙:
-  - frozen context schema에 정의된 required keys를 의도적으로 누락
-  - 다음 두 종류를 구분
-    1. **policy-input omissions**: Class 1 진입을 막고 즉시 Class 2로 전환
-    2. **validator/action-schema omissions**: 실행을 막고 Safe Deferral 또는 Class 2로 이어져야 함
+- 목적: required input/context 누락 시 보수적 fallback이 발생하는지 검증
 
-### 5.5 필수 검증 지표
+### 7.4 deterministic fault profile mapping table
+
+| Fault Taxonomy | Deterministic Profile ID | Expected Safe Outcome |
+|---|---|---|
+| A1. Emergency threshold crossing | `FAULT_EMERGENCY_01_TEMP` | `class_0_emergency` |
+| B1. Context conflict | `FAULT_CONFLICT_01_GHOST_PRESS` | `safe_deferral` or `class_2_escalation` |
+| C1. Staleness | `FAULT_STALENESS_01` | `class_2_escalation` |
+| D1. Missing context | `FAULT_MISSING_CONTEXT_01` | `class_2_escalation` |
+
+> 주의:
+> fault profile ID는 frozen rules file을 기준으로 유지한다.
+> 새로운 deterministic profile을 추가할 경우 본 표도 함께 갱신해야 한다.
+
+### 7.5 현재 authoritative emergency 범위에 대한 주의
+현재 실험에서 **공식 authoritative emergency trigger 집합**은 policy table에 정의된 항목을 기준으로 해석한다.  
+따라서 emergency-focused fault injection 결과는 반드시 **현재 policy table에 존재하는 trigger**를 기준으로 pass/fail을 판정해야 한다.
+
+policy table에 아직 반영되지 않은 emergency signal(smoke/gas/fall 등)을 별도로 실험하는 경우, 반드시 다음 중 하나로 표기한다.
+
+- `extended_emergency_experiment`
+- `future_policy_candidate`
+
+이 경우 해당 결과는 현재 canonical policy routing correctness와 동일하게 취급하지 않는다.
+
+### 7.6 필수 검증 지표
 - Safe Fallback Rate
 - UAR under Faults
 - Misrouting under Faults
@@ -241,52 +269,82 @@ Raspberry Pi 5 기반 가상 노드는 다음과 같은 실험에 사용한다.
 
 ---
 
-## 6. 선택 실험
+## 8. 선택 실험 패키지 D: Class 2 Payload Completeness
 
-### 6.1 Class 2 Payload Completeness
-- Event Summary
-- Context Summary
-- Unresolved Reason
-- Manual Confirmation Path
+### 8.1 목적
+Class 2 escalation이 발생했을 때 caregiver notification payload가 필요한 필드를 빠짐없이 포함하는지 검증한다.
 
-### 6.2 Grace Period Cancellation Success
-- cancellation success rate
-- false dispatch suppression rate
+### 8.2 필수 포함 항목
+- `event_summary`
+- `context_summary`
+- `unresolved_reason`
+- `manual_confirmation_path`
+
+### 8.3 권장 추가 항목
+- `audit_correlation_id`
+- `timestamp_ms`
+- `notification_channel`
+- `source_layer`
+
+### 8.4 검증 지표
+- Payload Completeness Rate
+- Missing Field Rate
+- Notification Readiness Rate
+
+### 8.5 검증 기준 스키마
+본 실험은 `class_2_notification_payload_schema_v1_0_0_FROZEN.json`을 기준으로 검증한다.
 
 ---
 
-## 7. 논문에 반드시 넣어야 할 핵심 지표 요약
+## 9. 선택 실험 패키지 E: Grace Period Cancellation / False Dispatch Suppression
+
+### 9.1 목적
+external dispatch grace period가 존재하는 emergency path에서 false dispatch suppression이 적절히 작동하는지 확인한다.
+
+### 9.2 검증 지표
+- cancellation success rate
+- false dispatch suppression rate
+- emergency preservation correctness
+
+---
+
+## 10. 논문에 반드시 들어가야 할 핵심 지표
+
 - Class Routing Accuracy
 - Emergency Miss Rate
 - Unsafe Actuation Rate (UAR)
 - Safe Deferral Rate (SDR)
 - Class 2 Handoff Correctness
-- Class-wise Latency (p50 / p95, 가능하면 p99)
+- Class-wise Latency (p50 / p95 / optional p99)
 - UAR under Fault Injection
+- Misrouting under Faults
 
 ---
 
-## 8. 논문에 넣기 좋은 결과 표/그림 구성
+## 11. 논문 표/그림 추천 구성
 
 ### Figure 1. Class-wise latency distribution
 - Class 0
 - Class 1
 - Class 2
-- p50 / p95 (가능하면 p99)
+- p50 / p95 / optional p99
 
 ### Table 1. Policy-routing and safety results
-- Class routing accuracy
-- Emergency miss rate
-- UAR
-- SDR
-- Class 2 handoff correctness
+- scenario ID
+- expected class
+- observed class
+- unsafe actuation occurrence
+- deferral occurrence
+- pass/fail
 
 ### Table 2. Fault injection results
-- fault type
+- fault taxonomy
+- deterministic profile ID
 - expected safe behavior
 - observed behavior
 - UAR under fault
-- routing correctness under fault
+- routing correctness
+- pass/fail
 
 ### Table 3. Experimental node composition
 - package
@@ -296,44 +354,33 @@ Raspberry Pi 5 기반 가상 노드는 다음과 같은 실험에 사용한다.
 - STM32 timing nodes
 - purpose
 
+### Table 4. Current implemented scope vs extended scope
+- category
+- current authoritative scope
+- extended scope
+- included in main paper results (Y/N)
+
 ---
 
-## 9. 논문용 최소 실험 세트 제안
+## 12. 논문용 최소 실험 세트
 
-### 필수 세트
+### 필수
 - 정책 분기 정확성 + 안전성 결과 표 1개
-- Class별 지연 시간 그림 1개
-- Fault Injection 결과 표 1개
+- Class-wise latency figure 1개
+- Fault injection 결과 표 1개
 - Experimental node composition 표 1개
 
-### 가능하면 포함
-- grace period cancellation 또는 payload completeness 중 하나
+### 권장 추가
+- Class 2 payload completeness 결과 1개
+- false dispatch suppression 결과 1개
 
 ---
 
-## 10. 권장 실험 구성 요약
+## 13. 최종 실험 설계 원칙
 
-### 패키지 A: 정책 분기 정확성 + 안전성
-- ESP32 실물 입력 노드: 4개
-- ESP32 실물 출력 노드: 2개
-- Raspberry Pi 가상 노드: 0~4개
-- STM32 timing node: 0개
-
-### 패키지 B: 클래스별 지연 시간
-- ESP32 실물 노드: 4~5개
-- Raspberry Pi 가상 노드: 0개
-- STM32 timing node: 1개 권장, 2개면 이상적
-
-### 패키지 C: Fault Injection 기반 강건성
-- ESP32 실물 노드: 2~3개
-- Raspberry Pi 가상 노드: 20개 최소, 30개 권장, 40개 확장 가능
-- STM32 timing node: 0개
-
----
-
-## 11. 최종 실험 설계 원칙
-
-- 실물 물리 경로 검증은 **ESP32 실물 노드** 중심으로 수행한다.
-- 다중 노드, 대규모 시나리오, stale/missing/conflict, fail-safe 검증은 **Raspberry Pi 기반 가상 노드** 중심으로 수행한다.
-- 클래스별 지연 시간은 가능하면 **STM32 기반 out-of-band timing node**를 이용해 서비스망과 분리하여 계측한다.
-- 모든 실험은 “얼마나 똑똑한가”보다 **얼마나 안전하게 분기하고, 멈추고, 위임하는가**를 검증해야 한다.
+1. 실험은 “똑똑함”보다 **안전한 분기, 보류, 위임**을 검증해야 한다.
+2. 현재 구현 범위와 확장 범위를 혼용하지 않는다.
+3. emergency 판정은 반드시 current canonical policy table을 기준으로 한다.
+4. fault injection은 frozen policy/schema/rules를 파싱하여 동적으로 생성한다.
+5. 논문 표/그림의 모든 결과는 deterministic profile 또는 canonical scenario ID와 연결 가능해야 한다.
+6. frozen asset version이 변경되면 본 문서도 함께 갱신한다.
