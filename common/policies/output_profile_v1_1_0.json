@@ -1,0 +1,68 @@
+{
+  "version": "1.1.0",
+  "description": "System output profile and allowed output behavior for bounded safe deferral guidance, outbound notifications, audit logging, and local warning outputs",
+  "voice_feedback": {
+    "engine": "local_tts",
+    "allowed_engines": [
+      "meloTTS",
+      "piper"
+    ],
+    "cloud_tts_allowed": false,
+    "interaction_mode": "bounded_one_way_guidance",
+    "open_ended_dialogue_allowed": false,
+    "supported_use_cases": [
+      "safe_deferral_feedback",
+      "bounded_option_announcement",
+      "escalation_notice",
+      "status_feedback"
+    ],
+    "purpose": "Cloud-independent bounded voice guidance for safe deferral feedback and limited system announcements"
+  },
+  "outbound_notification": {
+    "primary_channel": "telegram",
+    "fallback_channel": "mock_logger",
+    "caregiver_confirmation_supported": true,
+    "required_payload_fields": [
+      "event_id",
+      "trigger_id",
+      "event_summary",
+      "context_summary",
+      "unresolved_reason",
+      "source_layer",
+      "manual_confirmation_path"
+    ],
+    "optional_payload_fields": [
+      "candidate_options",
+      "related_device_state",
+      "observed_timestamp_ms"
+    ],
+    "purpose": "Caregiver alerts, bounded escalation payload delivery, and limited approval-path support"
+  },
+  "logging_output": {
+    "destination": "sqlite",
+    "mode": "wal",
+    "single_writer_enforced": true,
+    "audit_purpose": "closed_loop_verification_compatible",
+    "machine_readable": true,
+    "recommended_event_groups": [
+      "routing",
+      "validator",
+      "safe_deferral",
+      "timeout",
+      "escalation",
+      "caregiver_confirmation",
+      "actuation_ack"
+    ]
+  },
+  "local_warning_output": {
+    "enabled": true,
+    "allowed_channels": [
+      "siren",
+      "light_pattern",
+      "bounded_warning_interface"
+    ],
+    "policy_controlled": true,
+    "free_form_actuation_allowed": false,
+    "purpose": "Bounded local warning outputs for emergency or safety-critical feedback under policy control"
+  }
+}
