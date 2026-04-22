@@ -2,7 +2,7 @@
 
 ## Deployment Structure
 
-This document defines the high-level structure used to organize the project into three operational layers:
+This document defines the high-level structure used to organize the project into three major deployment layers:
 
 1. **Installation**
 2. **Configuration**
@@ -12,7 +12,11 @@ It is intended to be used as a reference for:
 - repository organization
 - implementation planning
 - script classification
+- deployment-boundary interpretation
 - vibe-coding prompts and agent guidance
+
+This document does not replace the canonical frozen policy/schema baseline.  
+The shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
 ---
 
@@ -39,6 +43,10 @@ Software, runtimes, services, and required build or measurement toolchains are p
 
 ### Interpretation
 Installation means the required platform dependencies are available, but not yet configured for the safe deferral architecture.
+
+### Boundary note
+Installation may include optional experimental infrastructure.  
+The presence of a toolchain or package does not by itself mean that the component belongs to the current canonical operational baseline.
 
 ---
 
@@ -71,6 +79,11 @@ Installed services, runtimes, and experimental node assumptions are configured f
 ### Interpretation
 Configuration means the installed components are now aligned with the project architecture, frozen assets, runtime assumptions, and experimental validation design.
 
+### Configuration separation principle
+- frozen policy/schema/terminology assets are derived from `common/`
+- host-local files such as `.env`, credentials, tokens, and machine-specific YAML are deployment-local configuration
+- deployment-local configuration must not be treated as canonical frozen policy truth
+
 ---
 
 ## C. Verification
@@ -85,6 +98,8 @@ Each service, dependency, runtime path, and experimental validation path works c
 - SQLite can store and read audit log entries
 - notification channel works
 - runtime assets are present and valid
+- canonical frozen assets are deployed and readable
+- canonical policy/schema/rules version alignment passes
 - Raspberry Pi simulation runtime passes base checks
 - closed-loop audit verification passes
 - ESP32-linked bounded input/output path can be validated during integration testing
@@ -100,6 +115,13 @@ Each service, dependency, runtime path, and experimental validation path works c
 ### Interpretation
 Verification is performed before full integration in order to confirm that each service and runtime layer behaves correctly in isolation, and that the experimental validation infrastructure is trustworthy.
 
+### Verification principle
+Verification must confirm not only service health, but also architectural consistency across:
+- canonical frozen assets
+- deployed runtime copies
+- trigger semantics
+- evaluation-side validation assumptions
+
 ---
 
 ## Role of Shared Frozen Assets
@@ -112,15 +134,50 @@ Before configuration and verification, the project depends on shared frozen asse
 - `common/docs/`
 - `common/terminology/`
 
-### Examples
-- routing policy tables
-- low-risk action policies
-- fault injection rules
-- JSON schemas
-- output profiles
-- canonical terminology documents
+### Representative canonical frozen assets
+- `policy_table_v1_1_2_FROZEN.json`
+- `low_risk_actions_v1_1_0_FROZEN.json`
+- `fault_injection_rules_v1_4_0_FROZEN.json`
+- `context_schema_v1_0_0_FROZEN.json`
+- `candidate_action_schema_v1_0_0_FROZEN.json`
+- `policy_router_input_schema_v1_1_1_FROZEN.json`
+- `validator_output_schema_v1_1_0_FROZEN.json`
+- `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- canonical terminology records under `common/terminology/`
 
-These files act as the single source of truth before runtime deployment.
+### Optional or version-sensitive companion assets
+- output profile assets
+- host-local configuration templates
+- installation/configuration/verification script bundles
+- reproducibility support assets
+
+These frozen files act as the single source of truth before runtime deployment.  
+Deployment targets must consume synchronized runtime copies derived from them.
+
+---
+
+## Canonical Emergency Consistency
+
+Emergency simulation, validation, and verification should remain consistent with the canonical policy-declared emergency trigger family.
+
+At the current canonical policy level, the project recognizes:
+
+- `E001`: high temperature threshold crossing
+- `E002`: emergency triple-hit bounded input
+- `E003`: smoke detected state trigger
+- `E004`: gas detected state trigger
+- `E005`: fall detected event trigger
+
+Accordingly:
+- physical sensing paths
+- virtual emergency sensor paths
+- fault injection profiles
+- verification logic
+
+must remain semantically aligned with the same canonical trigger set.
+
+This document does not redefine emergency semantics.  
+The authoritative trigger definitions remain in the shared policy table.
 
 ---
 
@@ -152,6 +209,24 @@ They are implementation targets and also form the physical bounded input/output 
 An STM32 timing node or another dedicated measurement node may be used as optional experimental timing infrastructure.  
 Its role is to support out-of-band class-wise latency measurement without interfering with the operational service plane.
 
+This timing infrastructure is optional and should not be interpreted as part of the minimum canonical hub deployment.
+
+---
+
+## Deployment-Local Configuration
+
+Deployment-local configuration refers to host-specific files or secrets that are required for execution but are not canonical frozen reference assets.
+
+### Examples
+- `.env`
+- API tokens
+- service credentials
+- machine-specific YAML
+- host-local runtime paths
+- local secrets for notification integration
+
+These assets are necessary for deployment, but they must not override or redefine canonical policy, schema, or terminology truth.
+
 ---
 
 ## Architectural Summary
@@ -159,9 +234,23 @@ Its role is to support out-of-band class-wise latency measurement without interf
 - **Installation** prepares each target platform.
 - **Configuration** aligns each platform with the safe deferral architecture and experimental validation assumptions.
 - **Verification** confirms that each configured component works correctly before integration and large-scale evaluation.
-- **Shared frozen assets** in `common/` provide the reference state used by Mac mini, Raspberry Pi, and ESP32-related implementation work.
+- **Shared frozen assets** in `common/` provide the canonical reference state used by Mac mini, Raspberry Pi, and ESP32-related implementation work.
+- **Deployment-local configuration** remains host-specific and is not part of the canonical frozen policy baseline.
 - **Mac mini** remains the only operational hub for core runtime services.
 - **Raspberry Pi 5** remains an experiment-side simulation, fault-injection, and evaluation node rather than a replacement for the Mac mini runtime.
 - **ESP32 physical nodes** support bounded real-world input/output validation.
 - **Optional STM32 timing infrastructure** supports out-of-band latency measurement.
 - **Integration assets** validate cross-device behavior after isolated verification is complete.
+
+---
+
+## Final Interpretation Principle
+
+The deployment structure should preserve the following order of meaning:
+
+1. install the necessary platform dependencies
+2. configure the installed components using canonical frozen references
+3. verify service health, runtime validity, and asset consistency
+4. integrate physical and virtual validation layers only after isolated checks pass
+
+At no point should deployment-local convenience override the shared frozen architecture baseline.
