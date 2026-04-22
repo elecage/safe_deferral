@@ -2,9 +2,9 @@
   "version": "1.4.0",
   "description": "Meta-rules for dynamic fault injection and closed-loop safety assessment on Raspberry Pi 5",
   "asset_dependencies": [
-    "policy_table_v1_2_0_FROZEN.json",
+    "policy_table_v1_1_2_FROZEN.json",
     "context_schema_v1_0_0_FROZEN.json",
-    "validator_output_schema_v1_0_0_FROZEN.json"
+    "validator_output_schema_v1_1_0_FROZEN.json"
   ],
   "dynamic_references": {
     "freshness_limit": "$.global_constraints.freshness_threshold_ms",
