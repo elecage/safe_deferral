@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "description": "System output profile and allowed output behavior for bounded safe deferral guidance, outbound notifications, audit logging, and local warning outputs",
+  "description": "Companion output profile for bounded safe deferral guidance, outbound notifications, audit logging, and local warning outputs. This asset complements but does not override canonical policy or schema truth.",
   "voice_feedback": {
     "engine": "local_tts",
     "allowed_engines": [
@@ -22,20 +22,25 @@
     "primary_channel": "telegram",
     "fallback_channel": "mock_logger",
     "caregiver_confirmation_supported": true,
-    "required_payload_fields": [
-      "event_id",
-      "trigger_id",
+    "payload_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+    "required_core_fields": [
       "event_summary",
       "context_summary",
       "unresolved_reason",
-      "source_layer",
       "manual_confirmation_path"
+    ],
+    "schema_governed_fields": [
+      "audit_correlation_id",
+      "timestamp_ms",
+      "notification_channel",
+      "source_layer",
+      "exception_trigger_id"
     ],
     "optional_payload_fields": [
       "candidate_options",
-      "related_device_state",
-      "observed_timestamp_ms"
+      "related_device_state"
     ],
+    "caregiver_confirmation_note": "Caregiver confirmation support remains bounded by the canonical low-risk action policy and must not authorize actions outside the approved low-risk action catalog.",
     "purpose": "Caregiver alerts, bounded escalation payload delivery, and limited approval-path support"
   },
   "logging_output": {
