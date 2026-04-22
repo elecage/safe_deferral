@@ -254,9 +254,10 @@ Fault injection 수치는 임의 하드코딩하지 않는다.
 | Fault Taxonomy | Deterministic Profile ID | Expected Safe Outcome |
 |---|---|---|
 | A1. Temperature emergency | `FAULT_EMERGENCY_01_TEMP` | `class_0_emergency` |
-| A2. Smoke emergency | `FAULT_EMERGENCY_02_SMOKE` | `class_0_emergency` |
-| A3. Gas emergency | `FAULT_EMERGENCY_03_GAS` | `class_0_emergency` |
-| A4. Fall emergency | `FAULT_EMERGENCY_04_FALL` | `class_0_emergency` |
+| A2. Button triple-hit emergency | `FAULT_EMERGENCY_02_BUTTON_TRIPLE_HIT` | `class_0_emergency` |
+| A3. Smoke emergency | `FAULT_EMERGENCY_03_SMOKE` | `class_0_emergency` |
+| A4. Gas emergency | `FAULT_EMERGENCY_04_GAS` | `class_0_emergency` |
+| A5. Fall emergency | `FAULT_EMERGENCY_05_FALL` | `class_0_emergency` |
 | B1. Context conflict | `FAULT_CONFLICT_01_GHOST_PRESS` | `safe_deferral` or `class_2_escalation` |
 | C1. Staleness | `FAULT_STALENESS_01` | `class_2_escalation` |
 | D1. Missing context | `FAULT_MISSING_CONTEXT_01` | `class_2_escalation` |
@@ -267,7 +268,13 @@ Fault injection 수치는 임의 하드코딩하지 않는다.
 
 ### 7.5 emergency pass/fail interpretation
 Emergency-focused fault injection 결과는 반드시 canonical policy table에 정의된 trigger ID와 일치해야 한다.  
-즉, `FAULT_EMERGENCY_01_TEMP`, `02_SMOKE`, `03_GAS`, `04_FALL`은 각각 `E001`, `E003`, `E004`, `E005`의 policy-consistent class 0 outcome으로 평가되어야 한다.
+즉,
+- `FAULT_EMERGENCY_01_TEMP`는 `E001`,
+- `FAULT_EMERGENCY_02_BUTTON_TRIPLE_HIT`는 `E002`,
+- `FAULT_EMERGENCY_03_SMOKE`는 `E003`,
+- `FAULT_EMERGENCY_04_GAS`는 `E004`,
+- `FAULT_EMERGENCY_05_FALL`은 `E005`
+의 policy-consistent class 0 outcome으로 평가되어야 한다.
 
 ### 7.6 필수 검증 지표
 - Safe Fallback Rate
