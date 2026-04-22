@@ -3,9 +3,9 @@
   "description": "Deterministic Routing Policy and Safety Constraints for Edge Smart Home",
   "global_constraints": {
     "freshness_threshold_ms": 3000,
-    "default_icr_timeout_ms": 15000,
+    "default_context_integrity_safe_deferral_timeout_ms": 15000,
     "actuation_ack_timeout_ms": 5000,
-    "max_icr_attempts": 2
+    "max_context_integrity_safe_deferral_attempts": 2
   },
   "routing_policies": {
     "class_0_emergency": {
@@ -109,7 +109,7 @@
         "fallback_on_staleness": "escalate_to_class_2"
       },
       "clarification": {
-        "mode": "button_based_icr",
+        "mode": "button_based_context_integrity_safe_deferral",
         "max_candidate_options": 3,
         "timeout_ms": 15000,
         "max_attempts": 2,
@@ -122,8 +122,8 @@
       "triggers": [
         {
           "id": "C201",
-          "event": "icr_timeout",
-          "source_layer": "icr_handler",
+          "event": "context_integrity_safe_deferral_timeout",
+          "source_layer": "context_integrity_safe_deferral_handler",
           "requires_notification": true
         },
         {
@@ -151,12 +151,28 @@
           "requires_notification": true
         }
       ],
-      "payload_requirements": [
-        "event_summary",
-        "context_summary",
-        "unresolved_reason",
-        "manual_confirmation_path"
-      ]
+      "payload_contract": {
+        "schema_ref": "common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+        "required_core_fields": [
+          "event_summary",
+          "context_summary",
+          "unresolved_reason",
+          "manual_confirmation_path"
+        ],
+        "schema_governed_fields": [
+          "audit_correlation_id",
+          "timestamp_ms",
+          "notification_channel",
+          "source_layer",
+          "exception_trigger_id"
+        ]
+      }
     }
+  },
+  "implementation_notes": {
+    "authoritative_low_risk_action_catalog": "low_risk_actions_v1_1_0_FROZEN.json",
+    "class_2_notification_payload_schema": "class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+    "terminology_note": "Canonical terminology should use context-integrity-based safe deferral stage and context_integrity_safe_deferral_handler rather than legacy iCR naming.",
+    "note": "The routing policy may retain a summarized allowed_actions_taxonomy for local readability, but the dedicated low-risk action catalog remains the authoritative action list."
   }
 }
