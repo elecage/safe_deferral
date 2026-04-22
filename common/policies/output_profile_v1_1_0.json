@@ -16,6 +16,7 @@
       "escalation_notice",
       "status_feedback"
     ],
+    "policy_linkage_note": "Voice feedback may support bounded safe deferral guidance and system status communication, but it must not become an open-ended dialogue path or override policy-controlled routing outcomes.",
     "purpose": "Cloud-independent bounded voice guidance for safe deferral feedback and limited system announcements"
   },
   "outbound_notification": {
@@ -41,6 +42,7 @@
       "related_device_state"
     ],
     "caregiver_confirmation_note": "Caregiver confirmation support remains bounded by the canonical low-risk action policy and must not authorize actions outside the approved low-risk action catalog.",
+    "companion_asset_note": "This output profile describes preferred output behavior and channel use, but the payload contract itself remains governed by the canonical Class 2 notification schema.",
     "purpose": "Caregiver alerts, bounded escalation payload delivery, and limited approval-path support"
   },
   "logging_output": {
@@ -68,6 +70,7 @@
     ],
     "policy_controlled": true,
     "free_form_actuation_allowed": false,
+    "scope_note": "Local warning outputs are policy-controlled safety outputs and should not be interpreted as equivalent to the Class 1 low-risk autonomous actuation taxonomy.",
     "purpose": "Bounded local warning outputs for emergency or safety-critical feedback under policy control"
   }
 }
