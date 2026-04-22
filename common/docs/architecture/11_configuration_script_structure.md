@@ -5,6 +5,9 @@
 ## Goal
 Configure installed services, runtimes, embedded-node assumptions, and optional measurement support assumptions so that they are aligned with the current safe deferral architecture in a consistent and reproducible way.
 
+This document does not replace the canonical frozen baseline.  
+Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
 ---
 
 ## Core Principles
@@ -28,20 +31,23 @@ Configure installed services, runtimes, embedded-node assumptions, and optional 
 
 The following assets should be finalized before configuration deployment depends on them:
 
-### Shared policy assets
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
+### Required canonical frozen assets
+- `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/policies/output_profile_v1_1_0.json`
-
-### Shared schema assets
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_0_0_FROZEN.json`
+- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 
 ### Terminology asset
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+
+### Optional or version-sensitive companion assets
+- output profile assets
+- auxiliary deployment templates
+- reproducibility support assets
 
 These are not just deployment files.  
 They are design assets that must be fixed before reliable runtime configuration is possible.
@@ -99,6 +105,8 @@ safe_deferral/
 ### Principle
 The Git repository stores the frozen reference state.  
 The Mac mini, Raspberry Pi, embedded-node workflow, and optional measurement workflow receive runtime-ready deployed copies or aligned configuration assumptions as needed.
+
+Deployment-local configuration such as `.env`, secrets, host paths, and machine-specific runtime files must not redefine canonical policy or schema truth.
 
 ---
 
@@ -186,21 +194,29 @@ Recommended responsibilities:
 Recommended deployment targets:
 - runtime copies of frozen policy assets
 - runtime copies of frozen schema assets
-- optional output profile deployment
+- optional output profile deployment when used
 
 Representative deployment sources:
 - `common/policies/`
 - `common/schemas/`
 
-Representative deployed assets:
+Representative deployed canonical assets:
 - routing policy table
 - low-risk action policy
 - fault injection rules
-- output profile
 - context schema
 - candidate action schema
 - policy router input schema
 - validator output schema
+- Class 2 notification payload schema
+
+Optional or version-sensitive companion deployment may include:
+- output profile assets
+- auxiliary deployment templates
+
+#### Deployment principle
+This script deploys runtime-ready copies from the canonical frozen baseline.  
+It must not create local policy truth that diverges from `common/`.
 
 ---
 
@@ -209,6 +225,7 @@ Representative deployed assets:
 Recommended responsibilities:
 - configure Telegram token and chat ID if available
 - configure mock fallback mode if Telegram is unavailable or intentionally disabled
+- align outbound escalation payload behavior with `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - send or simulate a test notification
 - preserve fallback behavior for offline or development environments
 
@@ -230,6 +247,10 @@ Recommended environment variables include:
 #### Terminology note
 Old variable names or labels containing `ICR` should be renamed over time to align with the canonical term:  
 **context-integrity-based safe deferral stage**
+
+#### Deployment-local rule
+`.env` files, credentials, tokens, and host-local paths are deployment-local configuration.  
+They support runtime execution, but they must not redefine canonical frozen policy or schema truth.
 
 ---
 
@@ -320,11 +341,13 @@ Recommended responsibilities:
 - validate deterministic and randomized profiles
 - verify structural consistency of fault definitions
 - generate runtime configuration for fault execution and audit validation
+- keep fault-profile execution assumptions aligned with canonical emergency trigger family `E001`~`E005`
 
 ### Raspberry Pi Configuration Notes
 - Raspberry Pi configuration should stay bounded to the evaluation path.
 - It should prepare experiment-side execution only, not recreate the Mac mini hub runtime.
 - Shared frozen assets remain authoritative at the repository level, and Raspberry Pi consumes synchronized runtime copies only.
+- Canonical policy/schema/rules consistency verification belongs to the **verify** stage, while configuration prepares the synchronized runtime copies and execution assumptions needed for those checks.
 
 ---
 
@@ -347,6 +370,17 @@ Instead, the project should explicitly document and align embedded-node configur
 - actuator or warning interface topic assumptions when physical output is used
 - Wi-Fi, reconnect, and fallback behavior assumptions
 - firmware build, flash, and reset procedure references
+
+### Scope note
+Configuration assumptions should distinguish:
+- current canonical physical-node targets
+- optional experimental targets
+- planned extension targets
+
+Examples currently include:
+- current canonical: bounded button, lighting control, representative environmental sensing
+- optional experimental: gas, fire, fall-detection interface
+- planned extension: doorlock or warning interface
 
 ### Principle
 Embedded nodes should remain bounded physical clients under hub-side policy control rather than becoming independent policy authorities.
@@ -403,6 +437,12 @@ The configuration logic should branch according to the deployment mode where nec
 
 ## Recommended Execution Order
 
+### Recommended preflight baseline check
+Before device-specific configuration proceeds:
+- verify required frozen assets exist
+- verify synchronized or deployed copies will be sourced from the canonical baseline
+- ensure configuration is not starting from an incomplete frozen reference state
+
 ### Mac mini
 ```bash
 bash mac_mini/scripts/configure/70_write_env_files.sh
@@ -454,6 +494,8 @@ Typical workflow may include:
 - do not embed application logic inside configuration scripts
 - keep embedded-node configuration assumptions documented separately from host-side operational scripts when ESP32 nodes are used
 - keep timing/measurement configuration support documented separately from the operational control path when out-of-band evaluation is used
+- prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
+- prevent silent drift from the canonical policy/schema/rules baseline
 
 ---
 
