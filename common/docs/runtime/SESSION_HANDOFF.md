@@ -131,10 +131,11 @@ The following obsolete / legacy assets were intentionally removed and should **n
 
 ---
 
-## 7. Architecture Documents Already Aligned
+## 7. Architecture and Core Documents Already Aligned
 
-The following architecture docs were reviewed and updated to match the current canonical baseline and project interpretation.
+The following docs were reviewed and updated to match the current canonical baseline and project interpretation.
 
+### Architecture docs
 - `common/docs/architecture/04_project_directory_structure.md`
 - `common/docs/architecture/05_automation_strategy.md`
 - `common/docs/architecture/06_implementation_plan.md`
@@ -144,7 +145,11 @@ The following architecture docs were reviewed and updated to match the current c
 - `common/docs/architecture/10_install_script_structure.md`
 - `common/docs/architecture/11_configuration_script_structure.md`
 - `common/docs/architecture/12_prompts.md`
+
+### Experiment / runtime docs
 - `common/docs/required_experiments.md`
+- `common/docs/runtime/SESSION_HANDOFF.md`
+- `mac_mini/docs/README.md`
 
 ### Alignment themes already applied
 - canonical baseline version cleanup
@@ -155,6 +160,7 @@ The following architecture docs were reviewed and updated to match the current c
 - canonical consistency check expectations
 - prompt anti-drift updates
 - deterministic fault profile mapping alignment in `required_experiments.md`
+- Mac mini install/configure/verify flow documentation in Korean
 
 ---
 
@@ -176,9 +182,62 @@ The following architecture docs were reviewed and updated to match the current c
 - `policy_table_v1_1_2_FROZEN.json` clarified as routing/safety interpretation layer with summarized Class 1 taxonomy
 - `output_profile_v1_1_0.json` clarified as companion asset with bounded output guidance notes
 
+### Mac mini runtime alignment completed
+- `install/`, `configure/`, `templates/`, and `verify/` scripts were reviewed and largely aligned with the current canonical baseline
+- Compose workspace was standardized around `~/smarthome_workspace/docker`
+- Runtime asset deployment was updated to use current canonical filenames and paths
+- Verify scripts were updated to reflect the current runtime asset set, current core Docker services, and current SQLite schema expectations
+- `mac_mini/docs/README.md` was expanded into a step-by-step Korean operational guide with runnable commands for install, configure, and verify phases
+
 ---
 
-## 9. Non-Negotiable Rules for Future Sessions
+## 9. Current Mac mini Runtime Interpretation
+
+### Workspace layout
+The current Mac mini scripts assume the following runtime layout:
+- workspace root: `~/smarthome_workspace`
+- compose root: `~/smarthome_workspace/docker`
+- app runtime assets:
+  - `~/smarthome_workspace/docker/volumes/app/config/policies`
+  - `~/smarthome_workspace/docker/volumes/app/config/schemas`
+- database:
+  - `~/smarthome_workspace/db/audit_log.db`
+- Python/runtime env:
+  - `~/smarthome_workspace/.env`
+
+### Current Mac mini install flow
+- `mac_mini/scripts/install/00_preflight.sh`
+- `mac_mini/scripts/install/10_install_homebrew_deps.sh`
+- `mac_mini/scripts/install/20_install_docker_runtime_mac.sh`
+- `mac_mini/scripts/install/21_prepare_compose_stack_mac.sh`
+- `mac_mini/scripts/install/30_setup_python_venv_mac.sh`
+
+### Current Mac mini configure flow
+- `mac_mini/scripts/configure/70_write_env_files.sh`
+- `mac_mini/scripts/configure/50_deploy_policy_files.sh`
+- `mac_mini/scripts/configure/40_configure_sqlite.sh`
+- `mac_mini/scripts/configure/20_configure_mosquitto.sh`
+- `mac_mini/scripts/configure/10_configure_home_assistant.sh`
+- `mac_mini/scripts/configure/30_configure_ollama.sh`
+- `mac_mini/scripts/configure/60_configure_notifications.sh`
+
+### Current Mac mini verify flow
+- `mac_mini/scripts/verify/10_verify_docker_services.sh`
+- `mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh`
+- `mac_mini/scripts/verify/30_verify_ollama_inference.sh`
+- `mac_mini/scripts/verify/40_verify_sqlite.sh`
+- `mac_mini/scripts/verify/50_verify_env_and_assets.sh`
+- `mac_mini/scripts/verify/60_verify_notifications.sh`
+- `mac_mini/scripts/verify/80_verify_services.sh`
+
+### Current Mac mini status
+- install/configure/template/verify scaffolding is now much closer to the canonical baseline
+- `mac_mini/code/` is still largely unimplemented and remains the major next implementation area
+- `edge_controller_app` is represented in compose/runtime structure, but the actual code path still needs implementation
+
+---
+
+## 10. Non-Negotiable Rules for Future Sessions
 
 Any future assistant continuing this project should follow these rules.
 
@@ -206,9 +265,12 @@ Any future assistant continuing this project should follow these rules.
 8. **Preserve authority hierarchy.**  
    Do not let policy table summaries, output profiles, or docs override the authoritative low-risk catalog or canonical notification schema.
 
+9. **Preserve Mac mini runtime path consistency.**  
+   New install/configure/verify changes should not reintroduce older path layouts such as `${HOME}/smarthome_workspace/config/...` when the runtime baseline uses `${HOME}/smarthome_workspace/docker/volumes/app/config/...`.
+
 ---
 
-## 10. Known Risks / Drift Risks
+## 11. Known Risks / Drift Risks
 
 ### A. Legacy file name reintroduction
 Old names such as:
@@ -242,10 +304,18 @@ Future work must preserve:
 - policy/schema/rules consistency checking
 - trigger-family alignment for `E001`~`E005`
 - deterministic fault profile mapping consistency in `required_experiments.md`
+- Mac mini runtime asset verification alignment with current canonical filenames
+
+### F. Mac mini compose/runtime drift
+The Mac mini scripts were recently aligned, but future changes could still reintroduce mismatch across:
+- compose template service names
+- env variable naming
+- runtime asset mount paths
+- verify step expectations
 
 ---
 
-## 11. Recommended Next Actions
+## 12. Recommended Next Actions
 
 These are the recommended next steps after this handoff point.
 
@@ -254,10 +324,11 @@ These are the recommended next steps after this handoff point.
 3. Optionally add a lightweight index/readme under `common/policies/` and/or `common/schemas/` listing the current canonical asset set.
 4. Keep Llama 3.1 as the primary baseline during implementation and early evaluation.
 5. If model comparison becomes necessary later, create an explicit A/B evaluation plan rather than switching directly to Gemma 4.
+6. Start defining and implementing the actual `mac_mini/code/` services, especially the policy router, deterministic validator, safe deferral handler, audit logger, and notification backend.
 
 ---
 
-## 12. Recommended Checks Before Any Future Edit
+## 13. Recommended Checks Before Any Future Edit
 
 Before editing code or documents, the next session should verify:
 
@@ -271,12 +342,15 @@ Before editing code or documents, the next session should verify:
   - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - the current validator output schema still exists:
   - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- the current Mac mini README still exists:
+  - `mac_mini/docs/README.md`
 - no deleted legacy assets were accidentally reintroduced
 - prompts, required experiments, and architecture docs still point to the same baseline versions
+- Mac mini install/configure/verify scripts still assume the same runtime path layout
 
 ---
 
-## 13. If a New Session Continues This Project
+## 14. If a New Session Continues This Project
 
 The next assistant should do the following first:
 
@@ -284,7 +358,7 @@ The next assistant should do the following first:
 2. Treat the listed canonical frozen assets as the source of truth.
 3. Confirm current repo state before proposing edits.
 4. Avoid reintroducing deleted legacy files or version names.
-5. Preserve document-to-document consistency across architecture docs and required experiments docs.
+5. Preserve document-to-document consistency across architecture docs, required experiments docs, and the Mac mini README.
 6. Keep Llama 3.1 as the active local model baseline unless the user explicitly asks for a model evaluation change.
 7. If modifying prompts, scripts, or implementation plans, ensure they still align with:
    - `policy_table_v1_1_2_FROZEN.json`
@@ -293,12 +367,13 @@ The next assistant should do the following first:
    - `validator_output_schema_v1_1_0_FROZEN.json`
    - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
    - `common/docs/required_experiments.md`
+   - `mac_mini/docs/README.md`
 
 ---
 
-## 14. Commit / Traceability Snapshot
+## 15. Commit / Traceability Snapshot
 
-### Important recent commits mentioned in conversation
+### Important earlier commits mentioned in conversation
 - `419bb1a473ac989dbc0c1289d4ac146a03a9da31`  
   added `common/docs/runtime/SESSION_HANDOFF.md`
 - `c554f18e8502691c442b964dcf6b14b122a2421b`  
@@ -331,6 +406,18 @@ The next assistant should do the following first:
   aligned `common/docs/required_experiments.md` with updated deterministic fault profiles
 - `88a07880491cc32cc61e35d190ffa2dfe7bdfcf3`  
   Bundle 3: authority hierarchy and companion asset clarification across policy files
+- `2bd22eb02e108347465a2ca19479d565a6e99fd8`  
+  expanded `mac_mini/docs/README.md` into a Korean step-by-step runtime guide
+
+### Recent Mac mini runtime alignment commits
+- `0b3b858983640a089e847dfbeac23b7c2fbe20e4`  
+  aligned Mac mini compose preparation, template, canonical asset deployment, and env writing
+- `5a0db86c5dcf997e5f1f6bf45d9d6bf21692c932`  
+  aligned Mac mini SQLite configure script with current audit logging schema
+- `122bc4a219dbcf9b74f3727233e82d078eacb7b8`  
+  aligned key Mac mini verify scripts with current runtime asset paths, current Docker services, and SQLite schema readiness
+- `fa092aa0df81a98c8d415ace2c25e95f439d1076`  
+  completed Mac mini install/verify polish for jq, MQTT client tools, and clearer verify script role boundaries
 
 ### Earlier policy cleanup commits
 - `189d164abc510b2e8e64f2d8d78ba0e2216193a4`  
@@ -344,7 +431,7 @@ The next assistant should do the following first:
 
 ---
 
-## 15. Short Operational Summary
+## 16. Short Operational Summary
 
 If a future session needs a very short summary:
 
@@ -358,6 +445,8 @@ If a future session needs a very short summary:
   - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - Canonical emergency family is `E001`~`E005`.
 - `required_experiments.md` is already aligned with the updated deterministic emergency profile numbering.
+- Mac mini install/configure/verify scaffolding and README are now substantially aligned with the current baseline.
+- `mac_mini/code/` is still the major remaining implementation area.
 - Legacy policy/schema assets and manifest files were intentionally deleted.
 - Do not let deployment-local config override frozen truth.
 - Keep Mac mini / RPi / ESP32 / measurement role separation.
