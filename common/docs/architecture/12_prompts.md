@@ -27,7 +27,7 @@ Do not invent schemas, thresholds, policy rules, timeout values, topic namespace
 Always read them from the provided frozen artifacts and aligned project documents first.
 
 The following frozen artifacts must be loaded into the agent knowledge base before implementation:
-- common/policies/policy_table_v1_1_2_FROZEN.json
+- common/policies/policy_table_v1_2_0_FROZEN.json
 - common/policies/low_risk_actions_v1_0_0_FROZEN.json
 - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
 - common/policies/output_profile_v1_0_0.json
@@ -281,12 +281,13 @@ Requirements:
   - gas leak
   - smoke/fire
   - possible fall
-- Publish threshold-exceeding events to MQTT.
+- Publish policy-consistent emergency events to MQTT.
 - Support deterministic scenario replay for experiments.
 - Include a small set of predefined emergency scenarios.
 - Derive triggering conditions from the frozen policy artifacts instead of hardcoding them.
 - For each emergency rule, derive the minimal triggering predicate dynamically.
 - If the rule is composite, generate the minimal sensor combination needed to satisfy it.
+- When simulating fall, align the payload with the current schema by using `trigger_event.event_type="sensor"` and `trigger_event.event_code="fall_detected"` rather than inventing an out-of-schema environmental field.
 ```
 
 ---
@@ -309,6 +310,8 @@ Requirements:
   - Purpose: verify immediate routing to CLASS_0.
   - Generation rule: derive the minimal triggering predicate of each emergency rule from the routing policy artifact.
   - If the rule is single-threshold based, exceed that threshold explicitly.
+  - If the rule is state-trigger based, set the required sensor state to the policy-defined emergency value.
+  - If the rule is event-trigger based, emit the exact event_type/event_code combination required by the schema and policy.
   - If the rule is composite, generate the minimal sensor combination required to satisfy the policy condition.
 
   B. Context conflict injection
@@ -372,7 +375,7 @@ Requirements:
 - Synchronize runtime copies of the frozen shared assets needed for simulation and fault injection.
 - The authoritative source remains the shared frozen repository state, not Pi-local files.
 - Support synchronization of:
-  - common/policies/policy_table_v1_1_2_FROZEN.json
+  - common/policies/policy_table_v1_2_0_FROZEN.json
   - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
   - common/schemas/context_schema_v1_0_0_FROZEN.json
   - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
