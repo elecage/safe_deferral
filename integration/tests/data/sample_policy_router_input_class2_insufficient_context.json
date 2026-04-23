@@ -1,0 +1,16 @@
+{
+  "source_node_id": "virtual_node_bedroom_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_class2_case_001",
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "ambient_state_update"
+    },
+    "environmental_context": {},
+    "device_states": {}
+  },
+  "notes": "Sample insufficient-context integration fixture. It is intended to exercise conservative escalation behavior rather than redefine canonical routing truth."
+}
