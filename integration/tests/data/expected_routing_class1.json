@@ -1,0 +1,7 @@
+{
+  "expected_route_class": "CLASS_1",
+  "expected_routing_target": "CLASS_1",
+  "expected_llm_invocation_allowed": true,
+  "expected_safe_outcome": "bounded_low_risk_assistance_path",
+  "notes": "Expected outcome fixture for a representative Class 1 case. Exact reasoning and constraints must still be derived from frozen assets and runtime behavior."
+}
