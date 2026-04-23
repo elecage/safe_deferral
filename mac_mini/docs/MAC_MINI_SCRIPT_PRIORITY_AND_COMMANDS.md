@@ -20,17 +20,26 @@ Mac mini에서는 반드시 다음 순서를 따른다.
 2. **configure**
 3. **verify**
 
+그리고 install의 가장 첫 단계는 **Homebrew bootstrap**이다.
+
 즉,
 
-- `install` 스크립트를 먼저 실행하고,
-- 그 다음 `configure` 스크립트를 실행하며,
-- 마지막에 `verify` 스크립트로 상태를 점검한다.
+- `00_install_homebrew.sh`를 먼저 실행하고,
+- 그 다음 `00_preflight.sh`를 실행하며,
+- 이어서 나머지 install / configure / verify를 순차 진행한다.
 
 ---
 
 ## 왜 이 순서여야 하는가
 
-### 1. install 단계
+### 1. Homebrew bootstrap 단계
+현재 install 흐름의 첫 단계에는 Homebrew 자체 설치가 들어간다.
+
+이 단계가 필요한 이유:
+- `10_install_homebrew_deps.sh`는 `brew`가 있어야 실행된다.
+- 첫 진입 사용자가 수동으로 Homebrew를 먼저 설치해야 한다고 추측하게 만들지 않기 위해, install 단계 안에 Homebrew bootstrap을 포함하는 것이 자연스럽다.
+
+### 2. install 단계
 이 단계는 실행 기반을 만든다.
 
 예:
@@ -41,7 +50,7 @@ Mac mini에서는 반드시 다음 순서를 따른다.
 
 즉, `configure`가 기대하는 도구와 경로를 먼저 만든다.
 
-### 2. configure 단계
+### 3. configure 단계
 이 단계는 install 위에 실제 시스템 구성을 올린다.
 
 예:
@@ -55,7 +64,7 @@ Mac mini에서는 반드시 다음 순서를 따른다.
 
 즉, 이미 준비된 실행 기반 위에 서비스 구성을 얹는 단계다.
 
-### 3. verify 단계
+### 4. verify 단계
 이 단계는 구성된 시스템이 실제로 정상 상태인지 점검한다.
 
 예:
@@ -89,11 +98,12 @@ Mac mini에서는 반드시 다음 순서를 따른다.
 
 다음 순서를 권장한다.
 
-1. `mac_mini/scripts/install/00_preflight.sh`
-2. `mac_mini/scripts/install/10_install_homebrew_deps.sh`
-3. `mac_mini/scripts/install/20_install_docker_runtime_mac.sh`
-4. `mac_mini/scripts/install/21_prepare_compose_stack_mac.sh`
-5. `mac_mini/scripts/install/30_setup_python_venv_mac.sh`
+1. `mac_mini/scripts/install/00_install_homebrew.sh`
+2. `mac_mini/scripts/install/00_preflight.sh`
+3. `mac_mini/scripts/install/10_install_homebrew_deps.sh`
+4. `mac_mini/scripts/install/20_install_docker_runtime_mac.sh`
+5. `mac_mini/scripts/install/21_prepare_compose_stack_mac.sh`
+6. `mac_mini/scripts/install/30_setup_python_venv_mac.sh`
 
 ---
 
@@ -136,6 +146,7 @@ Mac mini에서는 반드시 다음 순서를 따른다.
 ### 1. install 단계
 
 ```bash
+bash mac_mini/scripts/install/00_install_homebrew.sh
 bash mac_mini/scripts/install/00_preflight.sh
 bash mac_mini/scripts/install/10_install_homebrew_deps.sh
 bash mac_mini/scripts/install/20_install_docker_runtime_mac.sh
@@ -174,6 +185,7 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 ### install만 연속 실행
 
 ```bash
+bash mac_mini/scripts/install/00_install_homebrew.sh && \
 bash mac_mini/scripts/install/00_preflight.sh && \
 bash mac_mini/scripts/install/10_install_homebrew_deps.sh && \
 bash mac_mini/scripts/install/20_install_docker_runtime_mac.sh && \
@@ -212,6 +224,7 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 아래는 초기 세팅 시 사용할 수 있는 전체 순서 예시다.
 
 ```bash
+bash mac_mini/scripts/install/00_install_homebrew.sh && \
 bash mac_mini/scripts/install/00_preflight.sh && \
 bash mac_mini/scripts/install/10_install_homebrew_deps.sh && \
 bash mac_mini/scripts/install/20_install_docker_runtime_mac.sh && \
@@ -238,6 +251,7 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 ## 재실행할 때의 원칙
 
 ### install 재실행이 필요한 경우
+- Homebrew 미설치 또는 shellenv 미적용
 - Homebrew 의존성 누락
 - Docker runtime 문제
 - compose workspace 손상
@@ -261,9 +275,9 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 Mac mini에서는 항상 아래 순서를 기본으로 생각하면 된다.
 
 ```text
-install → configure → verify
+00_install_homebrew → 00_preflight → install → configure → verify
 ```
 
 가장 중요한 규칙은 다음 한 문장이다.
 
-**Mac mini에서는 configure를 install보다 먼저 실행하지 말고, verify는 항상 마지막에 실행한다.**
+**Mac mini에서는 Homebrew bootstrap을 먼저 수행하고, configure를 install보다 먼저 실행하지 말며, verify는 항상 마지막에 실행한다.**
