@@ -20,6 +20,8 @@ Canonical policy, schema, terminology, and related reference assets remain ancho
 ```text
 safe_deferral/
 ├── README.md
+├── requirements-mac.txt
+├── requirements-rpi.txt
 ├── common/
 │   ├── policies/
 │   ├── schemas/
@@ -42,6 +44,13 @@ safe_deferral/
 │   ├── code/
 │   └── docs/
 ├── esp32/
+│   ├── scripts/
+│   │   ├── install/
+│   │   │   ├── mac/
+│   │   │   ├── linux/
+│   │   │   └── windows/
+│   │   ├── configure/
+│   │   └── verify/
 │   ├── code/
 │   ├── firmware/
 │   └── docs/
@@ -113,7 +122,32 @@ Runtime copies may be deployed elsewhere, but the authoritative frozen baseline 
 
 ---
 
-## 2. `mac_mini/`
+## 2. Root-Level Dependency Manifests
+
+### `requirements-mac.txt`
+Stores the current baseline Python dependency manifest for Mac mini host-side services and related runtime tooling.
+
+Representative use:
+- Mac mini virtual environment setup
+- hub-side Python service dependencies
+- audit / notification / API-side runtime preparation
+
+### `requirements-rpi.txt`
+Stores the current baseline Python dependency manifest for Raspberry Pi experiment-side Python runtime.
+
+Representative use:
+- simulation-side Python runtime preparation
+- MQTT publishing utilities
+- schema validation support
+- experiment / verification dependency setup
+
+### Interpretation
+These files are host-side dependency manifests.  
+They support install/runtime preparation, but they do not redefine the canonical shared frozen policy or schema baseline.
+
+---
+
+## 3. `mac_mini/`
 
 The `mac_mini/` directory contains all hub-side operational assets.
 
@@ -174,7 +208,7 @@ Canonical policy and schema definitions remain under `common/`.
 
 ---
 
-## 3. `rpi/`
+## 4. `rpi/`
 
 The `rpi/` directory contains Raspberry Pi-side simulation and evaluation assets.
 
@@ -222,11 +256,43 @@ It supports experiment-side execution and evaluation scaling, but it does not re
 
 ---
 
-## 4. `esp32/`
+## 5. `esp32/`
 
-The `esp32/` directory contains embedded-device implementation assets.
+The `esp32/` directory contains embedded-device implementation assets and cross-platform development-environment scaffolding.
 
 ESP32 devices are used for bounded physical interaction, sensing, or actuator/warning interfacing within the applicable scope.
+
+### `esp32/scripts/install/`
+Stores cross-platform ESP32 SDK/toolchain setup scripts.
+
+Representative structure:
+- `esp32/scripts/install/mac/`
+- `esp32/scripts/install/linux/`
+- `esp32/scripts/install/windows/`
+
+Representative responsibilities:
+- host preflight checks
+- prerequisite package installation
+- ESP-IDF clone and install
+- build-tool readiness preparation
+
+### `esp32/scripts/configure/`
+Stores cross-platform ESP32 development-environment alignment scripts.
+
+Representative responsibilities:
+- workspace `.env` generation
+- ESP-IDF workspace preparation
+- managed component preparation
+- sample project preparation
+
+### `esp32/scripts/verify/`
+Stores cross-platform ESP32 development-environment verification scripts.
+
+Representative responsibilities:
+- `idf.py` and toolchain verification
+- target selection verification
+- component resolution verification
+- sample build verification
 
 ### `esp32/code/`
 Stores device-specific source code and embedded logic.
@@ -250,11 +316,11 @@ Common embedded behaviors may include:
 - actuator/warning interfacing logic
 
 ### `esp32/firmware/`
-Stores firmware projects and build-system files.
+Stores firmware projects, build-system files, and reusable template or example assets.
 
 Representative contents:
-- PlatformIO projects
-- Arduino sketches
+- ESP-IDF template projects
+- firmware template directories
 - board-specific configuration files
 - firmware build artifacts or references
 - representative physical node profiles
@@ -265,14 +331,15 @@ Stores ESP32-specific implementation notes, including:
 - wiring notes
 - firmware flash guides
 - bounded physical node validation notes
+- cross-platform install / configure / verify workflow references
 
 ### Interpretation
 The ESP32 directory supports both present validation targets and future physical-node extensions.  
-Not every node profile listed here is required in the minimum canonical deployment.
+It now includes explicit install / configure / verify scaffolding for ESP-IDF-based development-environment bring-up before full node-firmware implementation.
 
 ---
 
-## 5. `integration/`
+## 6. `integration/`
 
 The `integration/` directory contains cross-device validation and experiment assets.
 
@@ -305,7 +372,7 @@ It should contain system-wide tests and evaluation assets that do not belong to 
 
 ---
 
-## 6. Directory Design Principles
+## 7. Directory Design Principles
 
 ### A. Shared assets must be separated from device-specific assets
 - Shared frozen assets belong in `common/`
@@ -322,7 +389,7 @@ This keeps the build lifecycle explicit and script responsibilities clear.
 ### C. Runtime code should remain separate from operational scripts
 - scripts define setup and validation behavior
 - code stores executable application logic
-- firmware stores embedded-device build targets and deployable node logic
+- firmware stores embedded-device build targets, templates, and deployable node logic
 
 ### D. Integration and measurement assets should remain independent from device-local scripts
 System-wide tests, scenarios, timing/measurement assets, and canonical consistency tests belong in `integration/`, not inside a single device folder.
@@ -338,7 +405,7 @@ Host-local runtime files, `.env`, credentials, and machine-specific configuratio
 
 ---
 
-## 7. Canonical Terminology
+## 8. Canonical Terminology
 
 The canonical project term is:
 
@@ -351,12 +418,13 @@ Older internal names may still appear in transitional assets or source-layer ref
 
 ---
 
-## 8. Architectural Summary
+## 9. Architectural Summary
 
 - `common/` stores shared frozen assets and reference documents
+- root-level `requirements-*.txt` files store host-side Python dependency manifests
 - `mac_mini/` stores hub-side scripts, runtime files, and future code
 - `rpi/` stores simulation-side scripts and future experiment orchestration code
-- `esp32/` stores embedded firmware and device-specific physical node implementation assets
+- `esp32/` stores embedded firmware assets, cross-platform ESP-IDF development-environment scaffolding, and device-specific physical node implementation assets
 - `integration/` stores end-to-end tests, evaluation scenarios, timing/measurement assets, and canonical consistency checks
 
 This structure is intended to support:
