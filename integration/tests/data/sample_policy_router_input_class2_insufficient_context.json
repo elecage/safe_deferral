@@ -12,5 +12,5 @@
     "environmental_context": {},
     "device_states": {}
   },
-  "notes": "Sample insufficient-context integration fixture. It is intended to exercise conservative escalation behavior rather than redefine canonical routing truth."
+  "notes": "Sample insufficient-context integration fixture. It is intentionally incomplete so that conservative escalation can be exercised. In current implemented scope, autonomous low-risk actuation must remain bounded to living_room_light and bedroom_light on/off behavior only, and this fixture should not permit that path by implication."
 }
