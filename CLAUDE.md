@@ -57,7 +57,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 2. `/common/policies/policy_table_v1_1_2_FROZEN.json`
 3. `/common/docs/required_experiments.md`
 4. `/common/docs/runtime/SESSION_HANDOFF.md`
-5. `/CLAUD.md`
+5. `/CLAUDE.md`
 6. `/common/docs/architecture/12_prompts.md`
 
 그 다음 필요 시 아래를 읽는다.
@@ -235,6 +235,6 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 2. `/common/docs/required_experiments.md`
 3. `/common/docs/runtime/SESSION_HANDOFF.md`
 4. device-layer README와 integration 문서
-5. `CLAUD.md`
+5. `CLAUDE.md`
 
-즉, `CLAUD.md`는 작업 안내 문서이지, canonical truth 자체는 아니다.
+즉, `CLAUDE.md`는 작업 안내 문서이지, canonical truth 자체는 아니다.
