@@ -48,7 +48,13 @@ if [ -n "${MQTT_USER:-}" ] && [ -n "${MQTT_PASS:-}" ]; then
     AUTH_ARGS=("-u" "${MQTT_USER}" "-P" "${MQTT_PASS}")
 fi
 
-if mosquitto_pub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" -t "${TEST_TOPIC}" -m "${TEST_MSG}" -W 3; then
+PUB_CMD=(mosquitto_pub -h "${TARGET_HOST}" -p "${TARGET_PORT}")
+if [ ${#AUTH_ARGS[@]} -gt 0 ]; then
+    PUB_CMD+=("${AUTH_ARGS[@]}")
+fi
+PUB_CMD+=(-t "${TEST_TOPIC}" -m "${TEST_MSG}")
+
+if "${PUB_CMD[@]}"; then
     echo "  [OK] MQTT publish request accepted. Port ${TARGET_PORT} is open."
 else
     echo "  [FATAL] MQTT publish failed. Check Mosquitto status and firewall rules on Mac mini."
