@@ -5,6 +5,8 @@
 # ==============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
 COMPOSE_DIR="${WORKSPACE_DIR}/docker"
 COMPOSE_ENV_FILE="${COMPOSE_DIR}/.env"
@@ -34,6 +36,7 @@ append_env() {
 
 echo ">>> Updating Docker Compose environment..."
 append_env "${COMPOSE_ENV_FILE}" "TZ" "Asia/Seoul"
+append_env "${COMPOSE_ENV_FILE}" "SAFE_DEFERRAL_REPO_ROOT" "${PROJECT_ROOT}"
 
 echo ">>> Updating Python/runtime environment..."
 append_env "${PYTHON_ENV_FILE}" "TIMEZONE" "Asia/Seoul"
@@ -44,6 +47,7 @@ append_env "${PYTHON_ENV_FILE}" "OLLAMA_HOST" "http://127.0.0.1:11434"
 append_env "${PYTHON_ENV_FILE}" "SQLITE_PATH" "${WORKSPACE_DIR}/db/audit_log.db"
 append_env "${PYTHON_ENV_FILE}" "POLICY_DIR" "${WORKSPACE_DIR}/docker/volumes/app/config/policies"
 append_env "${PYTHON_ENV_FILE}" "SCHEMA_DIR" "${WORKSPACE_DIR}/docker/volumes/app/config/schemas"
+append_env "${PYTHON_ENV_FILE}" "SAFE_DEFERRAL_REPO_ROOT" "${PROJECT_ROOT}"
 append_env "${PYTHON_ENV_FILE}" "TELEGRAM_BOT_TOKEN" "YOUR_TOKEN_HERE"
 append_env "${PYTHON_ENV_FILE}" "TELEGRAM_CHAT_ID" "YOUR_CHAT_ID_HERE"
 
