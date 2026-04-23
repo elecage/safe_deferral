@@ -16,9 +16,9 @@ Shared versioned assets under `common/` remain the source of truth for policy, s
 
 ---
 
-## 1. Finalize and Commit Shared Frozen Assets
+## 1. Confirm the Frozen Reference Baseline Is Complete
 
-Before implementation begins, complete and commit the shared frozen assets under `common/`.
+Before implementation proceeds further, confirm that the shared frozen assets under `common/` are complete and treated as the single source of truth.
 
 ### Priority targets
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
@@ -30,6 +30,7 @@ Before implementation begins, complete and commit the shared frozen assets under
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+- `common/docs/architecture/12_prompts.md`
 
 ### Optional or version-sensitive companion assets
 - output profile assets
@@ -37,13 +38,13 @@ Before implementation begins, complete and commit the shared frozen assets under
 - reproducibility support assets
 
 ### Goal
-Ensure the shared frozen assets become the single source of truth before code generation or runtime implementation proceeds.
+Ensure the shared frozen assets and implementation-generation prompt set form a stable baseline before additional code generation proceeds.
 
 ---
 
-## 2. Finalize and Align Core Architecture Documents
+## 2. Confirm the Architecture Document Set Is Internally Aligned
 
-Finalize the architecture reference documents under `common/docs/architecture/` and confirm cross-document consistency.
+The architecture reference documents under `common/docs/architecture/` should be treated as a cross-checked set rather than as isolated notes.
 
 ### Priority documents
 - installation target classification
@@ -57,13 +58,13 @@ Finalize the architecture reference documents under `common/docs/architecture/` 
 - recommended next steps
 
 ### Goal
-Provide a stable and internally aligned reference set for implementation planning and vibe-coding prompts.
+Provide a stable and internally aligned reference set for implementation planning, repository maintenance, and vibe-coding prompts.
 
 ---
 
-## 3. Stabilize Repository Structure
+## 3. Keep the Repository Structure and Dependency Manifests Stable
 
-Prepare the repository structure so implementation can proceed in a device-aware and experiment-aware way.
+The repository structure should now be maintained as a staged, device-aware layout rather than repeatedly restructured.
 
 ### Required top-level areas
 - `common/`
@@ -77,14 +78,18 @@ Prepare the repository structure so implementation can proceed in a device-aware
 - `integration/scenarios/`
 - `integration/measurement/`
 
+### Root-level dependency manifests
+- `requirements-mac.txt`
+- `requirements-rpi.txt`
+
 ### Goal
-Ensure shared assets, Mac mini scripts/code, Raspberry Pi scripts/code, ESP32 embedded assets, and integration assets including measurement support are clearly separated.
+Ensure shared assets, Mac mini scripts/code, Raspberry Pi scripts/code, ESP32 scripts/code/firmware, and integration assets remain clearly separated and reproducible.
 
 ---
 
-## 4. Prepare Install / Configure / Verify Script Sets
+## 4. Keep Install / Configure / Verify Script Sets as the Primary Bring-Up Path
 
-Complete and organize the staged shell-script workflow for Mac mini and Raspberry Pi, and make the embedded workflow explicit for ESP32-based nodes.
+The staged script workflow should remain the primary bring-up path for each layer.
 
 ### Required script groups
 - `mac_mini/scripts/install/`
@@ -93,11 +98,9 @@ Complete and organize the staged shell-script workflow for Mac mini and Raspberr
 - `rpi/scripts/install/`
 - `rpi/scripts/configure/`
 - `rpi/scripts/verify/`
-
-### Embedded workflow readiness
-- `esp32/code/`
-- `esp32/firmware/`
-- `esp32/docs/`
+- `esp32/scripts/install/`
+- `esp32/scripts/configure/`
+- `esp32/scripts/verify/`
 
 ### Measurement workflow readiness
 - `integration/measurement/`
@@ -106,28 +109,28 @@ Complete and organize the staged shell-script workflow for Mac mini and Raspberr
 - reproducible measurement templates
 
 ### Goal
-Ensure implementation begins only after the setup, configuration, validation, embedded-node workflow assumptions, and optional timing/measurement workflow assumptions are reproducible.
+Ensure implementation continues only on top of a reproducible staged bring-up path.
 
 ---
 
-## 5. Prepare the Python Runtime Environment
+## 5. Maintain the Python Runtime Foundations
 
-Create the Python runtime foundation for implementation.
+The host-side Python runtime foundation should remain aligned with the maintained dependency manifests and installation scripts.
 
 ### Immediate actions
-- create Python virtual environments
-- install base dependencies
-- verify runtime package availability
-- align dependency setup with installation scripts
+- keep Mac mini Python virtual environment and `requirements-mac.txt` aligned
+- keep Raspberry Pi Python virtual environment and `requirements-rpi.txt` aligned
+- verify runtime package availability after dependency changes
+- avoid undocumented drift between dependency manifests and install scripts
 
 ### Goal
-Ensure the runtime foundation is stable before hub-side code is implemented.
+Ensure the host-side runtime foundation remains stable before more hub-side and experiment-side code is implemented.
 
 ---
 
-## 6. Prepare the Mac mini Operational Platform
+## 6. Keep the Mac mini Operational Platform Stable
 
-Install and configure the core Mac mini services.
+The Mac mini operational platform should now be treated as an actively maintained base rather than a one-time setup target.
 
 ### Immediate services
 - Home Assistant
@@ -135,36 +138,22 @@ Install and configure the core Mac mini services.
 - Ollama
 - Llama 3.1 model
 - SQLite
-- optional local TTS runtime
+- notification path
+
+### Immediate checks
+- broker reachability for Raspberry Pi and ESP32 on the trusted LAN
+- SQLite WAL and single-writer assumptions
+- deployed runtime asset consistency with `common/`
+- environment-variable and secret handling hygiene
 
 ### Goal
-Bring the Mac mini to a service-ready operational state.
+Keep the Mac mini in a service-ready operational state before expanding hub-side implementation.
 
 ---
 
-## 7. Verify Each Core Service Independently
+## 7. Begin or Continue Hub-side Implementation in Dependency Order
 
-Before implementation begins, confirm that the installed and configured services work in isolation.
-
-### Required checks
-- Home Assistant starts correctly
-- Mosquitto pub/sub works
-- Ollama inference returns expected output
-- SQLite read/write and WAL mode work
-- notification path works
-- environment variables and runtime assets validate correctly
-- deployed frozen assets are readable and version-aligned
-- canonical policy/schema/rules consistency checks pass
-- out-of-band latency measurement support path validates correctly when used
-
-### Goal
-Avoid starting code implementation on top of an unstable runtime base.
-
----
-
-## 8. Begin Hub-side Implementation Only After the Above Is Stable
-
-Once the frozen assets, architecture documents, repository layout, script layers, runtime foundation, and core services are stable, begin implementation in dependency order.
+Once the frozen assets, architecture documents, repository layout, script layers, runtime foundation, and core services are stable, hub-side implementation should proceed in dependency order.
 
 ### First implementation targets
 1. Policy Router
@@ -179,61 +168,80 @@ Ensure implementation proceeds on top of a stable, reproducible, policy-first fo
 
 ---
 
-## 9. Prepare the Embedded Node Implementation Path
+## 8. Treat ESP32 Bring-Up as Complete Enough to Move to Code Generation
 
-When the target prototype includes physical bounded nodes, prepare the ESP32 implementation path explicitly.
+The project is no longer at the stage where ESP32 is only a future documentation concern.
 
-### Current canonical targets
-- bounded button node firmware
-- lighting control node firmware when physical output is used
-- representative environmental sensing node firmware used in the current validation baseline
-- broker connection assumptions
-- topic namespace and device identity conventions
-- firmware build, flash, and reset workflow notes
+The following are already in place conceptually and should now serve as the base for code generation:
+- cross-platform install scaffolding
+- cross-platform configure scaffolding
+- cross-platform verify scaffolding
+- ESP32 execution-order documentation
+- firmware-generation prompts in `12_prompts.md`
 
-### Optional experimental targets
-- gas sensor node firmware when physical sensing is used
-- fire detection sensor node firmware when physical sensing is used
-- fall-detection interface firmware when physical sensing is used
+### Immediate next ESP32 steps
+- generate the minimal ESP-IDF template project using the maintained prompt
+- validate that the generated template fits the current `esp32/scripts/configure/` and `esp32/scripts/verify/` flow
+- then generate current canonical node firmware in order:
+  1. button input node
+  2. lighting control node
+  3. representative environmental sensing node
 
-### Planned extension targets
-- doorlock or warning interface firmware when physical output is used beyond the current canonical low-risk scope
+### Optional follow-on targets
+- gas sensor node
+- fire detection sensor node
+- fall-detection interface node
+- warning / doorlock interface node
 
 ### Goal
-Ensure the embedded node layer can be integrated without bypassing policy control, auditability, or bounded interaction assumptions.
+Move from ESP32 development-environment readiness to actual bounded node implementation without bypassing the current scaffolding.
 
 ---
 
-## 10. Prepare the Simulation and Measurement Evaluation Path
+## 9. Keep the Raspberry Pi Evaluation Path Bounded and Reproducible
 
-When the target experiment package includes large-scale virtual-node evaluation or class-wise latency measurement, prepare the Raspberry Pi and timing infrastructure path explicitly.
+The Raspberry Pi path should remain focused on simulation, fault injection, and closed-loop evaluation.
 
 ### Immediate targets
 - multi-node virtual sensor/state runtime
 - virtual emergency sensor runtime
 - fault injection harness
-- repeatable scenario orchestration
+- repeatable scenario orchestrator
 - closed-loop automated verification support
 - canonical policy/schema/rules consistency checks
 - canonical emergency trigger alignment for `E001`~`E005`
+
+### Goal
+Ensure the evaluation path supports scalable fault-injection experiments without becoming part of the operational decision path.
+
+---
+
+## 10. Keep Timing and Measurement as an Optional Evaluation Track
+
+When the target experiment package includes class-wise latency measurement, keep the timing infrastructure path explicit and separate.
+
+### Immediate targets
 - optional STM32 timing node or equivalent dedicated measurement node
 - out-of-band class-wise latency capture notes
 - measurement result templates for reproducible evaluation
+- timing capture path validation
 
 ### Goal
-Ensure the evaluation path supports scalable fault-injection experiments and trustworthy latency measurement without becoming part of the operational decision path.
+Ensure latency evaluation remains trustworthy and reproducible without becoming part of the operational decision path.
 
 ---
 
 ## Final Principle
 
-Do not begin full implementation until:
-- shared frozen assets are committed
+Do not begin broad implementation expansion unless:
+- shared frozen assets are committed and stable
 - architecture documents are aligned
 - repository structure is stable
-- install/configure/verify scripts are in place
+- install/configure/verify scripts remain in place as the primary bring-up path
 - the Mac mini operational platform is ready
 - core services pass independent verification
-- embedded node assumptions are documented when ESP32 is part of the prototype
+- root-level dependency manifests remain aligned with maintained runtime assumptions
+- ESP32 bring-up is stable enough to support prompt-driven code generation
+- Raspberry Pi evaluation assumptions remain bounded to simulation/fault/evaluation tasks
 - measurement infrastructure assumptions are documented when out-of-band class-wise latency evaluation is part of the target experiment package
 - deployment-local runtime files and synchronized copies are prevented from overriding canonical frozen policy truth
