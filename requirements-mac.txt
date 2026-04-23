@@ -1,0 +1,10 @@
+paho-mqtt
+jsonschema
+PyYAML
+requests
+python-telegram-bot
+fastapi
+uvicorn
+pydantic
+aiosqlite
+pytest
