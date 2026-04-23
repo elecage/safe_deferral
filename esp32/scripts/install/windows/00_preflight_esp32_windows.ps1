@@ -11,8 +11,9 @@ if ($PSVersionTable.PSVersion.Major -lt 5) {
 }
 Write-Host '  [OK] PowerShell version is sufficient.'
 
-if (-not $IsWindows) {
-    throw 'This script must be run on Windows PowerShell or PowerShell on Windows.'
+$os = Get-CimInstance Win32_OperatingSystem
+if (-not $os.Caption.Contains('Windows')) {
+    throw 'This script must be run on Windows.'
 }
 Write-Host '  [OK] Operating system is Windows.'
 
@@ -44,8 +45,12 @@ if ($freeGB -lt 10) {
 }
 
 try {
-    Test-Connection github.com -Count 1 -Quiet | Out-Null
-    Write-Host '  [OK] Network access appears available.'
+    $reachable = Test-Connection github.com -Count 1 -Quiet
+    if ($reachable) {
+        Write-Host '  [OK] Network access appears available.'
+    } else {
+        Write-Warning 'Network access check failed. Online installation may fail.'
+    }
 } catch {
     Write-Warning 'Network access check failed. Online installation may fail.'
 }
