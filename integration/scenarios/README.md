@@ -16,9 +16,9 @@
 
 ---
 
-## 사람이 먼저 읽어야 하는 문서
+## 개발자가 먼저 읽어야 하는 문서
 
-JSON skeleton만 보면 사람이 의미를 파악하기 어려울 수 있으므로, 실제 검토자는 먼저 아래 문서를 보는 것을 권장한다.
+JSON skeleton만 보면 의미를 빠르게 파악하기 어려울 수 있으므로, 실제 검토자는 먼저 아래 문서를 보는 것을 권장한다.
 
 - `scenario_review_guide.md`
 
@@ -39,6 +39,10 @@ JSON skeleton만 보면 사람이 의미를 파악하기 어려울 수 있으므
 
 - `baseline_scenario_skeleton.json`
 - `class0_e001_scenario_skeleton.json`
+- `class0_e002_scenario_skeleton.json`
+- `class0_e003_scenario_skeleton.json`
+- `class0_e004_scenario_skeleton.json`
+- `class0_e005_scenario_skeleton.json`
 - `class1_baseline_scenario_skeleton.json`
 - `class2_insufficient_context_scenario_skeleton.json`
 - `stale_fault_scenario_skeleton.json`
@@ -53,6 +57,10 @@ JSON skeleton만 보면 사람이 의미를 파악하기 어려울 수 있으므
 
 ### Baseline / class-oriented
 - `class0_e001_scenario_skeleton.json`
+- `class0_e002_scenario_skeleton.json`
+- `class0_e003_scenario_skeleton.json`
+- `class0_e004_scenario_skeleton.json`
+- `class0_e005_scenario_skeleton.json`
 - `class1_baseline_scenario_skeleton.json`
 - `class2_insufficient_context_scenario_skeleton.json`
 
@@ -107,13 +115,14 @@ JSON skeleton만 보면 사람이 의미를 파악하기 어려울 수 있으므
 - scenario는 frozen assets를 소비하는 evaluation asset이다.
 - scenario는 operational hub를 우회하는 control path를 만들지 않는다.
 - threshold, required key, trigger semantics는 `common/` frozen assets에서 최종적으로 해석되어야 한다.
+- current implemented scope 기준의 low-risk autonomous actuation 범위는 `required_experiments.md`와 정렬되어야 한다.
 
 ---
 
 ## 다음 권장 작업
 
-1. randomized stress metadata skeleton 추가
-2. expected outcome comparator와 scenario 연동 adapter 추가
-3. 실제 MQTT publish / audit observe adapter 추가
-4. class-wise latency profile과 scenario 연결 문서화
-5. reviewer note template 추가
+1. E002~E005 전용 payload fixture 추가
+2. randomized stress metadata skeleton 추가
+3. expected outcome comparator와 scenario 연동 adapter 추가
+4. 실제 MQTT publish / audit observe adapter 추가
+5. class-wise latency profile과 scenario 연결 문서화
