@@ -41,11 +41,7 @@ if [ ! -f "${TEMPLATE_FILE}" ]; then
   exit 1
 fi
 
-if [ ! -f "${TARGET_COMPOSE_FILE}" ]; then
-  cp "${TEMPLATE_FILE}" "${TARGET_COMPOSE_FILE}"
-  echo "  [OK] docker-compose.yml deployed from template."
-else
-  echo "  [INFO] docker-compose.yml already exists. Skipping overwrite."
-fi
+cp "${TEMPLATE_FILE}" "${TARGET_COMPOSE_FILE}"
+echo "  [OK] docker-compose.yml refreshed from template."
 
 echo "==> [PASS] Docker Compose workspace prepared."
