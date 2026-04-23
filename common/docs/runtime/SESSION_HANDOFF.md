@@ -584,27 +584,19 @@ This must be resisted; they are measurement-only support nodes unless the archit
 1. Begin implementation-facing work against the stabilized baseline.
 2. Verify that no scripts, prompts, or code still reference deleted legacy policy/schema assets.
 3. Keep Llama 3.1 as the primary baseline during implementation and early evaluation.
-<<<<<<< Updated upstream
-4. Start defining and implementing the actual `mac_mini/code/` services, especially the policy router, deterministic validator, safe deferral handler, audit logger, and notification backend.
-5. Add dedicated payload fixtures for `E002`~`E005` instead of reusing placeholder emergency fixtures in the integration scenario layer.
-6. Connect the integration runner and expected outcome comparator through an adapter, then extend toward MQTT publish / audit observe execution.
-7. When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
-8. If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
-9. Resolve the remaining `edge_controller_app` build-context / placeholder implementation gap so that the compose stack can be brought up end-to-end without manual service exclusion.
-10. Revisit `10_configure_home_assistant.sh` template path / template existence assumptions and ensure they match the current repo template layout.
-11. Add a real runtime adapter for preflight readiness so that Home Assistant can consume actual status rather than only synthetic snapshots.
-12. Define the host-side ingestion/export contract for STM32 Nucleo-H723ZG measurement nodes, including heartbeat/status and CSV-friendly timestamp export.
-=======
-4. ✅ **COMPLETED**: Start defining and implementing the actual `mac_mini/code/` services, especially the policy router, deterministic validator, safe deferral handler, audit logger, notification backend, and caregiver confirmation backend. (Current session: all 6 services implemented, 134 tests passing)
-5. **PENDING**: Add dedicated payload fixtures for `E002`~`E005` instead of reusing placeholder emergency fixtures in the integration scenario layer.
+4. ✅ **COMPLETED**: Start defining and implementing the actual `mac_mini/code/` services, especially the policy router, deterministic validator, safe deferral handler, audit logger, notification backend, and caregiver confirmation backend. (All 6 services implemented, 134 tests passing)
+5. ✅ **COMPLETED**: Connect the integration runner and expected outcome comparator through an adapter, then extend toward MQTT publish / audit observe execution. (`integration_adapter.py` implements direct policy_router calls; 11 scenario tests passing)
+   - Note: Adapter uses direct function calls (not live MQTT) for deterministic local/CI testing; lenient fixture parsing handles legacy field names and missing required fields
+6. ✅ **COMPLETED**: Resolve the remaining `edge_controller_app` build-context / placeholder implementation gap. (`edge_controller_app/orchestrator.py`, `models.py`, `mqtt_client.py`, `main.py` implemented; 12 tests passing)
+7. ✅ **COMPLETED**: Add a real runtime adapter for preflight readiness so that Home Assistant can consume actual status rather than only synthetic snapshots. (`runtime_state_collector.py` + `ha_realtime_adapter.py` implemented; 37 tests passing; total 183 tests passing)
+8. **PENDING**: Add dedicated payload fixtures for `E002`~`E005` instead of reusing placeholder emergency fixtures in the integration scenario layer.
    - Currently E002 has no fixture; E003/E004/E005 all reuse E001 temperature fixture
    - Need: separate `sample_policy_router_input_class0_e002_button_triple_hit.json`, `*_e003_smoke.json`, `*_e004_gas.json`, `*_e005_fall.json`
    - Will make integration tests actually validate intended emergency paths instead of all testing temperature
-6. ✅ **COMPLETED**: Connect the integration runner and expected outcome comparator through an adapter, then extend toward MQTT publish / audit observe execution. (Current session: integration_adapter.py implements direct policy_router calls; 11 scenario tests passing)
-   - Note: Adapter uses direct function calls (not live MQTT) for deterministic local/CI testing; lenient fixture parsing handles legacy field names and missing required fields
-7. **PENDING**: When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
-8. **PENDING**: If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
->>>>>>> Stashed changes
+9. **PENDING**: When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
+10. **PENDING**: If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
+11. **PENDING**: Revisit `10_configure_home_assistant.sh` template path / template existence assumptions and ensure they match the current repo template layout.
+12. **PENDING**: Define the host-side ingestion/export contract for STM32 Nucleo-H723ZG measurement nodes, including heartbeat/status and CSV-friendly timestamp export.
 
 ---
 
@@ -816,11 +808,25 @@ The next assistant should do the following first:
   - PolicyRouterOutput → observed dict mapping
 - `integration/tests/test_integration_scenarios.py` — 11 pytest tests (CLASS_0 E001~E005, CLASS_1, CLASS_2, faults)
 
-**Status**: 145/145 tests passing (134 mac_mini + 11 integration).
+**Edge controller app** (12 tests, all passing):
+- `mac_mini/code/edge_controller_app/orchestrator.py` — async pipeline: policy_router → CLASS_0/1/2 결과 반환
+- `mac_mini/code/edge_controller_app/models.py` — OrchestratorOutput (Pydantic v2, extra="forbid")
+- `mac_mini/code/edge_controller_app/mqtt_client.py` — optional paho-mqtt wrapper, graceful degradation
+- `mac_mini/code/edge_controller_app/main.py` — FastAPI lifespan, /health, /orchestrate endpoints
+- `mac_mini/code/Dockerfile` — python:3.9-slim, uvicorn on port 8000
+
+**HA realtime adapter** (37 tests, all passing):
+- `integration/measurement/runtime_state_collector.py` — async collectors (Docker/MQTT/Ollama/SQLite/Ping), `collect_all_states()`
+- `integration/measurement/ha_realtime_adapter.py` — StateSnapshotBuilder, MQTTPrefightPublisher, AdapterService, FastAPI REST
+- `integration/measurement/tests/test_runtime_state_collector.py` — 20 unit tests
+- `integration/measurement/tests/test_ha_realtime_adapter.py` — 17 unit tests
+- `mac_mini/code/requirements.txt` — pyyaml>=6.0 추가
+
+**Status**: 183/183 tests passing (134 mac_mini services + 11 integration scenarios + 12 edge_controller + 26 preflight measurement).
 
 **Known pending** (for next session):
-- Dedicated payload fixtures for E002~E005 (currently E003/E004/E005 reuse E001 fixture, E002 has none)
 - Fix `test_policy_fault_consistency.py` (2 pre-existing failures: test incorrectly maps FAULT_EMERGENCY_02_SMOKE instead of FAULT_EMERGENCY_03_SMOKE)
+- Dedicated payload fixtures for E002~E005 (currently E003/E004/E005 reuse E001 fixture, E002 has none)
 - ESP32 firmware (lower priority)
 
 ---
@@ -848,14 +854,13 @@ If a future session needs a very short summary:
 - ESP32 cross-platform bring-up scaffold now exists, but real node firmware is still largely unimplemented.
 - `integration/` now contains scenario, fixture, runner, comparator, and measurement starter assets.
 - Integration scenarios are grounded in actual accessibility use context, but remain evaluation assets rather than policy truth.
-<<<<<<< Updated upstream
 - STM32 Nucleo-H723ZG is now explicitly treated as an out-of-band measurement node, not an operational node.
 - experiment preflight readiness registry/aggregator skeletons now exist and were developer-tested from the Mac mini side.
-- `mac_mini/code/` is still the major remaining implementation area.
-=======
-- **`mac_mini/code/` is now COMPLETE**: All 6 services (policy_router, validator, safe_deferral_handler, audit_logger, notification_backend, caregiver_confirmation) are implemented, tested, and passing 134+11 tests.
+- **`mac_mini/code/` is now COMPLETE**: All 6 services (policy_router, validator, safe_deferral_handler, audit_logger, notification_backend, caregiver_confirmation) implemented and passing.
+- `edge_controller_app` is implemented with MQTT-driven orchestrator (12 tests passing).
 - Integration adapter (lenient fixture parsing, direct route() calls) is complete; 11 scenario tests passing.
->>>>>>> Stashed changes
+- HA realtime adapter (`runtime_state_collector` + `ha_realtime_adapter`) is implemented; 37 tests passing.
+- **Total: 183 tests passing** across mac_mini/code and integration/measurement.
 - Legacy policy/schema assets and manifest files were intentionally deleted.
 - Do not let deployment-local config override frozen truth.
 - Keep Mac mini / RPi / ESP32 / measurement role separation.
