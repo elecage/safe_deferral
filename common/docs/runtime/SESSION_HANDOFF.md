@@ -65,6 +65,16 @@ These assets are treated as the current authoritative frozen baseline unless exp
 - `class_2_notification_payload_schema_v1_0_0_FROZEN.json` = authoritative Class 2 payload contract
 - `output_profile_v1_1_0.json` = companion output guidance asset, not canonical policy/schema authority
 
+### Scope distinction that must be preserved
+- **implementation-facing device scope** and
+- **authoritative autonomous low-risk actuation scope**
+
+must not be conflated.
+
+Current interpretation:
+- current implementation-facing scope includes lighting paths and a doorlock representative interface path
+- current authoritative autonomous Class 1 low-risk scope remains the frozen low-risk catalog unless that catalog is explicitly updated
+
 ---
 
 ## 4. Canonical Emergency Family
@@ -106,6 +116,11 @@ All of the following must remain aligned with this trigger family:
 - Context-integrity-based safe deferral stage handles bounded clarification.
 - Audit logging remains single-writer.
 - Caregiver escalation remains bounded and schema-aligned.
+
+### Current scope decision that must remain explicit
+- doorlock is part of the **current implementation-facing scope**
+- doorlock is **not automatically equivalent** to the current authoritative autonomous Class 1 low-risk action catalog
+- any future document/code that treats doorlock as authoritative autonomous low-risk actuation must first be reconciled with the frozen low-risk catalog and related experiment docs
 
 ---
 
@@ -169,6 +184,7 @@ The following docs were reviewed and updated to match the current canonical base
 - deterministic fault profile mapping alignment in `required_experiments.md`
 - Mac mini / RPi / ESP32 install-configure-verify flow documentation
 - integration scenario layer grounding in actual accessibility / daily-life use context from the root README
+- explicit distinction between current implementation-facing scope and authoritative autonomous low-risk scope
 
 ---
 
@@ -213,7 +229,7 @@ The following docs were reviewed and updated to match the current canonical base
 - `integration/` now exists as an explicit cross-device validation layer with root README and requirements docs
 - `integration/tests/`, `integration/tests/data/`, `integration/scenarios/`, and `integration/measurement/` now contain starter README/docs/assets
 - integration fixture samples, expected outcome fixtures, scenario skeletons, runner skeleton, comparator skeleton, scenario manifest rules, scenario review guide, and class-wise latency profile docs were added
-- scenario layer was aligned with `required_experiments.md`, current implemented low-risk scope, and canonical emergency family `E001`~`E005`
+- scenario layer was aligned with `required_experiments.md`, current implemented scope, and canonical emergency family `E001`~`E005`
 
 ---
 
@@ -295,9 +311,11 @@ Any future assistant continuing this project should follow these rules.
    New install/configure/verify changes should not reintroduce older path layouts when a newer layer has already been standardized.
 
 10. **Preserve current implemented scope vs extended scope distinction.**  
-    In particular, do not quietly expand autonomous low-risk actuation beyond the current authoritative lighting scope without updating the canonical baseline and required experiments docs.
+    In particular, do not quietly expand autonomous low-risk actuation beyond the current authoritative frozen low-risk catalog without updating the canonical baseline and required experiments docs.
 
-11. **Do not let integration scenario assets become policy truth.**  
+11. **Do not let implementation-facing doorlock scope silently become authoritative autonomous low-risk policy scope.**
+
+12. **Do not let integration scenario assets become policy truth.**  
     Scenarios, fixtures, runner outputs, and review guides are evaluation assets only.
 
 ---
@@ -323,9 +341,9 @@ should not be used in new architecture-facing or implementation-facing outputs, 
 
 ### C. Scope drift in ESP32 references
 ESP32 targets must continue to respect:
-- **current canonical** = button, lighting, representative sensing
+- **current implementation-facing** = button, lighting, representative sensing, doorlock representative interface path
 - **optional experimental** = gas, fire, fall
-- **planned extension** = doorlock or warning interface
+- **planned extension** = warning interface and other future expansion paths
 
 ### D. Notification payload drift
 Class 2 outbound escalation must stay aligned with:
@@ -337,6 +355,7 @@ Future work must preserve:
 - trigger-family alignment for `E001`~`E005`
 - deterministic fault profile mapping consistency in `required_experiments.md`
 - runtime asset verification alignment with current canonical filenames
+- distinction between implementation-facing doorlock scope and authoritative low-risk catalog scope
 
 ### F. Mac mini compose/runtime drift
 The Mac mini scripts were recently aligned, but future changes could still reintroduce mismatch across:
@@ -366,6 +385,7 @@ These are the recommended next steps after this handoff point.
 5. Add dedicated payload fixtures for `E002`~`E005` instead of reusing placeholder emergency fixtures in the integration scenario layer.
 6. Connect the integration runner and expected outcome comparator through an adapter, then extend toward MQTT publish / audit observe execution.
 7. When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
+8. If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
 
 ---
 
@@ -396,7 +416,8 @@ Before editing code or documents, the next session should verify:
   - `integration/scenarios/scenario_review_guide.md`
 - no deleted legacy assets were accidentally reintroduced
 - prompts, required experiments, and architecture docs still point to the same baseline versions
-- current implemented lighting scope in `required_experiments.md` is still reflected in integration fixtures and scenario expectations
+- current implemented scope wording in `required_experiments.md` is still reflected consistently in integration fixtures and scenario expectations
+- no doc silently treats doorlock implementation scope as equivalent to authoritative autonomous low-risk policy scope unless the frozen baseline was updated to match
 
 ---
 
@@ -526,6 +547,8 @@ If a future session needs a very short summary:
   - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - Canonical emergency family is `E001`~`E005`.
 - `required_experiments.md` is already aligned with the updated deterministic emergency profile numbering.
+- Current implementation-facing scope includes lighting paths and a doorlock representative interface path.
+- Current authoritative autonomous Class 1 low-risk scope still follows the frozen low-risk catalog unless that catalog is explicitly updated.
 - Mac mini install/configure/verify scaffolding and README are now substantially aligned with the current baseline.
 - RPi README and experiment-side scaffold are aligned around evaluation-only role separation.
 - ESP32 cross-platform bring-up scaffold now exists, but real node firmware is still largely unimplemented.
