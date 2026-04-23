@@ -51,6 +51,24 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 ---
 
+## 반드시 먼저 읽을 문서 순서
+
+1. `/common/policies/low_risk_actions_v1_1_0_FROZEN.json`
+2. `/common/policies/policy_table_v1_1_2_FROZEN.json`
+3. `/common/docs/required_experiments.md`
+4. `/common/docs/runtime/SESSION_HANDOFF.md`
+5. `/CLAUD.md`
+6. `/common/docs/architecture/12_prompts.md`
+
+그 다음 필요 시 아래를 읽는다.
+- `/integration/scenarios/scenario_manifest_rules.md`
+- `/integration/scenarios/scenario_review_guide.md`
+- `/integration/tests/integration_test_runner_skeleton.py`
+- `/integration/tests/expected_outcome_comparator.py`
+- 각 device-layer README 및 script
+
+---
+
 ## 반드시 참고할 문서
 
 ### 최우선 기준 문서
@@ -185,9 +203,22 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 ---
 
+## 작업 시작점
+
+이번 코딩 시작점은 다음 순서를 따른다.
+
+1. `mac_mini/code/` 아래의 **policy router** 구현
+2. `mac_mini/code/` 아래의 **deterministic validator** 구현
+3. `mac_mini/code/` 아래의 **safe deferral handler** 구현
+4. 이후 audit logger / notification backend 순서로 진행
+
+다른 영역을 먼저 구현해야 하는 특별한 이유가 없다면 이 순서를 기본으로 한다.
+
+---
+
 ## 작업 순서
 
-1. 반드시 참고할 문서들을 읽고, 이를 기준으로 시나리오와 요구사항을 확인한다.
+1. 반드시 먼저 읽을 문서를 읽고, 이를 기준으로 시나리오와 요구사항을 확인한다.
 2. 현재 작업 범위에 해당하는 프롬프트 묶음을 `/common/docs/architecture/12_prompts.md`에서 선택한다.
 3. 구현 시 스키마와 정책을 참조한다.
 4. 빌드 또는 실행 전에는 install / configure / verify 상태가 완료되었는지 먼저 확인한다.
@@ -196,7 +227,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 ---
 
-## 개발 시 해석 우선순위
+## 문서 충돌 시 해석 우선순위
 
 문서가 충돌할 때는 다음 우선순위를 따른다.
 
