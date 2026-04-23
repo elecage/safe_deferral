@@ -30,6 +30,7 @@ The following shared frozen assets must exist and be treated as the single sourc
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+- `common/docs/architecture/12_prompts.md`
 
 ### Optional or version-sensitive companion assets
 - output profile assets
@@ -41,7 +42,22 @@ These assets must be frozen before implementation-side code generation begins.
 
 ---
 
-## 2. Port Allocation Sheet
+## 2. Root-Level Dependency Manifest Readiness
+
+The repository now includes host-side Python dependency manifests that should be maintained as additional required support assets.
+
+### Required manifests
+- `requirements-mac.txt`
+- `requirements-rpi.txt`
+
+### Requirement
+- The manifests should remain aligned with the currently maintained install/runtime assumptions.
+- They support host-side environment reproducibility.
+- They do not redefine canonical shared policy or schema truth.
+
+---
+
+## 3. Port Allocation Sheet
 
 A dedicated port allocation reference should be created and maintained.
 
@@ -64,7 +80,7 @@ Port allocation references support deployment consistency, but they do not defin
 
 ---
 
-## 3. Environment Variable Sheet
+## 4. Environment Variable Sheet
 
 A centralized environment-variable reference is required for both documentation and deployment consistency.
 
@@ -82,6 +98,7 @@ A centralized environment-variable reference is required for both documentation 
 - time synchronization host and bounds
 - ESP32-related topic namespace and device-ID conventions when embedded nodes are used
 - ESP32-side broker connection assumptions when embedded nodes are used
+- ESP32 workspace, `IDF_PATH`, `IDF_TOOLS_PATH`, target, sample-project, and build-log variables for cross-platform bring-up
 - optional measurement profile or timing-capture settings when out-of-band latency evaluation is used
 
 ### Recommended location
@@ -89,7 +106,8 @@ A centralized environment-variable reference is required for both documentation 
 - linked to:
   - `mac_mini/scripts/configure/70_write_env_files.sh`
   - `rpi/scripts/configure/10_write_env_files_rpi.sh`
-  - `esp32/` implementation notes when applicable
+  - `esp32/scripts/configure/10_write_env_files_esp32.sh`
+  - `esp32/scripts/configure/10_write_env_files_esp32_windows.ps1`
   - `integration/measurement/` when applicable
 
 ### Deployment-local separation principle
@@ -98,7 +116,7 @@ They must not be treated as canonical frozen policy truth.
 
 ---
 
-## 4. Acceptance Criteria per Module
+## 5. Acceptance Criteria per Module
 
 Each major module should have explicit acceptance criteria before it is considered complete.
 
@@ -147,7 +165,21 @@ Each major module should have explicit acceptance criteria before it is consider
 - canonical policy/schema/rules consistency checks pass
 - emergency simulation and fault generation remain aligned with canonical trigger family `E001`~`E005`
 
+### ESP32 bring-up layer
+
+#### Cross-platform ESP-IDF readiness
+- install/configure/verify flow works on supported host environments
+- `idf.py` is available after environment activation
+- target selection works for the intended board family
+- sample project can be prepared, reconfigured, and built successfully
+- the bring-up workflow remains distinct from later real node-firmware implementation
+
 ### ESP32 embedded modules when used
+
+#### Minimal Template Project
+- minimal project builds successfully through the maintained ESP32 verify flow
+- startup behavior is safe and non-autonomous
+- template is suitable as a base for later node-specific firmware generation
 
 #### Button Node Firmware
 - bounded button inputs are transmitted with stable device identity and expected topic structure
@@ -177,7 +209,7 @@ Each major module should have explicit acceptance criteria before it is consider
 
 ---
 
-## 5. Test Data Package
+## 6. Test Data Package
 
 A reusable test-data package should be created for implementation and verification.
 
@@ -191,6 +223,7 @@ A reusable test-data package should be created for implementation and verificati
 - expected escalation cases
 - representative Class 2 notification payload examples
 - representative ESP32-linked bounded input/output cases when embedded nodes are used
+- ESP32 sample-build or template-validation references where bring-up verification is part of the development package
 - canonical policy/fault/schema consistency fixtures
 - representative emergency trigger-aligned cases for `E001`~`E005`
 - class-wise latency experiment profiles when out-of-band measurement is used
@@ -204,7 +237,7 @@ A reusable test-data package should be created for implementation and verificati
 
 ---
 
-## 6. Recovery and Reset Procedure
+## 7. Recovery and Reset Procedure
 
 A reset and recovery procedure is required so the system can be returned to a clean state between experiments or after runtime faults.
 
@@ -215,6 +248,7 @@ A reset and recovery procedure is required so the system can be returned to a cl
 - how to resync frozen assets onto the Raspberry Pi
 - how to reset simulation state before rerunning scenarios
 - how to rebuild, reflash, or reset ESP32 firmware when embedded nodes are used
+- how to rerun ESP32 install/configure/verify bring-up steps when the host-side SDK environment becomes inconsistent
 - how to reset or restart timing/measurement sessions when out-of-band latency evaluation is used
 
 ### Recommended location
@@ -222,12 +256,13 @@ A reset and recovery procedure is required so the system can be returned to a cl
 - with references to:
   - `mac_mini/scripts/verify/`
   - `rpi/scripts/verify/`
+  - `esp32/scripts/verify/`
   - `esp32/docs/`
   - `integration/measurement/`
 
 ---
 
-## 7. Fault Injection Design Requirements
+## 8. Fault Injection Design Requirements
 
 Fault injection behavior must remain dynamically grounded in shared frozen assets rather than hardcoded thresholds.
 
@@ -251,7 +286,7 @@ Fault injection behavior must remain dynamically grounded in shared frozen asset
 
 ---
 
-## 8. MQTT Connectivity and Isolation Requirements
+## 9. MQTT Connectivity and Isolation Requirements
 
 MQTT connectivity must support local distributed evaluation while maintaining security boundaries.
 
@@ -265,15 +300,17 @@ MQTT connectivity must support local distributed evaluation while maintaining se
 ### Repository alignment
 - implementation/configuration:
   - `mac_mini/scripts/configure/`
+  - `esp32/scripts/configure/` when bring-up variables or connection assumptions are involved
   - `esp32/` implementation assets when applicable
 - verification:
   - `mac_mini/scripts/verify/`
   - `rpi/scripts/verify/`
+  - `esp32/scripts/verify/`
   - integration checks involving `esp32/` when applicable
 
 ---
 
-## 9. Audit Logging Architecture Requirements
+## 10. Audit Logging Architecture Requirements
 
 Audit logging must remain structurally safe and auditable.
 
@@ -299,7 +336,7 @@ Audit logging must remain structurally safe and auditable.
 
 ---
 
-## 10. Timing and Measurement Support Requirements
+## 11. Timing and Measurement Support Requirements
 
 When class-wise latency evaluation is part of the experiment package, the timing and measurement layer should be explicitly documented.
 
@@ -319,16 +356,18 @@ When class-wise latency evaluation is part of the experiment package, the timing
 
 ---
 
-## 11. Final Readiness Principle
+## 12. Final Readiness Principle
 
 The system should not be considered implementation-ready unless:
 - shared frozen assets are complete
 - installation/configuration/verification assets are aligned
+- root-level dependency manifests are aligned with maintained runtime assumptions
 - module-level acceptance criteria are explicit
 - reusable test data exists
 - recovery procedures are documented
 - fault injection rules are dynamically grounded in frozen assets
 - canonical policy/schema/rules consistency checks pass
 - audit logging remains single-writer and traceable
+- ESP32 bring-up requirements are documented before real firmware generation proceeds
 - ESP32-related bounded physical node requirements are documented wherever embedded nodes are part of the target prototype
 - timing and measurement infrastructure requirements are documented wherever out-of-band class-wise latency evaluation is part of the target experiment package
