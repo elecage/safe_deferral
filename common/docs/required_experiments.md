@@ -38,17 +38,20 @@
 
 ### 2.1 Current Implemented Scope
 
-현재 검증의 우선 대상은 **Class 1 bounded low-risk assistance**의 최소 구현 범위이다.
+현재 구현 범위는 두 층으로 구분해서 해석한다.
 
-#### 현재 공식 low-risk action 범위
+#### (A) 현재 authoritative Class 1 low-risk action 검증 범위
+현재 검증의 우선 대상은 **Class 1 bounded low-risk assistance**의 최소 authoritative 구현 범위이다.
+
+##### 현재 공식 low-risk action 범위
 - `light_on`
 - `light_off`
 
-#### 현재 공식 target device 범위
+##### 현재 공식 target device 범위
 - `living_room_light`
 - `bedroom_light`
 
-#### 현재 Safe Deferral 후보 출력 범위
+##### 현재 Safe Deferral 후보 출력 범위
 - `safe_deferral`
 - `deferral_reason`:
   - `ambiguous_target`
@@ -56,13 +59,31 @@
   - `policy_restriction`
   - `unresolved_multi_candidate`
 
-따라서 현재 실험에서 **자율 low-risk actuation**은 조명 2개 on/off 경로를 기준으로 검증한다.
+따라서 현재 authoritative Class 1 실험에서 **자율 low-risk actuation**은 조명 2개 on/off 경로를 기준으로 검증한다.
+
+#### (B) 현재 implementation-facing device / interface 범위
+저장소의 현재 구현 대상 범위에는 조명 외에 **doorlock representative interface path**도 포함한다.
+
+즉, 현재 구현 범위에는 다음이 포함될 수 있다.
+- `living_room_light`
+- `bedroom_light`
+- `doorlock` representative interface path
+
+단, 주의할 점은 다음과 같다.
+- `doorlock`은 현재 저장소의 구현 대상 범위에는 포함되지만,
+- 현재 frozen low-risk action catalog(`low_risk_actions_v1_1_0_FROZEN.json`) 기준의 **authoritative autonomous Class 1 low-risk action scope**로는 아직 확정되지 않았다.
+
+따라서 문서, 실험, 코드에서 doorlock을 다룰 때는 다음을 구분해야 한다.
+1. **현재 구현 대상(device/interface scope)** 으로서의 doorlock
+2. **현재 authoritative autonomous low-risk actuation scope** 로서의 조명 on/off
+
+이 구분을 흐리면 문서 간 정합성이 깨진다.
 
 ### 2.2 Extended Experimental Scope
 
 다음 항목은 시스템의 확장 실험 범위로 간주한다.
 
-- additional actuator nodes (예: blind, doorlock, siren/buzzer)
+- additional actuator nodes beyond the currently tracked implementation-facing set
 - richer device-state context
 - larger multi-node simulation
 - richer caregiver workflow
@@ -144,6 +165,7 @@ Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 
 - current policy table 기준 emergency event는 올바르게 Class 0으로 라우팅되는가?
 - current low-risk action catalog 범위 내에서 단일 admissible action만 승인되는가?
 - ambiguity 또는 insufficient context 상황에서 unsafe actuation 없이 `safe_deferral` 또는 `class_2_escalation`으로 전환되는가?
+- current implementation-facing device scope에 포함된 doorlock representative interface path가 존재하더라도, frozen authoritative low-risk catalog 범위를 넘어서는 자율 actuation으로 오해되지 않는가?
 
 ### 5.3 권장 노드 구성
 #### 최소 구성
@@ -151,9 +173,10 @@ Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 
   - bounded button node
   - representative environmental sensor node
   - optional emergency representative node
-- ESP32 실물 출력 노드: 1~2개
+- ESP32 실물 출력 노드: 1~3개
   - living_room_light representative output
-  - bedroom_light representative output or warning output
+  - bedroom_light representative output
+  - optional current implementation-facing doorlock representative interface output
 - Raspberry Pi virtual node: 0~2개
 - STM32 timing node: 필수 아님
 
@@ -174,6 +197,7 @@ Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 
 - gas_detected
 - living_room_light
 - bedroom_light
+- doorlock state if included in the current experiment profile
 - other device states if included in the current experiment profile
 
 ### 5.5 기대 결과 분류
@@ -199,9 +223,14 @@ Class 0, Class 1, Class 2가 서로 다른 경로를 가지므로, 경로별 지
 ### 6.2 권장 구성
 #### 최소 구성
 - ESP32 입력 노드: 2개
-- ESP32 출력 노드: 1~2개
+- ESP32 출력 노드: 1~3개
 - STM32 timing node: 1개 권장
 - Raspberry Pi virtual node: 0개
+
+참고:
+- current implementation-facing scope에 doorlock representative interface가 포함될 수 있으므로,
+- latency capture profile에는 필요 시 doorlock-related trigger-to-interface path를 별도 부가 측정 경로로 둘 수 있다.
+- 다만 authoritative Class 1 low-risk latency baseline 자체는 현재 frozen low-risk catalog 범위를 기준으로 해석한다.
 
 ### 6.3 필수 측정 경로
 - Class 0: emergency trigger → local protective action / external dispatch
@@ -399,3 +428,4 @@ external dispatch grace period가 존재하는 emergency path에서 false dispat
 4. fault injection은 frozen policy/schema/rules를 파싱하여 동적으로 생성한다.
 5. 논문 표/그림의 모든 결과는 deterministic profile 또는 canonical scenario ID와 연결 가능해야 한다.
 6. frozen asset version이 변경되면 본 문서도 함께 갱신한다.
+7. current implementation-facing device scope와 current authoritative autonomous low-risk scope를 혼동하지 않는다.
