@@ -1,0 +1,23 @@
+{
+  "source_node_id": "virtual_node_kitchen_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_class0_e004_case_001",
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "gas_detected"
+    },
+    "environmental_context": {
+      "temperature_c": 21.0,
+      "smoke_detected": false,
+      "gas_detected": true
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off"
+    }
+  },
+  "notes": "Sample emergency-aligned integration fixture intended to represent an E004-type state-trigger case (gas detected). Device-state naming is kept consistent with the current implemented light scope. Exact trigger semantics remain defined by the frozen policy table."
+}
