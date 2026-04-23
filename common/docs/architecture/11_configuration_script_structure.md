@@ -21,7 +21,7 @@ Shared versioned assets under `common/` remain the source of truth for policy, s
 - Include a **reload or restart step** when required after configuration changes are applied.
 - Allow service restart behavior to branch according to the **deployment mode**.
 - Complete the shared frozen asset set before implementation-side configuration depends on it.
-- Treat ESP32 embedded nodes as bounded physical clients whose connection parameters, topic structure, and device identity assumptions must be configured consistently when they are used.
+- Treat ESP32 embedded nodes as bounded physical clients whose connection parameters, topic structure, device identity assumptions, and sample-build readiness must be configured consistently when they are used.
 - Treat Raspberry Pi 5 as an **evaluation-side node**, not as a target for hub-side operational runtime configuration.
 - Treat optional timing/measurement support as an **evaluation-only alignment layer**, not part of the operational control path.
 
@@ -80,6 +80,13 @@ safe_deferral/
 │   ├── code/
 │   └── docs/
 ├── esp32/
+│   ├── scripts/
+│   │   ├── install/
+│   │   │   ├── mac/
+│   │   │   ├── linux/
+│   │   │   └── windows/
+│   │   ├── configure/
+│   │   └── verify/
 │   ├── code/
 │   ├── firmware/
 │   └── docs/
@@ -99,12 +106,12 @@ safe_deferral/
 ### Deployment targets
 - `mac_mini/` contains hub-side configuration scripts and runtime deployment assets
 - `rpi/` contains simulation-side configuration scripts and synchronized runtime assets
-- `esp32/` contains embedded-node implementation assets and configuration assumptions for bounded physical nodes when those nodes are used
+- `esp32/` contains embedded-node implementation assets plus cross-platform configure/verify scaffolding for bounded physical nodes
 - `integration/measurement/` contains optional timing and measurement support assets for out-of-band latency evaluation when that evaluation path is used
 
 ### Principle
 The Git repository stores the frozen reference state.  
-The Mac mini, Raspberry Pi, embedded-node workflow, and optional measurement workflow receive runtime-ready deployed copies or aligned configuration assumptions as needed.
+The Mac mini, Raspberry Pi, ESP32 development workflow, and optional measurement workflow receive runtime-ready deployed copies or aligned configuration assumptions as needed.
 
 Deployment-local configuration such as `.env`, secrets, host paths, and machine-specific runtime files must not redefine canonical policy or schema truth.
 
@@ -351,16 +358,45 @@ Recommended responsibilities:
 
 ---
 
-## ESP32 Embedded Configuration Alignment
+## ESP32 Configuration and Verify Alignment
 
-### Directory
+### Directories
+- `esp32/scripts/configure/`
+- `esp32/scripts/verify/`
 - `esp32/code/`
 - `esp32/firmware/`
 - `esp32/docs/`
 
 ### Role
-ESP32 nodes do not necessarily follow the same shell-script configuration flow as Mac mini and Raspberry Pi.  
-Instead, the project should explicitly document and align embedded-node configuration assumptions.
+ESP32 nodes are bounded physical clients, but the repository now includes explicit cross-platform host-side configure and verify scaffolding so that ESP-IDF sample projects and later node firmware can be aligned consistently before full firmware implementation begins.
+
+### Current reflected configure script set
+
+#### POSIX (macOS/Linux)
+- `10_write_env_files_esp32.sh`
+- `20_prepare_idf_workspace_esp32.sh`
+- `30_prepare_managed_components_esp32.sh`
+- `40_prepare_sample_project_esp32.sh`
+
+#### Windows
+- `10_write_env_files_esp32_windows.ps1`
+- `20_prepare_idf_workspace_esp32_windows.ps1`
+- `30_prepare_managed_components_esp32_windows.ps1`
+- `40_prepare_sample_project_esp32_windows.ps1`
+
+### Current reflected verify script set
+
+#### POSIX (macOS/Linux)
+- `10_verify_idf_cli_esp32.sh`
+- `20_verify_toolchain_target_esp32.sh`
+- `30_verify_component_resolution_esp32.sh`
+- `40_verify_sample_build_esp32.sh`
+
+#### Windows
+- `10_verify_idf_cli_esp32_windows.ps1`
+- `20_verify_toolchain_target_esp32_windows.ps1`
+- `30_verify_component_resolution_esp32_windows.ps1`
+- `40_verify_sample_build_esp32_windows.ps1`
 
 ### Recommended configuration concerns
 - broker host, port, and authentication assumptions
@@ -370,6 +406,8 @@ Instead, the project should explicitly document and align embedded-node configur
 - actuator or warning interface topic assumptions when physical output is used
 - Wi-Fi, reconnect, and fallback behavior assumptions
 - firmware build, flash, and reset procedure references
+- ESP-IDF workspace path and sample project path alignment
+- managed component preparation and sample-build readiness
 
 ### Scope note
 Configuration assumptions should distinguish:
@@ -384,6 +422,9 @@ Examples currently include:
 
 ### Principle
 Embedded nodes should remain bounded physical clients under hub-side policy control rather than becoming independent policy authorities.
+
+The current ESP32 configure/verify layer is primarily a **development-environment alignment and sample-build readiness layer**.  
+It is not a replacement for later real node-firmware implementation under `esp32/code/` and `esp32/firmware/`.
 
 ---
 
@@ -463,14 +504,31 @@ bash rpi/scripts/configure/40_configure_simulation_runtime_rpi.sh
 bash rpi/scripts/configure/50_configure_fault_profiles_rpi.sh
 ```
 
-### ESP32
-Typical workflow should be documented rather than assumed to match shell-based host configuration.  
-Examples may include:
-- set or confirm broker connection assumptions
-- set or confirm topic namespace and device identity
-- build or rebuild firmware with aligned configuration
-- flash firmware to device
-- verify broker connectivity on the trusted local network
+### ESP32 macOS / Linux
+```bash
+bash esp32/scripts/configure/10_write_env_files_esp32.sh
+bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
+bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
+
+bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
+bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
+bash esp32/scripts/verify/30_verify_component_resolution_esp32.sh
+bash esp32/scripts/verify/40_verify_sample_build_esp32.sh
+```
+
+### ESP32 Windows
+```powershell
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\10_write_env_files_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\20_prepare_idf_workspace_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\30_prepare_managed_components_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\40_prepare_sample_project_esp32_windows.ps1
+
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\10_verify_idf_cli_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\20_verify_toolchain_target_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\30_verify_component_resolution_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\40_verify_sample_build_esp32_windows.ps1
+```
 
 ### Optional timing / measurement path
 Typical workflow may include:
@@ -484,7 +542,8 @@ Typical workflow may include:
 
 ## Configuration Writing Rules
 
-- use `set -euo pipefail`
+- use `set -euo pipefail` in POSIX shell scripts
+- use explicit fail-fast handling in PowerShell scripts on Windows
 - keep configuration separate from installation
 - keep configuration separate from verification
 - avoid committing live secrets
@@ -492,7 +551,7 @@ Typical workflow may include:
 - emit explicit log messages
 - verify configuration by handing off to the verify stage
 - do not embed application logic inside configuration scripts
-- keep embedded-node configuration assumptions documented separately from host-side operational scripts when ESP32 nodes are used
+- keep embedded-node configuration and sample-build alignment separate from full node-firmware implementation
 - keep timing/measurement configuration support documented separately from the operational control path when out-of-band evaluation is used
 - prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
 - prevent silent drift from the canonical policy/schema/rules baseline
@@ -505,7 +564,8 @@ Typical workflow may include:
 - `mac_mini/scripts/configure/` configures the operational hub
 - `rpi/scripts/configure/` configures the simulation and evaluation node only
 - Raspberry Pi does not replace the Mac mini hub runtime
-- `esp32/` stores embedded-node implementation assets and aligned configuration assumptions
+- `esp32/scripts/configure/` and `esp32/scripts/verify/` align the cross-platform ESP-IDF workspace and sample-build readiness for bounded node development
+- `esp32/code/` and `esp32/firmware/` remain the later target areas for real node-firmware implementation
 - `integration/measurement/` stores optional timing and measurement support alignment assets
 - configuration scripts and embedded/measurement configuration alignment deploy runtime-ready values and assumptions
 - runtime correctness is confirmed later in the verify stage
