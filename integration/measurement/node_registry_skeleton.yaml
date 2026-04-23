@@ -1,0 +1,180 @@
+version: "0.1"
+registry_type: "node_registry"
+description: >-
+  Skeleton registry for operational nodes, physical nodes, and out-of-band measurement nodes
+  used by experiment preflight readiness and dashboard monitoring.
+
+nodes:
+  - node_id: "mac_mini"
+    node_class: "operational_node"
+    implementation: "mac_mini"
+    description: "Operational hub hosting core runtime services."
+    capabilities:
+      - "compose_runtime"
+      - "policy_assets_runtime"
+      - "sqlite_audit_store"
+      - "notification_backend"
+    status_sources:
+      - "docker_compose"
+      - "health_check"
+    readiness_checks:
+      - "hub_reachable"
+      - "runtime_workspace_present"
+
+  - node_id: "mosquitto"
+    node_class: "operational_service"
+    implementation: "eclipse_mosquitto"
+    description: "Local MQTT broker on the trusted LAN."
+    capabilities:
+      - "mqtt_broker"
+      - "pubsub_transport"
+    status_sources:
+      - "docker_compose"
+      - "mqtt_connectivity_check"
+    readiness_checks:
+      - "container_running"
+      - "port_1883_open"
+
+  - node_id: "homeassistant"
+    node_class: "operational_service"
+    implementation: "home_assistant"
+    description: "Dashboard and operational UI service."
+    capabilities:
+      - "dashboard_ui"
+      - "experiment_control_ui"
+      - "readiness_panel"
+    status_sources:
+      - "docker_compose"
+      - "ui_http_check"
+    readiness_checks:
+      - "container_running"
+      - "ui_reachable"
+
+  - node_id: "ollama"
+    node_class: "operational_service"
+    implementation: "ollama_llama3_1"
+    description: "Local LLM runtime for bounded Class 1 assistance."
+    capabilities:
+      - "llm_inference"
+    status_sources:
+      - "docker_compose"
+      - "api_health_check"
+    readiness_checks:
+      - "container_running"
+      - "model_ready"
+
+  - node_id: "edge_controller_app"
+    node_class: "operational_service"
+    implementation: "edge_controller_app"
+    description: >-
+      Hub-side application path expected to subscribe to input topics and publish
+      audit/validator outputs.
+    capabilities:
+      - "context_ingest"
+      - "audit_pipeline"
+      - "validator_pipeline"
+      - "actuation_ack_pipeline"
+    status_sources:
+      - "docker_compose"
+      - "topic_activity_check"
+    readiness_checks:
+      - "container_running"
+      - "subscribes_context_raw"
+      - "publishes_audit_output"
+
+  - node_id: "rpi"
+    node_class: "evaluation_node"
+    implementation: "raspberry_pi_5"
+    description: "Simulation, fault injection, and closed-loop evaluation node."
+    capabilities:
+      - "scenario_runner"
+      - "fault_injector"
+      - "artifact_sync"
+      - "time_sync_check"
+    status_sources:
+      - "ping"
+      - "heartbeat_topic"
+      - "local_verify_script"
+    readiness_checks:
+      - "host_reachable"
+      - "artifact_sync_complete"
+      - "time_sync_available"
+
+  - node_id: "esp32_button_node"
+    node_class: "physical_node"
+    implementation: "esp32"
+    description: "Bounded button input node used for clarification or bounded input patterns."
+    capabilities:
+      - "button_input"
+      - "heartbeat"
+    status_sources:
+      - "heartbeat_topic"
+    readiness_checks:
+      - "heartbeat_fresh"
+
+  - node_id: "esp32_sensor_node"
+    node_class: "physical_node"
+    implementation: "esp32"
+    description: "Representative environmental sensing node."
+    capabilities:
+      - "environment_publish"
+      - "heartbeat"
+    status_sources:
+      - "heartbeat_topic"
+    readiness_checks:
+      - "heartbeat_fresh"
+
+  - node_id: "stm32_time_probe_01"
+    node_class: "measurement_node"
+    implementation: "stm32_nucleo_h723zg"
+    description: "Out-of-band time probe A for latency/timestamp evidence capture."
+    capabilities:
+      - "time_sync_probe"
+      - "latency_capture"
+      - "timestamp_export"
+      - "measurement_status_report"
+    status_sources:
+      - "serial_export_presence"
+      - "measurement_heartbeat"
+    readiness_checks:
+      - "probe_online"
+      - "capture_armed"
+      - "export_path_available"
+
+  - node_id: "stm32_time_probe_02"
+    node_class: "measurement_node"
+    implementation: "stm32_nucleo_h723zg"
+    description: "Out-of-band time probe B for latency/timestamp evidence capture."
+    capabilities:
+      - "time_sync_probe"
+      - "latency_capture"
+      - "timestamp_export"
+      - "measurement_status_report"
+    status_sources:
+      - "serial_export_presence"
+      - "measurement_heartbeat"
+    readiness_checks:
+      - "probe_online"
+      - "capture_armed"
+      - "export_path_available"
+
+status_codes:
+  - "READY"
+  - "DEGRADED"
+  - "BLOCKED"
+  - "UNKNOWN"
+
+blocked_reason_codes:
+  - "NODE_OFFLINE"
+  - "SERVICE_UNREACHABLE"
+  - "ASSET_MISSING"
+  - "ASSET_INVALID"
+  - "MQTT_UNREACHABLE"
+  - "RUNNER_BUSY"
+  - "AUDIT_PIPELINE_UNAVAILABLE"
+  - "EDGE_CONTROLLER_APP_UNAVAILABLE"
+  - "RESULT_STORE_NOT_WRITABLE"
+  - "SSH_SYNC_INCOMPLETE"
+  - "MEASUREMENT_NODE_UNAVAILABLE"
+  - "MEASUREMENT_EXPORT_UNAVAILABLE"
+  - "TIME_PROBE_HEARTBEAT_STALE"
