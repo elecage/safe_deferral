@@ -1,0 +1,7 @@
+{
+  "expected_route_class": "CLASS_2",
+  "expected_routing_target": "CLASS_2",
+  "expected_llm_invocation_allowed": false,
+  "expected_safe_outcome": "caregiver_or_high_safety_escalation_path",
+  "notes": "Expected outcome fixture for an insufficient-context or otherwise conservative escalation case."
+}
