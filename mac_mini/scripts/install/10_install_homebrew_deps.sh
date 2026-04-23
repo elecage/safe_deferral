@@ -30,6 +30,19 @@ for pkg in "${PACKAGES[@]}"; do
     fi
 done
 
+# Python 설치/버전 검증은 이 단계의 책임이다.
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "  [FATAL] python3 is still not available after Homebrew installation."
+    echo "          Ensure Homebrew shellenv is applied in the current shell."
+    exit 1
+fi
+
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "  [FATAL] python3 is available, but version is below 3.11."
+    echo "          Current version: $(python3 --version 2>&1)"
+    exit 1
+fi
+
 echo "  [INFO] Installed versions:"
 git --version | awk '{print "    - "$0}'
 python3 --version | awk '{print "    - "$0}'
