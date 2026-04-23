@@ -10,15 +10,17 @@ WORKDIR /app
 # 타임존 설정
 ENV TZ=Asia/Seoul
 
-# 코드 복사
-COPY . /app/code/
-COPY common /app/common/
+# 저장소 루트 전체를 build context로 복사
+COPY . /app/repo/
 
-# 의존성 설치
-RUN cd /app/code && pip install --no-cache-dir -r requirements.txt
+# 의존성 설치 (repo root 기준)
+RUN pip install --no-cache-dir -r /app/repo/mac_mini/code/requirements.txt
 
-# Python path 설정 (mac_mini/code를 포함)
-ENV PYTHONPATH=/app/code:$PYTHONPATH
+# Python path 설정 (repo root와 mac_mini/code를 모두 포함)
+ENV PYTHONPATH=/app/repo:/app/repo/mac_mini/code:$PYTHONPATH
+
+# 실행 작업 디렉터리
+WORKDIR /app/repo/mac_mini/code
 
 # 헬스 체크 추가
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
