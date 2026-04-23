@@ -1,0 +1,43 @@
+{
+  "scenario_id": "SCN_CLASS0_E001_BASELINE",
+  "title": "Class 0 E001 emergency baseline scenario",
+  "description": "Deterministic scenario skeleton for a representative E001-aligned emergency path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "category": "class0_emergency",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an emergency-aligned payload through the same operational ingress plane.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class0_e001.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the routing outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class0_e001.json"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_0",
+    "routing_target": "CLASS_0",
+    "llm_invocation_allowed": false,
+    "unsafe_autonomous_actuation_allowed": false,
+    "canonical_emergency_family": "E001"
+  },
+  "notes": [
+    "Exact threshold semantics remain defined by the frozen policy table.",
+    "This scenario is intended for emergency override path validation and later class-wise latency profiling."
+  ]
+}
