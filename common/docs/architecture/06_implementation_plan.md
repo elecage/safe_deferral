@@ -15,6 +15,7 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - The Mac mini hosts all core operational runtime services
 - Raspberry Pi 5 is used as the multi-node simulation, virtual sensing, fault-injection, scenario replay, and closed-loop evaluation node
 - ESP32 devices are used as embedded physical nodes for bounded button input, sensing, or actuator/warning interfacing within the applicable scope
+- ESP32 development itself is prepared through a cross-platform host-side install / configure / verify workflow before real node firmware is generated
 - Optional STM32 timing nodes or equivalent dedicated measurement nodes may be used for out-of-band class-wise latency evaluation
 - The LLM is sandboxed and invoked only after policy approval
 - Shared frozen assets in the Git repository act as the single source of truth before runtime deployment
@@ -28,6 +29,10 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `common/schemas/`
 - `common/docs/`
 - `common/terminology/`
+
+### Root-level dependency manifests
+- `requirements-mac.txt`
+- `requirements-rpi.txt`
 
 ### Mac mini operational assets
 - `mac_mini/scripts/install/`
@@ -43,6 +48,9 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `rpi/code/`
 
 ### ESP32 embedded assets
+- `esp32/scripts/install/`
+- `esp32/scripts/configure/`
+- `esp32/scripts/verify/`
 - `esp32/code/`
 - `esp32/firmware/`
 - `esp32/docs/`
@@ -79,14 +87,16 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 13. Artifact Sync Utility
 14. Time Sync Check Utility
 
-### ESP32 embedded modules when used
-15. Button Node Firmware
-16. Environmental / Safety Sensor Node Firmware
-17. Actuator / Warning Interface Firmware
+### ESP32 bring-up and embedded modules when used
+15. Cross-platform ESP-IDF install / configure / verify scaffolding
+16. Minimal template project for sample-build validation
+17. Button Node Firmware
+18. Environmental / Safety Sensor Node Firmware
+19. Actuator / Warning Interface Firmware
 
 ### Optional timing and measurement support when used
-18. Out-of-band Timing Measurement Support
-19. Timing Capture and Latency Evaluation Support
+20. Out-of-band Timing Measurement Support
+21. Timing Capture and Latency Evaluation Support
 
 ---
 
@@ -171,6 +181,7 @@ Freeze the shared reference assets before implementation begins.
 - canonical terminology
 - environment variable templates
 - installation/configuration/verification script set
+- prompt set for implementation generation where applicable
 
 #### Representative frozen files
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
@@ -182,6 +193,7 @@ Freeze the shared reference assets before implementation begins.
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
+- `common/docs/architecture/12_prompts.md`
 
 #### Optional or version-sensitive companion assets
 - output profile assets
@@ -203,11 +215,13 @@ Prepare the Mac mini operational platform.
 - prepare SQLite DB
 - prepare notification configuration
 - prepare runtime `.env` and deployment paths
+- finalize `requirements-mac.txt` as the current baseline host-side Python dependency manifest
 
 #### Primary repository locations
 - `mac_mini/scripts/install/`
 - `mac_mini/scripts/configure/`
 - `mac_mini/runtime/`
+- `requirements-mac.txt`
 
 #### Completion criterion
 All core services are present and configured on the Mac mini.
@@ -251,7 +265,15 @@ The system can safely escalate approved external communication events without by
 ---
 
 ### M5. Physical Integration Ready
-Connect the operational hub to real or semi-real physical inputs and outputs.
+Prepare the ESP32 development environment and connect the operational hub to real or semi-real physical inputs and outputs.
+
+#### Bring-up tasks before real node firmware
+- finalize cross-platform ESP32 install scripts
+- finalize cross-platform ESP32 configure scripts
+- finalize cross-platform ESP32 verify scripts
+- verify ESP-IDF CLI readiness on supported host platforms
+- verify sample template build success
+- prepare prompt-driven generation path for minimal template and node firmware
 
 #### Current canonical physical-node validation targets
 - connect ESP32 button node
@@ -280,12 +302,15 @@ Physical integration and validation must remain aligned with the canonical emerg
 #### Primary repository locations
 - `integration/tests/`
 - `integration/scenarios/`
+- `esp32/scripts/install/`
+- `esp32/scripts/configure/`
+- `esp32/scripts/verify/`
 - `esp32/code/`
 - `esp32/firmware/`
 - `esp32/docs/`
 
 #### Completion criterion
-End-to-end operational flows with bounded physical nodes are validated against the intended policy behavior within the applicable current, optional, and planned scope boundaries.
+The ESP32 development environment is reproducibly ready, and end-to-end operational flows with bounded physical nodes are validated against the intended policy behavior within the applicable current, optional, and planned scope boundaries.
 
 ---
 
@@ -296,6 +321,7 @@ Prepare the Raspberry Pi-based evaluation and experiment environment.
 - implement artifact synchronization from the shared frozen repository state
 - verify checksum, version, or structural consistency of synchronized assets
 - prepare Python venv and experiment-side runtime dependencies
+- maintain `requirements-rpi.txt` as the current baseline experiment-side Python dependency manifest
 - configure Raspberry Pi time synchronization against the Mac mini reference host or agreed LAN time reference
 - implement multi-node virtual sensor/state runtime
 - implement virtual emergency sensors
@@ -314,6 +340,7 @@ Prepare the Raspberry Pi-based evaluation and experiment environment.
 - `rpi/code/`
 - `rpi/scripts/configure/`
 - `rpi/scripts/verify/`
+- `requirements-rpi.txt`
 - `integration/scenarios/`
 - `integration/measurement/`
 - `integration/tests/`
@@ -403,7 +430,7 @@ The LLM is only used in the bounded Class 1 assistance path after policy approva
 ### C. Device-role separation
 - Mac mini = operational hub
 - Raspberry Pi 5 = multi-node simulation, fault injection, scenario replay, and closed-loop evaluation node
-- ESP32 = embedded physical node layer for bounded input, sensing, or actuator/warning interfacing within the applicable scope
+- ESP32 = bounded physical node layer plus cross-platform bring-up workflow for node development
 - STM32 timing node or equivalent = optional out-of-band latency measurement infrastructure
 
 ### D. Auditable outcomes
@@ -428,6 +455,7 @@ The final prototype should demonstrate that:
 - bounded LLM assistance is restricted to approved low-risk contexts
 - incomplete, stale, or conflicting context leads to safe deferral rather than unsafe autonomous actuation
 - ESP32-based bounded physical input/output paths can be integrated without bypassing policy control
+- ESP32 bring-up and sample-build validation can be reproduced across supported host environments before real node firmware generation begins
 - the Raspberry Pi-based evaluation environment can reproduce multi-node fault-handling behavior in a controlled and auditable way
 - Raspberry Pi-based experiment traffic can be verified through closed-loop audit observation rather than bypassed control paths
 - optional timing infrastructure can support trustworthy out-of-band class-wise latency measurement
