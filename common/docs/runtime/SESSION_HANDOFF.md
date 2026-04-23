@@ -165,6 +165,8 @@ The following docs were reviewed and updated to match the current canonical base
 - `common/docs/required_experiments.md`
 - `common/docs/runtime/SESSION_HANDOFF.md`
 - `mac_mini/docs/README.md`
+- `mac_mini/docs/MAC_MINI_SCRIPT_PRIORITY_AND_COMMANDS.md`
+- `mac_mini/docs/TELEGRAM_NOTIFICATION_SETUP.md`
 - `rpi/docs/README.md`
 - `esp32/docs/README.md`
 - `integration/README.md`
@@ -248,6 +250,7 @@ The current Mac mini scripts assume the following runtime layout:
   - `~/smarthome_workspace/.env`
 
 ### Current Mac mini install flow
+- `mac_mini/scripts/install/00_install_homebrew.sh`
 - `mac_mini/scripts/install/00_preflight.sh`
 - `mac_mini/scripts/install/10_install_homebrew_deps.sh`
 - `mac_mini/scripts/install/20_install_docker_runtime_mac.sh`
@@ -272,14 +275,65 @@ The current Mac mini scripts assume the following runtime layout:
 - `mac_mini/scripts/verify/60_verify_notifications.sh`
 - `mac_mini/scripts/verify/80_verify_services.sh`
 
+### Additional Mac mini runtime notes from this session
+- Homebrew bootstrap is now treated as part of the actual install path rather than an implicit external prerequisite.
+- `00_preflight.sh` no longer blocks on Python installation; Python install/selection is handled in `10_install_homebrew_deps.sh`.
+- macOS system `python3` may remain 3.9.x; current scripts explicitly install and select **Homebrew Python 3.11+**.
+- `30_setup_python_venv_mac.sh` now uses Homebrew Python 3.11+ explicitly instead of trusting the shell-default `python3`.
+- Mosquitto config generation path was corrected to `~/smarthome_workspace/docker/volumes/mosquitto/config` to match compose runtime mounts.
+- Mosquitto config mount in the compose template was changed from read-only to read-write to avoid startup-time `chown` / config-read failures in the selected image behavior.
+- Telegram notification setup is now documented in a dedicated guide:
+  - `mac_mini/docs/TELEGRAM_NOTIFICATION_SETUP.md`
+- `mac_mini/scripts/verify/60_verify_notifications.sh` had a bash placeholder parsing bug fixed (`<...>` placeholder handling).
+
 ### Current Mac mini status
 - install/configure/template/verify scaffolding is now much closer to the canonical baseline
+- Homebrew/Python/Docker initial bring-up confusion was reduced through script and doc changes
+- Mosquitto runtime path mismatch and config mount issues were diagnosed and corrected in repo scripts/templates
 - `mac_mini/code/` is still largely unimplemented and remains the major next implementation area
 - `edge_controller_app` is represented in compose/runtime structure, but the actual code path still needs implementation
+- `edge_controller_app` build context under `~/smarthome_workspace/docker/app` is still a known gap / placeholder area unless implementation artifacts are added
 
 ---
 
-## 10. Non-Negotiable Rules for Future Sessions
+## 10. Current RPi Runtime Interpretation
+
+### Current RPi install flow
+- `rpi/scripts/install/00_preflight_rpi.sh`
+- `rpi/scripts/install/10_install_system_packages_rpi.sh`
+- `rpi/scripts/install/20_create_python_venv_rpi.sh`
+- `rpi/scripts/install/30_install_python_deps_rpi.sh`
+- `rpi/scripts/install/40_install_time_sync_client_rpi.sh`
+
+### Current RPi configure flow
+- `rpi/scripts/configure/10_write_env_files_rpi.sh`
+- `rpi/scripts/configure/20_sync_phase0_artifacts_rpi.sh`
+- `rpi/scripts/configure/30_configure_time_sync_rpi.sh`
+- `rpi/scripts/configure/40_configure_simulation_runtime_rpi.sh`
+- `rpi/scripts/configure/50_configure_fault_profiles_rpi.sh`
+
+### Current RPi verify flow
+- `rpi/scripts/verify/70_verify_rpi_base_runtime.sh`
+- `rpi/scripts/verify/80_verify_rpi_closed_loop_audit.sh`
+
+### Additional RPi notes from this session
+- Python interpreter handling was generalized from hardcoded `python3.11` assumptions to `python3` **3.11+** acceptance.
+- `20_sync_phase0_artifacts_rpi.sh` depends on **actual** `MAC_MINI_USER` / `MAC_MINI_HOST` values in `~/smarthome_workspace/.env`; placeholder values such as `mac_user` / `192.168.1.100` will cause immediate sync failure.
+- The artifact sync path assumes the Mac mini runtime assets are already present at:
+  - `~/smarthome_workspace/docker/volumes/app/config/schemas`
+  - `~/smarthome_workspace/docker/volumes/app/config/policies`
+- Artifact sync also assumes **unattended SSH/rsync** from RPi to Mac mini.
+- A `Connection refused` result during `ssh-copy-id` means the Mac mini SSH server is not accepting connections on port 22 yet; this is usually a **Mac mini Remote Login / sshd availability** issue rather than an SSH key formatting issue.
+- `rpi/docs/README.md` now documents:
+  - actual `.env` requirements for sync
+  - Mac mini Remote Login enablement
+  - port 22 / `sshd` checks
+  - key-based SSH setup
+  - sync/SSH troubleshooting patterns
+
+---
+
+## 11. Non-Negotiable Rules for Future Sessions
 
 Any future assistant continuing this project should follow these rules.
 
@@ -320,7 +374,7 @@ Any future assistant continuing this project should follow these rules.
 
 ---
 
-## 11. Known Risks / Drift Risks
+## 12. Known Risks / Drift Risks
 
 ### A. Legacy file name reintroduction
 Old names such as:
@@ -363,6 +417,9 @@ The Mac mini scripts were recently aligned, but future changes could still reint
 - env variable naming
 - runtime asset mount paths
 - verify step expectations
+- Homebrew bootstrap assumptions
+- system `python3` vs Homebrew Python interpreter selection
+- Mosquitto config host path vs compose mount path
 
 ### G. Integration scenario drift
 Scenario fixtures and review guides were intentionally grounded in actual accessibility use context from the root README.  
@@ -372,9 +429,26 @@ Future edits must keep that connection, while still preserving the rule that sce
 The ESP32 cross-platform install/configure/verify layer now exists.  
 Future sessions should not confuse this with completed real node firmware implementation.
 
+### I. Mac mini notification verification drift
+Notification setup and verification are now functional, but future sessions should preserve consistency across:
+- `.env` variable naming
+- Telegram setup guide steps
+- `60_configure_notifications.sh`
+- `60_verify_notifications.sh`
+- mock fallback semantics
+
+### J. RPi SSH / artifact sync drift
+RPi artifact sync relies on runtime assumptions outside the local board itself.
+Future sessions must preserve consistency across:
+- `.env` host/user values
+- Mac mini Remote Login availability
+- SSH key-based unattended access
+- actual runtime asset deployment on Mac mini
+- rsync source path assumptions under `~/smarthome_workspace/docker/volumes/app/config/...`
+
 ---
 
-## 12. Recommended Next Actions
+## 13. Recommended Next Actions
 
 These are the recommended next steps after this handoff point.
 
@@ -386,10 +460,12 @@ These are the recommended next steps after this handoff point.
 6. Connect the integration runner and expected outcome comparator through an adapter, then extend toward MQTT publish / audit observe execution.
 7. When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
 8. If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
+9. Resolve the remaining `edge_controller_app` build-context / placeholder implementation gap so that the compose stack can be brought up end-to-end without manual service exclusion.
+10. Revisit `10_configure_home_assistant.sh` template path / template existence assumptions and ensure they match the current repo template layout.
 
 ---
 
-## 13. Recommended Checks Before Any Future Edit
+## 14. Recommended Checks Before Any Future Edit
 
 Before editing code or documents, the next session should verify:
 
@@ -405,6 +481,8 @@ Before editing code or documents, the next session should verify:
   - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - the current Mac mini README still exists:
   - `mac_mini/docs/README.md`
+- the current Mac mini Telegram guide still exists:
+  - `mac_mini/docs/TELEGRAM_NOTIFICATION_SETUP.md`
 - the current RPi README still exists:
   - `rpi/docs/README.md`
 - the current ESP32 README still exists:
@@ -421,7 +499,7 @@ Before editing code or documents, the next session should verify:
 
 ---
 
-## 14. If a New Session Continues This Project
+## 15. If a New Session Continues This Project
 
 The next assistant should do the following first:
 
@@ -445,7 +523,7 @@ The next assistant should do the following first:
 
 ---
 
-## 15. Commit / Traceability Snapshot
+## 16. Commit / Traceability Snapshot
 
 ### Important earlier commits mentioned in conversation
 - `419bb1a473ac989dbc0c1289d4ac146a03a9da31`  
@@ -503,6 +581,41 @@ The next assistant should do the following first:
 - `25e17ad4cbdbd51436ee30f7cf8e61a3e20e6b19`  
   aligned `09_recommended_next_steps.md`
 
+### Recent Mac mini / RPi bring-up and troubleshooting commits
+- `dacdc0ebafbd975ee34422b31f9262001d604370`
+- `f2700f51a452b0a6cd7925b37f793dbbb1c73d6e`
+- `9530bb95599e2139168072e3414c8e21cca74269`
+- `bedaa4140d4e76bd07a3a61e9f8b93a8573c3eb9`
+  
+  Homebrew bootstrap introduction and Mac mini install-order/document updates
+- `f7fcf7d7f987567d478f0dbeaa7de92b2015818c`
+- `86683cc9d0a2e66480e4a1a8855b66d23a3594ab`
+  
+  generalized RPi Python handling from hardcoded `python3.11` assumptions to `python3` 3.11+
+- `9c223ab29022b747b92818e5b013444f35323537`
+  
+  moved Mac mini Python install responsibility out of preflight and into install step
+- `8383d42deee176ebb2f15524fcea44e33042c37e`
+- `15467e8b3d0aff72e3123c94d043383022200a1f`
+  
+  explicit Homebrew Python 3.11+ install/selection and venv creation on Mac mini
+- `15e531c681ec74b7eac8aa7413238680ff4bb159`
+  
+  Mac mini README troubleshooting expansion
+- `b2b44b027fc4f5c9b8f037ffaef5a21498330d7f`
+  
+  added `mac_mini/docs/TELEGRAM_NOTIFICATION_SETUP.md`
+- `a4984dac4ef29ed62ef9cdb2746619a3d31062dd`
+- `57c23ca1c0207d719f6e150e30188e256c9d3a09`
+  
+  Mosquitto configure path alignment and compose template `:ro` removal
+- `0aa1eeb189ee7c77cc165ab247b21ad3022c3351`
+  
+  fixed bash placeholder parsing bug in `mac_mini/scripts/verify/60_verify_notifications.sh`
+- `25363e94e215e5917daa289da4e53e444165c3ad`
+  
+  documented RPi SSH/rsync artifact sync preconditions and troubleshooting
+
 ### Recent integration-layer commits
 - `f5b322ff7fc832a717654203a44f640f1f11781d`  
   created `integration/README.md` and `integration/requirements.md`
@@ -533,7 +646,7 @@ The next assistant should do the following first:
 
 ---
 
-## 16. Short Operational Summary
+## 17. Short Operational Summary
 
 If a future session needs a very short summary:
 
@@ -550,7 +663,9 @@ If a future session needs a very short summary:
 - Current implementation-facing scope includes lighting paths and a doorlock representative interface path.
 - Current authoritative autonomous Class 1 low-risk scope still follows the frozen low-risk catalog unless that catalog is explicitly updated.
 - Mac mini install/configure/verify scaffolding and README are now substantially aligned with the current baseline.
+- Homebrew bootstrap, Homebrew Python 3.11+, Telegram guide, and Mosquitto compose/config alignment were additional recent fixes.
 - RPi README and experiment-side scaffold are aligned around evaluation-only role separation.
+- RPi artifact sync now has documented SSH/Remote Login prerequisites.
 - ESP32 cross-platform bring-up scaffold now exists, but real node firmware is still largely unimplemented.
 - `integration/` now contains scenario, fixture, runner, comparator, and measurement starter assets.
 - Integration scenarios are grounded in actual accessibility use context, but remain evaluation assets rather than policy truth.
