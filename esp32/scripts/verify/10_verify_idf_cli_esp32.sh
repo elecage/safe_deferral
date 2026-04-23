@@ -28,12 +28,17 @@ fi
 # shellcheck disable=SC1090
 source "${IDF_PATH}/export.sh" >/dev/null 2>&1
 
-if ! command -v idf.py >/dev/null 2>&1; then
-    echo "  [FATAL] idf.py is not available after sourcing export.sh."
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON_CMD="python3"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_CMD="python"
+else
+    echo "  [FATAL] Python is not available."
     exit 1
 fi
-if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
-    echo "  [FATAL] Python is not available."
+
+if ! command -v idf.py >/dev/null 2>&1; then
+    echo "  [FATAL] idf.py is not available after sourcing export.sh."
     exit 1
 fi
 if ! command -v cmake >/dev/null 2>&1; then
@@ -44,14 +49,14 @@ if ! command -v ninja >/dev/null 2>&1 && ! command -v ninja-build >/dev/null 2>&
     echo "  [FATAL] ninja is not available."
     exit 1
 fi
-if ! command -v esptool.py >/dev/null 2>&1 && ! python -m esptool version >/dev/null 2>&1 2>/dev/null; then
+if ! command -v esptool.py >/dev/null 2>&1 && ! ${PYTHON_CMD} -m esptool version >/dev/null 2>&1; then
     echo "  [FATAL] esptool is not available."
     exit 1
 fi
 
 echo "  [INFO] Tool versions:"
 idf.py --version | awk '{print "    - "$0}'
-python3 --version 2>/dev/null | awk '{print "    - "$0}' || python --version | awk '{print "    - "$0}'
+${PYTHON_CMD} --version 2>&1 | awk '{print "    - "$0}'
 cmake --version | awk 'NR==1{print "    - "$0}'
 if command -v ninja >/dev/null 2>&1; then
     ninja --version | awk '{print "    - ninja " $0}'
@@ -61,7 +66,7 @@ fi
 if command -v esptool.py >/dev/null 2>&1; then
     esptool.py version | awk '{print "    - "$0}'
 else
-    python -m esptool version | awk '{print "    - "$0}'
+    ${PYTHON_CMD} -m esptool version | awk '{print "    - "$0}'
 fi
 
 echo "==> [PASS] ESP-IDF CLI verification completed successfully."
