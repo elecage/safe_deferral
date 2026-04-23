@@ -45,13 +45,25 @@ echo "  [INFO] Target Broker: ${TARGET_HOST}:${TARGET_PORT}"
 echo "  [INFO] Test Topic: ${TEST_TOPIC}"
 echo "  [INFO] Starting background subscriber (Timeout: 3s)..."
 
-mosquitto_sub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" -t "${TEST_TOPIC}" -C 1 -W 3 > "${LOG_FILE}" 2>/dev/null &
+SUB_CMD=(mosquitto_sub -h "${TARGET_HOST}" -p "${TARGET_PORT}")
+if [ ${#AUTH_ARGS[@]} -gt 0 ]; then
+    SUB_CMD+=("${AUTH_ARGS[@]}")
+fi
+SUB_CMD+=(-t "${TEST_TOPIC}" -C 1 -W 3)
+
+"${SUB_CMD[@]}" > "${LOG_FILE}" 2>/dev/null &
 SUB_PID=$!
 
 sleep 1
 
 echo "  [INFO] Publishing test message: ${TEST_MSG}"
-if ! mosquitto_pub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" -t "${TEST_TOPIC}" -m "${TEST_MSG}"; then
+PUB_CMD=(mosquitto_pub -h "${TARGET_HOST}" -p "${TARGET_PORT}")
+if [ ${#AUTH_ARGS[@]} -gt 0 ]; then
+    PUB_CMD+=("${AUTH_ARGS[@]}")
+fi
+PUB_CMD+=(-t "${TEST_TOPIC}" -m "${TEST_MSG}")
+
+if ! "${PUB_CMD[@]}"; then
     echo "  [FATAL] mosquitto_pub command failed."
     echo "          Please check if the broker is reachable and credentials are correct."
     rm -f "${LOG_FILE}"
