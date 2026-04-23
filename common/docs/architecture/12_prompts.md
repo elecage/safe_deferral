@@ -558,7 +558,7 @@ Requirements:
 - Align broker host assumptions, topic namespace, and device identity conventions with the documented hub-side architecture.
 - Do not invent payload fields or routing rules that are not grounded in the frozen shared assets.
 - Document firmware build, flash, reset, and reconnect assumptions.
-- When generating code, prefer a structure that can fit PlatformIO or Arduino-style workflows.
+- When generating code, prefer an ESP-IDF project structure and workflow aligned with the current `esp32/scripts/install/`, `esp32/scripts/configure/`, and `esp32/scripts/verify/` scaffolding.
 - Include a small verification checklist for:
   - broker connectivity on the trusted local network
   - expected topic publish/subscribe behavior
@@ -592,4 +592,269 @@ Requirements:
   - capture path consistency
   - reproducible repeated-run summaries
   - exportable latency result formats
+```
+
+---
+
+## Prompt 19. Generate ESP32 Minimal Template Project
+
+```text
+Generate a minimal ESP-IDF template project for the safe deferral prototype.
+
+Target repository areas:
+- esp32/firmware/templates/minimal_node/
+- esp32/docs/
+
+Requirements:
+- Create the smallest buildable ESP-IDF project that fits the current repository structure.
+- The template must build successfully through the current ESP32 configure/verify flow.
+- Include at minimum:
+  - CMakeLists.txt
+  - main/CMakeLists.txt
+  - main/main.c
+- Optional files may be added only when justified:
+  - sdkconfig.defaults
+  - idf_component.yml
+  - README.md
+- The template must:
+  - boot successfully,
+  - log a clear startup message,
+  - avoid autonomous actuation,
+  - avoid any invented application-level policy logic.
+- Prefer a simple main loop or task that is safe, deterministic, and easy to extend.
+- Keep the code free of project-specific MQTT topics, policy thresholds, or actuator assumptions unless those are explicitly loaded from aligned project assets.
+- Document:
+  - expected target selection,
+  - build command,
+  - flash command,
+  - serial monitor command.
+- Include a verification checklist confirming that the template is suitable for:
+  - `idf.py set-target ...`
+  - `idf.py reconfigure`
+  - `idf.py build`
+```
+
+---
+
+## Prompt 20. Implement ESP32 Button Input Node Firmware
+
+```text
+Implement bounded ESP32 firmware for a button input node.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- The firmware must represent a bounded physical button-input node.
+- The node’s purpose is to emit policy-consistent button events or bounded clarification/emergency input patterns.
+- Do not invent emergency semantics beyond what is allowed by the canonical policy artifacts.
+- Distinguish clearly between:
+  - bounded clarification button input used by the context-integrity-based safe deferral stage,
+  - bounded emergency input semantics if and only if those semantics are grounded in the current policy artifacts.
+- Support explicit GPIO configuration for one or more buttons.
+- Include software debouncing and safe handling for repeated presses.
+- Support deterministic event emission suitable for auditability and reproducibility.
+- Align payload fields, event codes, and device identity conventions with the frozen shared assets and aligned docs.
+- Do not hardcode arbitrary topic namespaces or payload field names.
+- Keep the firmware bounded:
+  - it may publish or report button events,
+  - it must not interpret them into autonomous actuator commands.
+- Prefer ESP-IDF style project structure compatible with the current ESP32 install/configure/verify scripts.
+- Include notes for:
+  - GPIO mapping,
+  - debounce assumptions,
+  - reset/reconnect behavior,
+  - broker reconnect behavior,
+  - test procedure for 1-hit / 2-hit / 3-hit bounded input patterns when policy-aligned.
+```
+
+---
+
+## Prompt 21. Implement ESP32 Lighting Control Node Firmware
+
+```text
+Implement bounded ESP32 firmware for a lighting control node.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- The firmware must represent a bounded lighting actuator interface node.
+- It must receive only bounded low-risk commands that are already approved upstream by the deterministic validator and dispatcher path.
+- It must not invent local autonomy or bypass the policy/validator chain.
+- It must not accept out-of-domain commands.
+- Support explicit GPIO or relay output configuration suitable for lighting control experiments.
+- Include a device-state ACK path or equivalent local confirmation mechanism so that successful actuation can be reported upstream.
+- Keep output behavior conservative on boot and reconnect:
+  - no unintended toggle on startup,
+  - no unsafe default-on state.
+- If command payload schemas are needed, derive them from aligned project assets and supporting docs rather than inventing them.
+- Document:
+  - GPIO / relay assumptions,
+  - safe default state,
+  - ACK semantics,
+  - reconnect behavior,
+  - manual test steps for ON/OFF or similarly bounded lighting actions.
+- Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
+```
+
+---
+
+## Prompt 22. Implement ESP32 Representative Environmental Sensing Node Firmware
+
+```text
+Implement bounded ESP32 firmware for a representative environmental sensing node used in the current validation baseline.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- The firmware must publish bounded environmental sensing data that fits the current validation baseline.
+- Examples may include one or more of:
+  - temperature,
+  - illuminance,
+  - occupancy-adjacent bounded signals,
+  - simple device-state reporting,
+  but do not invent unsupported schema fields.
+- Sensor payloads must align with the frozen context schema and aligned project documents.
+- Sampling and publish behavior must be deterministic and easy to replay in evaluation contexts.
+- Include safe handling for sensor initialization failure, unavailable readings, and stale data conditions.
+- Do not interpret sensed values into local autonomous actuator behavior.
+- Document:
+  - supported sensor model assumptions,
+  - calibration assumptions if any,
+  - publish interval behavior,
+  - invalid reading handling,
+  - reconnect behavior,
+  - simple validation procedure against the hub-side pipeline.
+- Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
+```
+
+---
+
+## Prompt 23. Implement ESP32 Gas Sensor Node Firmware (Optional Experimental Target)
+
+```text
+Implement bounded ESP32 firmware for an optional experimental gas sensor node.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- Treat this node as an optional experimental target, not as the current canonical baseline unless explicitly promoted by aligned project documents.
+- The firmware must publish gas-related sensing events or bounded states only in ways that remain consistent with the frozen policy/schema artifacts.
+- Do not invent ad hoc emergency semantics or payload fields.
+- If gas emergency triggering is involved, keep the node’s behavior aligned with canonical trigger family expectations rather than embedding local autonomous emergency logic.
+- Sensor failure, warm-up, drift, and invalid readings must be handled conservatively.
+- Local firmware may classify raw hardware readiness states, but must not replace hub-side policy routing.
+- Document:
+  - assumed gas sensor hardware,
+  - warm-up / stabilization behavior,
+  - invalid reading behavior,
+  - publish cadence,
+  - reconnect behavior,
+  - test steps for safe experimental validation.
+- Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
+```
+
+---
+
+## Prompt 24. Implement ESP32 Fire Detection Sensor Node Firmware (Optional Experimental Target)
+
+```text
+Implement bounded ESP32 firmware for an optional experimental fire detection sensor node.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- Treat this node as an optional experimental target, not as the current canonical baseline unless explicitly promoted by aligned project documents.
+- The firmware must publish bounded smoke/fire-related sensing events or states consistent with the frozen policy/schema artifacts.
+- Do not invent out-of-schema payload fields or ungrounded emergency classifications.
+- If smoke/fire emergency signaling is included, ensure the node’s outputs remain aligned with the canonical routing trigger family rather than embedding policy replacement logic locally.
+- Sensor initialization failure, warm-up behavior, and invalid readings must be handled conservatively.
+- The node may expose bounded readiness or health status, but it must not autonomously dispatch unrelated actuator behavior.
+- Document:
+  - assumed sensor hardware,
+  - warm-up behavior,
+  - invalid reading handling,
+  - publish cadence,
+  - reconnect behavior,
+  - safe validation steps.
+- Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
+```
+
+---
+
+## Prompt 25. Implement ESP32 Fall-Detection Interface Node Firmware (Optional Experimental Target)
+
+```text
+Implement bounded ESP32 firmware for an optional experimental fall-detection interface node.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- Treat this node as an optional experimental target, not as the current canonical baseline unless explicitly promoted by aligned project documents.
+- The node may interface with an IMU, thresholding module, or bounded upstream fall-detection signal source.
+- It must not invent arbitrary fall payloads that violate the frozen schema.
+- When fall events are emitted, align them with the current policy/schema interpretation used elsewhere in the system.
+- Keep local behavior bounded:
+  - basic signal acquisition,
+  - bounded event emission,
+  - health/status reporting,
+  - no autonomous unrelated actuation.
+- Handle sensor ambiguity, initialization failure, and reconnect behavior conservatively.
+- Document:
+  - assumed IMU or fall interface hardware,
+  - bounded detection/interface assumptions,
+  - event emission behavior,
+  - invalid signal handling,
+  - simple validation procedure against the hub-side event path.
+- Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
+```
+
+---
+
+## Prompt 26. Implement ESP32 Warning or Doorlock Interface Node Firmware (Planned Extension Target)
+
+```text
+Implement bounded ESP32 firmware for a planned-extension warning interface node or doorlock interface node.
+
+Target repository areas:
+- esp32/code/
+- esp32/firmware/
+- esp32/docs/
+
+Requirements:
+- Treat this node as a planned extension target, not as part of the current canonical baseline unless explicitly promoted by aligned project documents.
+- The node must remain bounded and policy-dependent.
+- For warning interface behavior:
+  - support bounded warning output such as buzzer, light, or simple alert indicator,
+  - avoid inventing local autonomy that bypasses hub-side policy.
+- For doorlock interface behavior:
+  - keep safety assumptions explicit,
+  - do not allow unbounded or high-risk actuation semantics,
+  - require clear upstream authorization assumptions.
+- The firmware must document conservative startup state, reconnect behavior, and ACK or status reporting assumptions.
+- Do not invent unsupported payloads, routing rules, or action domains.
+- Document:
+  - hardware assumptions,
+  - safe default state,
+  - bounded command assumptions,
+  - ACK/status semantics,
+  - validation steps suitable for extension-stage experiments.
+- Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
 ```
