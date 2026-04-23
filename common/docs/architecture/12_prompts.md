@@ -858,3 +858,98 @@ Requirements:
   - validation steps suitable for extension-stage experiments.
 - Prefer ESP-IDF structure compatible with the current ESP32 environment scaffolding.
 ```
+
+---
+
+## Prompt 27. Implement Experiment Preflight Readiness Backend
+
+```text
+Implement an experiment preflight readiness backend for the safe deferral project.
+
+Target repository areas:
+- integration/measurement/
+- integration/tests/
+- mac_mini/code/ (only if a runtime-facing adapter is needed)
+
+Requirements:
+- The implementation must evaluate whether a selected experiment is READY, DEGRADED, BLOCKED, or UNKNOWN before execution.
+- Treat this layer as an operational/evaluation support layer, not as policy authority.
+- Load experiment dependency definitions from repository-managed metadata rather than hardcoding them throughout the code.
+- Support dependency categories such as:
+  - required operational nodes
+  - required services
+  - required topics
+  - required runtime assets
+  - required measurement nodes
+  - required result-export conditions
+- The design must preserve the distinction between:
+  - operational nodes and services,
+  - out-of-band measurement nodes.
+- Measurement nodes must not be treated as authoritative control nodes.
+- Support blocked reason codes such as:
+  - NODE_OFFLINE
+  - SERVICE_UNREACHABLE
+  - ASSET_MISSING
+  - MQTT_UNREACHABLE
+  - EDGE_CONTROLLER_APP_UNAVAILABLE
+  - MEASUREMENT_NODE_UNAVAILABLE
+  - RESULT_STORE_NOT_WRITABLE
+- Include a machine-readable readiness report format.
+- Include unit tests for:
+  - all dependencies ready
+  - operational dependency blocked
+  - measurement dependency degraded case
+  - unknown state handling
+- Keep the implementation aligned with:
+  - integration/measurement/experiment_preflight_readiness_design.md
+  - integration/measurement/class_wise_latency_profiles.md
+- Do not invent policy semantics or reinterpret canonical emergency classes.
+```
+
+---
+
+## Prompt 28. Implement STM32 Nucleo-H723ZG Measurement Node Firmware and Export Path
+
+```text
+Implement firmware and supporting documentation for an STM32 Nucleo-H723ZG out-of-band measurement node.
+
+Target repository areas:
+- integration/measurement/
+- optional implementation area if created for STM32-specific source/assets
+
+Requirements:
+- Treat the STM32 node as an out-of-band measurement node, not as an operational control node.
+- The node’s purpose is to support:
+  - timing capture,
+  - latency evidence collection,
+  - trigger/observe/actuation timestamp export,
+  - repeated-run reproducibility support.
+- It must NOT:
+  - publish operational control decisions,
+  - replace policy routing,
+  - replace validator behavior,
+  - directly control actuators as part of the operational path.
+- The implementation should target STM32 Nucleo-H723ZG specifically.
+- Support deterministic measurement session behavior such as:
+  - startup self-check,
+  - timer/capture initialization,
+  - edge timestamp capture,
+  - raw timestamp export,
+  - measurement readiness/status indication.
+- Prefer a conservative firmware structure that is easy to audit and extend.
+- Provide or document a recommended export path such as:
+  - UART / USB CDC raw timestamp export,
+  - bounded measurement status reporting,
+  - CSV-friendly output structure.
+- If host-side parsing or CSV conversion helpers are created, place them in the measurement support layer, not in the operational control path.
+- Keep the design aligned with:
+  - integration/measurement/stm32_nucleo_h723zg_measurement_node.md
+  - integration/measurement/experiment_preflight_readiness_design.md
+- Include a validation checklist for:
+  - board boot success,
+  - timer initialization success,
+  - capture edge detection success,
+  - export success,
+  - no operational control side effects.
+- Do not invent latency thresholds or measurement claims that are not grounded in aligned project docs.
+```

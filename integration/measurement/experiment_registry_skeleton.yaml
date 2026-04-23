@@ -1,0 +1,191 @@
+version: "0.1"
+registry_type: "experiment_registry"
+description: >-
+  Skeleton registry for experiment preflight readiness, dashboard integration,
+  and result artifact expectations. This file is an evaluation/support asset and
+  does not redefine canonical policy or schema truth.
+
+defaults:
+  blocked_if_missing: true
+  final_state_rules:
+    operational_dependency_blocked: "BLOCKED"
+    measurement_dependency_blocked: "DEGRADED"
+    all_ready: "READY"
+    unknown_core_state: "UNKNOWN"
+  expected_result_artifacts:
+    - "summary.json"
+    - "run_metadata.json"
+
+experiments:
+  - experiment_id: "EXP_MQTT_PUBSUB_VERIFY"
+    display_name: "MQTT Pub/Sub Verify"
+    category: "runtime_smoke"
+    description: >-
+      Verify MQTT broker publish/subscribe reachability on the trusted local network.
+    required_nodes:
+      - "mac_mini"
+      - "mosquitto"
+    required_services:
+      - "mqtt_broker"
+    required_topics:
+      - "smarthome/verify/test"
+    required_assets: []
+    required_runtime_conditions:
+      - "mqtt_reachable"
+    required_measurement_nodes: []
+    expected_result_artifacts:
+      - "summary.json"
+      - "run_metadata.json"
+      - "mqtt_verify.log"
+
+  - experiment_id: "EXP_NOTIFICATION_VERIFY"
+    display_name: "Notification Channel Verify"
+    category: "runtime_smoke"
+    description: >-
+      Verify outbound notification channel availability such as Telegram or mock fallback.
+    required_nodes:
+      - "mac_mini"
+      - "notification_backend"
+    required_services:
+      - "notification_channel"
+    required_topics: []
+    required_assets: []
+    required_runtime_conditions:
+      - "notification_channel_available"
+    required_measurement_nodes: []
+    expected_result_artifacts:
+      - "summary.json"
+      - "notification_verify.log"
+
+  - experiment_id: "EXP_TIME_SYNC_MARGIN"
+    display_name: "Time Sync Margin Verify"
+    category: "timing_readiness"
+    description: >-
+      Verify that the Raspberry Pi time sync offset remains within the configured margin.
+    required_nodes:
+      - "mac_mini"
+      - "rpi"
+    required_services:
+      - "timesync_service"
+    required_topics: []
+    required_assets:
+      - "policy_table_v1_1_2_FROZEN.json"
+    required_runtime_conditions:
+      - "rpi_time_sync_available"
+    required_measurement_nodes: []
+    expected_result_artifacts:
+      - "summary.json"
+      - "time_sync_verification.log"
+      - "time_sync_metrics.csv"
+
+  - experiment_id: "EXP_FAULT_STALENESS_01"
+    display_name: "Fault Staleness Closed-Loop Audit"
+    category: "closed_loop_safety"
+    description: >-
+      Inject a deterministic staleness fault and verify that the safety pipeline produces
+      an expected safe outcome without unsafe autonomous actuation.
+    required_nodes:
+      - "mac_mini"
+      - "mosquitto"
+      - "rpi"
+      - "edge_controller_app"
+    required_services:
+      - "mqtt_broker"
+      - "audit_pipeline"
+    required_topics:
+      - "smarthome/context/raw"
+      - "smarthome/audit/validator_output"
+    required_assets:
+      - "policy_table_v1_1_2_FROZEN.json"
+      - "fault_injection_rules_v1_4_0_FROZEN.json"
+      - "validator_output_schema_v1_1_0_FROZEN.json"
+    required_runtime_conditions:
+      - "artifact_sync_complete"
+      - "mqtt_reachable"
+      - "audit_topic_configured"
+    required_measurement_nodes:
+      - "stm32_time_probe_01"
+      - "stm32_time_probe_02"
+    measurement_policy:
+      if_missing: "DEGRADED"
+      rationale: >-
+        The closed-loop safety audit may still run without out-of-band time probes,
+        but precise timing evidence and export completeness are degraded.
+    expected_result_artifacts:
+      - "summary.json"
+      - "raw_audit.log"
+      - "latency.csv"
+      - "latency_plot.png"
+      - "run_metadata.json"
+
+  - experiment_id: "EXP_CLASSWISE_LATENCY_PROFILE"
+    display_name: "Class-wise Latency Profile"
+    category: "out_of_band_measurement"
+    description: >-
+      Measure class-wise latency with out-of-band timestamp evidence and exportable artifacts.
+    required_nodes:
+      - "mac_mini"
+      - "mosquitto"
+      - "rpi"
+    required_services:
+      - "mqtt_broker"
+      - "experiment_runner"
+    required_topics:
+      - "experiment/preflight/result"
+      - "experiment/result/summary"
+    required_assets:
+      - "policy_table_v1_1_2_FROZEN.json"
+      - "output_profile_v1_1_0.json"
+    required_runtime_conditions:
+      - "result_store_writable"
+      - "experiment_runner_idle"
+    required_measurement_nodes:
+      - "stm32_time_probe_01"
+      - "stm32_time_probe_02"
+    measurement_policy:
+      if_missing: "BLOCKED"
+      rationale: >-
+        This experiment specifically depends on out-of-band timing capture and should not run
+        without the required STM32 measurement probes.
+    expected_result_artifacts:
+      - "summary.json"
+      - "raw_timestamps.csv"
+      - "latency.csv"
+      - "latency_plot.png"
+      - "run_metadata.json"
+
+  - experiment_id: "EXP_TRIGGER_TO_ACTUATION_TIMING"
+    display_name: "Trigger-to-Actuation Timing"
+    category: "out_of_band_measurement"
+    description: >-
+      Measure end-to-end delay from trigger observation to bounded actuator acknowledgment.
+    required_nodes:
+      - "mac_mini"
+      - "mosquitto"
+      - "edge_controller_app"
+    required_services:
+      - "mqtt_broker"
+      - "audit_pipeline"
+      - "actuation_ack_pipeline"
+    required_topics:
+      - "smarthome/context/raw"
+      - "smarthome/audit/validator_output"
+    required_assets:
+      - "policy_table_v1_1_2_FROZEN.json"
+      - "low_risk_actions_v1_1_0_FROZEN.json"
+    required_runtime_conditions:
+      - "result_store_writable"
+      - "experiment_runner_idle"
+    required_measurement_nodes:
+      - "stm32_time_probe_01"
+      - "stm32_time_probe_02"
+    measurement_policy:
+      if_missing: "BLOCKED"
+      rationale: >-
+        Trigger-to-actuation timing must be backed by out-of-band time probes.
+    expected_result_artifacts:
+      - "summary.json"
+      - "raw_timestamps.csv"
+      - "latency.csv"
+      - "latency_plot.png"
+      - "ack_trace.log"

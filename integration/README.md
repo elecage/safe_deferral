@@ -10,6 +10,7 @@
 - fault-injection and closed-loop evaluation support
 - optional out-of-band timing / latency measurement support
 - reusable test-data and expected-outcome assets
+- experiment preflight readiness 설계 및 measurement-node readiness 지원
 
 즉, `integration/`은 **시스템 전체를 검증하고 재현성을 확보하기 위한 cross-device layer**다.
 
@@ -37,7 +38,9 @@ integration/
 │   └── baseline_scenario_skeleton.json
 └── measurement/
     ├── README.md
-    └── class_wise_latency_profiles.md
+    ├── class_wise_latency_profiles.md
+    ├── experiment_preflight_readiness_design.md
+    └── stm32_nucleo_h723zg_measurement_node.md
 ```
 
 ---
@@ -74,6 +77,19 @@ integration/
 - repeated-run summary 지향 원칙 정리
 - measurement profile 문서화 예시 제공
 
+### `integration/measurement/experiment_preflight_readiness_design.md`
+역할:
+- 실험별 required node / service / asset / measurement dependency 설계
+- READY / DEGRADED / BLOCKED / UNKNOWN 판정 모델 정리
+- Home Assistant 실험 대시보드와 연결 가능한 preflight readiness 설계 정리
+- operational node와 out-of-band measurement node 분리 원칙 정리
+
+### `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`
+역할:
+- STM32 Nucleo-H723ZG를 out-of-band measurement node로 해석하는 기준 정리
+- timing capture / latency evidence / export 역할 정의
+- operational control path와 분리된 계측 노드 개발 방향 정리
+
 ---
 
 ## 3. 하위 디렉터리 역할
@@ -100,6 +116,8 @@ integration/
 - timing capture notes
 - measurement profiles
 - result templates and export references
+- experiment preflight readiness design
+- dedicated measurement node support notes
 
 ---
 
@@ -110,6 +128,7 @@ integration/
 - Raspberry Pi evaluation path를 우회하는 별도 제어 경로를 만들지 않는다.
 - ESP32 physical node behavior를 직접 대체하지 않는다.
 - measurement support는 evaluation-only support path로 유지한다.
+- STM32 timing/measurement node는 operational actuator/sensor node가 아니라 **out-of-band evidence collection node**로 유지한다.
 
 즉, `integration/`의 목적은 **검증, 재현성, 평가**이지, 운영 로직 대체가 아니다.
 
@@ -139,7 +158,9 @@ integration/
 1. scenario skeleton 작성 또는 복제
 2. `integration/tests/data/`의 fixture 참조
 3. `integration_test_runner_skeleton.py`로 scenario + fixture loading 검증
-4. 이후 expected outcome comparator / MQTT adapter / audit observer 추가
+4. 필요 시 `integration/measurement/experiment_preflight_readiness_design.md`를 바탕으로 실험 전 readiness 조건 정의
+5. timing/latency 실험이 필요한 경우 `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`를 참고하여 measurement node 요구사항 정리
+6. 이후 expected outcome comparator / MQTT adapter / audit observer 추가
 
 예:
 
@@ -164,6 +185,9 @@ python3 integration/tests/integration_test_runner_skeleton.py \
 3. canonical consistency smoke test 추가
 4. `integration/measurement/`에 result template 문서 추가
 5. `integration/scenarios/`에 Class 0 / Class 2 / stale / conflict skeleton 추가
-6. 이후 실제 MQTT publish / audit observe adapter 추가
+6. experiment registry / node registry 설계 자산 추가
+7. Home Assistant 실험 대시보드와 연결될 preflight readiness panel 설계
+8. STM32 measurement node heartbeat / export contract 구체화
+9. 이후 실제 MQTT publish / audit observe adapter 추가
 
 이후에야 `integration/`이 문서 수준을 넘어 **실제 cross-device evaluation asset layer**로 동작하게 된다.
