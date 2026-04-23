@@ -1,0 +1,8 @@
+{
+  "expected_route_class": "CLASS_0",
+  "expected_routing_target": "CLASS_0",
+  "expected_llm_invocation_allowed": false,
+  "expected_safe_outcome": "immediate_emergency_override_path",
+  "canonical_emergency_family": "E005",
+  "notes": "Expected outcome fixture for a representative fall-detected emergency case. Exact trigger semantics remain defined by the frozen policy table."
+}

@@ -42,6 +42,11 @@ class TestClass0Scenarios:
         result = _run("integration/scenarios/class0_e001_scenario_skeleton.json")
         assert result.passed, _fail_detail(result)
 
+    def test_e002_button_triple_hit_emergency(self):
+        """E002: button triple-hit triggers CLASS_0 emergency path."""
+        result = _run("integration/scenarios/class0_e002_scenario_skeleton.json")
+        assert result.passed, _fail_detail(result)
+
     def test_e003_smoke_emergency(self):
         """E003: smoke_detected triggers CLASS_0 emergency path."""
         result = _run("integration/scenarios/class0_e003_scenario_skeleton.json")
