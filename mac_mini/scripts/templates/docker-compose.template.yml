@@ -31,8 +31,8 @@ services:
 
   edge_controller_app:
     build:
-      context: ./app
-      dockerfile: Dockerfile
+      context: ${SAFE_DEFERRAL_REPO_ROOT}
+      dockerfile: mac_mini/code/Dockerfile
     container_name: edge_controller_app
     restart: unless-stopped
     depends_on:
