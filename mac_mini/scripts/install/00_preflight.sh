@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 00_preflight.sh
-# Purpose: Pure pre-flight checks for Mac mini system requirements
+# Purpose: Pure pre-flight checks for Mac mini system requirements after Homebrew bootstrap
 # ==============================================================================
 set -euo pipefail
 
@@ -14,9 +14,9 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 echo "  [OK] Operating System is macOS."
 
-# 2. Homebrew 존재 여부 확인 (필수 패키지 매니저)
+# 2. Homebrew 존재 여부 확인
 if ! command -v brew &> /dev/null; then
-    echo "  [FAIL] Homebrew is not installed. Please install it first."
+    echo "  [FAIL] Homebrew is not installed. Run mac_mini/scripts/install/00_install_homebrew.sh first."
     exit 1
 fi
 echo "  [OK] Homebrew is installed."
@@ -24,11 +24,11 @@ echo "  [OK] Homebrew is installed."
 # 3. Python 3.11 이상 실제 버전 검사
 if command -v python3 &> /dev/null; then
     if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
-        echo "  [FAIL] Python 3.11 or higher is required. Please upgrade Python."
+        echo "  [FAIL] Python 3.11 or higher is required. Install or upgrade Python via Homebrew before continuing."
         exit 1
     fi
 else
-    echo "  [FAIL] Python 3 is not installed."
+    echo "  [FAIL] Python 3 is not installed. Run mac_mini/scripts/install/10_install_homebrew_deps.sh after Homebrew installation."
     exit 1
 fi
 echo "  [OK] Python 3.11+ is installed."
