@@ -146,10 +146,17 @@ The following docs were reviewed and updated to match the current canonical base
 - `common/docs/architecture/11_configuration_script_structure.md`
 - `common/docs/architecture/12_prompts.md`
 
-### Experiment / runtime docs
+### Experiment / runtime / layer docs
 - `common/docs/required_experiments.md`
 - `common/docs/runtime/SESSION_HANDOFF.md`
 - `mac_mini/docs/README.md`
+- `rpi/docs/README.md`
+- `esp32/docs/README.md`
+- `integration/README.md`
+- `integration/requirements.md`
+- `integration/scenarios/scenario_manifest_rules.md`
+- `integration/scenarios/scenario_review_guide.md`
+- `integration/measurement/class_wise_latency_profiles.md`
 
 ### Alignment themes already applied
 - canonical baseline version cleanup
@@ -160,7 +167,8 @@ The following docs were reviewed and updated to match the current canonical base
 - canonical consistency check expectations
 - prompt anti-drift updates
 - deterministic fault profile mapping alignment in `required_experiments.md`
-- Mac mini install/configure/verify flow documentation in Korean
+- Mac mini / RPi / ESP32 install-configure-verify flow documentation
+- integration scenario layer grounding in actual accessibility / daily-life use context from the root README
 
 ---
 
@@ -188,6 +196,24 @@ The following docs were reviewed and updated to match the current canonical base
 - Runtime asset deployment was updated to use current canonical filenames and paths
 - Verify scripts were updated to reflect the current runtime asset set, current core Docker services, and current SQLite schema expectations
 - `mac_mini/docs/README.md` was expanded into a step-by-step Korean operational guide with runnable commands for install, configure, and verify phases
+
+### Raspberry Pi runtime/documentation alignment completed
+- `rpi/scripts/install/`, `configure/`, and `verify/` were reviewed and aligned around the current canonical asset set and evaluation-only boundary
+- `requirements-rpi.txt` was created and tied to the RPi experiment-side Python environment
+- `rpi/docs/README.md` was expanded into a Korean step-by-step guide covering install, configure, verify, runtime role boundary, and success criteria
+
+### ESP32 cross-platform bring-up scaffolding completed
+- cross-platform install scaffolding was created for macOS / Linux / Windows under `esp32/scripts/install/`
+- configure scaffolding was created for POSIX and Windows under `esp32/scripts/configure/`
+- verify scaffolding was created for POSIX and Windows under `esp32/scripts/verify/`
+- `esp32/docs/README.md` was expanded to explain actual execution order and sample-build success as the current completion criterion
+- `common/docs/architecture/12_prompts.md` was expanded with Prompt 19~26 for minimal template and node-specific firmware generation
+
+### Integration layer scaffolding completed
+- `integration/` now exists as an explicit cross-device validation layer with root README and requirements docs
+- `integration/tests/`, `integration/tests/data/`, `integration/scenarios/`, and `integration/measurement/` now contain starter README/docs/assets
+- integration fixture samples, expected outcome fixtures, scenario skeletons, runner skeleton, comparator skeleton, scenario manifest rules, scenario review guide, and class-wise latency profile docs were added
+- scenario layer was aligned with `required_experiments.md`, current implemented low-risk scope, and canonical emergency family `E001`~`E005`
 
 ---
 
@@ -265,8 +291,14 @@ Any future assistant continuing this project should follow these rules.
 8. **Preserve authority hierarchy.**  
    Do not let policy table summaries, output profiles, or docs override the authoritative low-risk catalog or canonical notification schema.
 
-9. **Preserve Mac mini runtime path consistency.**  
-   New install/configure/verify changes should not reintroduce older path layouts such as `${HOME}/smarthome_workspace/config/...` when the runtime baseline uses `${HOME}/smarthome_workspace/docker/volumes/app/config/...`.
+9. **Preserve runtime path consistency.**  
+   New install/configure/verify changes should not reintroduce older path layouts when a newer layer has already been standardized.
+
+10. **Preserve current implemented scope vs extended scope distinction.**  
+    In particular, do not quietly expand autonomous low-risk actuation beyond the current authoritative lighting scope without updating the canonical baseline and required experiments docs.
+
+11. **Do not let integration scenario assets become policy truth.**  
+    Scenarios, fixtures, runner outputs, and review guides are evaluation assets only.
 
 ---
 
@@ -304,7 +336,7 @@ Future work must preserve:
 - policy/schema/rules consistency checking
 - trigger-family alignment for `E001`~`E005`
 - deterministic fault profile mapping consistency in `required_experiments.md`
-- Mac mini runtime asset verification alignment with current canonical filenames
+- runtime asset verification alignment with current canonical filenames
 
 ### F. Mac mini compose/runtime drift
 The Mac mini scripts were recently aligned, but future changes could still reintroduce mismatch across:
@@ -312,6 +344,14 @@ The Mac mini scripts were recently aligned, but future changes could still reint
 - env variable naming
 - runtime asset mount paths
 - verify step expectations
+
+### G. Integration scenario drift
+Scenario fixtures and review guides were intentionally grounded in actual accessibility use context from the root README.  
+Future edits must keep that connection, while still preserving the rule that scenarios do not redefine canonical policy truth.
+
+### H. ESP32 bring-up vs firmware confusion
+The ESP32 cross-platform install/configure/verify layer now exists.  
+Future sessions should not confuse this with completed real node firmware implementation.
 
 ---
 
@@ -321,10 +361,11 @@ These are the recommended next steps after this handoff point.
 
 1. Begin implementation-facing work against the stabilized baseline.
 2. Verify that no scripts, prompts, or code still reference deleted legacy policy/schema assets.
-3. Optionally add a lightweight index/readme under `common/policies/` and/or `common/schemas/` listing the current canonical asset set.
-4. Keep Llama 3.1 as the primary baseline during implementation and early evaluation.
-5. If model comparison becomes necessary later, create an explicit A/B evaluation plan rather than switching directly to Gemma 4.
-6. Start defining and implementing the actual `mac_mini/code/` services, especially the policy router, deterministic validator, safe deferral handler, audit logger, and notification backend.
+3. Keep Llama 3.1 as the primary baseline during implementation and early evaluation.
+4. Start defining and implementing the actual `mac_mini/code/` services, especially the policy router, deterministic validator, safe deferral handler, audit logger, and notification backend.
+5. Add dedicated payload fixtures for `E002`~`E005` instead of reusing placeholder emergency fixtures in the integration scenario layer.
+6. Connect the integration runner and expected outcome comparator through an adapter, then extend toward MQTT publish / audit observe execution.
+7. When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
 
 ---
 
@@ -344,9 +385,18 @@ Before editing code or documents, the next session should verify:
   - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - the current Mac mini README still exists:
   - `mac_mini/docs/README.md`
+- the current RPi README still exists:
+  - `rpi/docs/README.md`
+- the current ESP32 README still exists:
+  - `esp32/docs/README.md`
+- the current integration root README still exists:
+  - `integration/README.md`
+- the current scenario manifest / review docs still exist:
+  - `integration/scenarios/scenario_manifest_rules.md`
+  - `integration/scenarios/scenario_review_guide.md`
 - no deleted legacy assets were accidentally reintroduced
 - prompts, required experiments, and architecture docs still point to the same baseline versions
-- Mac mini install/configure/verify scripts still assume the same runtime path layout
+- current implemented lighting scope in `required_experiments.md` is still reflected in integration fixtures and scenario expectations
 
 ---
 
@@ -358,9 +408,9 @@ The next assistant should do the following first:
 2. Treat the listed canonical frozen assets as the source of truth.
 3. Confirm current repo state before proposing edits.
 4. Avoid reintroducing deleted legacy files or version names.
-5. Preserve document-to-document consistency across architecture docs, required experiments docs, and the Mac mini README.
+5. Preserve document-to-document consistency across architecture docs, required experiments docs, device-layer READMEs, and integration docs.
 6. Keep Llama 3.1 as the active local model baseline unless the user explicitly asks for a model evaluation change.
-7. If modifying prompts, scripts, or implementation plans, ensure they still align with:
+7. If modifying prompts, scripts, scenarios, or implementation plans, ensure they still align with:
    - `policy_table_v1_1_2_FROZEN.json`
    - `low_risk_actions_v1_1_0_FROZEN.json`
    - `fault_injection_rules_v1_4_0_FROZEN.json`
@@ -368,6 +418,9 @@ The next assistant should do the following first:
    - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
    - `common/docs/required_experiments.md`
    - `mac_mini/docs/README.md`
+   - `rpi/docs/README.md`
+   - `esp32/docs/README.md`
+   - `integration/README.md`
 
 ---
 
@@ -409,25 +462,53 @@ The next assistant should do the following first:
 - `2bd22eb02e108347465a2ca19479d565a6e99fd8`  
   expanded `mac_mini/docs/README.md` into a Korean step-by-step runtime guide
 
-### Recent Mac mini runtime alignment commits
-- `0b3b858983640a089e847dfbeac23b7c2fbe20e4`  
-  aligned Mac mini compose preparation, template, canonical asset deployment, and env writing
-- `5a0db86c5dcf997e5f1f6bf45d9d6bf21692c932`  
-  aligned Mac mini SQLite configure script with current audit logging schema
-- `122bc4a219dbcf9b74f3727233e82d078eacb7b8`  
-  aligned key Mac mini verify scripts with current runtime asset paths, current Docker services, and SQLite schema readiness
-- `fa092aa0df81a98c8d415ace2c25e95f439d1076`  
-  completed Mac mini install/verify polish for jq, MQTT client tools, and clearer verify script role boundaries
+### Recent device-layer and architecture alignment commits
+- `c46aad8f1c60c13f5ae42973700b3fddf98085ea`  
+  Windows ESP32 configure/verify support and `esp32/docs/README.md` execution order expansion
+- `525cd76cb0759bdd509d972289303fb80d8988c4`  
+  expanded `12_prompts.md` with dedicated ESP32 firmware generation prompts
+- `3f8fd0811095510a054463838fcf0104f7b002d4`  
+  expanded `rpi/docs/README.md`
+- `d7ae83a74c9e6bc5b13b6f301277113560f4a729`  
+  aligned `10_install_script_structure.md` and `11_configuration_script_structure.md` with current ESP32 scaffolding
+- `073d0d92f559f666f86fe19041da21ba4f77a104`  
+  aligned `04_project_directory_structure.md`
+- `0668e44a963ded7c947651df27aa2eae1363f8ca`  
+  aligned `05_automation_strategy.md`
+- `242f2e0d1b9783d803c18c7acaaed402675021f1`  
+  aligned `06_implementation_plan.md` and `07_task_breakdown.md`
+- `647e24e9606659c785e2c02c3eded392a7cd4be1`  
+  aligned `08_additional_required_work.md`
+- `25e17ad4cbdbd51436ee30f7cf8e61a3e20e6b19`  
+  aligned `09_recommended_next_steps.md`
 
-### Earlier policy cleanup commits
-- `189d164abc510b2e8e64f2d8d78ba0e2216193a4`  
-  removed `policy_table_v1_2_0_FROZEN.json`
-- `b2be040fe0af6b41b8f8820330e25aef61827c39`  
-  removed `low_risk_actions_v1_0_0_FROZEN.json`
-- `15aad72d19b18a19491f6f73f480f6ea27777dd9`  
-  removed `LOW_RISK_ACTIONS_FREEZE_MANIFEST.md`
-- `bd2f78ae10e43b3d63e921735878c7258801d410`  
-  removed `output_profile_v1_0_0.json`
+### Recent integration-layer commits
+- `f5b322ff7fc832a717654203a44f640f1f11781d`  
+  created `integration/README.md` and `integration/requirements.md`
+- `e31f8f59e95746cf7841c1e3d47a49c762c818e6`  
+  created integration sub-layer READMEs
+- `2e5567eb9af2ac983554fe24e2c74a0e957d10a4`  
+  completed initial integration layer documentation structure
+- `9dea981b025ecfc6e10453f221bebfded34f283f`  
+  added baseline scenario skeleton and initial fixture set
+- `02d07ebb92f2fa060c77a3081ec6492511dc3008`  
+  added `integration_test_runner_skeleton.py`
+- `39abcd8e7b2b65f89a1aaaeecae21c96ef1a15db`  
+  added `class_wise_latency_profiles.md` and updated `integration/README.md`
+- `3eeea2ae049e4c97c195b4b1ab568e6914619548`  
+  added class-oriented and fault-oriented scenario skeletons
+- `b0a8b197e92542a1dbb0f9dbed6f1e1d457f6937` / `5fb49d8f34a3dc572cf3b656ee50fcd7d63a5d2f`  
+  added and corrected `scenario_manifest_rules.md`
+- `2557e1c81fd8ab168b916f7ec8a0faf21d570e9a`  
+  added `expected_outcome_comparator.py`
+- `44ed4bd446b8f4b5434862435e98bd2e2225aade`  
+  added `scenario_review_guide.md`
+- `0b5f914e923b31fda605567f51cb4299ab66205c`  
+  grounded review guide in real-life accessibility context from root README
+- `43fef1833366a9bc2e05b2034f298bc7162b3852` / `58e09969f9006bbb4dede47280d34366272bab26` / `09c66bbf65102c468575916a10c8d7bff3109850` / `25ad98eab97890b74bf261c98f9b67cc15bbbac5`  
+  aligned integration scenarios/fixtures with `required_experiments.md`, current implemented scope, and full canonical emergency family coverage
+- `d072de32a66aecb520381f976988bb966d580b67`  
+  developer-oriented terminology cleanup in `scenario_review_guide.md`
 
 ---
 
@@ -446,6 +527,10 @@ If a future session needs a very short summary:
 - Canonical emergency family is `E001`~`E005`.
 - `required_experiments.md` is already aligned with the updated deterministic emergency profile numbering.
 - Mac mini install/configure/verify scaffolding and README are now substantially aligned with the current baseline.
+- RPi README and experiment-side scaffold are aligned around evaluation-only role separation.
+- ESP32 cross-platform bring-up scaffold now exists, but real node firmware is still largely unimplemented.
+- `integration/` now contains scenario, fixture, runner, comparator, and measurement starter assets.
+- Integration scenarios are grounded in actual accessibility use context, but remain evaluation assets rather than policy truth.
 - `mac_mini/code/` is still the major remaining implementation area.
 - Legacy policy/schema assets and manifest files were intentionally deleted.
 - Do not let deployment-local config override frozen truth.
