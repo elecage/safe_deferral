@@ -16,6 +16,23 @@
 
 ---
 
+## 사람이 먼저 읽어야 하는 문서
+
+JSON skeleton만 보면 사람이 의미를 파악하기 어려울 수 있으므로, 실제 검토자는 먼저 아래 문서를 보는 것을 권장한다.
+
+- `scenario_review_guide.md`
+
+이 문서는 다음을 설명한다.
+- 각 scenario가 실제로 무엇을 시험하는지
+- 왜 필요한지
+- 어떤 결과가 안전한지
+- 어떤 결과가 위험 신호인지
+- 실제 사용 맥락에서 어떻게 읽어야 하는지
+
+그 다음에 JSON skeleton과 fixture를 보는 것이 자연스럽다.
+
+---
+
 ## 현재 반영된 scenario skeleton
 
 현재 다음 skeleton이 반영되어 있다.
@@ -67,6 +84,10 @@
 
 이 구조는 이후 scenario manifest 규칙이나 loader/unit test 작성 시 공통 골격으로 쓰기 쉽도록 의도한 것이다.
 
+추가 규칙 문서는 아래를 참조한다.
+
+- `scenario_manifest_rules.md`
+
 ---
 
 ## 포함 가능한 대상
@@ -91,8 +112,8 @@
 
 ## 다음 권장 작업
 
-1. scenario metadata schema 또는 manifest 규칙 문서화
-2. randomized stress metadata skeleton 추가
-3. expected outcome comparator와 scenario 연동
-4. 실제 MQTT publish / audit observe adapter 추가
-5. class-wise latency profile과 scenario 연결 문서화
+1. randomized stress metadata skeleton 추가
+2. expected outcome comparator와 scenario 연동 adapter 추가
+3. 실제 MQTT publish / audit observe adapter 추가
+4. class-wise latency profile과 scenario 연결 문서화
+5. reviewer note template 추가
