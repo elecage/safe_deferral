@@ -3,7 +3,7 @@
 ## Install Script Structure
 
 ## Goal
-Install the required components for the Mac mini, Raspberry Pi 5, supporting embedded node workflow, and optional timing/measurement workflow in a way that is:
+Install the required components for the Mac mini, Raspberry Pi 5, ESP32 development environment, and optional timing/measurement workflow in a way that is:
 
 - rerunnable where possible
 - stage-verifiable
@@ -18,12 +18,13 @@ Shared versioned assets under `common/` remain the source of truth for policy, s
 
 ## Core Principles
 
-- Use **bash/zsh shell scripts** on macOS rather than platform-specific batch tooling.
+- Use **bash/zsh shell scripts** on macOS/Linux host environments where appropriate.
+- Use **PowerShell** on Windows where that is the native operational path.
 - Keep **installation**, **configuration**, and **verification** separated.
-- Install Python-based applications inside **virtual environments**.
+- Install Python-based applications inside **virtual environments** where host-side Python services are used.
 - Treat the Mac mini as the **primary operational hub**.
 - Treat the Raspberry Pi 5 as the **simulation and evaluation node**, not as a replacement for the Mac mini runtime.
-- Treat ESP32 as the **embedded physical node layer** when bounded button, sensor, or actuator/warning nodes are used.
+- Treat ESP32 as the **embedded physical node layer** with its own cross-platform SDK/toolchain setup workflow.
 - Treat optional timing/measurement infrastructure as an **evaluation-only support path**, not part of the operational control path.
 - Ensure scripts fail fast and emit clear logs.
 - Complete **shared frozen assets** before implementation-side installation logic depends on them.
@@ -56,6 +57,13 @@ safe_deferral/
 │   ├── code/
 │   └── docs/
 ├── esp32/
+│   ├── scripts/
+│   │   ├── install/
+│   │   │   ├── mac/
+│   │   │   ├── linux/
+│   │   │   └── windows/
+│   │   ├── configure/
+│   │   └── verify/
 │   ├── code/
 │   ├── firmware/
 │   └── docs/
@@ -261,10 +269,9 @@ Install Raspberry Pi Python dependencies.
 Representative dependencies:
 - paho-mqtt
 - pytest
-- pytest-asyncio
 - PyYAML
 - jsonschema
-- click or typer
+- optional CLI helper packages
 - optional data-generation libraries
 - optional numeric libraries if needed by simulation logic
 
@@ -285,26 +292,58 @@ Recommended responsibilities:
 
 ---
 
-## ESP32 Embedded Build and Install Readiness
+## ESP32 Install Scripts and Embedded Build Readiness
 
-### Directory
+### Directories
+- `esp32/scripts/install/mac/`
+- `esp32/scripts/install/linux/`
+- `esp32/scripts/install/windows/`
 - `esp32/code/`
 - `esp32/firmware/`
 - `esp32/docs/`
 
 ### Role
-ESP32 nodes do not necessarily follow the same shell-script installation flow as Mac mini and Raspberry Pi.  
-Instead, they require an embedded build and flash workflow that should still be documented and structured.
+ESP32 nodes are bounded physical clients, but the repository now contains an explicit cross-platform host-side setup path for ESP32 development.
+
+The install layer prepares:
+- host prerequisite packages
+- ESP-IDF clone and toolchain installation
+- board-build readiness on macOS / Linux / Windows
+
+It does **not** yet represent finished node firmware implementation.
+
+### Current reflected script set
+
+#### macOS
+- `00_preflight_esp32_mac.sh`
+- `10_install_prereqs_esp32_mac.sh`
+- `20_install_esp_idf_esp32_mac.sh`
+
+#### Linux
+- `00_preflight_esp32_linux.sh`
+- `10_install_prereqs_esp32_linux.sh`
+- `20_install_esp_idf_esp32_linux.sh`
+
+#### Windows
+- `00_preflight_esp32_windows.ps1`
+- `10_install_prereqs_esp32_windows.ps1`
+- `20_install_esp_idf_esp32_windows.ps1`
 
 ### Recommended responsibilities
-- prepare PlatformIO or Arduino build environment assumptions
-- define board-specific build targets
-- define firmware flash procedure
-- define serial monitor or debug procedure
-- define device identity, topic namespace, and broker connection assumptions
-- define reset and recovery steps for embedded nodes
+- verify host OS suitability
+- verify package manager or installer availability
+- install prerequisite tools such as:
+  - git
+  - python
+  - cmake
+  - ninja
+  - dfu-util where applicable
+- clone ESP-IDF into a stable host workspace path
+- run `install.sh` or `install.ps1`
+- prepare `export.sh` / `export.ps1` activation readiness
+- prepare later configure/verify stages for sample build execution
 
-### Typical embedded targets
+### Current embedded targets in scope
 
 #### Current canonical targets
 - bounded button input node
@@ -318,6 +357,10 @@ Instead, they require an embedded build and flash workflow that should still be 
 
 #### Planned extension targets
 - doorlock or warning interface node
+
+### Principle
+ESP32 install scripts prepare the **SDK/toolchain environment**, while later prompts and firmware templates define the actual node code.  
+ESP32 nodes remain bounded physical clients under hub-side policy control rather than becoming independent policy authorities.
 
 ---
 
@@ -367,6 +410,8 @@ Related directories:
 - `mac_mini/scripts/verify/`
 - `rpi/scripts/configure/`
 - `rpi/scripts/verify/`
+- `esp32/scripts/configure/`
+- `esp32/scripts/verify/`
 - `esp32/docs/`
 - `integration/tests/`
 - `integration/scenarios/`
@@ -400,14 +445,26 @@ bash rpi/scripts/install/30_install_python_deps_rpi.sh
 bash rpi/scripts/install/40_install_time_sync_client_rpi.sh
 ```
 
-### ESP32
-Typical workflow should be documented rather than assumed to match shell-based host installation.  
-Examples may include:
-- board selection
-- firmware build
-- firmware flash
-- serial verification
-- broker connectivity check
+### ESP32 macOS
+```bash
+bash esp32/scripts/install/mac/00_preflight_esp32_mac.sh
+bash esp32/scripts/install/mac/10_install_prereqs_esp32_mac.sh
+bash esp32/scripts/install/mac/20_install_esp_idf_esp32_mac.sh
+```
+
+### ESP32 Linux
+```bash
+bash esp32/scripts/install/linux/00_preflight_esp32_linux.sh
+bash esp32/scripts/install/linux/10_install_prereqs_esp32_linux.sh
+bash esp32/scripts/install/linux/20_install_esp_idf_esp32_linux.sh
+```
+
+### ESP32 Windows
+```powershell
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\install\windows\00_preflight_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\install\windows\10_install_prereqs_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\install\windows\20_install_esp_idf_esp32_windows.ps1
+```
 
 ### Optional timing / measurement path
 Typical workflow may include:
@@ -426,6 +483,7 @@ If common shell helpers are introduced later, they should not collapse the repos
 Recommended future locations:
 - `mac_mini/scripts/lib/`
 - `rpi/scripts/lib/`
+- `esp32/scripts/lib/` where a stable cross-platform helper layout becomes justified
 - or `common/scripts/` only if the helpers are truly cross-device and stable
 
 Examples:
@@ -440,14 +498,15 @@ These should remain auxiliary utilities, not replace the device-specific install
 
 ## Script Writing Rules
 
-- use `set -euo pipefail`
+- use `set -euo pipefail` in POSIX shell scripts
+- use explicit fail-fast handling in PowerShell scripts on Windows
 - fail fast with explicit messages
 - prefer safe rerun behavior where possible
 - print version or health information after installation
 - keep installation logic separate from configuration logic
 - keep installation logic separate from verification logic
 - avoid placing application logic inside install scripts
-- keep embedded build logic documented separately from host-side operational scripts when ESP32 nodes are used
+- keep embedded SDK/toolchain setup separate from actual firmware implementation
 - keep timing/measurement support documented separately from the operational control path when out-of-band evaluation is used
 - prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
 
@@ -458,7 +517,7 @@ These should remain auxiliary utilities, not replace the device-specific install
 - Mac mini install scripts prepare the operational hub
 - Raspberry Pi install scripts prepare the simulation/evaluation node only
 - Raspberry Pi does not replace the Mac mini runtime stack
-- ESP32 embedded workflow documentation prepares bounded physical node deployment
+- ESP32 install scripts prepare the cross-platform ESP-IDF development environment for bounded physical node implementation
 - optional timing/measurement readiness prepares out-of-band latency evaluation support
 - shared frozen assets in `common/` define the reference state
 - install scripts and embedded build preparation establish the platform only
