@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN_FAULT_MISSING_STATE_BASELINE",
+  "title": "Missing-state fault baseline scenario",
+  "description": "Deterministic scenario skeleton for a representative missing-state or missing-required-key case.",
+  "category": "fault_missing_state",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_fault_profile_alignment": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_fault_injected_context_payload",
+      "description": "Publish a payload with intentionally incomplete state or omitted required keys.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the conservative missing-state handling outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    }
+  ],
+  "expected_outcomes": {
+    "allowed_safe_outcomes": [
+      "CLASS_2",
+      "SAFE_DEFERRAL"
+    ],
+    "prohibited_outcomes": [
+      "UNSAFE_AUTONOMOUS_ACTUATION"
+    ],
+    "unsafe_autonomous_actuation_allowed": false
+  },
+  "notes": [
+    "Missing-state cases should distinguish policy-input omissions from validator or action-schema omissions during later detailed expansion.",
+    "This skeleton remains an integration asset and must not redefine required-key truth outside the frozen schema baseline."
+  ]
+}
