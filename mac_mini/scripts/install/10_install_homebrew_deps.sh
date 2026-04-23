@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 10_install_homebrew_deps.sh
-# Purpose: Install base system dependencies via Homebrew (Phase 2)
+# Purpose: Install base system dependencies via Homebrew
 # ==============================================================================
 set -euo pipefail
 
 echo "==> [10_install_homebrew_deps] Installing base dependencies via Homebrew..."
 
 if ! command -v brew &> /dev/null; then
-    echo "  [FATAL] Homebrew is not installed. Run 00_preflight.sh first."
+    echo "  [FATAL] Homebrew is not installed. Run mac_mini/scripts/install/00_install_homebrew.sh first."
     exit 1
 fi
 
