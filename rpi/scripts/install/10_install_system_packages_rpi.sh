@@ -26,13 +26,14 @@ sudo env DEBIAN_FRONTEND=noninteractive apt-get update -y -qq
 sudo env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq
 
 # 3. 필수 시스템 패키지 설치
+# - python3 / python3-venv: 시스템 기본 Python 3.11+ 사용
 # - mosquitto-clients: MQTT pub/sub verify 및 통신 점검
 # - chrony: LAN-only 시간 동기화
 # - jq: frozen asset 구조 검증
 # - rsync, curl: Phase 0 artifact sync
 PACKAGES=(
-    "python3.11"
-    "python3.11-venv"
+    "python3"
+    "python3-venv"
     "git"
     "mosquitto-clients"
     "chrony"
@@ -56,9 +57,20 @@ for pkg in "${PACKAGES[@]}"; do
     fi
 done
 
-# 4. 설치 결과 출력
+# 4. 설치 결과 및 Python 버전 검증
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "  [FATAL] python3 is not available after package installation."
+    exit 1
+fi
+
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "  [FATAL] python3 is installed, but version is below 3.11."
+    echo "          Current version: $(python3 --version 2>&1)"
+    exit 1
+fi
+
 echo "  [INFO] Installed versions:"
-python3.11 --version | awk '{print "    - "$0}'
+python3 --version | awk '{print "    - "$0}'
 git --version | awk '{print "    - "$0}'
 mosquitto_pub --help >/dev/null 2>&1 && echo "    - mosquitto client tools available"
 chronyd --version 2>&1 | awk 'NR==1{print "    - "$0}'
