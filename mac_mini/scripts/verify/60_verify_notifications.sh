@@ -28,9 +28,19 @@ is_placeholder() {
     val_upper=$(printf '%s' "${val}" | tr '[:lower:]' '[:upper:]')
 
     case "${val_upper}" in
-        *YOUR_*_HERE* | *PLACEHOLDER* | *<*>* ) return 0 ;;
-        * ) return 1 ;;
+        *YOUR_*_HERE* | *PLACEHOLDER* )
+            return 0
+            ;;
+        *)
+            ;;
     esac
+
+    # angle bracket placeholder (e.g. <YOUR_TOKEN>)는 case glob 대신 문자열 포함 검사로 처리
+    if [[ "${val}" == *"<"* || "${val}" == *">"* ]]; then
+        return 0
+    fi
+
+    return 1
 }
 
 TELEGRAM_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
