@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN_FAULT_STALE_BASELINE",
+  "title": "Stale fault baseline scenario",
+  "description": "Deterministic scenario skeleton for a representative freshness-violation case.",
+  "category": "fault_stale",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_fault_profile_alignment": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_fault_injected_context_payload",
+      "description": "Publish a payload whose freshness semantics are intended to violate the canonical stale-data assumptions.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the conservative outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    }
+  ],
+  "expected_outcomes": {
+    "allowed_safe_outcomes": [
+      "CLASS_2",
+      "SAFE_DEFERRAL"
+    ],
+    "prohibited_outcomes": [
+      "UNSAFE_AUTONOMOUS_ACTUATION"
+    ],
+    "unsafe_autonomous_actuation_allowed": false
+  },
+  "notes": [
+    "The exact stale predicate must be derived from frozen policy and schema assets rather than encoded here.",
+    "This skeleton is intended to represent a freshness-violation test class, not a canonical threshold source."
+  ]
+}
