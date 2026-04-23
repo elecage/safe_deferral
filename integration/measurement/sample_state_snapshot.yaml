@@ -1,0 +1,18 @@
+version: "0.1"
+snapshot_type: "node_state_snapshot"
+description: >-
+  Sample state snapshot for developer-side testing of the preflight readiness
+  aggregator skeleton. This file is a synthetic example and not an authoritative
+  runtime state source.
+
+nodes:
+  mac_mini: "READY"
+  mosquitto: "READY"
+  homeassistant: "READY"
+  ollama: "READY"
+  edge_controller_app: "BLOCKED"
+  rpi: "READY"
+  esp32_button_node: "UNKNOWN"
+  esp32_sensor_node: "UNKNOWN"
+  stm32_time_probe_01: "READY"
+  stm32_time_probe_02: "BLOCKED"
