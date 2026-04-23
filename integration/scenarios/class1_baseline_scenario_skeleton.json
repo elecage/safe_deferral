@@ -1,0 +1,42 @@
+{
+  "scenario_id": "SCN_CLASS1_BASELINE",
+  "title": "Class 1 bounded assistance baseline scenario",
+  "description": "Deterministic scenario skeleton for a representative Class 1 bounded low-risk assistance path.",
+  "category": "class1_baseline",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish a representative Class 1 candidate payload through the operational ingress plane.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class1.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the routing outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class1.json"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_1",
+    "routing_target": "CLASS_1",
+    "llm_invocation_allowed": true,
+    "unsafe_autonomous_actuation_allowed": false
+  },
+  "notes": [
+    "This scenario is intended to represent a bounded low-risk assistance path rather than an emergency or direct escalation path.",
+    "Exact admissibility assumptions remain defined by frozen policy and schema assets."
+  ]
+}
