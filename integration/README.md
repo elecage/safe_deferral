@@ -23,17 +23,60 @@ integration/
 ├── requirements.md
 ├── tests/
 │   ├── README.md
+│   ├── integration_test_runner_skeleton.py
 │   └── data/
-│      └── README.md
+│      ├── README.md
+│      ├── sample_policy_router_input_class1.json
+│      ├── sample_policy_router_input_class2_insufficient_context.json
+│      ├── sample_policy_router_input_class0_e001.json
+│      ├── expected_routing_class1.json
+│      ├── expected_routing_class2.json
+│      └── expected_routing_class0_e001.json
 ├── scenarios/
-│   └── README.md
+│   ├── README.md
+│   └── baseline_scenario_skeleton.json
 └── measurement/
-    └── README.md
+    ├── README.md
+    └── class_wise_latency_profiles.md
 ```
 
 ---
 
-## 2. 하위 디렉터리 역할
+## 2. 현재 반영된 핵심 자산
+
+### `integration/scenarios/baseline_scenario_skeleton.json`
+- deterministic baseline scenario 골격
+- ingress topic / audit topic / preconditions / steps / expected outcomes 포함
+- fixture 파일 참조 구조 포함
+
+### `integration/tests/data/*.json`
+현재 포함된 예시:
+- representative Class 1 input fixture
+- representative Class 2 insufficient-context fixture
+- representative Class 0 E001 emergency fixture
+- expected routing result fixtures
+
+이 파일들은 canonical truth가 아니라 **integration-side sample fixture**다.
+
+### `integration/tests/integration_test_runner_skeleton.py`
+역할:
+- scenario JSON 로드
+- scenario가 참조하는 fixture JSON 로드
+- fixture path 누락/오타/JSON syntax 오류 fail-fast 검출
+- machine-readable summary 출력
+
+현재 단계에서는 **scenario / fixture loading skeleton**이다.
+
+### `integration/measurement/class_wise_latency_profiles.md`
+역할:
+- Class 0 / Class 1 / Class 2 경로별 latency measurement 목적 정의
+- capture point 개념 정리
+- repeated-run summary 지향 원칙 정리
+- measurement profile 문서화 예시 제공
+
+---
+
+## 3. 하위 디렉터리 역할
 
 ### `integration/tests/`
 - end-to-end integration test harness
@@ -60,7 +103,7 @@ integration/
 
 ---
 
-## 3. 경계 원칙
+## 4. 경계 원칙
 
 - `integration/`은 **operational control plane**이 아니다.
 - Mac mini hub-side policy truth를 재정의하지 않는다.
@@ -72,7 +115,7 @@ integration/
 
 ---
 
-## 4. 참조해야 하는 canonical baseline
+## 5. 참조해야 하는 canonical baseline
 
 `integration/`에서 사용하는 정책/스키마/용어 기준은 모두 `common/`의 frozen assets를 따른다.
 
@@ -89,12 +132,38 @@ integration/
 
 ---
 
-## 5. 현재 단계에서 권장되는 다음 작업
+## 6. 기본 사용 흐름
 
-1. `integration/requirements.md`를 기준으로 요구사항 확정
-2. `integration/scenarios/`에 deterministic scenario skeleton 추가
-3. `integration/tests/data/`에 sample fixture package 추가
-4. `integration/tests/`에 integration test runner skeleton 추가
-5. 필요 시 `integration/measurement/`에 class-wise latency profile 문서 추가
+현재 상태에서 가능한 최소 흐름은 다음과 같다.
 
-이후에야 `integration/`이 문서 수준을 넘어 실제 검증 자산 계층으로 동작할 수 있다.
+1. scenario skeleton 작성 또는 복제
+2. `integration/tests/data/`의 fixture 참조
+3. `integration_test_runner_skeleton.py`로 scenario + fixture loading 검증
+4. 이후 expected outcome comparator / MQTT adapter / audit observer 추가
+
+예:
+
+```bash
+python3 integration/tests/integration_test_runner_skeleton.py --pretty
+```
+
+특정 scenario 지정 예:
+
+```bash
+python3 integration/tests/integration_test_runner_skeleton.py \
+  --scenario integration/scenarios/baseline_scenario_skeleton.json \
+  --pretty
+```
+
+---
+
+## 7. 현재 단계에서 권장되는 다음 작업
+
+1. expected outcome comparator 추가
+2. scenario loader unit test 추가
+3. canonical consistency smoke test 추가
+4. `integration/measurement/`에 result template 문서 추가
+5. `integration/scenarios/`에 Class 0 / Class 2 / stale / conflict skeleton 추가
+6. 이후 실제 MQTT publish / audit observe adapter 추가
+
+이후에야 `integration/`이 문서 수준을 넘어 **실제 cross-device evaluation asset layer**로 동작하게 된다.
