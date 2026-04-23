@@ -7,9 +7,8 @@ set -euo pipefail
 
 echo "==> [20_configure_mosquitto] Configuring Mosquitto MQTT Broker..."
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE}")" && pwd)"
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
-MOSQ_CONFIG_DIR="${WORKSPACE_DIR}/docker/mosquitto/config"
+MOSQ_CONFIG_DIR="${WORKSPACE_DIR}/docker/volumes/mosquitto/config"
 TARGET_FILE="${MOSQ_CONFIG_DIR}/mosquitto.conf"
 
 echo "  [INFO] Ensuring target configuration directory exists at ${MOSQ_CONFIG_DIR}..."
@@ -20,9 +19,9 @@ if [ ! -f "${TARGET_FILE}" ]; then
     echo "  [INFO] Generating default mosquitto.conf with LAN-only Trust Boundary..."
 
     # [SECURITY DEFAULT EXPLANATION]
-    # listener 1883 0.0.0.0은 로컬 네트워크(LAN) 상에 있는 Raspberry Pi 5 시뮬레이션 노드가 
+    # listener 1883 0.0.0.0은 로컬 네트워크(LAN) 상에 있는 Raspberry Pi 5 시뮬레이션 노드가
     # Mac mini 브로커에 접속할 수 있도록 허용하기 위한 필수 설정입니다.
-    # WARNING: 이 설정은 LAN-only Trust Boundary를 형성하므로, 인터넷 기원(WAN)의 
+    # WARNING: 이 설정은 LAN-only Trust Boundary를 형성하므로, 인터넷 기원(WAN)의
     # 인바운드 트래픽은 반드시 하드웨어 라우터 방화벽이나 macOS 방화벽으로 차단되어야 합니다.
     cat <<EOF > "${TARGET_FILE}"
 listener 1883 0.0.0.0
@@ -35,6 +34,10 @@ EOF
 else
     echo "  [INFO] mosquitto.conf already exists. Skipping overwrite to preserve user settings."
 fi
+
+# 1-1. 가독성과 운영 일관성을 위해 파일 접근 권한을 명시한다.
+chmod 644 "${TARGET_FILE}"
+echo "  [INFO] Ensured mosquitto.conf has readable file permissions (644)."
 
 # 2. Deployment mode-dependent restart (Compose 파일 및 서비스 정밀 확인)
 echo "  [INFO] Applying changes by restarting Mosquitto container..."
