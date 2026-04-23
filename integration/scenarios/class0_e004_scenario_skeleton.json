@@ -1,0 +1,43 @@
+{
+  "scenario_id": "SCN_CLASS0_E004_GAS",
+  "title": "Class 0 E004 gas emergency scenario",
+  "description": "Deterministic scenario skeleton for a representative E004-aligned gas-detected emergency path.",
+  "category": "class0_emergency",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish a gas-detected emergency style payload through the operational ingress plane.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class0_e001.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the emergency routing outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class0_e001.json"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_0",
+    "routing_target": "CLASS_0",
+    "llm_invocation_allowed": false,
+    "unsafe_autonomous_actuation_allowed": false,
+    "canonical_emergency_family": "E004"
+  },
+  "notes": [
+    "A dedicated E004 payload fixture should be added later so gas-detected state semantics are represented explicitly rather than by placeholder reuse.",
+    "This skeleton keeps the integration scenario set aligned with the required experiments document's canonical emergency family coverage."
+  ]
+}
