@@ -1,0 +1,21 @@
+{
+  "source_node_id": "virtual_node_livingroom_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_class1_case_001",
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "ambient_state_update"
+    },
+    "environmental_context": {
+      "temperature_c": 24.1,
+      "illuminance_lux": 95
+    },
+    "device_states": {
+      "light_livingroom": "off"
+    }
+  },
+  "notes": "Sample integration fixture only. Field meanings and admissibility must remain aligned with the frozen policy/schema baseline."
+}
