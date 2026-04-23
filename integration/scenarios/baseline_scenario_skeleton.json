@@ -1,0 +1,42 @@
+{
+  "scenario_id": "SCN_BASELINE_TEMPLATE_001",
+  "title": "Baseline integration scenario skeleton",
+  "description": "Template scenario for deterministic end-to-end integration validation. This file is not canonical policy truth and must remain aligned with frozen assets under common/.",
+  "category": "baseline",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish a policy-aligned context payload through the same MQTT input plane used by the operational system.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class1.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Subscribe to the verification-safe audit stream and capture the routing outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class1.json"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_1",
+    "routing_target": "CLASS_1",
+    "llm_invocation_allowed": true,
+    "unsafe_autonomous_actuation_allowed": false
+  },
+  "notes": [
+    "Thresholds, trigger predicates, and action-domain assumptions must be derived from frozen assets rather than hardcoded here.",
+    "Clone this file to create deterministic Class 0, Class 1, Class 2, stale, missing-state, or conflict scenarios."
+  ]
+}
