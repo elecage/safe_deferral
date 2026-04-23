@@ -1,0 +1,42 @@
+{
+  "scenario_id": "SCN_CLASS2_INSUFFICIENT_CONTEXT",
+  "title": "Class 2 insufficient-context baseline scenario",
+  "description": "Deterministic scenario skeleton for a representative insufficient-context escalation path.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "smarthome/context/raw",
+    "audit_topic": "smarthome/audit/validator_output"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an insufficient-context payload through the operational ingress plane.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the escalation outcome.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "llm_invocation_allowed": false,
+    "unsafe_autonomous_actuation_allowed": false
+  },
+  "notes": [
+    "This scenario is intended to represent conservative escalation caused by insufficient context.",
+    "It should remain distinct from emergency-triggered Class 0 scenarios and conflict-driven safe-deferral scenarios."
+  ]
+}
