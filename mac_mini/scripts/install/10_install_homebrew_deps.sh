@@ -16,8 +16,10 @@ echo "  [INFO] Updating Homebrew (this may take a while)..."
 brew update > /dev/null
 
 # Core CLI dependencies for install/configure/verify flows.
-# Dockerized services such as Ollama, Mosquitto broker, and Home Assistant are excluded here.
-PACKAGES=("git" "python" "just" "sqlite" "jq" "mosquitto")
+# IMPORTANT:
+# - macOS system python3 may remain older (e.g. 3.9.x)
+# - therefore we explicitly install a Homebrew-managed Python 3.11+ formula
+PACKAGES=("git" "python@3.12" "just" "sqlite" "jq" "mosquitto")
 
 echo "  [INFO] Checking and installing packages: ${PACKAGES[*]}"
 
@@ -30,25 +32,48 @@ for pkg in "${PACKAGES[@]}"; do
     fi
 done
 
-# Python 설치/버전 검증은 이 단계의 책임이다.
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "  [FATAL] python3 is still not available after Homebrew installation."
-    echo "          Ensure Homebrew shellenv is applied in the current shell."
+# Homebrew Python 3.11+ 경로 결정
+PYTHON_BIN=""
+for candidate in \
+    "$(brew --prefix python@3.12 2>/dev/null)/bin/python3.12" \
+    "$(brew --prefix python@3.11 2>/dev/null)/bin/python3.11" \
+    "$(brew --prefix python 2>/dev/null)/bin/python3"; do
+    if [[ -n "$candidate" && -x "$candidate" ]]; then
+        if "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+            PYTHON_BIN="$candidate"
+            break
+        fi
+    fi
+done
+
+if [[ -z "$PYTHON_BIN" ]]; then
+    echo "  [FATAL] Could not find a Homebrew-managed Python 3.11+ interpreter after installation."
+    echo "          Check brew formula installation state and shellenv configuration."
     exit 1
 fi
 
-if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
-    echo "  [FATAL] python3 is available, but version is below 3.11."
-    echo "          Current version: $(python3 --version 2>&1)"
+if command -v python3 >/dev/null 2>&1; then
+    CURRENT_PYTHON="$(command -v python3)"
+    CURRENT_VERSION="$(python3 --version 2>&1 || true)"
+    echo "  [INFO] Current shell python3: ${CURRENT_PYTHON} (${CURRENT_VERSION})"
+fi
+
+echo "  [OK] Selected Homebrew Python: ${PYTHON_BIN}"
+
+if ! "$PYTHON_BIN" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "  [FATAL] Selected Homebrew Python is below 3.11."
+    echo "          Selected version: $(${PYTHON_BIN} --version 2>&1)"
     exit 1
 fi
 
 echo "  [INFO] Installed versions:"
 git --version | awk '{print "    - "$0}'
-python3 --version | awk '{print "    - "$0}'
+"$PYTHON_BIN" --version | awk '{print "    - Homebrew "$0}'
 just --version | awk '{print "    - "$0}'
 sqlite3 --version | awk '{print "    - SQLite "$1" "$2}'
 jq --version | awk '{print "    - "$0}'
 mosquitto_pub -h 127.0.0.1 -V mqttv311 --help >/dev/null 2>&1 && echo "    - mosquitto client tools available"
+
+echo "  [INFO] If your shell still resolves python3 to an older system interpreter, apply Homebrew shellenv or call the Homebrew Python path explicitly."
 
 echo "==> [PASS] Homebrew base dependencies installed successfully."
