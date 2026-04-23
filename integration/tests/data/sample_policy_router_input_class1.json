@@ -11,11 +11,13 @@
     },
     "environmental_context": {
       "temperature_c": 24.1,
-      "illuminance_lux": 95
+      "illuminance_lux": 95,
+      "occupancy_detected": true
     },
     "device_states": {
-      "light_livingroom": "off"
+      "living_room_light": "off",
+      "bedroom_light": "off"
     }
   },
-  "notes": "Sample integration fixture only. Field meanings and admissibility must remain aligned with the frozen policy/schema baseline."
+  "notes": "Sample integration fixture only. Current authoritative low-risk scope in required_experiments.md is limited to living_room_light and bedroom_light on/off behavior. Field meanings and admissibility must remain aligned with the frozen policy/schema baseline."
 }
