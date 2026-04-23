@@ -66,14 +66,19 @@ These assets are treated as the current authoritative frozen baseline unless exp
 - `output_profile_v1_1_0.json` = companion output guidance asset, not canonical policy/schema authority
 
 ### Scope distinction that must be preserved
-- **implementation-facing device scope** and
+- **implementation-facing device scope**
 - **authoritative autonomous low-risk actuation scope**
 
-must not be conflated.
+These must not be conflated.
 
 Current interpretation:
 - current implementation-facing scope includes lighting paths and a doorlock representative interface path
 - current authoritative autonomous Class 1 low-risk scope remains the frozen low-risk catalog unless that catalog is explicitly updated
+
+### Measurement-node distinction that must be preserved
+- STM32 Nucleo-H723ZG timing/measurement nodes are **not** operational physical nodes.
+- They are **out-of-band measurement nodes** used for timing capture, latency evidence collection, and exportable experiment artifacts.
+- They must not become part of the operational control path, policy authority, or validator authority.
 
 ---
 
@@ -122,6 +127,16 @@ All of the following must remain aligned with this trigger family:
 - doorlock is **not automatically equivalent** to the current authoritative autonomous Class 1 low-risk action catalog
 - any future document/code that treats doorlock as authoritative autonomous low-risk actuation must first be reconciled with the frozen low-risk catalog and related experiment docs
 
+### Current dashboard / readiness interpretation
+- Home Assistant dashboard work is currently a **support-layer UI concept**, not a policy authority.
+- Experiment preflight readiness should evaluate:
+  - required operational nodes
+  - required services/topics
+  - required runtime assets
+  - required measurement nodes
+  - expected result artifact readiness
+- Start-button semantics should remain gated by preflight readiness rather than bypassing blocked conditions.
+
 ---
 
 ## 6. Recent Important Repository Cleanup
@@ -148,8 +163,6 @@ The following obsolete / legacy assets were intentionally removed and should **n
 
 ## 7. Architecture and Core Documents Already Aligned
 
-The following docs were reviewed and updated to match the current canonical baseline and project interpretation.
-
 ### Architecture docs
 - `common/docs/architecture/04_project_directory_structure.md`
 - `common/docs/architecture/05_automation_strategy.md`
@@ -173,7 +186,14 @@ The following docs were reviewed and updated to match the current canonical base
 - `integration/requirements.md`
 - `integration/scenarios/scenario_manifest_rules.md`
 - `integration/scenarios/scenario_review_guide.md`
+- `integration/measurement/README.md`
 - `integration/measurement/class_wise_latency_profiles.md`
+- `integration/measurement/experiment_preflight_readiness_design.md`
+- `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`
+- `integration/measurement/experiment_registry_skeleton.yaml`
+- `integration/measurement/node_registry_skeleton.yaml`
+- `integration/measurement/preflight_readiness_aggregator_skeleton.py`
+- `integration/measurement/sample_state_snapshot.yaml`
 
 ### Alignment themes already applied
 - canonical baseline version cleanup
@@ -187,6 +207,8 @@ The following docs were reviewed and updated to match the current canonical base
 - Mac mini / RPi / ESP32 install-configure-verify flow documentation
 - integration scenario layer grounding in actual accessibility / daily-life use context from the root README
 - explicit distinction between current implementation-facing scope and authoritative autonomous low-risk scope
+- explicit distinction between operational nodes and out-of-band STM32 measurement nodes
+- experiment preflight readiness as a support layer rather than policy authority
 
 ---
 
@@ -225,13 +247,20 @@ The following docs were reviewed and updated to match the current canonical base
 - configure scaffolding was created for POSIX and Windows under `esp32/scripts/configure/`
 - verify scaffolding was created for POSIX and Windows under `esp32/scripts/verify/`
 - `esp32/docs/README.md` was expanded to explain actual execution order and sample-build success as the current completion criterion
-- `common/docs/architecture/12_prompts.md` was expanded with Prompt 19~26 for minimal template and node-specific firmware generation
+- `common/docs/architecture/12_prompts.md` was expanded with Prompt 19~28 for minimal template, node-specific firmware generation, preflight readiness backend, and STM32 measurement-node development
 
 ### Integration layer scaffolding completed
 - `integration/` now exists as an explicit cross-device validation layer with root README and requirements docs
 - `integration/tests/`, `integration/tests/data/`, `integration/scenarios/`, and `integration/measurement/` now contain starter README/docs/assets
 - integration fixture samples, expected outcome fixtures, scenario skeletons, runner skeleton, comparator skeleton, scenario manifest rules, scenario review guide, and class-wise latency profile docs were added
 - scenario layer was aligned with `required_experiments.md`, current implemented scope, and canonical emergency family `E001`~`E005`
+
+### Preflight readiness and STM32 measurement support design completed
+- experiment preflight readiness design was documented under `integration/measurement/experiment_preflight_readiness_design.md`
+- STM32 Nucleo-H723ZG was explicitly positioned as an out-of-band measurement node under `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`
+- experiment registry and node registry YAML skeletons were added for readiness/dashboard integration
+- a preflight readiness aggregator skeleton was added to evaluate experiment readiness from registries and a state snapshot
+- a developer-side sample state snapshot was added and successfully exercised from the Mac mini side
 
 ---
 
@@ -275,7 +304,7 @@ The current Mac mini scripts assume the following runtime layout:
 - `mac_mini/scripts/verify/60_verify_notifications.sh`
 - `mac_mini/scripts/verify/80_verify_services.sh`
 
-### Additional Mac mini runtime notes from this session
+### Additional Mac mini runtime notes
 - Homebrew bootstrap is now treated as part of the actual install path rather than an implicit external prerequisite.
 - `00_preflight.sh` no longer blocks on Python installation; Python install/selection is handled in `10_install_homebrew_deps.sh`.
 - macOS system `python3` may remain 3.9.x; current scripts explicitly install and select **Homebrew Python 3.11+**.
@@ -285,6 +314,9 @@ The current Mac mini scripts assume the following runtime layout:
 - Telegram notification setup is now documented in a dedicated guide:
   - `mac_mini/docs/TELEGRAM_NOTIFICATION_SETUP.md`
 - `mac_mini/scripts/verify/60_verify_notifications.sh` had a bash placeholder parsing bug fixed (`<...>` placeholder handling).
+- `mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh` was fixed for empty AUTH_ARGS handling under `set -u`.
+- Home Assistant dashboard work has **not** yet been implemented, but experiment dashboard and readiness-panel concepts were designed as a future operational/evaluation UI layer.
+- Developer-side execution of the preflight readiness skeleton was confirmed on the Mac mini side using a temporary venv because Homebrew Python enforces PEP 668 protections.
 
 ### Current Mac mini status
 - install/configure/template/verify scaffolding is now much closer to the canonical baseline
@@ -293,6 +325,7 @@ The current Mac mini scripts assume the following runtime layout:
 - `mac_mini/code/` is still largely unimplemented and remains the major next implementation area
 - `edge_controller_app` is represented in compose/runtime structure, but the actual code path still needs implementation
 - `edge_controller_app` build context under `~/smarthome_workspace/docker/app` is still a known gap / placeholder area unless implementation artifacts are added
+- `80_verify_rpi_closed_loop_audit.sh` is currently effectively blocked by missing/unavailable `edge_controller_app`
 
 ---
 
@@ -316,7 +349,7 @@ The current Mac mini scripts assume the following runtime layout:
 - `rpi/scripts/verify/70_verify_rpi_base_runtime.sh`
 - `rpi/scripts/verify/80_verify_rpi_closed_loop_audit.sh`
 
-### Additional RPi notes from this session
+### Additional RPi notes
 - Python interpreter handling was generalized from hardcoded `python3.11` assumptions to `python3` **3.11+** acceptance.
 - `20_sync_phase0_artifacts_rpi.sh` depends on **actual** `MAC_MINI_USER` / `MAC_MINI_HOST` values in `~/smarthome_workspace/.env`; placeholder values such as `mac_user` / `192.168.1.100` will cause immediate sync failure.
 - The artifact sync path assumes the Mac mini runtime assets are already present at:
@@ -330,12 +363,64 @@ The current Mac mini scripts assume the following runtime layout:
   - port 22 / `sshd` checks
   - key-based SSH setup
   - sync/SSH troubleshooting patterns
+- `rpi/scripts/verify/70_verify_rpi_base_runtime.sh` was corrected to remove unsupported `mosquitto_pub -W` usage and to handle empty auth arrays safely.
 
 ---
 
-## 11. Non-Negotiable Rules for Future Sessions
+## 11. Current Integration / Measurement Interpretation
 
-Any future assistant continuing this project should follow these rules.
+### Core interpretation
+- `integration/` remains a cross-device validation and evaluation layer.
+- `integration/measurement/` remains an **evaluation-only** support layer.
+- experiment preflight readiness is currently a **support-layer design/skeleton**, not an operational authority and not a policy engine.
+
+### Current measurement-side assets
+- `integration/measurement/class_wise_latency_profiles.md`
+- `integration/measurement/experiment_preflight_readiness_design.md`
+- `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`
+- `integration/measurement/experiment_registry_skeleton.yaml`
+- `integration/measurement/node_registry_skeleton.yaml`
+- `integration/measurement/preflight_readiness_aggregator_skeleton.py`
+- `integration/measurement/sample_state_snapshot.yaml`
+
+### Current measurement-side interpretation
+- STM32 Nucleo-H723ZG is treated as a **measurement_node**, not a physical operational node.
+- experiment preflight readiness distinguishes:
+  - required operational nodes
+  - required services/topics
+  - required runtime assets
+  - required measurement nodes
+  - expected result artifacts
+- measurement dependency failure may yield either:
+  - `DEGRADED`, or
+  - `BLOCKED`,
+  depending on the experiment’s `measurement_policy`.
+
+### Developer-side preflight test already confirmed
+Developer-side execution from the Mac mini side confirmed that the skeleton behaves as designed.
+
+Observed example:
+- `EXP_CLASSWISE_LATENCY_PROFILE`
+- `stm32_time_probe_01 = READY`
+- `stm32_time_probe_02 = BLOCKED`
+- final readiness result = `BLOCKED`
+- reason code = `MEASUREMENT_NODE_UNAVAILABLE`
+
+This matches the current registry semantics, where `EXP_CLASSWISE_LATENCY_PROFILE` treats missing measurement probes as `BLOCKED`.
+
+### Practical execution note
+- Running the aggregator directly on the Mac mini with Homebrew Python may hit PEP 668 protection when installing `PyYAML` system-wide.
+- The safe workaround used in practice was to create a temporary local venv such as `.venv-preflight` and install `pyyaml` there.
+- This is a developer-side test path only; it does not yet mean the Home Assistant dashboard is integrated with the aggregator.
+
+### Current limitation
+- The preflight readiness aggregator is still a **registry + snapshot skeleton**.
+- It does not yet collect live runtime status from Docker, MQTT heartbeat, API health, serial measurement exporters, or Home Assistant.
+- A future runtime adapter is still required before the dashboard can consume real readiness state.
+
+---
+
+## 12. Non-Negotiable Rules for Future Sessions
 
 1. **Do not invent policy semantics.**  
    Thresholds, routes, triggers, payload requirements, and constraints must come from frozen assets.
@@ -372,9 +457,15 @@ Any future assistant continuing this project should follow these rules.
 12. **Do not let integration scenario assets become policy truth.**  
     Scenarios, fixtures, runner outputs, and review guides are evaluation assets only.
 
+13. **Do not let STM32 measurement nodes drift into operational-node semantics.**  
+    They are out-of-band evidence collection nodes, not control-plane nodes.
+
+14. **Do not let preflight readiness become policy authority.**  
+    It may block, degrade, or explain experiment execution readiness, but it must not reinterpret canonical policy semantics.
+
 ---
 
-## 12. Known Risks / Drift Risks
+## 13. Known Risks / Drift Risks
 
 ### A. Legacy file name reintroduction
 Old names such as:
@@ -438,7 +529,7 @@ Notification setup and verification are now functional, but future sessions shou
 - mock fallback semantics
 
 ### J. RPi SSH / artifact sync drift
-RPi artifact sync relies on runtime assumptions outside the local board itself.
+RPi artifact sync relies on runtime assumptions outside the local board itself.  
 Future sessions must preserve consistency across:
 - `.env` host/user values
 - Mac mini Remote Login availability
@@ -446,11 +537,22 @@ Future sessions must preserve consistency across:
 - actual runtime asset deployment on Mac mini
 - rsync source path assumptions under `~/smarthome_workspace/docker/volumes/app/config/...`
 
+### K. Preflight registry / measurement-policy drift
+The new experiment registry and node registry skeletons encode readiness semantics for operational vs measurement dependencies.  
+Future work must preserve consistency across:
+- experiment registry semantics
+- node registry semantics
+- Home Assistant readiness panel assumptions
+- preflight aggregator logic
+- measurement-policy `DEGRADED` vs `BLOCKED` interpretation
+
+### L. STM32 measurement-node scope drift
+Future sessions may accidentally treat STM32 probes as ordinary physical nodes or control-path participants.  
+This must be resisted; they are measurement-only support nodes unless the architecture is explicitly reworked.
+
 ---
 
-## 13. Recommended Next Actions
-
-These are the recommended next steps after this handoff point.
+## 14. Recommended Next Actions
 
 1. Begin implementation-facing work against the stabilized baseline.
 2. Verify that no scripts, prompts, or code still reference deleted legacy policy/schema assets.
@@ -462,10 +564,12 @@ These are the recommended next steps after this handoff point.
 8. If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
 9. Resolve the remaining `edge_controller_app` build-context / placeholder implementation gap so that the compose stack can be brought up end-to-end without manual service exclusion.
 10. Revisit `10_configure_home_assistant.sh` template path / template existence assumptions and ensure they match the current repo template layout.
+11. Add a real runtime adapter for preflight readiness so that Home Assistant can consume actual status rather than only synthetic snapshots.
+12. Define the host-side ingestion/export contract for STM32 Nucleo-H723ZG measurement nodes, including heartbeat/status and CSV-friendly timestamp export.
 
 ---
 
-## 14. Recommended Checks Before Any Future Edit
+## 15. Recommended Checks Before Any Future Edit
 
 Before editing code or documents, the next session should verify:
 
@@ -489,6 +593,12 @@ Before editing code or documents, the next session should verify:
   - `esp32/docs/README.md`
 - the current integration root README still exists:
   - `integration/README.md`
+- the current measurement design docs still exist:
+  - `integration/measurement/experiment_preflight_readiness_design.md`
+  - `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`
+  - `integration/measurement/experiment_registry_skeleton.yaml`
+  - `integration/measurement/node_registry_skeleton.yaml`
+  - `integration/measurement/preflight_readiness_aggregator_skeleton.py`
 - the current scenario manifest / review docs still exist:
   - `integration/scenarios/scenario_manifest_rules.md`
   - `integration/scenarios/scenario_review_guide.md`
@@ -496,10 +606,11 @@ Before editing code or documents, the next session should verify:
 - prompts, required experiments, and architecture docs still point to the same baseline versions
 - current implemented scope wording in `required_experiments.md` is still reflected consistently in integration fixtures and scenario expectations
 - no doc silently treats doorlock implementation scope as equivalent to authoritative autonomous low-risk policy scope unless the frozen baseline was updated to match
+- no doc silently treats STM32 measurement nodes as operational control nodes
 
 ---
 
-## 15. If a New Session Continues This Project
+## 16. If a New Session Continues This Project
 
 The next assistant should do the following first:
 
@@ -509,7 +620,7 @@ The next assistant should do the following first:
 4. Avoid reintroducing deleted legacy files or version names.
 5. Preserve document-to-document consistency across architecture docs, required experiments docs, device-layer READMEs, and integration docs.
 6. Keep Llama 3.1 as the active local model baseline unless the user explicitly asks for a model evaluation change.
-7. If modifying prompts, scripts, scenarios, or implementation plans, ensure they still align with:
+7. If modifying prompts, scripts, scenarios, implementation plans, experiment readiness logic, or measurement support docs, ensure they still align with:
    - `policy_table_v1_1_2_FROZEN.json`
    - `low_risk_actions_v1_1_0_FROZEN.json`
    - `fault_injection_rules_v1_4_0_FROZEN.json`
@@ -520,10 +631,12 @@ The next assistant should do the following first:
    - `rpi/docs/README.md`
    - `esp32/docs/README.md`
    - `integration/README.md`
+   - `integration/measurement/experiment_preflight_readiness_design.md`
+   - `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`
 
 ---
 
-## 16. Commit / Traceability Snapshot
+## 17. Commit / Traceability Snapshot
 
 ### Important earlier commits mentioned in conversation
 - `419bb1a473ac989dbc0c1289d4ac146a03a9da31`  
@@ -585,68 +698,49 @@ The next assistant should do the following first:
 - `dacdc0ebafbd975ee34422b31f9262001d604370`
 - `f2700f51a452b0a6cd7925b37f793dbbb1c73d6e`
 - `9530bb95599e2139168072e3414c8e21cca74269`
-- `bedaa4140d4e76bd07a3a61e9f8b93a8573c3eb9`
-  
+- `bedaa4140d4e76bd07a3a61e9f8b93a8573c3eb9`  
   Homebrew bootstrap introduction and Mac mini install-order/document updates
 - `f7fcf7d7f987567d478f0dbeaa7de92b2015818c`
-- `86683cc9d0a2e66480e4a1a8855b66d23a3594ab`
-  
+- `86683cc9d0a2e66480e4a1a8855b66d23a3594ab`  
   generalized RPi Python handling from hardcoded `python3.11` assumptions to `python3` 3.11+
-- `9c223ab29022b747b92818e5b013444f35323537`
-  
+- `9c223ab29022b747b92818e5b013444f35323537`  
   moved Mac mini Python install responsibility out of preflight and into install step
 - `8383d42deee176ebb2f15524fcea44e33042c37e`
-- `15467e8b3d0aff72e3123c94d043383022200a1f`
-  
+- `15467e8b3d0aff72e3123c94d043383022200a1f`  
   explicit Homebrew Python 3.11+ install/selection and venv creation on Mac mini
-- `15e531c681ec74b7eac8aa7413238680ff4bb159`
-  
+- `15e531c681ec74b7eac8aa7413238680ff4bb159`  
   Mac mini README troubleshooting expansion
-- `b2b44b027fc4f5c9b8f037ffaef5a21498330d7f`
-  
+- `b2b44b027fc4f5c9b8f037ffaef5a21498330d7f`  
   added `mac_mini/docs/TELEGRAM_NOTIFICATION_SETUP.md`
 - `a4984dac4ef29ed62ef9cdb2746619a3d31062dd`
-- `57c23ca1c0207d719f6e150e30188e256c9d3a09`
-  
+- `57c23ca1c0207d719f6e150e30188e256c9d3a09`  
   Mosquitto configure path alignment and compose template `:ro` removal
-- `0aa1eeb189ee7c77cc165ab247b21ad3022c3351`
-  
+- `0aa1eeb189ee7c77cc165ab247b21ad3022c3351`  
   fixed bash placeholder parsing bug in `mac_mini/scripts/verify/60_verify_notifications.sh`
-- `25363e94e215e5917daa289da4e53e444165c3ad`
-  
+- `25363e94e215e5917daa289da4e53e444165c3ad`  
   documented RPi SSH/rsync artifact sync preconditions and troubleshooting
+- `5bd38a27b2334fe48cf012469bd8e32406f51947`  
+  fixed empty AUTH_ARGS handling in `mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh`
+- `b08fb041462ea9ed09ddd8e5c4ce65d250707860`  
+  fixed `rpi/scripts/verify/70_verify_rpi_base_runtime.sh` mosquitto_pub option usage and auth handling
 
-### Recent integration-layer commits
-- `f5b322ff7fc832a717654203a44f640f1f11781d`  
-  created `integration/README.md` and `integration/requirements.md`
-- `e31f8f59e95746cf7841c1e3d47a49c762c818e6`  
-  created integration sub-layer READMEs
-- `2e5567eb9af2ac983554fe24e2c74a0e957d10a4`  
-  completed initial integration layer documentation structure
-- `9dea981b025ecfc6e10453f221bebfded34f283f`  
-  added baseline scenario skeleton and initial fixture set
-- `02d07ebb92f2fa060c77a3081ec6492511dc3008`  
-  added `integration_test_runner_skeleton.py`
-- `39abcd8e7b2b65f89a1aaaeecae21c96ef1a15db`  
-  added `class_wise_latency_profiles.md` and updated `integration/README.md`
-- `3eeea2ae049e4c97c195b4b1ab568e6914619548`  
-  added class-oriented and fault-oriented scenario skeletons
-- `b0a8b197e92542a1dbb0f9dbed6f1e1d457f6937` / `5fb49d8f34a3dc572cf3b656ee50fcd7d63a5d2f`  
-  added and corrected `scenario_manifest_rules.md`
-- `2557e1c81fd8ab168b916f7ec8a0faf21d570e9a`  
-  added `expected_outcome_comparator.py`
-- `44ed4bd446b8f4b5434862435e98bd2e2225aade`  
-  added `scenario_review_guide.md`
-- `0b5f914e923b31fda605567f51cb4299ab66205c`  
-  grounded review guide in real-life accessibility context from root README
-- `43fef1833366a9bc2e05b2034f298bc7162b3852` / `58e09969f9006bbb4dede47280d34366272bab26` / `09c66bbf65102c468575916a10c8d7bff3109850` / `25ad98eab97890b74bf261c98f9b67cc15bbbac5`  
-  aligned integration scenarios/fixtures with `required_experiments.md`, current implemented scope, and full canonical emergency family coverage
-- `d072de32a66aecb520381f976988bb966d580b67`  
-  developer-oriented terminology cleanup in `scenario_review_guide.md`
+### Recent integration / measurement commits
+- `ae2386e35c56ac7cd538800efded5229050ff000`  
+  added `experiment_preflight_readiness_design.md`
+- `70640600b2930db8d678f2c0526f432adb79339c`  
+  added `stm32_nucleo_h723zg_measurement_node.md` and updated integration measurement docs
+- `4cecd6bba893ec49dd76c8d06dd19a53aaa9b5b4`  
+  added Prompt 27 and Prompt 28 for preflight readiness backend and STM32 measurement node development
+- `a640fae4034dc9a4c61479411c70761294dbfa85`  
+  added `experiment_registry_skeleton.yaml` and `node_registry_skeleton.yaml`
+- `61862a38ddc9f0b09a48c42c7c55a6f9c0b470c3`  
+  added `preflight_readiness_aggregator_skeleton.py`
+- `722c40378feb443ca6c2f23157e0932694b60781`  
+  added `sample_state_snapshot.yaml`
 
 ---
 
-## 17. Short Operational Summary
+## 18. Short Operational Summary
 
 If a future session needs a very short summary:
 
@@ -669,6 +763,8 @@ If a future session needs a very short summary:
 - ESP32 cross-platform bring-up scaffold now exists, but real node firmware is still largely unimplemented.
 - `integration/` now contains scenario, fixture, runner, comparator, and measurement starter assets.
 - Integration scenarios are grounded in actual accessibility use context, but remain evaluation assets rather than policy truth.
+- STM32 Nucleo-H723ZG is now explicitly treated as an out-of-band measurement node, not an operational node.
+- experiment preflight readiness registry/aggregator skeletons now exist and were developer-tested from the Mac mini side.
 - `mac_mini/code/` is still the major remaining implementation area.
 - Legacy policy/schema assets and manifest files were intentionally deleted.
 - Do not let deployment-local config override frozen truth.
