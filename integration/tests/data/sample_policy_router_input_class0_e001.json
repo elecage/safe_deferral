@@ -1,0 +1,20 @@
+{
+  "source_node_id": "virtual_node_kitchen_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_class0_e001_case_001",
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "temperature_alert"
+    },
+    "environmental_context": {
+      "temperature_c": 120.0
+    },
+    "device_states": {
+      "light_kitchen": "off"
+    }
+  },
+  "notes": "Sample emergency-aligned integration fixture intended to represent an E001-type threshold-crossing case. Exact trigger semantics remain defined by the frozen policy table."
+}
