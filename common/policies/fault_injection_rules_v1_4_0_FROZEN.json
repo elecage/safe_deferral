@@ -9,8 +9,8 @@
   "dependency_contract_note": "Dynamic references and selector-based profile generation in this file are part of the frozen dependency surface. If the referenced schema or policy structure changes, this file must be reviewed for consistency rather than assumed to remain valid.",
   "dynamic_references": {
     "freshness_limit": "$.global_constraints.freshness_threshold_ms",
-    "required_environmental_keys": "$.environmental_context.required",
-    "required_device_keys": "$.device_states.required"
+    "required_environmental_keys": "$.properties.environmental_context.required",
+    "required_device_keys": "$.properties.device_states.required"
   },
   "deterministic_profiles": {
     "FAULT_STALENESS_01": {
