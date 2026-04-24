@@ -41,6 +41,7 @@ The canonical source of policy, schema, terminology, and other frozen reference 
 | **Current Canonical** | Development / Experiment Tool | Virtual Sensor Nodes / Multi-node Simulation Runtime | Raspberry Pi 5 | Python virtual environment | Large-scale virtual sensor/state network for repeatable experiments. Not an operational hub runtime |
 | **Current Canonical** | Development / Experiment Tool | Virtual Emergency Sensors | Raspberry Pi 5 | Python virtual environment | Emergency event simulation for Class 0 and related scenario replay. Not a Mac mini core-runtime replacement |
 | **Current Canonical** | Development / Experiment Tool | Fault Injector Harness / Closed-loop Audit Driver | Raspberry Pi 5 | Python virtual environment | Injects stale / missing / conflict / timeout faults, supports automated verification, and may be used with scenario orchestration or verification utilities |
+| **Current Canonical** | Development / Experiment Tool | Experiment and Monitoring Dashboard | Raspberry Pi 5 | Python web app / local dashboard UI | Hosts the experiment-side dashboard for scenario selection, node readiness monitoring, progress visualization, closed-loop result summaries, and CSV/graph export. Not a Mac mini core-runtime service |
 | **Current Canonical** | Experimental Timing Infrastructure | STM32 Timing Node / Dedicated Timing Node | External measurement node | MCU firmware / hardware timing setup | Out-of-band latency measurement infrastructure for class-wise timing experiments |
 | **Current Canonical** | External Integration | Telegram Bot | External API | Account / token configuration | Caregiver alerts and limited approval path |
 | **Current Canonical** | Frozen Reference Asset | Policy tables / JSON schemas / terminology / canonical docs | Git repository + synchronized deployment targets | File synchronization / read-only deployment copies | Shared canonical source of truth before runtime deployment |
@@ -52,7 +53,7 @@ The canonical source of policy, schema, terminology, and other frozen reference 
 
 - **Mac mini** is the primary operational hub.
 - **ESP32 devices** are embedded physical nodes for bounded input, sensing, or actuator/warning interfacing.
-- **Raspberry Pi 5** is the experiment, simulation, and fault-injection node for scalable multi-node and closed-loop verification workflows.
+- **Raspberry Pi 5** is the experiment-side node for scalable simulation, fault injection, scenario orchestration, closed-loop verification, and dashboard-based experiment monitoring.
 - **STM32 timing nodes or equivalent dedicated measurement nodes** are used as out-of-band experimental timing infrastructure when precise class-wise latency measurement is required.
 - **External APIs** are limited to bounded outbound integrations such as Telegram.
 - **Frozen assets in the Git repository** are the single source of truth before runtime deployment.
@@ -77,6 +78,8 @@ Its intended operational role includes:
 - Outbound Notification Interface
 - Audit Logging Service / DB Access Layer
 
+Mac mini may expose operational telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 experiment dashboard, but it does not host the experiment and monitoring dashboard itself.
+
 ### ESP32
 ESP32 devices are bounded physical nodes.
 
@@ -95,6 +98,7 @@ Its intended role is limited to the experiment-side and evaluation-side path, in
 - fault injection
 - scenario orchestration
 - closed-loop automated verification
+- experiment and monitoring dashboard hosting for scenario selection, node readiness, progress visualization, result summaries, and evaluation artifact export
 - support utilities such as MQTT checks, time synchronization checks, and result summarization when needed
 
 Accordingly, Raspberry Pi 5 should **not** host the core operational runtime services that belong on the Mac mini, such as:
@@ -109,6 +113,7 @@ Raspberry Pi 5 should instead host only experiment-side runtimes and aligned sup
 - Python 3 and virtual environment
 - simulation-side Python apps
 - fault injection and scenario-running utilities
+- experiment and monitoring dashboard runtime and dashboard-side dependencies
 - required Pi-side dependencies such as MQTT, schema/policy parsing, CLI, and testing libraries
 - time synchronization client
 - synchronized runtime copies of frozen policy/schema assets as needed
