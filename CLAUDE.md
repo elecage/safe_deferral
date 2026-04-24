@@ -55,6 +55,55 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - 그러나 door unlock은 unrestricted autonomous execution path로 가면 안 된다.
 - 현재 아키텍처 해석에서는 caregiver escalation, bounded manual approval, deterministic validation, ACK-based closed-loop verification, local audit logging 경로와 정렬되어야 한다.
 
+### 4. dashboard / test app / orchestration 역할 분리
+도어락 관련 실험은 단순 대시보드 카드가 아니라, dashboard + test app + scenario orchestration에 걸친 다층 실험 흐름으로 해석한다.
+
+#### dashboard
+대시보드는 **experiment operations console**로 해석한다.
+주요 책임은 다음과 같다.
+- experiment selection
+- preflight readiness visibility
+- required-node connectivity/status visibility
+- start/stop control
+- progress monitoring
+- result summary
+- graph/CSV export visibility
+- doorlock-sensitive experiment status visibility
+  - autonomous unlock blocked
+  - caregiver escalation state
+  - manual approval state
+  - ACK state
+  - audit completeness state
+
+#### test app
+테스트 앱은 **developer/research control surface**로 해석한다.
+주요 책임은 다음과 같다.
+- raw scenario invocation
+- baseline selection
+- direct mapping vs rule-only vs LLM-assisted comparison execution
+- visitor-response mock event injection
+- caregiver approval mock state injection
+- ACK success/timeout/mismatch simulation
+- raw payload/log/debug visibility
+
+#### scenario orchestration
+시나리오 오케스트레이션은 doorlock-sensitive experiment를 반드시 포함하는 sequence-based execution layer로 해석한다.
+주요 책임은 다음과 같다.
+- visitor-response scenario family selection
+- bounded input or doorbell-style trigger injection
+- contextual state bundle setup
+- caregiver approval state branch execution
+- ACK outcome branch execution
+- audit/result artifact collection
+- progress/status publication
+
+#### host separation
+현재 기본 해석은 다음과 같다.
+- Mac mini = dashboard / test app / control-side integration / result visibility 중심
+- Raspberry Pi = scenario execution / replay / fault injection / progress publication 중심
+
+따라서 Raspberry Pi에 UI가 반드시 있어야 하는 것은 아니다.
+
 ---
 
 ## 프롬프트 문서 구조
@@ -114,6 +163,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 ### addendum example
 * `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+* `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
 
 원칙:
 - `SESSION_HANDOFF.md`는 장기적인 master summary 역할을 한다.
