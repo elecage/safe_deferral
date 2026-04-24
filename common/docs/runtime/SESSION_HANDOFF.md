@@ -126,7 +126,13 @@ All of the following must remain aligned with this trigger family:
 - doorlock is part of the **current implementation-facing scope**
 - doorlock is **not automatically equivalent** to the current authoritative autonomous Class 1 low-risk action catalog
 - any future document/code that treats doorlock as authoritative autonomous low-risk actuation must first be reconciled with the frozen low-risk catalog and related experiment docs
-
+  
+### Doorlock-sensitive actuation interpretation
+- Doorlock is currently treated as an **implementation-facing representative actuator domain**, but **not** as part of the currently authorized autonomous low-risk Class 1 actuation scope.
+- The LLM may interpret limited-input user intent in visitor-response situations, but it must not autonomously authorize or execute door unlock.
+- Under the current interpretation, door unlock should follow a **caregiver escalation path** with manual approval, ACK-based closed-loop verification, and local audit logging.
+- Detailed rationale and architectural interpretation are documented in:
+  - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 ### Current dashboard / readiness interpretation
 - Home Assistant dashboard work is currently a **support-layer UI concept**, not a policy authority.
 - Experiment preflight readiness should evaluate:
@@ -589,14 +595,12 @@ This must be resisted; they are measurement-only support nodes unless the archit
    - Note: Adapter uses direct function calls (not live MQTT) for deterministic local/CI testing; lenient fixture parsing handles legacy field names and missing required fields
 6. ✅ **COMPLETED**: Resolve the remaining `edge_controller_app` build-context / placeholder implementation gap. (`edge_controller_app/orchestrator.py`, `models.py`, `mqtt_client.py`, `main.py` implemented; 12 tests passing)
 7. ✅ **COMPLETED**: Add a real runtime adapter for preflight readiness so that Home Assistant can consume actual status rather than only synthetic snapshots. (`runtime_state_collector.py` + `ha_realtime_adapter.py` implemented; 37 tests passing; total 183 tests passing)
-8. **PENDING**: Add dedicated payload fixtures for `E002`~`E005` instead of reusing placeholder emergency fixtures in the integration scenario layer.
+8. ✅ **COMPLETED**: Add dedicated payload fixtures for `E002`~`E005` and align integration scenario assets with dedicated emergency-path fixtures.
    - Currently E002 has no fixture; E003/E004/E005 all reuse E001 temperature fixture
-   - Need: separate `sample_policy_router_input_class0_e002_button_triple_hit.json`, `*_e003_smoke.json`, `*_e004_gas.json`, `*_e005_fall.json`
-   - Will make integration tests actually validate intended emergency paths instead of all testing temperature
-9. **PENDING**: When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
-10. **PENDING**: If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
-11. **PENDING**: Revisit `10_configure_home_assistant.sh` template path / template existence assumptions and ensure they match the current repo template layout.
-12. **PENDING**: Define the host-side ingestion/export contract for STM32 Nucleo-H723ZG measurement nodes, including heartbeat/status and CSV-friendly timestamp export.
+10. **PENDING**: When ESP32 node firmware generation begins, use the prompt set in `common/docs/architecture/12_prompts.md` and keep it aligned with the current bring-up scaffold.
+11. **PENDING**: If doorlock-related autonomous behavior is to become authoritative Class 1 low-risk scope, update the frozen low-risk catalog and the linked experiment docs before implementing it as such.
+12. **PENDING**: Revisit `10_configure_home_assistant.sh` template path / template existence assumptions and ensure they match the current repo template layout.
+13. **PENDING**: Define the host-side ingestion/export contract for STM32 Nucleo-H723ZG measurement nodes, including heartbeat/status and CSV-friendly timestamp export.
 
 ---
 
