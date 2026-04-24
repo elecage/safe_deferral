@@ -11,6 +11,7 @@
       .safe { fill: #f0fdf4; stroke: #166534; stroke-width: 2; rx: 16; ry: 16; }
       .critical { fill: #fff7ed; stroke: #9a3412; stroke-width: 2; rx: 16; ry: 16; }
       .tts { fill: #faf5ff; stroke: #7c3aed; stroke-width: 2; rx: 16; ry: 16; }
+      .exp { fill: #eff6ff; stroke: #1d4ed8; stroke-width: 2; rx: 16; ry: 16; }
       .section { font: 700 18px Arial, sans-serif; fill: #111827; }
       .tiny { font: 400 12px Arial, sans-serif; fill: #4b5563; }
       .label { font: 600 15px Arial, sans-serif; fill: #111827; }
@@ -34,17 +35,17 @@
   </defs>
 
   <text x="825" y="42" text-anchor="middle" class="title">System Layout with Mac mini L-Shaped Boundary</text>
-  <text x="825" y="68" text-anchor="middle" class="subtitle">one policy-routing branch ends at the right-center of Safe Deferral and Clarification Management</text>
+  <text x="825" y="68" text-anchor="middle" class="subtitle">Caregiver Approval → Actuator is redrawn to follow the requested orthogonal path, and Raspberry Pi contains dashboard, experiment support, and publication blocks</text>
 
   <rect x="50" y="90" width="330" height="88" class="actor"/>
   <text x="215" y="121" text-anchor="middle" class="section">User</text>
   <text x="215" y="146" text-anchor="middle" class="small">bounded input and</text>
   <text x="215" y="166" text-anchor="middle" class="small">voice-guided interaction</text>
 
-  <rect x="1280" y="90" width="310" height="88" class="actor"/>
-  <text x="1435" y="121" text-anchor="middle" class="section">Caregiver</text>
-  <text x="1435" y="146" text-anchor="middle" class="small">approval authority for</text>
-  <text x="1435" y="166" text-anchor="middle" class="small">sensitive actuation</text>
+  <rect x="1210" y="90" width="310" height="88" class="actor"/>
+  <text x="1365" y="121" text-anchor="middle" class="section">Caregiver</text>
+  <text x="1365" y="146" text-anchor="middle" class="small">approval authority for</text>
+  <text x="1365" y="166" text-anchor="middle" class="small">sensitive actuation</text>
 
   <rect x="50" y="200" width="330" height="980" fill="#f8fafc" stroke="#0f172a" stroke-width="2.5" rx="24" ry="24"/>
   <rect x="85" y="290" width="260" height="96" class="box"/>
@@ -98,6 +99,27 @@
     Q420,200 444,200
     Z"/>
 
+  <rect x="1270" y="200" width="250" height="595" fill="#f8fafc" stroke="#0f172a" stroke-width="2.5" rx="24" ry="24"/>
+  <rect x="1290" y="290" width="210" height="130" class="exp"/>
+  <text x="1395" y="322" text-anchor="middle" class="label">Monitoring / Experiment</text>
+  <text x="1395" y="342" text-anchor="middle" class="label">Dashboard</text>
+  <text x="1395" y="368" text-anchor="middle" class="small">runtime status, event view,</text>
+  <text x="1395" y="388" text-anchor="middle" class="small">caregiver-state visibility, and</text>
+  <text x="1395" y="408" text-anchor="middle" class="small">experiment monitoring</text>
+  <rect x="1290" y="455" width="210" height="110" class="exp"/>
+  <text x="1395" y="487" text-anchor="middle" class="label">Experiment Support</text>
+  <text x="1395" y="513" text-anchor="middle" class="small">scenario orchestration, replay,</text>
+  <text x="1395" y="533" text-anchor="middle" class="small">simulation, and fault injection</text>
+  <rect x="1290" y="595" width="210" height="98" class="exp"/>
+  <text x="1395" y="621" text-anchor="middle" class="label">Progress / Result</text>
+  <text x="1395" y="641" text-anchor="middle" class="label">Publication</text>
+  <text x="1395" y="663" text-anchor="middle" class="small">progress visibility, summaries,</text>
+  <text x="1395" y="681" text-anchor="middle" class="small">and experiment artifacts</text>
+  <line x1="1282" y1="716" x2="1508" y2="716" class="divider"/>
+  <text x="1395" y="742" text-anchor="middle" class="section">Raspberry Pi 5</text>
+  <text x="1395" y="766" text-anchor="middle" class="tiny">monitoring, orchestration, and</text>
+  <text x="1395" y="782" text-anchor="middle" class="tiny">experiment-result publication</text>
+
   <rect x="465" y="290" width="300" height="96" class="box"/>
   <text x="615" y="322" text-anchor="middle" class="label">MQTT Ingestion / State Intake</text>
   <text x="615" y="348" text-anchor="middle" class="small">receives field-side input,</text>
@@ -130,17 +152,19 @@
   <text x="1065" y="702" text-anchor="middle" class="label">Clarification Management</text>
   <text x="1065" y="728" text-anchor="middle" class="small">deferred state, unresolved</text>
   <text x="1065" y="748" text-anchor="middle" class="small">reason, and clarification-needed</text>
-  <rect x="915" y="830" width="300" height="88" class="critical"/>
-  <text x="1065" y="862" text-anchor="middle" class="label">Caregiver Escalation</text>
-  <text x="1065" y="888" text-anchor="middle" class="small">manual confirmation path for</text>
-  <text x="1065" y="908" text-anchor="middle" class="small">sensitive actuation</text>
+  <rect x="915" y="848" width="300" height="88" class="critical"/>
+  <text x="1065" y="880" text-anchor="middle" class="label">Caregiver Escalation</text>
+  <text x="1065" y="906" text-anchor="middle" class="small">manual confirmation path for</text>
+  <text x="1065" y="926" text-anchor="middle" class="small">sensitive actuation</text>
+
   <rect x="465" y="980" width="750" height="70" class="box"/>
   <text x="840" y="1012" text-anchor="middle" class="label">Local ACK + Audit Logging</text>
   <text x="840" y="1038" text-anchor="middle" class="small">shared lower layer for processed hub-side outcomes</text>
-  <rect x="1270" y="830" width="230" height="88" class="critical"/>
-  <text x="1385" y="862" text-anchor="middle" class="label">Caregiver Approval</text>
-  <text x="1385" y="888" text-anchor="middle" class="small">approval or denial of</text>
-  <text x="1385" y="908" text-anchor="middle" class="small">sensitive action requests</text>
+
+  <rect x="1270" y="848" width="235" height="88" class="critical"/>
+  <text x="1387.5" y="880" text-anchor="middle" class="label">Caregiver Approval</text>
+  <text x="1387.5" y="906" text-anchor="middle" class="small">approval or denial of</text>
+  <text x="1387.5" y="926" text-anchor="middle" class="small">sensitive action requests</text>
 
   <line x1="440" y1="1080" x2="1500" y2="1080" class="divider"/>
   <text x="970" y="1115" text-anchor="middle" class="section">Mac mini Edge Hub</text>
@@ -156,20 +180,20 @@
   <path d="M765 713 H790 V338 H915" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
   <path d="M1065 386 V470" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
   <path d="M1215 338 H1235 V713 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
-  <path d="M1215 354 H1240 V859 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
+  <path d="M1215 354 H1240 V877 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
 
-  <path d="M915 495 H820 V780 H430 V888 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
-  <path d="M1215 874 H1245 V874 H1270" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
-  <path d="M1270 890 H1248 V952 H382 V904 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+  <path d="M915 495 H820 V800 H400 V888 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+  <path d="M1215 892 H1245 V892 H1270" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+  <path d="M1270 908 H1248 V952 H400 V904 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
 
   <path d="M915 545 H850 V860 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
   <path d="M915 687 H860 V888 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
-  <path d="M915 888 H780 V904 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
+  <path d="M915 906 H780 V904 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
 
   <path d="M215 936 V1015 H465" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
-  <path d="M1385 918 V1015 H1215" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
+  <path d="M1387.5 936 V1015 H1215" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
   <path d="M915 729 H900 V980" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
 
   <rect x="60" y="1195" width="1530" height="24" class="box"/>
-  <text x="825" y="1212" text-anchor="middle" class="tiny">One policy-routing branch ends at the right-center of Safe Deferral and Clarification Management, while the caregiver-escalation branch remains connected to the right edge of Caregiver Escalation at one-third height.</text>
+  <text x="825" y="1212" text-anchor="middle" class="tiny">This final paper figure includes the dashboard-oriented Raspberry Pi support layer and the requested orthogonal caregiver-approval execution path.</text>
 </svg>
