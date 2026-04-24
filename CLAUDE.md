@@ -43,11 +43,82 @@
 
 doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 frozen 정책/실험 문서와 정합성을 맞춰야 한다.
 
+### 3. doorlock에 대한 논문적 해석
+문서와 구현에서 doorlock은 단순 편의 기능이 아니라 **representative sensitive actuation case**로 해석한다.
+
+즉,
+- doorlock의 중요성은 “문을 여는 기능 구현” 자체보다,
+- **LLM 기반 의도 복원과 민감 액추에이션 통제 사이의 경계**를 드러내는 대표 사례라는 점에 있다.
+
+현재 해석에서:
+- LLM은 제한 입력과 컨텍스트를 바탕으로 intent candidate를 복원할 수 있다.
+- 그러나 door unlock은 unrestricted autonomous execution path로 가면 안 된다.
+- 현재 아키텍처 해석에서는 caregiver escalation, bounded manual approval, deterministic validation, ACK-based closed-loop verification, local audit logging 경로와 정렬되어야 한다.
+
 ---
 
-## 프롬프트 묶음
+## 프롬프트 문서 구조
 
+프롬프트 문서는 더 이상 단일 파일로 관리하지 않는다.
+
+### 인덱스
 * `/common/docs/architecture/12_prompts.md`
+
+### core system prompt set
+* `/common/docs/architecture/12_prompts_core_system.md`
+
+### nodes and evaluation prompt set
+* `/common/docs/architecture/12_prompts_nodes_and_evaluation.md`
+
+주의:
+- `12_prompts.md`는 이제 전체 프롬프트 본문이 아니라 **index file**이다.
+- 프롬프트 번호 체계는 분리 후에도 유지된다.
+- ESP32/STM32/실험/논문 평가 관련 프롬프트는 `12_prompts_nodes_and_evaluation.md`를 본다.
+
+---
+
+## 논문 기여와 실험 문서에 대한 중요 해석
+
+이 저장소의 최근 문서 갱신은 단순 구현 메모가 아니라, 논문 contribution과 실험 구조를 맞추는 방향으로 진행되었다.
+
+반드시 아래 두 문서를 함께 해석할 것.
+
+* `/common/docs/paper/01_paper_contributions.md`
+* `/common/docs/required_experiments.md`
+
+핵심 해석:
+- 본 논문의 핵심은 LLM에게 더 많은 자율권을 주는 것이 아니다.
+- 본 논문의 핵심은 **제한된 입력 환경에서 LLM이 의도 복원을 보조하되, 민감 액추에이션은 정책/스키마/validator/caregiver escalation으로 구조적으로 제한하는 것**이다.
+- 따라서 실험도 단순 accuracy나 latency뿐 아니라,
+  - safe deferral,
+  - escalation correctness,
+  - autonomous unlock blocked,
+  - approval/ACK/audit completeness,
+  - bounded authority 하의 intent recovery improvement
+  를 보여주는 방향으로 설계해야 한다.
+
+특히 `required_experiments.md`에는 Contribution 1 보강용 intent recovery evaluation이 추가되었다.
+이 비교는 최소한 다음 세 조건을 포함할 수 있다.
+- Direct Mapping Baseline
+- Rule-only Context Baseline
+- LLM-assisted Intent Recovery
+
+---
+
+## SESSION_HANDOFF 관리 원칙
+
+`SESSION_HANDOFF`는 앞으로 **master + addendum 구조**로 관리한다.
+
+### master handoff
+* `/common/docs/runtime/SESSION_HANDOFF.md`
+
+### addendum example
+* `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+
+원칙:
+- `SESSION_HANDOFF.md`는 장기적인 master summary 역할을 한다.
+- 문서가 너무 길어져 connector 기반 업데이트가 위험하거나, 큰 milestone/topic update가 생기면 **날짜/주제 기반 addendum 문서**를 추가한다.
+- 이후 세션은 master만 보지 말고, 필요한 addendum도 함께 확인해야 한다.
 
 ---
 
@@ -56,11 +127,15 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 1. `/common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 2. `/common/policies/policy_table_v1_1_2_FROZEN.json`
 3. `/common/docs/required_experiments.md`
-4. `/common/docs/runtime/SESSION_HANDOFF.md`
-5. `/CLAUDE.md`
-6. `/common/docs/architecture/12_prompts.md`
+4. `/common/docs/paper/01_paper_contributions.md`
+5. `/common/docs/runtime/SESSION_HANDOFF.md`
+6. 최신 `SESSION_HANDOFF` addendum 문서들
+7. `/CLAUDE.md`
+8. `/common/docs/architecture/12_prompts.md`
 
 그 다음 필요 시 아래를 읽는다.
+- `/common/docs/architecture/12_prompts_core_system.md`
+- `/common/docs/architecture/12_prompts_nodes_and_evaluation.md`
 - `/integration/scenarios/scenario_manifest_rules.md`
 - `/integration/scenarios/scenario_review_guide.md`
 - `/integration/tests/integration_test_runner_skeleton.py`
@@ -74,7 +149,9 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 ### 최우선 기준 문서
 * `/README.md`
 * `/common/docs/required_experiments.md`
+* `/common/docs/paper/01_paper_contributions.md`
 * `/common/docs/runtime/SESSION_HANDOFF.md`
+* 최신 `SESSION_HANDOFF` addendum 문서
 
 ### 아키텍처 문서
 * `/common/docs/architecture/01_installation_target_classification.md`
@@ -89,6 +166,9 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 * `/common/docs/architecture/10_install_script_structure.md`
 * `/common/docs/architecture/11_configuration_script_structure.md`
 * `/common/docs/architecture/12_prompts.md`
+* `/common/docs/architecture/12_prompts_core_system.md`
+* `/common/docs/architecture/12_prompts_nodes_and_evaluation.md`
+* `/common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 
 ### 시나리오 / integration 문서
 * `/integration/README.md`
@@ -190,6 +270,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 * 파이썬 코딩 규칙은 PEP8을 따를 것
 * integration 관련 코드를 작성할 때는 scenario / fixture / comparator / measurement 문서와 함께 정합성을 확인할 것
 * 구현 중 문서와 코드가 충돌하면, 코드에 맞춰 임의 해석하지 말고 먼저 frozen baseline과 `required_experiments.md`를 기준으로 해석할 것
+* 논문 기여를 직접 뒷받침하는 실험/평가 코드를 작성할 때는 `01_paper_contributions.md`와 `required_experiments.md`를 함께 확인할 것
 
 ---
 
@@ -200,6 +281,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - 정책 파일 우회 로직 작성 금지
 - deployment-local 파일(.env, runtime copy, synced copy)을 canonical truth처럼 취급 금지
 - doorlock implementation scope를 현재 authoritative autonomous low-risk Class 1 scope로 임의 승격 금지
+- 논문 contribution을 이유로 unrestricted autonomous sensitive actuation path를 정당화하지 말 것
 
 ---
 
@@ -219,11 +301,11 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 ## 작업 순서
 
 1. 반드시 먼저 읽을 문서를 읽고, 이를 기준으로 시나리오와 요구사항을 확인한다.
-2. 현재 작업 범위에 해당하는 프롬프트 묶음을 `/common/docs/architecture/12_prompts.md`에서 선택한다.
+2. 현재 작업 범위에 해당하는 프롬프트 묶음을 `/common/docs/architecture/12_prompts.md`에서 찾고, 실제 본문은 split prompt files에서 선택한다.
 3. 구현 시 스키마와 정책을 참조한다.
 4. 빌드 또는 실행 전에는 install / configure / verify 상태가 완료되었는지 먼저 확인한다.
 5. integration 관련 코드를 작성할 경우 scenario manifest, review guide, fixture, comparator 구조와 정합성을 확인한다.
-6. `/common/docs/architecture/06_implementation_plan.md`, `/common/docs/architecture/07_task_breakdown.md`, `/common/docs/architecture/08_additional_required_work.md`, `/common/docs/architecture/10_install_script_structure.md`, `/common/docs/architecture/11_configuration_script_structure.md`, `/common/docs/required_experiments.md`, `/common/docs/runtime/SESSION_HANDOFF.md`에 수정/추가사항이 생기면 같이 반영한다.
+6. `/common/docs/architecture/06_implementation_plan.md`, `/common/docs/architecture/07_task_breakdown.md`, `/common/docs/architecture/08_additional_required_work.md`, `/common/docs/architecture/10_install_script_structure.md`, `/common/docs/architecture/11_configuration_script_structure.md`, `/common/docs/required_experiments.md`, `/common/docs/paper/01_paper_contributions.md`, `/common/docs/runtime/SESSION_HANDOFF.md` 및 필요한 addendum 문서에 수정/추가사항이 생기면 같이 반영한다.
 
 ---
 
@@ -233,8 +315,9 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 1. FROZEN 정책/스키마
 2. `/common/docs/required_experiments.md`
-3. `/common/docs/runtime/SESSION_HANDOFF.md`
-4. device-layer README와 integration 문서
-5. `CLAUDE.md`
+3. `/common/docs/paper/01_paper_contributions.md`
+4. `/common/docs/runtime/SESSION_HANDOFF.md` 및 관련 addendum
+5. device-layer README와 integration 문서
+6. `CLAUDE.md`
 
 즉, `CLAUDE.md`는 작업 안내 문서이지, canonical truth 자체는 아니다.
