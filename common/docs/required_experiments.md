@@ -213,6 +213,68 @@ Class 1 low-risk path에서 LLM 또는 bounded assistance layer가 생성하는 
 - Safe Deferral Rate (SDR)
 - Class 2 Handoff Correctness
 
+### 5.7 Contribution 1 보강용: Intent Recovery under Constrained Input
+
+#### 5.7.1 목적
+논문의 Contribution 1인 **LLM-assisted intent recovery for constrained alternative input**를 직접 뒷받침하기 위해, 제한된 입력 조건에서 LLM 기반 의도 복원 경로가 단순 rule-only 또는 direct-mapping baseline보다 실제로 유의미한 해석 가치를 제공하는지 비교 검증한다.
+
+#### 5.7.2 권장 비교 조건
+최소한 다음 세 가지 비교 조건을 둔다.
+
+1. **Direct Mapping Baseline**
+   - button pattern 또는 단순 입력 이벤트를 사전 고정 규칙으로 직접 low-risk action 또는 escalation에 매핑한다.
+   - contextual disambiguation capability는 최소 수준으로 제한한다.
+
+2. **Rule-only Context Baseline**
+   - 환경/상태 컨텍스트는 사용하되, hand-crafted deterministic rule set만으로 의도를 추정한다.
+   - free-form semantic interpretation은 허용하지 않는다.
+
+3. **Proposed LLM-assisted Intent Recovery**
+   - bounded alternative input + environmental context + device state를 함께 사용하여 LLM이 후보 intent/action을 제안한다.
+   - 단, 실행 권한은 여전히 policy/validator가 통제한다.
+
+#### 5.7.3 권장 시나리오군
+다음과 같이 **입력만으로는 불충분하고 컨텍스트가 해석에 중요한 상황**을 시나리오로 구성한다.
+
+- 동일한 single hit가 상황에 따라 서로 다른 해석 후보를 가질 수 있는 경우
+- 버튼 입력은 동일하지만 조도, 점유, 기존 조명 상태가 달라 해석이 달라져야 하는 경우
+- doorbell/visitor-response 상황에서 notify / caregiver call / unlock intent 후보가 분리되어야 하는 경우
+- 일부 컨텍스트가 충분하지 않아 safe deferral로 가야 하는 경우
+- 동일한 이벤트라도 direct mapping으로는 과도하게 escalation되거나, 반대로 과도하게 단순화되는 경우
+
+#### 5.7.4 필수 평가 항목
+- **Intent Recovery Accuracy**
+  - 사람이 사전 정의한 intended interpretation label 대비, 시스템이 제안한 primary interpretation의 정확도
+- **Top-k Candidate Containment**
+  - 정답 의도가 상위 bounded candidate 집합 안에 포함되는 비율
+- **Over-escalation Rate**
+  - 실제로는 bounded low-risk interpretation이 가능하지만 baseline이 불필요하게 Class 2로 올리는 비율
+- **Unnecessary Safe Deferral Rate**
+  - 실제로는 해석 가능하지만 시스템이 불필요하게 safe deferral로 보내는 비율
+- **Unsafe Interpretation Promotion Rate**
+  - 민감하거나 부적절한 후보가 과도하게 상위 해석으로 올라오는 비율
+
+#### 5.7.5 논문 해석 원칙
+이 실험의 목적은 **LLM이 autonomous actuation을 더 많이 수행하게 한다**는 것을 보이는 것이 아니다.
+
+오히려 다음을 보이는 것이 목적이다.
+
+- 제한된 입력만으로는 부족한 경우, LLM이 더 나은 intent candidate recovery를 제공할 수 있다.
+- 그러나 그 candidate는 여전히 policy/schema/validator 경계 안에서만 실행 가능하다.
+- 따라서 본 실험은 **capability gain under bounded authority**를 보이기 위한 것이다.
+
+#### 5.7.6 권장 결과 표 구성
+Table X. Intent recovery comparison under constrained input
+- scenario ID
+- intended interpretation label
+- direct mapping result
+- rule-only result
+- LLM-assisted result
+- correct / incorrect
+- escalation 여부
+- safe deferral 여부
+- notes
+
 ---
 
 ## 6. 실험 패키지 B: 클래스별 지연 시간 검증
@@ -388,6 +450,10 @@ external dispatch grace period가 존재하는 emergency path에서 false dispat
 - Class-wise Latency (p50 / p95 / optional p99)
 - UAR under Fault Injection
 - Misrouting under Faults
+- Intent Recovery Accuracy
+- Top-k Candidate Containment
+- Over-escalation Rate
+- Unnecessary Safe Deferral Rate
 
 ---
 
@@ -430,6 +496,16 @@ external dispatch grace period가 존재하는 emergency path에서 false dispat
 - extended scope
 - included in main paper results (Y/N)
 
+### Table 5. Intent recovery comparison under constrained input
+- scenario ID
+- intended interpretation label
+- direct mapping result
+- rule-only context result
+- LLM-assisted result
+- escalation 여부
+- safe deferral 여부
+- correct / incorrect
+
 ---
 
 ## 13. 논문용 최소 실험 세트
@@ -439,6 +515,7 @@ external dispatch grace period가 존재하는 emergency path에서 false dispat
 - Class-wise latency figure 1개
 - Fault injection 결과 표 1개
 - Experimental node composition 표 1개
+- Intent recovery comparison 결과 표 1개
 
 ### 권장 추가
 - Class 2 payload completeness 결과 1개
@@ -455,3 +532,4 @@ external dispatch grace period가 존재하는 emergency path에서 false dispat
 5. 논문 표/그림의 모든 결과는 deterministic profile 또는 canonical scenario ID와 연결 가능해야 한다.
 6. frozen asset version이 변경되면 본 문서도 함께 갱신한다.
 7. current implementation-facing device scope와 current authoritative autonomous low-risk scope를 혼동하지 않는다.
+8. LLM-assisted intent recovery 평가는 autonomous actuation coverage가 아니라, **bounded authority 하에서의 interpretation quality improvement**를 보이는 방향으로 설계해야 한다.
