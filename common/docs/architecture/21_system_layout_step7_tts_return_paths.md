@@ -71,7 +71,25 @@ ACK-completion paths and optional experiment-support publication completion path
 
 ---
 
-## 4. Routing intent at this step
+## 4. Interpretation of the TTS paths
+
+The figure does **not** depict a direct `Local LLM Reasoning Layer → TTS Rendering / Voice Output` path.
+This is intentional.
+
+The intended interpretation is that the local LLM generates language candidates together with the interpreted intent, including:
+- current-status explanations,
+- safe-deferral reasons,
+- and next-input suggestions.
+
+However, these language outputs are **not** treated as immediately speakable outputs.
+Instead, they are forwarded together with the interpreted intent to `Policy Routing + Validation`.
+The spoken outputs shown in this figure should therefore be understood as **policy-constrained spoken outputs** rather than raw LLM outputs.
+
+Accordingly, the TTS paths in this step are drawn from downstream policy-result states such as approved actuation, safe deferral, and caregiver escalation, because only those validated states are intended to produce final spoken feedback to the user.
+
+---
+
+## 5. Routing intent at this step
 
 This step is intended to verify that:
 - spoken user feedback is shown as a distinct downstream layer after policy branching,
@@ -83,11 +101,12 @@ This step is intended to verify that:
 This figure therefore supports the paper’s assistive-interaction claim that:
 - system outcomes are not only internally routed,
 - but are also converted into explicit spoken guidance for the user,
-- including status explanation, deferral explanation, and escalation-state explanation.
+- including status explanation, deferral explanation, and escalation-state explanation,
+- while keeping the final spoken output under policy control.
 
 ---
 
-## 5. Next expected step
+## 6. Next expected step
 
 The next interface category to add after this figure is:
 
