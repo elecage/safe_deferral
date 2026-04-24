@@ -1,3 +1,23 @@
+# 12_prompts_nodes_and_evaluation.md
+
+## Node, Measurement, and Evaluation Prompt Set
+
+This document contains the prompt set for:
+
+- ESP32 node firmware generation
+- STM32 timing / measurement support
+- experiment-readiness support
+- constrained-input evaluation
+- sensitive-actuation evaluation
+
+The common repository-wide prompt assumptions are indexed from:
+- `common/docs/architecture/12_prompts.md`
+- `common/docs/architecture/12_prompts_core_system.md`
+
+Prompt numbering is intentionally preserved from the original combined prompt document.
+
+---
+
 ## Prompt 17. Implement ESP32 Embedded Node Firmware
 
 ```text
@@ -135,6 +155,8 @@ Requirements:
   - broker reconnect behavior,
   - test procedure for 1-hit / 2-hit / 3-hit bounded input patterns when policy-aligned.
 ```
+
+---
 
 ## Prompt 21. Implement ESP32 Lighting Control Node Firmware
 
@@ -418,6 +440,8 @@ Requirements:
 - Do not invent latency thresholds or measurement claims that are not grounded in aligned project docs.
 ```
 
+---
+
 ## Prompt 29. Implement Intent Recovery Comparison Baseline Runner
 
 ```text
@@ -472,13 +496,10 @@ Requirements:
   - metric computation
   - aggregate summary generation
   - scenario parsing
-
+```
 
 ---
 
-## Prompt 30. Generate Constrained-Input Intent Recovery Scenario Set
-
-```text
 ## Prompt 30. Generate Constrained-Input Intent Recovery Scenario Set
 
 ```text
@@ -522,12 +543,10 @@ Requirements:
   - scenario schema
   - label semantics
   - how the scenarios support paper contribution evaluation
+```
 
 ---
 
-## Prompt 32. Implement Sensitive Actuation Visitor-Response Evaluation Flow
-
-```text
 ## Prompt 32. Implement Sensitive Actuation Visitor-Response Evaluation Flow
 
 ```text
@@ -574,4 +593,5 @@ Requirements:
   - blocked autonomous unlock
   - caregiver escalation path
   - approval required before dispatch
-  - ACK-required comple
+  - ACK-required completion handling
+```
