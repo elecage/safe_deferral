@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1660" height="1240" viewBox="0 0 1660 1240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font: 700 28px Arial, sans-serif; fill: #1f2937; }
+      .subtitle { font: 400 15px Arial, sans-serif; fill: #4b5563; }
+      .host { fill: #f8fafc; stroke: #0f172a; stroke-width: 2.5; rx: 24; ry: 24; }
+      .actor { fill: #ffffff; stroke: #475569; stroke-width: 2; rx: 18; ry: 18; }
+      .box { fill: #ffffff; stroke: #334155; stroke-width: 2; rx: 16; ry: 16; }
+      .safe { fill: #f0fdf4; stroke: #166534; stroke-width: 2; rx: 16; ry: 16; }
+      .critical { fill: #fff7ed; stroke: #9a3412; stroke-width: 2; rx: 16; ry: 16; }
+      .tts { fill: #faf5ff; stroke: #7c3aed; stroke-width: 2; rx: 16; ry: 16; }
+      .exp { fill: #eff6ff; stroke: #1d4ed8; stroke-width: 2; rx: 16; ry: 16; }
+      .section { font: 700 18px Arial, sans-serif; fill: #111827; }
+      .tiny { font: 400 12px Arial, sans-serif; fill: #4b5563; }
+      .label { font: 600 15px Arial, sans-serif; fill: #111827; }
+      .small { font: 400 13px Arial, sans-serif; fill: #374151; }
+      .arrow { stroke: #334155; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .divider { stroke: #cbd5e1; stroke-width: 1.5; }
+      .emergency { stroke: #9a3412; }
+      .llm { stroke: #0f766e; }
+      .branch { stroke: #1d4ed8; }
+      .exec { stroke: #7c2d12; }
+      .ttsflow { stroke: #7c3aed; }
+    </style>
+    <marker id="arrowhead" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#334155"/>
+    </marker>
+    <marker id="arrowhead_em" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#9a3412"/>
+    </marker>
+    <marker id="arrowhead_llm" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#0f766e"/>
+    </marker>
+    <marker id="arrowhead_branch" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#1d4ed8"/>
+    </marker>
+    <marker id="arrowhead_exec" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#7c2d12"/>
+    </marker>
+    <marker id="arrowhead_tts" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <text x="830" y="42" text-anchor="middle" class="title">System Layout with Step 7 Interfaces: TTS Return Paths Added</text>
+  <text x="830" y="68" text-anchor="middle" class="subtitle">
+    approved, deferral, and escalation TTS routes are re-spaced with ordered bends and aligned end ports
+  </text>
+
+  <rect x="50" y="90" width="330" height="88" class="actor"/>
+  <text x="215" y="121" text-anchor="middle" class="section">User</text>
+  <text x="215" y="146" text-anchor="middle" class="small">bounded input and</text>
+  <text x="215" y="166" text-anchor="middle" class="small">voice-guided interaction</text>
+
+  <rect x="1300" y="90" width="310" height="88" class="actor"/>
+  <text x="1455" y="121" text-anchor="middle" class="section">Caregiver</text>
+  <text x="1455" y="146" text-anchor="middle" class="small">approval authority for</text>
+  <text x="1455" y="166" text-anchor="middle" class="small">sensitive actuation</text>
+
+  <rect x="50" y="200" width="330" height="980" class="host"/>
+  <rect x="85" y="290" width="260" height="96" class="box"/>
+  <text x="215" y="322" text-anchor="middle" class="label">Bounded Input Node</text>
+  <text x="215" y="348" text-anchor="middle" class="small">button and</text>
+  <text x="215" y="368" text-anchor="middle" class="small">alternative input</text>
+  <rect x="85" y="470" width="260" height="110" class="box"/>
+  <text x="215" y="502" text-anchor="middle" class="label">Context Nodes</text>
+  <text x="215" y="528" text-anchor="middle" class="small">environment and</text>
+  <text x="215" y="548" text-anchor="middle" class="small">device-state sensing</text>
+  <rect x="85" y="650" width="260" height="126" class="critical"/>
+  <text x="215" y="682" text-anchor="middle" class="label">Emergency Nodes</text>
+  <text x="215" y="708" text-anchor="middle" class="small">gas, smoke, fall, and</text>
+  <text x="215" y="728" text-anchor="middle" class="small">threshold emergency</text>
+  <text x="215" y="748" text-anchor="middle" class="small">signals</text>
+  <rect x="85" y="840" width="260" height="96" class="critical"/>
+  <text x="215" y="872" text-anchor="middle" class="label">Actuator Interface Nodes</text>
+  <text x="215" y="898" text-anchor="middle" class="small">lighting and representative</text>
+  <text x="215" y="918" text-anchor="middle" class="small">doorlock-sensitive path</text>
+  <line x1="70" y1="1040" x2="360" y2="1040" class="divider"/>
+  <text x="215" y="1085" text-anchor="middle" class="section">ESP32 Device Layer</text>
+  <text x="215" y="1110" text-anchor="middle" class="tiny">field-side bounded input, sensing,</text>
+  <text x="215" y="1126" text-anchor="middle" class="tiny">emergency detection, and</text>
+  <text x="215" y="1142" text-anchor="middle" class="tiny">actuator interfacing</text>
+
+  <rect x="420" y="200" width="840" height="980" class="host"/>
+  <rect x="465" y="290" width="300" height="96" class="box"/>
+  <text x="615" y="322" text-anchor="middle" class="label">MQTT Ingestion / State Intake</text>
+  <text x="615" y="348" text-anchor="middle" class="small">receives field-side input,</text>
+  <text x="615" y="368" text-anchor="middle" class="small">state, emergency, and ACK events</text>
+  <rect x="465" y="470" width="300" height="110" class="box"/>
+  <text x="615" y="502" text-anchor="middle" class="label">Context and Runtime</text>
+  <text x="615" y="522" text-anchor="middle" class="label">State Aggregation</text>
+  <text x="615" y="548" text-anchor="middle" class="small">bounded input, context, and</text>
+  <text x="615" y="568" text-anchor="middle" class="small">runtime-state integration</text>
+  <rect x="465" y="650" width="300" height="126" class="box"/>
+  <text x="615" y="682" text-anchor="middle" class="label">Local LLM Reasoning Layer</text>
+  <text x="615" y="708" text-anchor="middle" class="small">intent recovery, explanation</text>
+  <text x="615" y="728" text-anchor="middle" class="small">generation, and clarification</text>
+  <text x="615" y="748" text-anchor="middle" class="small">prompt generation</text>
+  <rect x="465" y="840" width="300" height="96" class="tts"/>
+  <text x="615" y="872" text-anchor="middle" class="label">TTS Rendering / Voice Output</text>
+  <text x="615" y="898" text-anchor="middle" class="small">spoken guidance, status,</text>
+  <text x="615" y="918" text-anchor="middle" class="small">warning, and next-input prompts</text>
+  <rect x="915" y="290" width="300" height="96" class="box"/>
+  <text x="1065" y="322" text-anchor="middle" class="label">Policy Routing + Validation</text>
+  <text x="1065" y="348" text-anchor="middle" class="small">deterministic authority for</text>
+  <text x="1065" y="368" text-anchor="middle" class="small">routing and admissibility</text>
+  <rect x="915" y="470" width="300" height="106" class="safe"/>
+  <text x="1065" y="502" text-anchor="middle" class="label">Approved Low-Risk</text>
+  <text x="1065" y="522" text-anchor="middle" class="label">Actuation Path</text>
+  <text x="1065" y="548" text-anchor="middle" class="small">bounded execution for</text>
+  <text x="1065" y="568" text-anchor="middle" class="small">admissible low-risk actions</text>
+  <rect x="915" y="645" width="300" height="126" class="critical"/>
+  <text x="1065" y="677" text-anchor="middle" class="label">Safe Deferral and</text>
+  <text x="1065" y="697" text-anchor="middle" class="label">Clarification Management</text>
+  <text x="1065" y="723" text-anchor="middle" class="small">deferred state, unresolved</text>
+  <text x="1065" y="743" text-anchor="middle" class="small">reason, and clarification-needed</text>
+  <rect x="915" y="840" width="300" height="96" class="critical"/>
+  <text x="1065" y="872" text-anchor="middle" class="label">Caregiver Escalation</text>
+  <text x="1065" y="898" text-anchor="middle" class="small">manual confirmation path for</text>
+  <text x="1065" y="918" text-anchor="middle" class="small">sensitive actuation</text>
+  <rect x="465" y="980" width="750" height="70" class="box"/>
+  <text x="840" y="1012" text-anchor="middle" class="label">Local ACK + Audit Logging</text>
+  <text x="840" y="1038" text-anchor="middle" class="small">shared lower layer for processed hub-side outcomes</text>
+  <line x1="440" y1="1080" x2="1240" y2="1080" class="divider"/>
+  <text x="840" y="1115" text-anchor="middle" class="section">Mac mini Edge Hub</text>
+  <text x="840" y="1140" text-anchor="middle" class="tiny">local LLM reasoning, policy-constrained control, TTS rendering, ACK handling, and local audit</text>
+
+  <rect x="1300" y="200" width="310" height="980" class="host"/>
+  <rect x="1340" y="430" width="230" height="120" class="exp"/>
+  <text x="1455" y="462" text-anchor="middle" class="label">Experiment Support</text>
+  <text x="1455" y="488" text-anchor="middle" class="small">scenario orchestration, replay,</text>
+  <text x="1455" y="508" text-anchor="middle" class="small">simulation, and fault injection</text>
+  <rect x="1340" y="630" width="230" height="96" class="exp"/>
+  <text x="1455" y="662" text-anchor="middle" class="label">Progress / Result Publication</text>
+  <text x="1455" y="688" text-anchor="middle" class="small">progress visibility and</text>
+  <text x="1455" y="708" text-anchor="middle" class="small">experiment artifacts</text>
+  <rect x="1340" y="830" width="230" height="88" class="critical"/>
+  <text x="1455" y="862" text-anchor="middle" class="label">Caregiver Approval</text>
+  <text x="1455" y="888" text-anchor="middle" class="small">approval or denial of</text>
+  <text x="1455" y="908" text-anchor="middle" class="small">sensitive action requests</text>
+  <line x1="1320" y1="1040" x2="1590" y2="1040" class="divider"/>
+  <text x="1455" y="1085" text-anchor="middle" class="section">Raspberry Pi 5</text>
+  <text x="1455" y="1110" text-anchor="middle" class="tiny">scenario orchestration, replay,</text>
+  <text x="1455" y="1126" text-anchor="middle" class="tiny">fault injection, and</text>
+  <text x="1455" y="1142" text-anchor="middle" class="tiny">result publication</text>
+
+  <path d="M215 178 V290" class="arrow"/>
+  <path d="M345 322 H465" class="arrow"/>
+  <path d="M345 525 H375 V525 H395 V342 H465" class="arrow"/>
+  <path d="M345 708 H410 V354 H465" class="arrow emergency" marker-end="url(#arrowhead_em)"/>
+  <path d="M615 386 V470" class="arrow"/>
+  <path d="M765 318 H845 V318 H915" class="arrow emergency" marker-end="url(#arrowhead_em)"/>
+  <path d="M615 580 V650" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
+  <path d="M765 713 H810 V338 H915" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
+  <path d="M1065 386 V470" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
+  <path d="M1215 338 H1235 V708 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
+  <path d="M1215 354 H1250 V888 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
+  <path d="M915 495 H840 V780 H430 V888 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+  <path d="M1215 902 H1275 V884 H1340" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+  <path d="M1340 890 H1288 V962 H382 V904 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+
+  <path d="M915 545 H865 V860 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
+  <path d="M915 708 H890 V888 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
+  <path d="M915 904 H780 V904 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
+
+  <rect x="60" y="1195" width="1550" height="24" class="box"/>
+  <text x="835" y="1212" text-anchor="middle" class="tiny">Approved-to-TTS now bends to the right of the approved-to-actuator bend, safe-deferral bends further right and lands at the middle TTS port, and caregiver-escalation uses aligned 2/3-height start and end ports.</text>
+</svg>
