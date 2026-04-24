@@ -969,3 +969,160 @@ Requirements:
 - Do not invent latency thresholds or measurement claims that are not grounded in aligned project docs.
 ```
 
+## Prompt 29. Implement Intent Recovery Comparison Baseline Runner
+
+```text
+Implement an intent recovery comparison baseline runner for constrained alternative-input scenarios.
+
+Target repository areas:
+- integration/tests/
+- integration/scenarios/
+- rpi/code/ (only if replay/input simulation support is needed)
+- mac_mini/code/ (only if a runtime adapter is needed)
+
+Requirements:
+- The purpose of this component is to compare three interpretation strategies under constrained-input conditions:
+  1. Direct Mapping Baseline
+  2. Rule-only Context Baseline
+  3. Proposed LLM-assisted Intent Recovery
+- The implementation must evaluate interpretation quality, not unrestricted actuation coverage.
+- It must not bypass policy, schema, or validator boundaries.
+- The runner must load scenario definitions from repository-managed files rather than hardcoding cases.
+- Each scenario should support:
+  - bounded input event
+  - environmental context
+  - device state context
+  - intended interpretation label
+  - optional expected safe outcome label
+- The Direct Mapping Baseline should:
+  - map bounded input directly to a predefined action or escalation path
+  - use minimal or no contextual disambiguation
+- The Rule-only Context Baseline should:
+  - use deterministic rules over context and device states
+  - avoid free-form semantic interpretation
+- The Proposed LLM-assisted path should:
+  - consume bounded input plus context
+  - produce bounded interpretation candidates
+  - remain policy/validator constrained for all executable outcomes
+- The runner must compute at least:
+  - Intent Recovery Accuracy
+  - Top-k Candidate Containment
+  - Over-escalation Rate
+  - Unnecessary Safe Deferral Rate
+  - Unsafe Interpretation Promotion Rate
+- The output must include:
+  - per-scenario comparison rows
+  - aggregate metrics
+  - machine-readable JSON summary
+  - markdown table summary suitable for paper drafting
+- Keep the evaluation aligned with:
+  - common/docs/required_experiments.md
+  - common/docs/paper/01_paper_contributions.md
+- Include unit tests for:
+  - baseline selection
+  - metric computation
+  - aggregate summary generation
+  - scenario parsing
+
+
+---
+
+## Prompt 30. Generate Constrained-Input Intent Recovery Scenario Set
+
+```text
+## Prompt 30. Generate Constrained-Input Intent Recovery Scenario Set
+
+```text
+Generate a constrained-input intent recovery scenario set for comparative evaluation.
+
+Target repository areas:
+- integration/scenarios/
+- integration/tests/data/
+
+Requirements:
+- Create repository-managed scenario files for evaluating intent recovery under constrained alternative input.
+- Do not invent arbitrary action domains outside the frozen policy/schema baseline.
+- The scenario set must support comparison between:
+  - Direct Mapping Baseline
+  - Rule-only Context Baseline
+  - LLM-assisted Intent Recovery
+- Each scenario file should include:
+  - scenario_id
+  - bounded input event description
+  - contextual state payload
+  - intended interpretation label
+  - optional expected safe outcome
+  - notes on ambiguity or insufficiency
+- Include scenario families such as:
+  1. same bounded input, different environmental context
+  2. same bounded input, different device state context
+  3. ambiguity that should lead to safe deferral
+  4. ambiguity that should lead to caregiver escalation
+  5. visitor-response / doorbell situations with multiple candidate interpretations
+  6. cases where direct mapping over-escalates
+  7. cases where rule-only logic fails to recover intended interpretation
+- Preserve the distinction between:
+  - intended interpretation label
+  - executable action outcome
+- Do not encode unrestricted autonomous door unlock as an allowed result.
+- Prefer deterministic and reproducible scenario files suitable for repeated evaluation.
+- Include at least:
+  - a small canonical scenario pack
+  - an extended scenario pack
+- Provide a short README describing:
+  - scenario schema
+  - label semantics
+  - how the scenarios support paper contribution evaluation
+
+---
+
+## Prompt 32. Implement Sensitive Actuation Visitor-Response Evaluation Flow
+
+```text
+## Prompt 32. Implement Sensitive Actuation Visitor-Response Evaluation Flow
+
+```text
+Implement a visitor-response sensitive-actuation evaluation flow for doorlock-related interpretation and escalation testing.
+
+Target repository areas:
+- integration/tests/
+- integration/scenarios/
+- mac_mini/code/ (only if a runtime adapter or mock orchestration bridge is needed)
+
+Requirements:
+- The purpose of this component is to evaluate whether visitor-response situations are handled safely under the current architecture interpretation.
+- The flow must support scenarios where the system may interpret candidate intentions such as:
+  - notify only
+  - call caregiver
+  - request bounded clarification
+  - possible unlock intent
+- The implementation must verify that:
+  - unrestricted autonomous unlock does not occur
+  - sensitive outcomes are routed to caregiver escalation
+  - manual approval is required for doorlock-related execution
+  - ACK and audit outcomes can be recorded in evaluation artifacts
+- Treat doorlock as a sensitive actuation case, not as a standard autonomous low-risk action.
+- Support mock or simulated caregiver approval states such as:
+  - approved
+  - denied
+  - timeout
+  - invalid approval
+- Support mock ACK outcomes such as:
+  - success
+  - timeout
+  - mismatch
+- Generate evaluation outputs for:
+  - autonomous unlock blocked verification
+  - caregiver escalation correctness
+  - approval-path correctness
+  - ACK completeness
+  - audit completeness
+- Keep the design aligned with:
+  - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
+  - common/docs/required_experiments.md
+  - common/docs/paper/01_paper_contributions.md
+- Include unit or integration tests for:
+  - blocked autonomous unlock
+  - caregiver escalation path
+  - approval required before dispatch
+  - ACK-required completion handling
