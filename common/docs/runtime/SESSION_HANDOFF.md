@@ -866,3 +866,9 @@ If a future session needs a very short summary:
 - Keep Mac mini / RPi / ESP32 / measurement role separation.
 - Prefer safe deferral over unsafe autonomous actuation.
 - **Next priorities**: (1) Fix `test_policy_fault_consistency.py` (2 test bugs), (2) Add dedicated E002~E005 fixtures, (3) ESP32 firmware (lower priority)
+- ### Doorlock-sensitive actuation interpretation
+- Doorlock is currently treated as an **implementation-facing representative actuator domain**, but **not** as part of the currently authorized autonomous low-risk Class 1 actuation scope.
+- The LLM may interpret limited-input user intent in visitor-response situations, but it must not autonomously authorize or execute door unlock.
+- Under the current interpretation, door unlock should follow a **caregiver escalation path** with manual approval, ACK-based closed-loop verification, and local audit logging.
+- Detailed rationale and architectural interpretation are documented in:
+  - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
