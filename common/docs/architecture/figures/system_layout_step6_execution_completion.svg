@@ -41,7 +41,7 @@
 
   <text x="830" y="42" text-anchor="middle" class="title">System Layout with Step 6 Interfaces: Execution and Approval Completion</text>
   <text x="830" y="68" text-anchor="middle" class="subtitle">
-    caregiver escalation endpoint is raised slightly to prevent overlap with the caregiver-approval execution route
+    the Local LLM → Policy bend is shifted left to avoid overlap with the approved-actuation route
   </text>
 
   <rect x="50" y="90" width="330" height="88" class="actor"/>
@@ -148,7 +148,7 @@
   <path d="M615 386 V470" class="arrow"/>
   <path d="M765 318 H845 V318 H915" class="arrow emergency" marker-end="url(#arrowhead_em)"/>
   <path d="M615 580 V650" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
-  <path d="M765 713 H885 V338 H915" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
+  <path d="M765 713 H845 V338 H915" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
   <path d="M1065 386 V470" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
   <path d="M1215 338 H1235 V708 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
   <path d="M1215 354 H1250 V888 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
@@ -158,5 +158,5 @@
   <path d="M1340 890 H1288 V962 H382 V904 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
 
   <rect x="60" y="1195" width="1550" height="24" class="box"/>
-  <text x="835" y="1212" text-anchor="middle" class="tiny">The caregiver-escalation-to-approval endpoint is raised slightly to keep it visually separate from the caregiver-approval-to-actuator route near the approval block.</text>
+  <text x="835" y="1212" text-anchor="middle" class="tiny">The Local LLM → Policy bend is shifted left so it no longer overlaps the approved-actuation-to-actuator route.</text>
 </svg>
