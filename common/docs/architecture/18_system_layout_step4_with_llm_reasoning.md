@@ -50,7 +50,20 @@ No downstream execution or escalation branching should be inferred from this fig
 
 ---
 
-## 4. Routing intent at this step
+## 4. Role of the local LLM at this step
+
+At this stage, the local LLM should be interpreted as contributing not only to intent recovery but also to explanation-oriented language generation.
+This includes language candidates such as:
+- current-status descriptions,
+- safe-deferral reasons,
+- and next-input suggestions.
+
+However, these language candidates are not treated as independent user-facing outputs.
+They are forwarded together with the interpreted intent to `Policy Routing + Validation`, so that any later spoken or action-related output remains policy-constrained rather than directly emitted from the LLM layer.
+
+---
+
+## 5. Routing intent at this step
 
 This step is intended to verify that:
 - the local LLM receives aggregated bounded input and context rather than raw actuator authority,
@@ -60,11 +73,11 @@ This step is intended to verify that:
 
 This figure therefore supports the paper’s core structural claim that:
 - the local LLM contributes to intent recovery and explanation generation,
-- but policy routing and validation still govern action admissibility.
+- but policy routing and validation still govern action admissibility and any later user-facing output.
 
 ---
 
-## 5. Next expected step
+## 6. Next expected step
 
 The next interface category to add after this figure is:
 
