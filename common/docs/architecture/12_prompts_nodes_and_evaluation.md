@@ -595,3 +595,131 @@ Requirements:
   - approval required before dispatch
   - ACK-required completion handling
 ```
+
+---
+
+## Prompt 33. Implement Experiment Dashboard Control Surface for Sensitive-Actuation Evaluation
+
+```text
+Implement an experiment dashboard control surface for the safe deferral project.
+
+Target repository areas:
+- mac_mini/code/ (if backend/API support is needed)
+- any dashboard-oriented repository area already used by the project
+- integration/measurement/ (only if result-export integration is needed)
+
+Requirements:
+- Treat the dashboard as an experiment operations console rather than a low-level debug tool.
+- The dashboard should support:
+  - experiment selection
+  - preflight readiness visibility
+  - required-node connectivity/status visibility
+  - start/stop control
+  - progress monitoring
+  - result summary
+  - graph/CSV export hooks when available
+- It must support doorlock-sensitive experiment visibility such as:
+  - autonomous unlock blocked status
+  - caregiver escalation state
+  - manual approval state
+  - ACK state
+  - audit completeness state
+- Do not implement unrestricted doorlock control UI as if it were a standard low-risk autonomous action.
+- The dashboard may initiate experiment execution, but it must not bypass policy, validator, or orchestration boundaries.
+- Keep the design aligned with:
+  - common/docs/required_experiments.md
+  - common/docs/paper/01_paper_contributions.md
+  - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
+- If backend support is required, keep Mac mini as the natural control-side host.
+- Include tests or verification notes for:
+  - experiment readiness display
+  - required-node state display
+  - experiment start/stop flow
+  - sensitive-actuation status panel rendering
+  - result export path rendering when available
+```
+
+---
+
+## Prompt 34. Implement Developer Test-App Flow for Doorlock-Sensitive and Intent-Recovery Evaluation
+
+```text
+Implement a developer/test-app flow for fine-grained experiment control and debug visibility.
+
+Target repository areas:
+- mac_mini/code/ (if backend/API support is needed)
+- any test-app-oriented repository area already used by the project
+- integration/tests/
+- integration/scenarios/
+
+Requirements:
+- Treat the test app as a developer/research control surface rather than the main operations dashboard.
+- The test app should support finer-grained interactions such as:
+  - raw scenario invocation
+  - direct mapping vs rule-only vs LLM-assisted baseline selection
+  - visitor-response mock event injection
+  - caregiver approval mock state injection
+  - ACK success/timeout/mismatch simulation
+  - raw payload/log/debug visibility
+- The test app may overlap with the dashboard, but it must expose more experiment/debug detail.
+- It must not be treated as an unrestricted actuator console.
+- Do not implement direct door unlock controls that bypass the current sensitive-actuation interpretation.
+- Keep the flow aligned with:
+  - common/docs/required_experiments.md
+  - common/docs/paper/01_paper_contributions.md
+  - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
+- Prefer Mac mini as the control-side host when a host distinction is needed.
+- Include tests or verification notes for:
+  - baseline selector behavior
+  - mock approval state injection
+  - ACK mock behavior
+  - raw scenario execution
+  - debug/log visibility
+```
+
+---
+
+## Prompt 35. Extend Scenario Orchestrator for Doorlock-Sensitive and Visitor-Response Evaluation
+
+```text
+Extend or implement scenario orchestration support for doorlock-sensitive and visitor-response experiment families.
+
+Target repository areas:
+- rpi/code/
+- integration/scenarios/
+- integration/tests/
+
+Requirements:
+- Treat Raspberry Pi as the natural host for scenario execution, simulation, replay, and fault-injection support.
+- The orchestrator must support sequence-based sensitive-actuation scenarios rather than only single isolated events.
+- At minimum, support:
+  - visitor-response scenario family selection
+  - bounded input or doorbell-style trigger injection
+  - contextual state bundle setup
+  - expected safe outcome declaration
+  - caregiver approval state variants:
+    - approved
+    - denied
+    - timeout
+    - invalid approval
+  - ACK outcome variants:
+    - success
+    - timeout
+    - mismatch
+  - audit/result artifact collection
+- The orchestrator should publish progress/state information in a way that Mac mini-side dashboard/test-app layers can observe.
+- Keep the role distinction explicit:
+  - Raspberry Pi = execution/replay/fault-injection support
+  - Mac mini = control-side UI and result visibility
+- Do not reinterpret doorlock as a standard autonomous low-risk action during orchestration.
+- Keep the design aligned with:
+  - common/docs/required_experiments.md
+  - common/docs/paper/01_paper_contributions.md
+  - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
+- Include tests or verification notes for:
+  - visitor-response family loading
+  - approval-state branch execution
+  - ACK branch execution
+  - result artifact generation
+  - progress/status publication
+```
