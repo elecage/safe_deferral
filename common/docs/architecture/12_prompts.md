@@ -60,6 +60,21 @@ Respect repository separation:
 - esp32/ = bounded physical node layer
 - integration/measurement/ = optional out-of-band timing and latency evaluation support
 
+Additional constraint for doorlock-related generation:
+- Do not assume that door unlock is part of the currently authorized autonomous low-risk Class 1 actuation scope.
+- You may generate representative doorlock-node interface code, caregiver-mediated approval logic, ACK handling, and audit logging support.
+- Do not generate unrestricted autonomous door-unlock execution paths.
+- If a doorlock-related action is proposed, keep it aligned with:
+  - caregiver escalation,
+  - bounded manual approval,
+  - deterministic validation,
+  - and closed-loop ACK verification.
+- Preserve the distinction between:
+  - implementation-facing doorlock interface support,
+  - and authoritative autonomous low-risk actuation scope.
+- For the current architecture interpretation, refer to:
+  - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+
 Do not let deployment-local files, synced runtime copies, or host-specific settings redefine canonical frozen policy or schema truth.
 ```
 
@@ -953,17 +968,4 @@ Requirements:
   - no operational control side effects.
 - Do not invent latency thresholds or measurement claims that are not grounded in aligned project docs.
 ```
-Additional constraint for doorlock-related generation:
-- Do not assume that door unlock is part of the currently authorized autonomous low-risk Class 1 actuation scope.
-- You may generate representative doorlock-node interface code, caregiver-mediated approval logic, ACK handling, and audit logging support.
-- Do not generate unrestricted autonomous door-unlock execution paths.
-- If a doorlock-related action is proposed, keep it aligned with:
-  - caregiver escalation,
-  - bounded manual approval,
-  - deterministic validation,
-  - and closed-loop ACK verification.
-- Preserve the distinction between:
-  - implementation-facing doorlock interface support,
-  - and authoritative autonomous low-risk actuation scope.
-- For the current architecture interpretation, refer to:
-  - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+
