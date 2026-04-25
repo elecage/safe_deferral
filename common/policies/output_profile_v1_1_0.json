@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "description": "Companion output profile for bounded safe deferral guidance, outbound notifications, audit logging, and local warning outputs. This asset complements but does not override canonical policy or schema truth.",
+  "description": "Companion output profile for bounded safe deferral guidance, outbound notifications, audit logging, governance evidence reporting, and local warning outputs. This asset complements but does not override canonical policy or schema truth.",
   "voice_feedback": {
     "engine": "local_tts",
     "allowed_engines": [
@@ -58,7 +58,8 @@
       "timeout",
       "escalation",
       "caregiver_confirmation",
-      "actuation_ack"
+      "actuation_ack",
+      "governance_validation"
     ]
   },
   "local_warning_output": {
@@ -72,5 +73,6 @@
     "free_form_actuation_allowed": false,
     "scope_note": "Local warning outputs are policy-controlled safety outputs and should not be interpreted as equivalent to the Class 1 low-risk autonomous actuation taxonomy.",
     "purpose": "Bounded local warning outputs for emergency or safety-critical feedback under policy control"
-  }
+  },
+  "governance_output_note": "Governance reports such as interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are verification/evidence artifacts and must not be treated as operational authorization, policy authority, schema authority, caregiver approval authority, or actuation authority."
 }
