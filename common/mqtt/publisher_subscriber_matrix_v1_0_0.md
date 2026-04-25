@@ -10,7 +10,7 @@ The machine-readable source is:
 
 - `common/mqtt/topic_registry_v1_0_0.json`
 
-This matrix is for review, implementation planning, and debugging.
+This matrix is for review, implementation planning, debugging, governance UI rendering, and Package G validation.
 It does not override policy or schema assets.
 
 ---
@@ -19,21 +19,37 @@ It does not override policy or schema assets.
 
 | Topic | Publishers | Subscribers | Payload family | Authority level | Notes |
 |---|---|---|---|---|---|
-| `safe_deferral/context/input` | `mac_mini.context_aggregator`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input` | operational input | Must include `environmental_context.doorbell_detected` |
+| `safe_deferral/context/input` | `mac_mini.context_aggregator`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input` | operational input | Must include `environmental_context.doorbell_detected`; RPi publisher is controlled-mode only |
 | `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | emergency operational input | Must align with E001~E005; doorbell is not emergency |
 | `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | model candidate, not authority | Door unlock is disallowed as current Class 1 candidate |
 | `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional RPi dashboard bridge | `validator_output` | validator decision | Executable payload must stay within low-risk catalog |
 | `safe_deferral/deferral/request` | validator, safe deferral handler | safe deferral handler, audit observer, optional RPi dashboard bridge | `safe_deferral_event` | bounded deferral control | Future schema recommended |
 | `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | caregiver escalation | Manual confirmation path is not autonomous execution authority |
-| `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test app mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | governed manual path | Future schema recommended |
-| `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | dispatch after approval | Doorlock requires governed manual confirmation path |
+| `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test app mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | governed manual path | Future schema recommended; mock publisher must be test/evaluation artifact only |
+| `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | dispatch after approval | Doorlock requires governed manual confirmation path; governance/dashboard/test-app must not publish this directly |
 | `safe_deferral/actuation/ack` | ESP32 actuator node, controlled RPi mock actuator | Mac mini ACK handler, audit observer, dashboard bridge | `actuation_ack_payload` | closed-loop evidence | ACK is not pure context input |
 | `safe_deferral/audit/log` | Mac mini operational services | Mac mini audit logging service | `audit_event_payload` | evidence / traceability | Audit service should be single DB writer |
 | `safe_deferral/sim/context` | RPi simulation runtime | controlled input bridge, RPi orchestrator, RPi dashboard | `policy_router_input_or_context_fixture` | experiment input | Experiment mode only |
-| `safe_deferral/fault/injection` | RPi fault injector, RPi orchestrator | RPi simulation runtime, fault injector, optional controlled input bridge | `fault_injection_payload` | experiment fault control | Must derive constraints from frozen assets |
+| `safe_deferral/fault/injection` | RPi fault injector, RPi orchestrator | RPi simulation runtime, fault injector, optional controlled input bridge | `fault_injection_payload` | experiment fault control | Must derive constraints from frozen assets; `FAULT_CONTRACT_DRIFT_01` is governance/verification only |
 | `safe_deferral/dashboard/observation` | RPi orchestrator, dashboard backend, optional Mac mini telemetry bridge | RPi dashboard frontend, optional test app | `dashboard_observation_payload` | visibility, not policy | Retained observation status allowed |
 | `safe_deferral/experiment/progress` | RPi orchestrator, integration test runner | RPi dashboard frontend, result exporter | `experiment_progress_payload` | experiment status | Future schema recommended |
 | `safe_deferral/experiment/result` | RPi orchestrator, integration test runner, result exporter | RPi dashboard frontend, optional paper analysis tools | `result_export_payload` | experiment artifact | Trace to scenario/run IDs |
+
+---
+
+## Governance validation artifacts
+
+The following artifacts may be generated by Package G tooling, verification scripts, or governance backend services:
+
+| Artifact | Producer | Consumer | Authority boundary |
+|---|---|---|---|
+| interface-matrix alignment report | governance backend / verification script | dashboard, maintainer, CI | Evidence only; not operational authorization |
+| topic-drift report | governance backend / verification script | dashboard, maintainer, CI | Evidence only; not policy truth |
+| payload validation report | payload validator / governance backend | dashboard, maintainer, CI | Evidence only; not schema authority |
+| governance backend/UI separation report | verification script / integration test | dashboard, maintainer, CI | Evidence only; not control authority |
+| proposed-change review report | governance backend | maintainer / review workflow | Proposed changes only; not live authority without review |
+
+These artifacts are intentionally not listed as operational MQTT control topics.
 
 ---
 
@@ -49,6 +65,10 @@ Before implementing a topic, confirm:
 6. Does the topic accidentally give authority to dashboard/test/simulation components?
 7. Does the topic accidentally allow doorlock control through Class 1?
 8. Does the topic preserve audit/ACK expectations?
+9. Does the topic align with `common/docs/architecture/15_interface_matrix.md`?
+10. Does the topic align with `common/docs/architecture/17_payload_contract_and_registry.md`?
+11. Are referenced example payload files present under `common/payloads/examples/`?
+12. Would `FAULT_CONTRACT_DRIFT_01` detect misuse of the topic, payload family, or publisher role?
 
 ---
 
@@ -63,13 +83,18 @@ Recommended dashboard capabilities:
 - validate example payloads,
 - flag unauthorized topic traffic,
 - flag payload/schema drift,
+- flag topic/payload hardcoding drift,
 - show retained dashboard observation state,
-- export communication coverage reports.
+- export communication coverage reports,
+- export proposed-change review reports.
 
 Forbidden dashboard behavior:
 
+- direct registry-file editing,
+- direct operational control-topic publishing,
 - direct policy modification,
 - direct validator override,
 - direct doorlock command dispatch,
+- unrestricted actuator console,
 - direct caregiver approval spoofing outside controlled test mode,
 - treating observation payloads as policy truth.
