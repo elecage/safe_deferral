@@ -41,13 +41,17 @@ services:
     env_file:
       - ./.env
     environment:
-      - MQTT_HOST=127.0.0.1
+      - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
-      - OLLAMA_HOST=http://127.0.0.1:11434
+      - OLLAMA_HOST=http://ollama:11434
       - POLICY_DIR=/app/config/policies
       - SCHEMA_DIR=/app/config/schemas
+      - MQTT_REGISTRY_DIR=/app/config/mqtt
+      - PAYLOAD_EXAMPLES_DIR=/app/config/payloads
       - SQLITE_PATH=/app/db/audit_log.db
     volumes:
       - ./volumes/app/config/policies:/app/config/policies:ro
       - ./volumes/app/config/schemas:/app/config/schemas:ro
+      - ./volumes/app/config/mqtt:/app/config/mqtt:ro
+      - ./volumes/app/config/payloads:/app/config/payloads:ro
       - ./volumes/sqlite/db:/app/db
