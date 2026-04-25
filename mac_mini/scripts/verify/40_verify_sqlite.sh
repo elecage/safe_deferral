@@ -26,7 +26,7 @@ else
     exit 1
 fi
 
-DB_FILE="${SQLITE_PATH:-${WORKSPACE_DIR}/db/audit_log.db}"
+DB_FILE="${SQLITE_PATH:-${WORKSPACE_DIR}/docker/volumes/sqlite/db/audit_log.db}"
 echo "  [INFO] Target Database: ${DB_FILE}"
 
 if [ ! -f "${DB_FILE}" ]; then
