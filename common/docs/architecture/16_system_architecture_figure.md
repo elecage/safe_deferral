@@ -24,7 +24,7 @@ This document does **not** override frozen policies or schemas. If any conflict 
 
 - `common/policies/`
 - `common/schemas/`
-- `common/docs/architecture/25_payload_contract_and_registry.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/required_experiments.md`
 
 ---
@@ -218,7 +218,7 @@ Input may originate from:
 
 The normalized operational input must preserve the payload boundaries defined in:
 
-- `common/docs/architecture/25_payload_contract_and_registry.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 In particular:
 
@@ -349,7 +349,7 @@ The architecture figure should be read with the following payload boundaries.
 
 Detailed payload rules are defined in:
 
-- `common/docs/architecture/25_payload_contract_and_registry.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -390,7 +390,7 @@ The most important prior document was:
 
 If older architecture-figure notes conflict with this document, prefer this consolidated document together with:
 
-- `common/docs/architecture/25_payload_contract_and_registry.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/required_experiments.md`
 - `common/docs/runtime/SESSION_HANDOFF.md`
 
