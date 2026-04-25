@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "description": "Authoritative bounded low-risk action catalog for Class 1 assistance and bounded caregiver-confirmable action scope. This asset defines the canonical low-risk action domain and should not be overridden by summarized policy-table copies or companion output-profile assets.",
+  "description": "Authoritative bounded low-risk action catalog for Class 1 assistance and bounded caregiver-confirmable action scope. This asset defines the canonical low-risk action domain and should not be overridden by summarized policy-table copies, companion output-profile assets, MQTT topic entries, topic-payload mappings, or governance validation reports.",
   "catalog_role": "authoritative_low_risk_action_catalog",
   "used_by": [
     "policy_router",
@@ -10,7 +10,9 @@
   "policy_notes": {
     "authoritative_scope_note": "This file is the authoritative low-risk action source for policy routing summaries, deterministic validation, and bounded caregiver confirmation support.",
     "caregiver_confirmation_boundary": "Caregiver confirmation support for Class 1 low-risk assistance must not authorize actions outside this catalog. Sensitive actuation approval, if implemented, must be governed by a separate explicit policy and manual confirmation path.",
-    "context_schema_alignment_note": "Allowed target devices should remain aligned with the current device_states schema used by the operational context contract."
+    "context_schema_alignment_note": "Allowed target devices should remain aligned with the current device_states schema used by the operational context contract.",
+    "doorlock_boundary_note": "Doorlock control is not included in the current authoritative autonomous Class 1 low-risk action catalog. Doorbell or visitor-arrival context must not promote doorlock control into this catalog.",
+    "mqtt_payload_governance_boundary_note": "MQTT topic entries, topic-payload mappings, payload validation reports, interface-matrix alignment reports, and topic-drift reports must not expand this catalog or create action authority."
   },
   "allowed_actions_taxonomy": [
     {
