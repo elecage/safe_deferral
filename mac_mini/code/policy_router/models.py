@@ -45,6 +45,13 @@ class EnvironmentalContext(BaseModel):
     occupancy_detected: bool
     smoke_detected: bool
     gas_detected: bool
+    doorbell_detected: bool = Field(
+        ...,
+        description=(
+            "방문자/도어벨 상황 해석을 위한 context signal. "
+            "doorlock 자동 개방 권한을 의미하지 않는다."
+        ),
+    )
 
 
 class DeviceStates(BaseModel):
