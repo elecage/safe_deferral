@@ -16,12 +16,15 @@ It is intended to support:
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
-Current communication and payload references:
+Current interface, communication, and payload references:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -50,6 +53,8 @@ The following shared frozen assets and shared reference assets must exist before
 ### Required documentation / terminology assets
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 - `common/docs/architecture/12_prompts.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
@@ -65,6 +70,7 @@ These assets must be available before implementation-side code generation begins
 - `common/policies/` and `common/schemas/` remain policy and validation authority.
 - `common/mqtt/` defines communication-contract references.
 - `common/payloads/` provides payload examples/templates.
+- `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference.
 - MQTT contracts and payload examples must not override canonical policies or schemas.
 
 ---
@@ -81,7 +87,7 @@ The repository now includes host-side Python dependency manifests that should be
 - The manifests should remain aligned with the currently maintained install/runtime assumptions.
 - They support host-side environment reproducibility.
 - They do not redefine canonical shared policy or schema truth.
-- They should include dependencies needed for topic registry loading, JSON schema validation, payload validation, MQTT testing, dashboard runtime, and result export when those components are implemented.
+- They should include dependencies needed for topic registry loading, JSON schema validation, payload validation, MQTT testing, dashboard runtime, governance backend service, governance dashboard UI, result export, and validation report generation when those components are implemented.
 
 ---
 
@@ -98,7 +104,8 @@ A dedicated port allocation reference should be created and maintained.
 - optional development-only local service ports
 - optional ESP32 OTA or device-maintenance ports when used
 - Raspberry Pi experiment dashboard port when implemented
-- MQTT/payload governance dashboard port when implemented
+- MQTT/payload governance backend service port when implemented
+- governance dashboard UI port when implemented
 - registry validation service port when implemented
 - result export or artifact service port when implemented
 - optional timing or measurement support interfaces when out-of-band latency evaluation is used
@@ -110,7 +117,7 @@ A dedicated port allocation reference should be created and maintained.
 ### Requirement note
 Port allocation references support deployment consistency, but they do not define canonical policy truth.
 
-Dashboard and governance ports must not imply policy, validator, caregiver approval, or actuator authority.
+Dashboard, governance backend, and governance UI ports must not imply policy, validator, caregiver approval, or actuator authority.
 
 ---
 
@@ -131,7 +138,12 @@ A centralized environment-variable reference is required for both documentation 
 - experiment progress/result topics
 - simulation mode flag
 - governance dashboard enable flag
+- governance backend API endpoint
+- governance backend port
+- governance dashboard UI port
 - registry validation mode
+- topic drift check mode
+- payload validation mode
 - Ollama endpoint
 - timeout and grace-period settings
 - deployment mode
@@ -157,6 +169,8 @@ Environment-variable sheets document deployment consistency, but `.env`, credent
 They must not be treated as canonical frozen policy truth.
 
 Runtime apps, dashboard apps, and experiment tools should load topic strings and payload contract references from the configured registry path whenever practical, instead of hardcoding MQTT topics and payload assumptions.
+
+Governance dashboard UI configuration must point to the governance backend service API and must not grant direct registry-file write access or operational control-topic publish authority.
 
 ---
 
@@ -203,6 +217,8 @@ Each major module should have explicit acceptance criteria before it is consider
 - required topic IDs or topic patterns resolve
 - publisher/subscriber matrix remains consistent with the registry
 - topic-to-payload contract references resolve
+- MQTT-facing behavior remains aligned with `common/docs/architecture/15_interface_matrix.md`
+- topic/payload hardcoding drift checks pass where implemented
 - runtime apps do not hardcode topic strings where registry lookup is practical
 
 #### Payload Validation Helper
@@ -226,12 +242,22 @@ Each major module should have explicit acceptance criteria before it is consider
 
 ### Raspberry Pi experiment modules
 
-#### Virtual Sensor, Dashboard, and Fault Injection Layer
+#### Virtual Sensor, Simulation, Dashboard, Governance, and Fault Injection Layer
 - deterministic scenarios can be reproduced
 - randomized stress injection can run independently
 - experiment dashboard is available when implemented
-- MQTT/payload governance inspector remains non-authoritative when implemented
+- MQTT/payload governance backend service is available when implemented
+- governance dashboard UI is available as a presentation and interaction layer when implemented
+- topic/payload contract validation utility is available when implemented
+- payload example manager / validator is available when implemented
+- publisher/subscriber role manager is available when implemented
+- governance dashboard UI cannot directly edit registry files
+- governance dashboard UI cannot directly publish operational control topics
+- governance backend cannot directly modify canonical policies/schemas
+- governance tooling cannot publish actuator or doorlock commands
+- governance backend/UI separation is verified
 - topic/payload contract validation passes
+- topic/payload hardcoding drift checks pass where implemented
 - virtual `doorbell_detected` visitor-response context generation works when visitor-response scenarios are included
 - visitor-response and doorlock-sensitive scenarios are evaluated
 - `doorbell_detected=true` does not authorize autonomous doorlock control
@@ -314,6 +340,11 @@ A reusable test-data package should be created for implementation and verificati
 - missing `doorbell_detected` invalid/fault case
 - `doorbell_detected=true` but autonomous unlock blocked case
 - doorlock state not allowed in `device_states` case
+- governance UI/backend separation test fixture
+- unauthorized governance registry edit attempt
+- governance actuator/doorlock publish-blocked case
+- topic-drift check fixture
+- interface-matrix alignment fixture
 - class-wise latency experiment profiles when out-of-band measurement is used
 - measurement result templates or capture reference formats when needed
 
@@ -344,7 +375,11 @@ A reset and recovery procedure is required so the system can be returned to a cl
 - how to resync frozen assets onto the Raspberry Pi
 - how to reset simulation state before rerunning scenarios
 - how to reset dashboard retained observation state when used
+- how to reset governance draft changes
+- how to clear governance validation reports
 - how to rerun MQTT/payload registry validation after recovery
+- how to rerun governance backend/UI separation checks
+- how to rerun topic drift checks
 - how to rebuild, reflash, or reset ESP32 firmware when embedded nodes are used
 - how to rerun ESP32 install/configure/verify bring-up steps when the host-side SDK environment becomes inconsistent
 - how to reset or restart timing/measurement sessions when out-of-band latency evaluation is used
@@ -402,8 +437,13 @@ MQTT connectivity must support local distributed evaluation while maintaining se
 - topic registry must be readable
 - publisher/subscriber matrix must be consistent with the registry
 - topic-to-payload references must resolve
+- MQTT-facing behavior must remain aligned with `common/docs/architecture/15_interface_matrix.md`
 - schema-governed payload examples must validate against referenced schemas
+- topic/payload hardcoding drift checks must pass where implemented
 - runtime apps, dashboard apps, and experiment tools should not hardcode topic strings where registry lookup is practical
+- governance dashboard UI and governance backend service separation must be verified
+- governance dashboard UI must not directly write registry files
+- governance backend must not publish actuator or doorlock commands
 - dashboard/governance topics must remain non-authoritative
 
 ### Repository alignment
@@ -474,25 +514,54 @@ When class-wise latency evaluation is part of the experiment package, the timing
 
 ---
 
-## 12. MQTT / Payload Governance Dashboard Requirements
+## 12. MQTT / Payload Governance Requirements
 
-A future MQTT/payload governance dashboard or inspector may be useful for implementation, experiment monitoring, and regression prevention.
+Future MQTT/payload governance tooling may be useful for implementation, experiment monitoring, regression prevention, and communication-contract review.
 
-### Allowed capabilities
-- browse topic registry entries
-- view publisher/subscriber matrix
-- inspect topic-to-payload contract references
+### Governance Backend Service Requirements
+- provide controlled draft topic/payload create, update, delete, validation, and export operations
+- expose an API consumed by the governance dashboard UI
+- validate topic registry structure
+- validate publisher/subscriber matrix consistency
+- validate topic-to-payload contract references
 - validate payload examples against schemas
-- visualize live experiment topic traffic
 - detect unauthorized or unexpected topic usage
 - detect schema drift
 - detect missing required fields such as `environmental_context.doorbell_detected`
 - detect disallowed fields such as doorlock state inside current `pure_context_payload.device_states`
-- show dashboard observation state for experiments
 - export topic/payload coverage reports
+- export proposed change reports
+- preserve draft/proposed/committed distinction
+
+### Governance Dashboard UI Requirements
+- remain a presentation and interaction layer
+- call the governance backend service for create/update/delete/validation/export operations
+- browse topic registry entries
+- view publisher/subscriber matrix
+- inspect topic-to-payload contract references
+- show payload validation results
+- visualize live or replayed experiment topic traffic when available
+- show unauthorized or unexpected topic usage warnings
+- show dashboard observation state for experiments
+- show doorbell/doorlock boundary warnings
+- show validation and proposed change reports
+- avoid direct registry-file editing
+- avoid direct operational MQTT control-topic publishing
+
+### Required validation checks
+- governance backend/UI separation check
+- direct registry edit prevention check
+- direct operational control-topic publish prevention check
+- canonical policy/schema direct-modification prevention check
+- actuator/doorlock command publish-blocked check
+- caregiver approval spoofing prevention check
+- topic drift check
+- interface matrix alignment check
+- payload example validation check
+- doorbell/doorlock boundary check
 
 ### Forbidden capabilities
-- modifying canonical policies or schemas
+- modifying canonical policies or schemas directly
 - overriding Policy Router decisions
 - overriding Deterministic Validator decisions
 - spoofing caregiver approval outside controlled test mode
@@ -500,12 +569,15 @@ A future MQTT/payload governance dashboard or inspector may be useful for implem
 - dispatching doorlock commands
 - treating dashboard observation as policy truth
 - treating audit records as policy authority
+- converting draft/proposed registry changes into live operational authority without review
 
 ### Repository alignment
 - governance contracts:
   - `common/mqtt/`
   - `common/payloads/`
+  - `common/docs/architecture/15_interface_matrix.md`
   - `common/docs/architecture/17_payload_contract_and_registry.md`
+  - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - likely implementation targets:
   - `rpi/code/`
   - `rpi/scripts/verify/`
@@ -526,6 +598,10 @@ The system should not be considered implementation-ready unless:
 - fault injection rules are dynamically grounded in frozen assets
 - canonical policy/schema/rules consistency checks pass
 - MQTT topic registry and payload example consistency checks pass where implemented
+- `common/docs/architecture/15_interface_matrix.md` alignment passes
+- topic/payload hardcoding drift checks pass where implemented
+- governance backend/UI separation is verified
+- governance tooling cannot create operational authority
 - audit logging remains single-writer and traceable
 - dashboard/governance inspection tools remain non-authoritative
 - `doorbell_detected` is handled as required visitor-response context, not emergency evidence or doorlock authorization
