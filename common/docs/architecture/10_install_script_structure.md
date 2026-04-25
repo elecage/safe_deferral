@@ -15,12 +15,15 @@ Install the required components for the Mac mini, Raspberry Pi 5, ESP32 developm
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
-Current communication and payload references:
+Current interface, communication, and payload references:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -31,13 +34,15 @@ Current communication and payload references:
 - Keep **installation**, **configuration**, and **verification** separated.
 - Install Python-based applications inside **virtual environments** where host-side Python services are used.
 - Treat the Mac mini as the **primary operational hub**.
-- Treat the Raspberry Pi 5 as the **experiment dashboard, simulation, orchestration, replay, fault-injection, and evaluation node**, not as a replacement for the Mac mini runtime.
+- Treat the Raspberry Pi 5 as the **experiment dashboard, simulation, orchestration, replay, fault-injection, evaluation, and non-authoritative MQTT/payload governance support node**, not as a replacement for the Mac mini runtime.
 - Treat ESP32 as the **embedded physical node layer** with its own cross-platform SDK/toolchain setup workflow.
 - Treat optional timing/measurement infrastructure as an **evaluation-only support path**, not part of the operational control path.
 - Ensure scripts fail fast and emit clear logs.
 - Complete **shared frozen assets** before implementation-side installation logic depends on them.
-- Prepare dependency support for MQTT topic registry loading, payload validation, and dashboard/governance inspection where those components are implemented.
+- Prepare dependency support for MQTT topic registry loading, payload validation, topic drift checks, validation report export, and dashboard/governance backend/UI support where those components are implemented.
+- Keep governance dashboard UI separated from the MQTT/payload governance backend service.
 - Do not let install-time convenience rewrite canonical policy/schema truth.
+- Do not let installation of governance tooling create policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.
 
 ---
 
@@ -120,6 +125,8 @@ The following shared assets should be prepared before implementation depends on 
 - `common/payloads/templates/`
 
 ### Required architecture references
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
@@ -133,6 +140,8 @@ Install scripts may depend on the existence of the frozen/reference baseline, bu
 Canonical policy and schema truth remains under `common/policies/` and `common/schemas/`.
 
 `common/mqtt/` and `common/payloads/` are shared reference layers for communication contracts and payload examples/templates. They must not override canonical policy or schema authority.
+
+`common/docs/architecture/15_interface_matrix.md` is the MQTT-aware interface contract reference used to guide topic-facing installation, configuration, and later verification assumptions.
 
 ---
 
@@ -163,7 +172,7 @@ Recommended responsibilities:
 - verify network connectivity
 - prepare workspace directories
 - verify that required frozen asset baseline is present before install-dependent implementation proceeds
-- verify that `common/mqtt/`, `common/payloads/`, `16_system_architecture_figure.md`, and `17_payload_contract_and_registry.md` exist when registry/payload-aware implementation is in scope
+- verify that `common/mqtt/`, `common/payloads/`, `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, and `12_prompts_mqtt_payload_governance.md` exist when registry/payload-aware implementation is in scope
 
 #### `10_install_homebrew_deps.sh`
 Install or verify required macOS package dependencies.
@@ -216,6 +225,9 @@ Recommended responsibilities:
 - prepare dependency support for JSON schema validation
 - prepare dependency support for MQTT topic registry loading
 - prepare dependency support for payload validation helpers
+- prepare dependency support for payload example validation
+- prepare dependency support for topic drift checks where implemented
+- prepare dependency support for validation report export where implemented
 - prepare dependency support for MQTT testing utilities when implemented
 
 ---
@@ -250,7 +262,11 @@ Raspberry Pi 5 is an **evaluation-side node**, not the operational hub.
 
 It should install only the dependencies required for:
 - experiment and monitoring dashboard
-- MQTT/payload governance inspector or dashboard
+- MQTT/payload governance backend service
+- governance dashboard UI
+- topic/payload contract validation utility
+- payload example manager / validator
+- publisher/subscriber role manager
 - virtual context generation
 - virtual `doorbell_detected` visitor-response context generation
 - virtual emergency sensing
@@ -260,10 +276,9 @@ It should install only the dependencies required for:
 - progress/status publication
 - result artifact export
 - closed-loop automated verification
-- topic/payload validation utilities
 - Pi-side verification utilities
 
-It should **not** install or host Mac mini operational hub services such as:
+It should **not** install or host Mac mini operational hub services or authorities such as:
 - Home Assistant
 - Ollama
 - Policy Router
@@ -273,6 +288,10 @@ It should **not** install or host Mac mini operational hub services such as:
 - validator authority
 - caregiver approval authority
 - direct actuator dispatch authority
+- doorlock dispatch authority
+- direct registry-file editing through dashboard UI
+- canonical policy/schema editing authority
+- governance backend publishing actuator or doorlock commands
 
 ### Frozen / expected script set
 - `00_preflight_rpi.sh`
@@ -330,10 +349,16 @@ Representative dependencies:
 - pytest
 - PyYAML
 - jsonschema
-- FastAPI or equivalent dashboard backend dependency when dashboard backend is implemented
-- uvicorn or equivalent ASGI server when dashboard backend is implemented
+- FastAPI or equivalent dashboard/backend dependency when experiment dashboard or governance backend is implemented
+- uvicorn or equivalent ASGI server when dashboard/backend service is implemented
+- governance backend service dependencies when implemented
+- governance dashboard UI dependencies when implemented
 - payload/schema validation helper dependencies
+- payload example validation dependencies
 - CSV/JSON export dependencies
+- validation report export dependencies
+- topic drift check dependencies where implemented
+- publisher/subscriber role review dependencies where implemented
 - optional plotting/export dependencies
 - optional CLI helper packages
 - optional data-generation libraries
@@ -351,9 +376,11 @@ Recommended responsibilities:
 
 - Raspberry Pi 5 should consume synchronized runtime copies of frozen assets later during configuration, not invent local policy truth during installation.
 - Install scripts should remain **rerunnable**, **stage-verifiable**, and clearly bounded to the evaluation path.
-- The purpose of the Raspberry Pi install layer is to prepare a stable base for dashboard, simulation, orchestration, fault-injection, result export, and experiment execution, not to recreate the Mac mini runtime stack.
-- MQTT/payload governance tooling on Raspberry Pi is allowed only as inspection/validation/dashboard support.
-- Governance dashboard installation must not introduce policy override, validator override, caregiver approval spoofing, or direct actuator command authority.
+- The purpose of the Raspberry Pi install layer is to prepare a stable base for dashboard, simulation, orchestration, fault-injection, result export, governance support, and experiment execution, not to recreate the Mac mini runtime stack.
+- MQTT/payload governance tooling on Raspberry Pi is allowed only as backend-supported inspection, validation, draft/report generation, and dashboard UI support.
+- Governance dashboard UI must remain separated from the governance backend service.
+- Governance dashboard installation must not introduce policy override, validator override, caregiver approval spoofing, direct registry-file editing, direct actuator command authority, or doorlock dispatch authority.
+- Governance backend installation must not introduce canonical policy/schema editing authority or actuator/doorlock command publishing authority.
 - Canonical policy/schema/rules consistency verification and topic/payload contract verification belong to the **verify** stage, while install scripts only prepare the dependencies and runtime needed for those checks.
 
 ---
@@ -467,7 +494,7 @@ Installation or build preparation is not responsible for full runtime correctnes
 Goal:  
 Software, runtimes, toolchains, or build prerequisites are present on the target platform.
 
-Installation may prepare dependency support and filesystem paths for later MQTT registry loading, payload example/template access, dashboard runtime, and topic/payload validation, but actual topic/payload consistency checks belong to verification.
+Installation may prepare dependency support and filesystem paths for later MQTT registry loading, payload example/template access, dashboard runtime, governance backend service, governance dashboard UI, topic drift checks, validation report export, and topic/payload validation, but actual topic/payload consistency checks belong to verification.
 
 ### Configuration
 Goal:  
@@ -500,7 +527,7 @@ Before device-specific installation proceeds:
 - verify required frozen assets exist
 - verify canonical baseline version set is present
 - verify MQTT topic registry and payload reference directories exist
-- verify active architecture references `16_system_architecture_figure.md` and `17_payload_contract_and_registry.md` exist
+- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, and `12_prompts_mqtt_payload_governance.md` exist
 - ensure install-dependent work is not starting from an incomplete frozen/reference state
 
 ### Mac mini
@@ -569,6 +596,9 @@ Examples:
 - file/path checks
 - topic registry loading helpers
 - payload validation helpers
+- topic drift check helpers
+- governance backend/UI separation check helpers
+- validation report export helpers
 
 These should remain auxiliary utilities, not replace the device-specific install structure.
 
@@ -588,7 +618,11 @@ These should remain auxiliary utilities, not replace the device-specific install
 - keep timing/measurement support documented separately from the operational control path when out-of-band evaluation is used
 - do not hardcode MQTT topic strings or payload contracts in install-time generated app configs where registry lookup is practical
 - install scripts may prepare registry/payload paths but must not rewrite policy/schema truth
+- install scripts may prepare dependencies for topic drift checks, but actual drift checks belong to verification
 - dashboard/governance tooling installed by Raspberry Pi scripts must remain non-authoritative
+- governance dashboard UI must not directly edit registry files
+- governance backend must not directly modify canonical policies or schemas
+- governance tooling must not publish actuator or doorlock commands
 - prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
 
 ---
@@ -596,11 +630,13 @@ These should remain auxiliary utilities, not replace the device-specific install
 ## Architectural Summary
 
 - Mac mini install scripts prepare the operational hub
-- Raspberry Pi install scripts prepare the dashboard/simulation/orchestration/fault-injection/evaluation node only
+- Raspberry Pi install scripts prepare the dashboard/simulation/orchestration/fault-injection/evaluation/governance-support node only
 - Raspberry Pi does not replace the Mac mini runtime stack
+- Raspberry Pi governance support remains non-authoritative and must preserve governance backend/UI separation
 - ESP32 install scripts prepare the cross-platform ESP-IDF development environment for bounded physical node implementation, including future doorbell / visitor-arrival context node work
 - optional timing/measurement readiness prepares out-of-band latency evaluation support
 - shared frozen assets in `common/policies/` and `common/schemas/` define the policy/schema authority state
 - shared MQTT contracts in `common/mqtt/` and payload examples/templates in `common/payloads/` define reference state for communication and payload governance
+- `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - install scripts and embedded build preparation establish the platform only
 - configuration and verification remain separate follow-on stages
