@@ -57,7 +57,7 @@ echo "  [INFO] Upgrading pip, setuptools, and wheel..."
 pip install --quiet --upgrade pip setuptools wheel
 
 # 3. Install Requirements
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements-mac.txt"
 
