@@ -19,6 +19,8 @@ This prompt set is for:
 - payload reference management,
 - publisher/subscriber role management,
 - schema/payload validation,
+- topic/payload hardcoding drift detection,
+- interface-matrix alignment validation,
 - dashboard UI integration,
 - governance audit trail,
 - and non-authoritative inspection workflows.
@@ -27,13 +29,14 @@ This prompt set is for:
 
 Before implementing any component from this prompt set, the agent must read:
 
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/docs/architecture/16_system_architecture_figure.md`
-- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
@@ -54,8 +57,16 @@ It must not become:
 - audit authority,
 - or direct actuator/doorlock dispatch authority.
 
+It must not:
+
+- directly modify canonical policies or schemas,
+- publish actuator or doorlock commands,
+- spoof caregiver approval,
+- override Policy Router or Deterministic Validator decisions,
+- or convert draft/proposed registry changes into live operational authority without review.
+
 The dashboard UI must remain a presentation and interaction layer only.  
-The actual create/update/delete operations must be handled by a separate governance backend/service.
+The actual create/update/delete/validation/export operations must be handled by a separate governance backend/service.
 
 ---
 
@@ -92,11 +103,16 @@ Requirements:
   - retain flag
   - authority level
 - Validate that schema paths and example payload paths resolve when specified.
+- Validate that MQTT-facing behavior remains aligned with:
+  - common/docs/architecture/15_interface_matrix.md
+  - common/mqtt/publisher_subscriber_matrix_v1_0_0.md
+  - common/mqtt/topic_payload_contracts_v1_0_0.md
+- Validate topic/payload hardcoding drift where implementation files are in scope.
 - Validate that dashboard/governance topics are marked non-authoritative.
 - Validate that RPi simulation/fault topics are marked experiment-only unless explicitly allowed otherwise.
 - Validate that doorbell-related topics do not authorize autonomous doorlock control.
 - Produce a machine-readable validation report and a concise human-readable summary.
-- Include unit tests for valid registry, missing topic_id, missing publisher/subscriber lists, missing payload family, unresolved schema path, unresolved example payload path, and forbidden authority escalation.
+- Include unit tests for valid registry, missing topic_id, missing publisher/subscriber lists, missing payload family, unresolved schema path, unresolved example payload path, interface-matrix mismatch, topic drift, and forbidden authority escalation.
 ```
 
 ---
@@ -135,6 +151,8 @@ Requirements:
   - link schema path to topic
   - link example payload path to topic
   - validate payload example against referenced schema
+  - run interface-matrix alignment check
+  - run topic/payload hardcoding drift check where implementation files are in scope
   - export proposed registry changes
   - generate a review report
 - Support a clear distinction between:
@@ -142,10 +160,13 @@ Requirements:
   - validated proposed changes,
   - and committed repository changes.
 - The service must not silently edit canonical policy or schema files.
+- The service must not directly modify canonical policies or schemas.
 - The service must not directly modify live operational MQTT subscriptions or publishers without explicit deployment workflow approval.
 - The service must not publish direct actuation commands.
+- The service must not publish actuator or doorlock commands.
 - The service must not spoof caregiver approval.
 - The service must not dispatch doorlock commands.
+- The service must not convert draft/proposed changes into live operational authority without review.
 - Store edit history or change proposals as governance artifacts, not as policy truth.
 - Include validation rules for:
   - required topic_id
@@ -154,6 +175,8 @@ Requirements:
   - valid payload family
   - schema path existence when required
   - example payload path existence when required
+  - interface-matrix alignment
+  - topic/payload hardcoding drift where applicable
   - forbidden dashboard/control authority escalation
   - forbidden doorlock autonomous Class 1 topic semantics
 - Include unit tests and API tests.
@@ -176,6 +199,7 @@ Architecture requirement:
 - All create, update, delete, validation, and export operations must call the separate MQTT/payload governance backend service.
 - The UI must not write directly to registry files.
 - The UI must not directly publish MQTT control messages.
+- The UI must not directly publish operational control topics.
 - The UI must not directly alter canonical policy or schema files.
 
 Required UI capabilities:
@@ -194,6 +218,8 @@ Required UI capabilities:
 - authority level viewer/editor for draft entries
 - operational vs experiment-only flag viewer/editor for draft entries
 - validation result panel
+- interface-matrix alignment result panel
+- topic/payload drift warning panel where implemented
 - diff/proposed-change preview
 - export proposed registry change report
 - live or replayed topic traffic viewer when available
@@ -215,6 +241,8 @@ Forbidden UI behavior:
 - no direct Policy Router override
 - no direct Deterministic Validator override
 - no canonical schema/policy editing
+- no direct registry-file editing
+- no direct operational control-topic publishing
 
 Include tests or verification notes for:
 - topic list rendering
@@ -224,8 +252,14 @@ Include tests or verification notes for:
 - delete draft flow
 - publisher/subscriber role editing flow
 - payload validation result display
+- interface-matrix alignment display
+- topic/payload drift warning display where implemented
 - doorbell/doorlock boundary warning display
-- backend API failure handling
+- UI cannot directly edit registry files
+- UI cannot directly publish operational control topics
+- UI uses backend API for create/update/delete/validation/export
+- UI/backend API failure handling
+- UI/backend contract failure handling
 - non-authority UI constraints
 ```
 
