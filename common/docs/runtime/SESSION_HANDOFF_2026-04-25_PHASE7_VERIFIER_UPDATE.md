@@ -110,10 +110,10 @@ Updated:
 integration/scenarios/verify_scenario_topic_alignment.py
 ```
 
-Commit:
+Confirmed file blob SHA after update:
 
 ```text
-pending_connector_commit_sha_at_handoff_time
+6d927bd545a5401ce1e22bf38d9cf40ebcf510ea
 ```
 
 Added checks:
@@ -195,6 +195,7 @@ Re-read through the GitHub connector:
 
 ```text
 integration/scenarios/verify_scenario_manifest.py
+integration/scenarios/verify_scenario_topic_alignment.py
 common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 ```
 
@@ -202,6 +203,7 @@ Confirmed:
 
 ```text
 - verify_scenario_manifest.py contains Class 2 candidate, transition, and fault invariant checks.
+- verify_scenario_topic_alignment.py contains Class 2 supporting topic checks.
 - clarification_interaction_schema_v1_0_0_FROZEN.json allows optional payload_family, schema_ref, and notes metadata while preserving the main Class 2 interaction constraints.
 ```
 
