@@ -9,10 +9,21 @@ It serves as a reference document for:
 - repository organization
 - implementation planning
 - deployment-boundary interpretation
+- MQTT/topic/payload governance boundary interpretation
 - vibe-coding prompts and agent guidance
 
 This document is not the canonical source of policy truth.  
 The canonical source of policy, schema, terminology, and other frozen reference assets remains the shared versioned assets in the Git repository.
+
+This document should be read together with:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+
+Some Raspberry Pi governance and MQTT/payload support connections are documented in `16_system_architecture_figure.md` and `15_interface_matrix.md` but are not yet fully drawn in the current SVG figure.
 
 ---
 
@@ -31,6 +42,8 @@ The canonical source of policy, schema, terminology, and other frozen reference 
 | **Current Canonical** | Python App | Outbound Notification Interface | Mac mini | Python virtual environment | Telegram or mock fallback integration |
 | **Current Canonical** | Python App | Caregiver Confirmation Backend | Mac mini | Python virtual environment | Bounded caregiver confirmation handling |
 | **Current Canonical** | Python App | Audit Logging Service / DB Access Layer | Mac mini | Python virtual environment | SQLite-backed audit pipeline |
+| **Current Canonical** | Python App / Helper | MQTT Topic Registry Loader / Contract Checker | Mac mini | Python virtual environment | Supports registry-based topic lookup and communication-contract consistency. Not policy authority |
+| **Current Canonical** | Python App / Helper | Payload Validation Helper | Mac mini | Python virtual environment | Supports schema-governed payload validation and payload-boundary checks. Not schema authority |
 | **Current Canonical** | Embedded / Physical Node | ESP32 Button Node | ESP32 device | PlatformIO / Arduino firmware | Physical bounded input node for button-based interaction, including emergency triple-hit input |
 | **Current Canonical** | Embedded / Physical Node | ESP32 Lighting Control Node | ESP32 device | PlatformIO / Arduino firmware | Physical low-risk actuator interface for current canonical low-risk actions |
 | **Current Canonical** | Embedded / Physical Node | ESP32 Temperature / Humidity Sensor Node | ESP32 device | PlatformIO / Arduino firmware | Physical environmental sensing node for threshold-based emergency or context generation when included in canonical deployment |
@@ -43,9 +56,16 @@ The canonical source of policy, schema, terminology, and other frozen reference 
 | **Current Canonical** | Development / Experiment Tool | Virtual Emergency Sensors | Raspberry Pi 5 | Python virtual environment | Emergency event simulation for Class 0 and related scenario replay. Not a Mac mini core-runtime replacement |
 | **Current Canonical** | Development / Experiment Tool | Fault Injector Harness / Closed-loop Audit Driver | Raspberry Pi 5 | Python virtual environment | Injects stale / missing / conflict / timeout faults, supports automated verification, and may be used with scenario orchestration or verification utilities |
 | **Current Canonical** | Development / Experiment Tool | Experiment and Monitoring Dashboard | Raspberry Pi 5 | Python web app / local dashboard UI | Hosts the experiment-side dashboard for scenario selection, node readiness monitoring, progress visualization, closed-loop result summaries, and CSV/graph export. Not a Mac mini core-runtime service |
+| **Current Canonical** | Development / Experiment Tool | MQTT / Payload Governance Backend | Raspberry Pi 5 | Python web app / service | Handles draft topic/payload CRUD, validation, publisher/subscriber role management, and proposed change reports. Non-authoritative |
+| **Current Canonical** | Development / Experiment Tool | MQTT / Payload Governance Dashboard UI | Raspberry Pi 5 | Local dashboard UI | UI layer for topic/payload governance. Must call backend service and must not directly edit registry files or publish control topics |
+| **Current Canonical** | Development / Experiment Tool | Topic / Payload Contract Validation Utility | Raspberry Pi 5 / integration tests | Python utility | Validates topic registry, publisher/subscriber matrix, topic-payload contracts, and schema-governed payload examples |
+| **Current Canonical** | Development / Experiment Tool | Payload Example Manager / Validator | Raspberry Pi 5 / integration tests | Python utility | Manages and validates payload examples/templates. Non-authoritative |
+| **Current Canonical** | Development / Experiment Tool | Publisher / Subscriber Role Manager | Raspberry Pi 5 / integration tests | Python utility | Reviews operational, experiment-only, dashboard, and governance roles. Non-authoritative |
 | **Current Canonical** | Experimental Timing Infrastructure | STM32 Timing Node / Dedicated Timing Node | External measurement node | MCU firmware / hardware timing setup | Out-of-band latency measurement infrastructure for class-wise timing experiments |
 | **Current Canonical** | External Integration | Telegram Bot | External API | Account / token configuration | Caregiver alerts and limited approval path |
-| **Current Canonical** | Frozen Reference Asset | Policy tables / JSON schemas / terminology / canonical docs | Git repository + synchronized deployment targets | File synchronization / read-only deployment copies | Shared canonical source of truth before runtime deployment |
+| **Current Canonical** | Frozen Authority Asset | Policy tables / JSON schemas / terminology | Git repository + synchronized deployment targets | File synchronization / read-only deployment copies | Canonical policy/schema/terminology authority before runtime deployment |
+| **Current Canonical** | Shared Reference Asset | MQTT topic registry / publisher-subscriber matrix / topic-payload contracts | Git repository + synchronized deployment targets | File synchronization / read-only deployment copies | Communication-contract reference layer. Not policy/schema authority |
+| **Current Canonical** | Shared Reference Asset | Payload examples / templates | Git repository + synchronized deployment targets | File synchronization / read-only deployment copies | Implementation, test, dashboard, and scenario reference examples. Not policy/schema authority |
 | **Deployment-Local** | Local Configuration | `.env`, service credentials, host-specific YAML, runtime secrets | Deployment target host | Local file / secret provisioning | Host-local configuration. Not a frozen shared reference asset |
 
 ---
@@ -54,11 +74,15 @@ The canonical source of policy, schema, terminology, and other frozen reference 
 
 - **Mac mini** is the primary operational hub.
 - **ESP32 devices** are embedded physical nodes for bounded input, sensing, or actuator/warning interfacing.
-- **Raspberry Pi 5** is the experiment-side node for scalable simulation, fault injection, scenario orchestration, closed-loop verification, and dashboard-based experiment monitoring.
+- **Raspberry Pi 5** is the experiment-side node for scalable simulation, fault injection, scenario orchestration, closed-loop verification, dashboard-based experiment monitoring, and non-authoritative MQTT/payload governance support.
 - **STM32 timing nodes or equivalent dedicated measurement nodes** are used as out-of-band experimental timing infrastructure when precise class-wise latency measurement is required.
 - **External APIs** are limited to bounded outbound integrations such as Telegram.
 - **Frozen assets in the Git repository** are the single source of truth before runtime deployment.
 - **Deployment-local configuration** such as secrets and host-specific runtime files must not be treated as canonical frozen architecture assets.
+- `common/mqtt/` stores MQTT topic, publisher/subscriber, and topic-payload communication contracts.
+- `common/payloads/` stores payload examples/templates for implementation, testing, simulation, and dashboard tooling.
+- `common/mqtt/` and `common/payloads/` are reference layers, not policy/schema authority.
+- MQTT/payload governance tooling may inspect, validate, and propose topic/payload changes, but must not become policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.
 - `doorbell_detected` is a required visitor-response context signal in `environmental_context`; it supports interpretation of visitor-related scenarios but does not authorize autonomous doorlock control.
 - Doorbell / visitor-arrival context may be generated by physical ESP32 nodes or virtual Raspberry Pi simulation nodes, but it must be represented as `environmental_context.doorbell_detected`.
 
@@ -80,8 +104,12 @@ Its intended operational role includes:
 - Caregiver Confirmation Backend
 - Outbound Notification Interface
 - Audit Logging Service / DB Access Layer
+- MQTT Topic Registry Loader / Contract Checker
+- Payload Validation Helper
 
 Mac mini may expose operational telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 experiment dashboard, but it does not host the experiment and monitoring dashboard itself.
+
+The Mac mini registry loader and payload validation helper support communication consistency, payload-boundary checks, and registry-driven implementation where practical. They do not replace frozen policy/schema authority.
 
 ### ESP32
 ESP32 devices are bounded physical nodes.
@@ -106,6 +134,11 @@ Its intended role is limited to the experiment-side and evaluation-side path, in
 - scenario orchestration
 - closed-loop automated verification
 - experiment and monitoring dashboard hosting for scenario selection, node readiness, progress visualization, result summaries, and evaluation artifact export
+- MQTT/payload governance backend service
+- governance dashboard UI
+- topic/payload contract validation
+- payload example validation
+- publisher/subscriber role review
 - support utilities such as MQTT checks, time synchronization checks, and result summarization when needed
 
 Accordingly, Raspberry Pi 5 should **not** host the core operational runtime services that belong on the Mac mini, such as:
@@ -115,15 +148,24 @@ Accordingly, Raspberry Pi 5 should **not** host the core operational runtime ser
 - Deterministic Validator
 - Context-Integrity Safe Deferral Handler
 - Audit Logging Service as the operational hub-side authority
+- direct actuator dispatch authority
+- doorlock dispatch authority
+- canonical policy/schema editing authority
+- direct registry-file editing through dashboard UI
 
 Raspberry Pi 5 should instead host only experiment-side runtimes and aligned support assets, typically including:
 - Python 3 and virtual environment
 - simulation-side Python apps
 - fault injection and scenario-running utilities
 - experiment and monitoring dashboard runtime and dashboard-side dependencies
+- governance backend runtime and governance dashboard UI dependencies when implemented
+- topic/payload validation utilities
+- payload example manager / validator dependencies
+- publisher/subscriber role manager dependencies
 - required Pi-side dependencies such as MQTT, schema/policy parsing, CLI, and testing libraries
 - time synchronization client
 - synchronized runtime copies of frozen policy/schema assets as needed
+- synchronized or referenced MQTT/payload reference assets as needed
 
 ---
 
@@ -164,6 +206,8 @@ In particular:
 - Mac mini runtime copies are derived from shared frozen assets
 - Raspberry Pi 5 runtime copies are derived from shared frozen assets
 - ESP32 firmware behavior should remain consistent with the same canonical policy/schema assumptions where applicable
+- `common/mqtt/` and `common/payloads/` are shared reference layers that may be synchronized to deployment targets, but synchronized copies must not redefine communication authority, policy authority, or schema authority
+- topic/payload registry edits must follow review/commit workflow and must not directly alter live operational authority
 
 Host-local files such as `.env`, credentials, tokens, and machine-specific YAML are **deployment-local configuration**, not canonical frozen architecture assets.
 
@@ -186,15 +230,20 @@ This keeps the operational service plane and the measurement plane separated.
 This classification aligns with the repository structure below:
 
 - `common/`
-  - shared frozen assets such as policies, schemas, docs, terminology, and canonical references
+  - `policies/`: canonical policy authority
+  - `schemas/`: canonical schema authority
+  - `mqtt/`: MQTT topic and communication-contract references
+  - `payloads/`: payload examples/templates
+  - `docs/`: architecture, runtime, paper, and archived references
+  - `terminology/`: canonical terminology
 - `mac_mini/`
   - installation, configuration, verification scripts, runtime assets, and future hub-side code
 - `rpi/`
-  - installation, configuration, verification scripts, experiment/dashboard runtime, and future simulation-side code
+  - installation, configuration, verification scripts, experiment/dashboard/governance runtime, and future simulation-side code
 - `esp32/`
   - embedded firmware, device-specific code, and physical node implementation assets
 - `integration/`
-  - end-to-end tests, experimental scenarios, reproducibility assets, and optional measurement support assets
+  - end-to-end tests, experimental scenarios, reproducibility assets, topic/payload validation tests, and optional measurement support assets
 
 ---
 
@@ -203,6 +252,8 @@ This classification aligns with the repository structure below:
 - “Current Canonical” means the component is part of the present authoritative deployment or validation baseline.
 - “Optional Experimental” means the component is compatible with the current architecture but is not required in every canonical deployment.
 - “Planned Extension” means the component is architecturally anticipated but not part of the present minimum canonical operational scope.
+- “Shared Reference Asset” means a repository-managed reference used by runtime, test, dashboard, or governance tooling, but not by itself policy/schema authority.
+- “Governance Support” means a component may inspect, validate, draft, and report changes, but must not directly control operational actuation or caregiver approval.
 - “Deployment-Local” means the component is host-specific and must not be treated as frozen shared policy truth.
 
 ---
