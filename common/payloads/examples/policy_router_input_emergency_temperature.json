@@ -1,0 +1,29 @@
+{
+  "source_node_id": "esp32.emergency_node",
+  "routing_metadata": {
+    "audit_correlation_id": "example-emergency-temperature-001",
+    "ingest_timestamp_ms": 1710000000200,
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "threshold_exceeded",
+      "timestamp_ms": 1710000000200
+    },
+    "environmental_context": {
+      "temperature": 52.0,
+      "illuminance": 60.0,
+      "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
+      "doorbell_detected": false
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "off"
+    }
+  }
+}
