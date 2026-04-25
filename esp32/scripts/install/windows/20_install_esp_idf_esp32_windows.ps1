@@ -13,13 +13,33 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     throw 'python is required. Please run 10_install_prereqs_esp32_windows.ps1 first.'
 }
 
-$EspRoot = if ($env:ESP_ROOT) { $env:ESP_ROOT } else { Join-Path $HOME 'esp' }
-$IdfPath = if ($env:IDF_PATH) { $env:IDF_PATH } else { Join-Path $EspRoot 'esp-idf' }
-$IdfGitRef = $env:ESP_IDF_GIT_REF
-$IdfToolsPath = if ($env:IDF_TOOLS_PATH) { $env:IDF_TOOLS_PATH } else { Join-Path $HOME '.espressif' }
+$WorkspaceDir = Join-Path $HOME 'esp32_workspace'
+$EnvFile = Join-Path $WorkspaceDir '.env.ps1'
+
+if (Test-Path $EnvFile) {
+    Write-Host "  [INFO] Loading ESP32 environment variables from $EnvFile..."
+    . $EnvFile
+} else {
+    Write-Host "  [INFO] $EnvFile not found. Using built-in ESP-IDF install defaults."
+}
+
+$EspRoot = if ($ESP_ROOT) { $ESP_ROOT } elseif ($env:ESP_ROOT) { $env:ESP_ROOT } else { Join-Path $HOME 'esp' }
+$IdfPath = if ($IDF_PATH) { $IDF_PATH } elseif ($env:IDF_PATH) { $env:IDF_PATH } else { Join-Path $EspRoot 'esp-idf' }
+$IdfGitRef = if ($ESP_IDF_GIT_REF) { $ESP_IDF_GIT_REF } else { $env:ESP_IDF_GIT_REF }
+$IdfToolsPath = if ($IDF_TOOLS_PATH) { $IDF_TOOLS_PATH } elseif ($env:IDF_TOOLS_PATH) { $env:IDF_TOOLS_PATH } else { Join-Path $HOME '.espressif' }
 
 New-Item -ItemType Directory -Force -Path $EspRoot | Out-Null
 $env:IDF_TOOLS_PATH = $IdfToolsPath
+
+Write-Host '  [INFO] Effective ESP-IDF install settings:'
+Write-Host "         - ESP_ROOT=$EspRoot"
+Write-Host "         - IDF_PATH=$IdfPath"
+Write-Host "         - IDF_TOOLS_PATH=$IdfToolsPath"
+if ($IdfGitRef) {
+    Write-Host "         - ESP_IDF_GIT_REF=$IdfGitRef"
+} else {
+    Write-Host '         - ESP_IDF_GIT_REF=<current checkout>'
+}
 
 if (-not (Test-Path (Join-Path $IdfPath '.git'))) {
     Write-Host "  [INFO] Cloning ESP-IDF into $IdfPath ..."
@@ -54,4 +74,4 @@ Write-Host '  [OK] ESP-IDF installed.'
 Write-Host '  [INFO] To activate the environment in the current shell, run:'
 Write-Host "         . $IdfPath\export.ps1"
 
-Write-Host '==> [PASS] ESP-IDF installation draft completed for Windows.'
+Write-Host '==> [PASS] ESP-IDF installation completed for Windows.'
