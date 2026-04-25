@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS2_INSUFFICIENT_CONTEXT",
-  "title": "Class 2 insufficient-context baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative insufficient-context escalation path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "title": "Class 2 insufficient-context clarification transition scenario",
+  "description": "Deterministic scenario skeleton for a representative Class 2 insufficient-context path. Class 2 is modeled as a clarification and transition state: the system presents bounded candidate choices, collects user or caregiver confirmation, and then transitions to Class 1 bounded assistance, Class 0 emergency handling, or safe deferral / caregiver confirmation if ambiguity remains. This file is an integration asset and must remain aligned with frozen assets under common/.",
   "category": "class2_insufficient_context",
   "mode": "deterministic",
   "input_plane": {
@@ -15,34 +15,138 @@
     "requires_synced_phase0_assets": true,
     "requires_time_sync_healthy": true,
     "requires_mqtt_registry_alignment": true,
-    "requires_policy_schema_alignment": true
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true
   },
   "steps": [
     {
       "step_id": 1,
       "action": "publish_context_payload",
-      "description": "Publish an insufficient-context payload through the registry-aligned operational context input plane.",
+      "description": "Publish an insufficient-context payload through the registry-aligned operational context input plane. The initial input is real user intent evidence, but it is not sufficient to safely determine whether the user wants low-risk assistance, emergency help, or no action.",
       "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
     },
     {
       "step_id": 2,
-      "action": "observe_audit_stream",
-      "description": "Observe the verification-safe audit stream and capture the escalation outcome.",
+      "action": "enter_class2_clarification_state",
+      "description": "Route the ambiguous input to Class 2 insufficient-context handling. This is a clarification state, not a terminal failure state. No autonomous actuator execution is performed at this step.",
       "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "generate_bounded_candidate_choices",
+      "description": "Use the LLM guidance layer or input-context mapper to generate short, bounded candidate choices for user confirmation. The candidates are guidance only and do not authorize direct execution.",
+      "candidate_choices": [
+        {
+          "candidate_id": "C1_LIGHTING_ASSISTANCE",
+          "user_prompt": "조명을 켤까요?",
+          "candidate_transition_target": "CLASS_1",
+          "requires_user_or_caregiver_confirmation": true
+        },
+        {
+          "candidate_id": "C2_CAREGIVER_HELP",
+          "user_prompt": "보호자에게 도움을 요청할까요?",
+          "candidate_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+          "requires_user_or_caregiver_confirmation": true
+        },
+        {
+          "candidate_id": "C3_EMERGENCY_HELP",
+          "user_prompt": "긴급상황인가요?",
+          "candidate_transition_target": "CLASS_0",
+          "requires_user_or_caregiver_confirmation": true
+        },
+        {
+          "candidate_id": "C4_CANCEL_OR_WAIT",
+          "user_prompt": "취소하고 대기할까요?",
+          "candidate_transition_target": "SAFE_DEFERRAL",
+          "requires_user_or_caregiver_confirmation": true
+        }
+      ]
+    },
+    {
+      "step_id": 4,
+      "action": "present_candidate_choices",
+      "description": "Present the candidate choices through TTS, display, or another accessible feedback channel. The prompt should be short enough for users with limited attention, speech, vision, or motor control constraints."
+    },
+    {
+      "step_id": 5,
+      "action": "collect_confirmation_or_timeout",
+      "description": "Collect the user's bounded selection input, short voice response, caregiver confirmation, or timeout/no-response result. The confirmation result determines the next routing transition."
+    },
+    {
+      "step_id": 6,
+      "action": "transition_after_confirmation",
+      "description": "Transition to Class 1 if the user confirms a bounded low-risk assistance request, transition to Class 0 if the user confirms emergency help or new emergency evidence arrives, or remain in safe deferral / caregiver confirmation if the result is still ambiguous or no response is received."
+    },
+    {
+      "step_id": 7,
+      "action": "observe_audit_stream",
+      "description": "Observe the verification-safe audit stream and capture the Class 2 clarification trace, including initial ambiguity, generated candidates, presentation channel, confirmation result, transition target, and final safe outcome."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_OR_VOICE_OUTPUT",
+      "DISPLAY_OUTPUT",
+      "ACCESSIBLE_FEEDBACK_OUTPUT"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE",
+      "VOICE_INPUT",
+      "CAREGIVER_CONFIRMATION",
+      "TIMEOUT_OR_NO_RESPONSE"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_1",
+      "condition": "User or caregiver confirms a bounded low-risk assistance request such as lighting assistance.",
+      "example_confirmation": "candidate C1_LIGHTING_ASSISTANCE selected",
+      "allowed_next_path": "bounded_low_risk_assistance_path"
+    },
+    {
+      "transition_target": "CLASS_0",
+      "condition": "User confirms emergency help, provides an emergency-pattern input such as triple-hit, or new deterministic emergency evidence is received from emergency sensors.",
+      "example_confirmation": "candidate C3_EMERGENCY_HELP selected or emergency evidence arrives",
+      "allowed_next_path": "immediate_emergency_override_path"
+    },
+    {
+      "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "condition": "User response is absent, ambiguous, contradictory, or insufficient for safe Class 0/Class 1 transition.",
+      "example_confirmation": "timeout/no response or unclear selection",
+      "allowed_next_path": "caregiver_or_high_safety_escalation_path"
     }
   ],
   "expected_outcomes": {
     "route_class": "CLASS_2",
     "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
     "llm_invocation_allowed": false,
     "llm_decision_invocation_allowed": false,
     "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_1",
+      "CLASS_0",
+      "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+    ],
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
-    "This scenario is intended to represent conservative escalation caused by insufficient context.",
-    "It should remain distinct from emergency-triggered Class 0 scenarios and conflict-driven safe-deferral scenarios.",
+    "This scenario represents Class 2 as an insufficient-context clarification and transition state rather than a terminal failure state.",
+    "LLM guidance may generate bounded candidate choices, but it must not independently make the final class decision, authorize actuation, or trigger emergency handling.",
+    "A confirmed low-risk assistance choice may transition to Class 1 bounded assistance.",
+    "A confirmed emergency choice, triple-hit pattern, or new deterministic emergency evidence may transition to Class 0 emergency handling.",
+    "No response, ambiguous response, or persistent insufficient context must remain in safe deferral or caregiver confirmation rather than direct autonomous actuation.",
     "llm_invocation_allowed is preserved as a coarse legacy field; llm_decision_invocation_allowed and llm_guidance_generation_allowed provide the preferred interpretation.",
     "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."
   ]
