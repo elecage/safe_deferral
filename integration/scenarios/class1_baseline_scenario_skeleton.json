@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS1_BASELINE",
   "title": "Class 1 bounded assistance baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative Class 1 bounded low-risk assistance path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative Class 1 bounded low-risk assistance path. This file is an integration asset and must remain aligned with frozen assets under common/. Class 1 may also be reached after Class 2 clarification when the user or caregiver confirms a bounded low-risk assistance candidate and the Deterministic Validator approves exactly one admissible low-risk action.",
   "category": "class1_baseline",
   "mode": "deterministic",
   "input_plane": {
@@ -31,6 +31,11 @@
       "expected_fixture": "integration/tests/data/expected_routing_class1.json"
     }
   ],
+  "class2_transition_reference": {
+    "may_be_reached_from_class2": true,
+    "required_condition": "User or caregiver confirms a bounded low-risk assistance candidate, the candidate remains inside common/policies/low_risk_actions_v1_1_0_FROZEN.json, and the Deterministic Validator approves exactly one admissible action before dispatch.",
+    "prohibited_shortcut": "Class 2 candidate text or LLM guidance must not directly authorize Class 1 actuation."
+  },
   "expected_outcomes": {
     "route_class": "CLASS_1",
     "routing_target": "CLASS_1",
@@ -46,6 +51,8 @@
     "Exact admissibility assumptions remain defined by frozen policy and schema assets.",
     "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog.",
     "Doorlock-sensitive behavior must not be represented as Class 1 autonomous execution.",
+    "Class 1 may be reached after Class 2 clarification only after user/caregiver confirmation and deterministic validation against the low-risk catalog.",
+    "Class 2 candidate text is not validator output and must not be treated as actuation authority.",
     "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."
   ]
 }
