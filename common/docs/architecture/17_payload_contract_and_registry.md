@@ -99,6 +99,7 @@ Current schema-governed payloads:
 - LLM candidate action payload
 - validator output payload
 - Class 2 notification payload
+- Class 2 clarification interaction payload
 
 ## 3.2 Policy/rules-governed payloads
 
@@ -124,7 +125,6 @@ They may not yet have formal frozen schemas. They must remain clearly separated 
 Examples:
 
 - scenario fixture metadata
-- Class 2 clarification candidate/selection/transition metadata before formal schema introduction
 - experiment annotation
 - dashboard observation state
 - mock caregiver approval state
@@ -152,10 +152,10 @@ These payloads must not redefine policy truth, silently expand autonomous actuat
 | Device States | Context aggregator, RPi simulation | Policy Router / validator context | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Current fields: `living_room_light`, `bedroom_light`, `living_room_blind`, `tv_main`. Doorlock state is not included |
 | Low-risk Action Catalog | Frozen policy asset | Validator / implementation | `low_risk_actions_v1_1_0_FROZEN.json` | Policy-governed | Authoritative autonomous Class 1 action scope |
 | Routing Policy Table | Frozen policy asset | Policy Router / scenario verifier / implementation | `policy_table_v1_2_0_FROZEN.json` | Policy-governed | Active baseline with Class 2 clarification/transition semantics. Supersedes `policy_table_v1_1_2_FROZEN.json` |
-| Class 2 Clarification Interaction | Class 2 Clarification Manager, scenario fixtures, future runtime interaction layer | TTS/Display, Policy Router, Audit, Caregiver confirmation path | `policy_table_v1_2_0_FROZEN.json`; future `clarification_interaction_schema_v1_0_0_FROZEN.json` recommended | Policy-governed / experiment artifact until schema formalization | Candidate choices, presentation channel, selection result, timeout result, transition target. Not pure context and not actuation authority |
+| Class 2 Clarification Interaction | Class 2 Clarification Manager, scenario fixtures, future runtime interaction layer | TTS/Display, Policy Router, Audit, Caregiver confirmation path | `clarification_interaction_schema_v1_0_0_FROZEN.json` + `policy_table_v1_2_0_FROZEN.json` | Schema-governed + policy-governed | Candidate choices, presentation channel, selection result, timeout result, transition target. Not pure context and not actuation authority |
 | LLM Candidate Action | Local LLM bounded assistance path | Deterministic Validator | `candidate_action_schema_v1_0_0_FROZEN.json` | Schema-governed | Current autonomous action candidates must remain within schema and low-risk catalog |
 | Validator Output | Deterministic Validator | Dispatcher / safe deferral / escalation path | `validator_output_schema_v1_1_0_FROZEN.json` | Schema-governed | Approved executable payload must remain bounded to current low-risk scope |
-| Class 2 Notification Payload | Escalation service | Caregiver notification channel | `class_2_notification_payload_schema_v1_0_0_FROZEN.json` | Schema-governed | Includes summary, unresolved reason, and manual confirmation path |
+| Class 2 Notification Payload | Escalation / clarification notification service | Caregiver notification channel, TTS/display notification, local dashboard | `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Schema-governed | Includes summary, unresolved reason, manual confirmation path, C201-C207 trigger IDs, and clarification-oriented source layers/channels |
 | Output Profile | Notification/output layer | Notification service / UI guidance | `output_profile_v1_1_0.json` | Companion policy asset | Output/channel guidance; does not override schemas or routing policy |
 | Fault Injection Profile | RPi fault injector | RPi orchestration / Mac mini policy path | `fault_injection_rules_v1_4_0_FROZEN.json` + policy/schema assets | Policy/rules-governed | Dynamic references must follow current policy/schema JSONPath contracts |
 | Scenario Fixture Payload | `integration/scenarios/`, `integration/tests/data/`, future RPi fixtures | Integration runner / orchestrator | This registry + relevant schemas | Experiment artifact | Must conform to canonical schemas where embedding schema-governed payload sections |
@@ -275,15 +275,16 @@ It must not be treated as:
 - emergency trigger by itself,
 - dashboard/governance authority.
 
-Recommended future schema:
+Current schema:
 
 ```text
 common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 ```
 
-Until that schema is introduced, Class 2 clarification data should remain governed by:
+Class 2 clarification data is governed by:
 
 ```text
+common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 common/policies/policy_table_v1_2_0_FROZEN.json
 integration/scenarios/scenario_manifest_schema.json
 integration/scenarios/verify_scenario_policy_schema_alignment.py
@@ -551,7 +552,8 @@ Current formal schemas:
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 
 Current policy/rules assets:
 
@@ -564,9 +566,12 @@ Historical policy/rules assets:
 
 - `common/policies/policy_table_v1_1_2_FROZEN.json` — superseded by `policy_table_v1_2_0_FROZEN.json` for Class 2 clarification/transition semantics.
 
+Historical schemas:
+
+- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json` — superseded by `class_2_notification_payload_schema_v1_1_0_FROZEN.json` for C206/C207 and clarification notification support.
+
 Candidate future schemas:
 
-- `clarification_interaction_schema_v1_0_0_FROZEN.json`
 - `manual_confirmation_payload_schema_v1_0_0.json`
 - `actuation_ack_payload_schema_v1_0_0.json`
 - `audit_event_schema_v1_0_0.json`
@@ -596,7 +601,7 @@ Validate:
 - candidate actions,
 - validator output,
 - Class 2 notification payload,
-- Class 2 clarification interaction payload once a formal schema is introduced,
+- Class 2 clarification interaction payload,
 - topic-to-payload contract resolution where runtime topics are used,
 - interface-matrix alignment where applicable.
 
