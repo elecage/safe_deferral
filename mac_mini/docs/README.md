@@ -1,575 +1,118 @@
 # mac_mini/docs
 
-이 디렉터리는 **Mac mini 기반 운영 허브(Mac mini Operational Hub)**의 설치, 구성, 배포, 검증 절차를 설명하는 문서 모음이다.
+이 디렉터리는 **Mac mini 기반 운영 허브(Mac mini Operational Hub)**의 설치, 구성, 배포, 검증 절차를 설명한다.
 
-본 프로젝트에서 Mac mini는 다음 역할을 담당한다.
+Mac mini는 본 시스템의 safety-critical operational edge hub이며, Raspberry Pi 5는 실험·대시보드·시뮬레이션·fault injection·비권한 MQTT/payload governance support host로 분리된다.
+
+---
+
+## 1. Mac mini 역할
+
+Mac mini는 다음을 담당한다.
 
 - Docker Compose 기반 로컬 서비스 실행
-- MQTT 브로커, Home Assistant, Ollama 등 핵심 서비스 운영
-- 현재 canonical policy / schema 자산의 런타임 배포
-- SQLite 기반 단일 작성자(single-writer) 지향 감사 로깅 환경 준비
-- 설치 후 서비스 정상 동작 여부 검증
+- Mosquitto MQTT broker 운영
+- Home Assistant 운영
+- Ollama 기반 로컬 LLM runtime 운영
+- SQLite 기반 single-writer audit logging 환경 준비
+- frozen policy/schema runtime asset 배포
+- MQTT topic registry 및 payload reference asset 배포
+- host-side runtime `.env` 작성
+- 서비스 및 asset 검증
 
-> 주의  
-> 이 디렉터리는 **Mac mini 운영 환경의 설치·구성·검증**을 설명한다.  
-> 아직 개발되지 않은 실제 애플리케이션 코드(`mac_mini/code/`)의 내부 동작 설명은 포함하지 않는다.
-
----
-
-## 1. Mac mini의 위치와 역할
-
-프로젝트 전체 구조에서 Mac mini는 **운영 허브(operational hub)**이다.
-
-- `mac_mini/`  
-  운영용 서비스와 로컬 런타임 환경을 담당
-- `rpi/`  
-  시뮬레이션, fault injection, closed-loop evaluation 보조
-- `esp32/`  
-  물리 입력/출력 노드
-- `integration/measurement/`  
-  선택적 정밀 계측 경로
-
-즉, Mac mini는 실제 운영 환경의 중심이며, 정책 자산과 스키마 자산을 읽기 전용으로 마운트하고, 로컬 서비스들을 실행하는 기준 노드로 사용한다.
+Mac mini는 정책 판단과 안전 검증의 중심이다. Dashboard, test app, RPi simulation, governance UI/backend가 Mac mini의 policy authority, validator authority, caregiver approval authority, actuator authority, doorlock execution authority를 대체해서는 안 된다.
 
 ---
 
-## 2. 현재 Mac mini 운영 범위
+## 2. Runtime directory layout
 
-현재 Mac mini 환경은 다음 범위를 기준으로 준비된다.
+현재 Mac mini 스크립트는 다음 layout을 기준으로 한다.
 
-### 포함되는 운영 요소
-- Docker Compose 실행 환경
-- Home Assistant
-- Mosquitto MQTT Broker
-- Ollama 기반 로컬 LLM 런타임
-- SQLite 기반 감사 로그 저장소
-- 정책 및 스키마 frozen asset 런타임 배포
-- Telegram 또는 mock fallback 알림 채널 준비
-- 설치 후 단계별 verify 스크립트 실행
+```text
+~/smarthome_workspace/
+├── .env
+├── .venv-mac/
+├── requirements-mac-lock.txt
+├── logs/
+└── docker/
+    ├── .env
+    ├── docker-compose.yml
+    └── volumes/
+        ├── homeassistant/config/
+        ├── mosquitto/config/
+        ├── mosquitto/data/
+        ├── mosquitto/log/
+        ├── ollama/data/
+        ├── app/config/
+        │   ├── policies/
+        │   ├── schemas/
+        │   ├── mqtt/
+        │   └── payloads/
+        └── sqlite/db/audit_log.db
+```
 
-### 아직 포함하지 않는 설명
-- 실제 `edge_controller_app` 내부 구현 로직
-- Policy Router / Validator / Safe Deferral Handler의 세부 코드 구조
-- 실제 FastAPI/앱 엔드포인트 구현
-- Python 애플리케이션 내부 모듈 설계
+중요 경로:
 
-즉, 본 README는 **운영 환경 준비와 검증까지**를 다룬다.
+- Home Assistant config: `~/smarthome_workspace/docker/volumes/homeassistant/config`
+- SQLite audit DB: `~/smarthome_workspace/docker/volumes/sqlite/db/audit_log.db`
+- Policy runtime assets: `~/smarthome_workspace/docker/volumes/app/config/policies`
+- Schema runtime assets: `~/smarthome_workspace/docker/volumes/app/config/schemas`
+- MQTT runtime references: `~/smarthome_workspace/docker/volumes/app/config/mqtt`
+- Payload runtime references: `~/smarthome_workspace/docker/volumes/app/config/payloads`
+
+Container 내부 app 경로:
+
+- `POLICY_DIR=/app/config/policies`
+- `SCHEMA_DIR=/app/config/schemas`
+- `MQTT_REGISTRY_DIR=/app/config/mqtt`
+- `PAYLOAD_EXAMPLES_DIR=/app/config/payloads`
+- `SQLITE_PATH=/app/db/audit_log.db`
+
+Host-side Python/runtime `.env`는 host path를 사용하고, Compose service environment는 container path를 사용한다.
 
 ---
 
-## 3. 기준이 되는 현재 canonical asset
+## 3. Canonical and reference assets
 
-Mac mini 런타임은 다음 current canonical frozen asset을 기준으로 동작한다.
+### Authoritative policy/schema assets
 
-### Policies
+Mac mini runtime은 다음 frozen/reference assets를 배포해서 읽는다.
+
+Policies:
+
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-
-### Companion policy asset
 - `common/policies/output_profile_v1_1_0.json`
 
-### Schemas
+Schemas:
+
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
+- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 
-이 자산들은 Mac mini 런타임에서 읽기 전용으로 배포되며, deployment-local `.env`나 runtime copy가 canonical truth를 덮어써서는 안 된다.
+### MQTT/payload reference assets
+
+Mac mini runtime also deploys:
+
+- `common/mqtt/README.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+- `common/payloads/examples/`
+- `common/payloads/templates/`
+
+These MQTT/payload files are communication/reference assets. They do not create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority.
 
 ---
 
-## 4. Mac mini 런타임 디렉터리 개요
+## 4. Install sequence
 
-현재 Mac mini 쪽 스크립트들은 기본적으로 다음 workspace를 사용한다.
+Run from repository root.
 
-- Workspace root: `~/smarthome_workspace`
-- Docker Compose root: `~/smarthome_workspace/docker`
-
-주요 런타임 경로는 다음과 같다.
-
-- `~/smarthome_workspace/docker/docker-compose.yml`
-- `~/smarthome_workspace/docker/.env`
-- `~/smarthome_workspace/docker/volumes/homeassistant/config`
-- `~/smarthome_workspace/docker/volumes/mosquitto/config`
-- `~/smarthome_workspace/docker/volumes/mosquitto/data`
-- `~/smarthome_workspace/docker/volumes/mosquitto/log`
-- `~/smarthome_workspace/docker/volumes/ollama/data`
-- `~/smarthome_workspace/docker/volumes/app/config/policies`
-- `~/smarthome_workspace/docker/volumes/app/config/schemas`
-- `~/smarthome_workspace/db/audit_log.db`
-- `~/smarthome_workspace/.env`
-
-즉, Compose stack 자체는 `docker/` 아래에 위치하고, SQLite DB와 Python runtime `.env`는 workspace root를 기준으로 유지한다.
-
----
-
-## 5. 실행 전 공통 준비
-
-아래 명령은 저장소 루트에서 실행하는 것을 권장한다.
-
-```bash
-cd /path/to/safe_deferral
-```
-
-스크립트 실행 권한이 없는 경우 한 번만 다음 명령을 수행한다.
-
-```bash
-chmod +x mac_mini/scripts/install/*.sh
-chmod +x mac_mini/scripts/configure/*.sh
-chmod +x mac_mini/scripts/verify/*.sh
-```
-
-각 단계는 **저장소 루트에서 그대로 실행**할 수 있도록 예시 명령을 제공한다.
-
----
-
-## 6. 설치(install) 단계
-
-설치 단계는 `mac_mini/scripts/install/` 아래 스크립트를 순서대로 실행하는 것을 기본으로 한다.
-
-### 6.1 `00_install_homebrew.sh`
-Homebrew가 설치되어 있지 않은 경우 공식 설치 스크립트를 통해 bootstrap을 수행한다.
-
-주요 동작:
-- macOS 여부 확인
-- 이미 Homebrew가 설치되어 있으면 skip
-- Homebrew installer URL 접근 가능 여부 확인
-- 공식 설치 스크립트 실행
-- 현재 셸에서 `brew` 사용 가능 여부 재확인
-
-스크립트 경로:
-- `mac_mini/scripts/install/00_install_homebrew.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/install/00_install_homebrew.sh
-```
-
-### 6.2 `00_preflight.sh`
-Mac mini가 설치 가능한 상태인지 사전 점검한다.
-
-주요 점검 항목:
-- macOS 여부
-- Homebrew 설치 여부
-- 디스크 여유 공간
-- 네트워크 연결 가능성
-- Python 존재 여부는 참고 정보로만 출력하고, 실제 설치/버전 검증 책임은 `10_install_homebrew_deps.sh`에 둔다.
-
-주의:
-- 이 스크립트는 Homebrew bootstrap 이후에 실행하는 것을 전제로 한다.
-- Homebrew가 없으면 `00_install_homebrew.sh`를 먼저 실행하라고 안내한다.
-
-스크립트 경로:
-- `mac_mini/scripts/install/00_preflight.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/install/00_preflight.sh
-```
-
-### 6.3 `10_install_homebrew_deps.sh`
-운영 및 검증에 필요한 기본 Homebrew 의존성을 설치한다.
-
-현재 기준 설치 대상 예:
-- `git`
-- `python@3.12`
-- `just`
-- `sqlite`
-- `jq`
-- `mosquitto`
-
-여기서 `mosquitto` formula는 브로커 자체를 운영하기 위한 것이 아니라, verify 단계에서 `mosquitto_pub`, `mosquitto_sub` 같은 MQTT client 도구를 사용하기 위한 목적도 포함한다.
-
-중요 원칙:
-- macOS 기본 `python3`가 3.9.x일 수 있으므로, 단순히 `python3` 명령만 믿지 않는다.
-- Homebrew-managed Python 3.11+ 인터프리터를 직접 선택하여 검증한다.
-
-스크립트 경로:
-- `mac_mini/scripts/install/10_install_homebrew_deps.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/install/10_install_homebrew_deps.sh
-```
-
-### 6.4 `20_install_docker_runtime_mac.sh`
-Docker Desktop / Docker CLI / Docker Compose 가용성을 점검하고, 필요 시 Docker Desktop 설치를 유도한다.
-
-주요 점검 항목:
-- `docker` CLI 존재 여부
-- Docker daemon 실행 여부
-- `docker compose` plugin 가용성
-- Docker network / volume 접근 가능 여부
-
-중요 원칙:
-- Docker 설치만으로는 충분하지 않다.
-- macOS에서는 **Docker Desktop을 실행하여 daemon이 떠 있어야** 이후 `docker compose up -d`가 가능하다.
-
-스크립트 경로:
-- `mac_mini/scripts/install/20_install_docker_runtime_mac.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/install/20_install_docker_runtime_mac.sh
-```
-
-### 6.5 `21_prepare_compose_stack_mac.sh`
-Mac mini Docker Compose workspace를 준비한다.
-
-주요 작업:
-- `~/smarthome_workspace/docker` 생성
-- compose volume 디렉터리 생성
-- SQLite DB용 디렉터리 권한 준비
-- 템플릿으로부터 `docker-compose.yml` 생성
-
-스크립트 경로:
-- `mac_mini/scripts/install/21_prepare_compose_stack_mac.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/install/21_prepare_compose_stack_mac.sh
-```
-
-### 6.6 `30_setup_python_venv_mac.sh`
-Python 가상환경을 만들고 `requirements-mac.txt`를 기준으로 의존성을 설치한다.
-
-주요 작업:
-- `.venv-mac` 생성 또는 재생성
-- Homebrew-managed Python 3.11+를 직접 선택해서 venv 생성
-- pip / setuptools / wheel 업그레이드
-- requirements 설치
-- lock 파일 저장
-
-중요 원칙:
-- `python3 -m venv`를 무조건 쓰지 않는다.
-- macOS 기본 3.9.x가 아닌, Homebrew Python 3.11+를 우선 사용한다.
-
-스크립트 경로:
-- `mac_mini/scripts/install/30_setup_python_venv_mac.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/install/30_setup_python_venv_mac.sh
-```
-
----
-
-## 7. 구성(configure) 단계
-
-구성 단계는 `mac_mini/scripts/configure/` 아래 스크립트로 수행한다.
-
-### 7.1 `70_write_env_files.sh`
-deployment-local `.env` 파일을 안전하게 작성한다.
-
-핵심 원칙:
-- 이미 존재하는 값을 함부로 덮어쓰지 않음
-- canonical policy/schema truth를 env가 대체하지 않음
-- endpoint, path, Telegram credentials 같은 runtime-local 설정만 저장
-
-대표 변수 예:
-- `MQTT_HOST`
-- `MQTT_PORT`
-- `OLLAMA_HOST`
-- `SQLITE_PATH`
-- `POLICY_DIR`
-- `SCHEMA_DIR`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-
-스크립트 경로:
-- `mac_mini/scripts/configure/70_write_env_files.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/70_write_env_files.sh
-```
-
-### 7.2 `50_deploy_policy_files.sh`
-현재 canonical frozen policy/schema 자산을 Mac mini runtime 경로로 배포한다.
-
-배포 대상:
-- current canonical policy assets
-- current canonical schema assets
-- companion output profile
-
-배포 원칙:
-- runtime asset은 canonical filename 그대로 복사
-- JSON 파일은 읽기 전용 권한(`chmod 444`) 적용
-
-스크립트 경로:
-- `mac_mini/scripts/configure/50_deploy_policy_files.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/50_deploy_policy_files.sh
-```
-
-### 7.3 `40_configure_sqlite.sh`
-SQLite DB를 초기화하고 WAL 모드를 적용한다.
-
-현재 기준 핵심 테이블:
-- `routing_events`
-- `validator_results`
-- `deferral_events`
-- `timeout_events`
-- `escalation_events`
-- `caregiver_actions`
-- `actuation_ack_events`
-
-즉, 단순 DB 생성이 아니라 **감사 로그용 단일 작성자 지향(single-writer-oriented) 구조**를 준비하는 단계다.
-
-스크립트 경로:
-- `mac_mini/scripts/configure/40_configure_sqlite.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/40_configure_sqlite.sh
-```
-
-### 7.4 `20_configure_mosquitto.sh`
-Mosquitto 브로커 설정 파일을 준비한다.
-
-핵심 특징:
-- LAN-only trust boundary 전제
-- 기본 listener 1883 사용
-- 익명 접근 기반 기본 설정
-- 실제 외부 차단은 라우터/macOS firewall 계층과 함께 고려
-
-스크립트 경로:
-- `mac_mini/scripts/configure/20_configure_mosquitto.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/20_configure_mosquitto.sh
-```
-
-### 7.5 `10_configure_home_assistant.sh`
-Home Assistant 설정 템플릿을 runtime 경로로 복사하고, 필요 시 컨테이너 재시작을 수행한다.
-
-핵심 원칙:
-- 기존 설정 파일이 있으면 덮어쓰지 않음
-- 사용자 설정 보존 우선
-
-스크립트 경로:
-- `mac_mini/scripts/configure/10_configure_home_assistant.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/10_configure_home_assistant.sh
-```
-
-### 7.6 `30_configure_ollama.sh`
-Ollama 서비스를 실행하고, 현재 baseline 모델인 `llama3.1`을 준비한 뒤 간단한 추론 검증까지 수행한다.
-
-핵심 특징:
-- `ollama` compose service 확인
-- API 접근성 확인
-- `llama3.1` model pull
-- `READY` 응답 검증
-
-스크립트 경로:
-- `mac_mini/scripts/configure/30_configure_ollama.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/30_configure_ollama.sh
-```
-
-### 7.7 `60_configure_notifications.sh`
-알림 채널을 구성한다.
-
-동작 방식:
-- Telegram token/chat ID가 정상 값이면 Telegram 모드
-- placeholder 또는 미설정 상태면 mock fallback 모드
-- 실제 API 연결 테스트 실패 시에도 mock fallback으로 전환 가능
-
-스크립트 경로:
-- `mac_mini/scripts/configure/60_configure_notifications.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/configure/60_configure_notifications.sh
-```
-
----
-
-## 8. Compose 템플릿 개요
-
-`mac_mini/scripts/templates/docker-compose.template.yml`은 Mac mini 운영 환경의 기본 Compose template이다.
-
-현재 포함되는 핵심 서비스:
-- `mosquitto`
-- `homeassistant`
-- `ollama`
-- `edge_controller_app`
-
-핵심 원칙:
-- policy/schema 자산은 app 컨테이너에 읽기 전용으로 마운트
-- SQLite DB는 별도 경로로 마운트
-- Ollama는 로컬 API endpoint로 사용
-- Home Assistant는 로컬 디스커버리 특성 때문에 host network를 사용할 수 있음
-
-> 주의  
-> 현재 `edge_controller_app`의 실제 구현 코드는 아직 본 README에서 설명하지 않는다.  
-> 여기서는 오직 Compose 관점에서의 자리와 마운트 구조만 다룬다.
-
----
-
-## 9. 검증(verify) 단계
-
-검증 단계는 `mac_mini/scripts/verify/` 아래 스크립트로 수행한다.
-
-### 9.1 `10_verify_docker_services.sh`
-현재 핵심 Docker Compose 서비스가 실제 running 상태인지 확인한다.
-
-현재 검증 대상:
-- `homeassistant`
-- `mosquitto`
-- `ollama`
-- `edge_controller_app`
-
-스크립트 경로:
-- `mac_mini/scripts/verify/10_verify_docker_services.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/10_verify_docker_services.sh
-```
-
-### 9.2 `20_verify_mqtt_pubsub.sh`
-Mosquitto 브로커의 pub/sub 기능을 실제로 검증한다.
-
-검증 방식:
-- subscriber를 먼저 띄움
-- test topic에 publish
-- 실제 메시지가 수신되는지 확인
-
-스크립트 경로:
-- `mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh
-```
-
-### 9.3 `30_verify_ollama_inference.sh`
-Ollama inference API가 실제로 동작하는지 확인한다.
-
-검증 방식:
-- `/api/generate` 호출
-- `llama3.1` 모델에 `READY` 응답 요청
-- 기대한 형식으로 응답이 오는지 확인
-
-스크립트 경로:
-- `mac_mini/scripts/verify/30_verify_ollama_inference.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/30_verify_ollama_inference.sh
-```
-
-### 9.4 `40_verify_sqlite.sh`
-SQLite DB health와 schema readiness를 점검한다.
-
-검증 항목:
-- DB 파일 존재 여부
-- WAL mode 여부
-- integrity check
-- 필수 audit tables 존재 여부
-
-스크립트 경로:
-- `mac_mini/scripts/verify/40_verify_sqlite.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/40_verify_sqlite.sh
-```
-
-### 9.5 `50_verify_env_and_assets.sh`
-runtime `.env`와 배포된 canonical assets를 검증한다.
-
-검증 항목:
-- 필수 env 변수 존재 여부
-- runtime policy/schema 디렉터리 존재 여부
-- current canonical JSON asset 존재 여부
-- JSON parse 가능 여부
-
-스크립트 경로:
-- `mac_mini/scripts/verify/50_verify_env_and_assets.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/50_verify_env_and_assets.sh
-```
-
-### 9.6 `60_verify_notifications.sh`
-알림 채널 가용성 자체를 검증한다.
-
-검증 방식:
-- Telegram credentials가 유효하면 실제 Telegram API 송신 확인
-- 아니면 mock log fallback 경로 확인
-
-> 주의  
-> 이 스크립트는 **notification channel availability**를 검증하는 것이며,  
-> Class 2 payload schema 전체 정합성을 검증하는 스크립트는 아니다.
-
-스크립트 경로:
-- `mac_mini/scripts/verify/60_verify_notifications.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/60_verify_notifications.sh
-```
-
-### 9.7 `80_verify_services.sh`
-개별 verify 스크립트를 순차 실행하는 aggregate wrapper이다.
-
-즉, 더 이상 별도의 독자적 strict verifier라기보다,
-- Docker
-- MQTT
-- Ollama
-- SQLite
-- env/assets
-- notifications  
-검증을 순서대로 실행하는 orchestration script 역할을 수행한다.
-
-스크립트 경로:
-- `mac_mini/scripts/verify/80_verify_services.sh`
-
-실행 코드:
-
-```bash
-bash mac_mini/scripts/verify/80_verify_services.sh
-```
-
----
-
-## 10. 권장 실행 순서
-
-Mac mini 환경을 처음 준비할 때는 아래 순서를 권장한다.
-
-### 설치
 ```bash
 bash mac_mini/scripts/install/00_install_homebrew.sh
 bash mac_mini/scripts/install/00_preflight.sh
@@ -579,7 +122,21 @@ bash mac_mini/scripts/install/21_prepare_compose_stack_mac.sh
 bash mac_mini/scripts/install/30_setup_python_venv_mac.sh
 ```
 
-### 구성
+Install scripts prepare Homebrew, brew dependencies, Docker Desktop/Compose, the compose workspace, runtime asset directories, SQLite volume directory, and `.venv-mac` from `requirements-mac.txt`.
+
+Notes:
+
+- `00_install_homebrew.sh` must not be run as root.
+- `20_install_docker_runtime_mac.sh` requires Homebrew before Docker Desktop installation/checks.
+- `21_prepare_compose_stack_mac.sh` creates `policies`, `schemas`, `mqtt`, `payloads`, and SQLite volume directories.
+- `30_setup_python_venv_mac.sh` uses Homebrew Python 3.11+ and `${BASH_SOURCE[0]}` for path resolution.
+
+---
+
+## 5. Configure sequence
+
+Recommended order:
+
 ```bash
 bash mac_mini/scripts/configure/70_write_env_files.sh
 bash mac_mini/scripts/configure/50_deploy_policy_files.sh
@@ -590,7 +147,44 @@ bash mac_mini/scripts/configure/30_configure_ollama.sh
 bash mac_mini/scripts/configure/60_configure_notifications.sh
 ```
 
-### 컨테이너 실행
+Configure responsibilities:
+
+- `70_write_env_files.sh`
+  - writes host runtime `.env` and compose `.env`
+  - writes `POLICY_DIR`, `SCHEMA_DIR`, `MQTT_REGISTRY_DIR`, `PAYLOAD_EXAMPLES_DIR`, and `SQLITE_PATH`
+  - uses host-side paths in `~/smarthome_workspace/`
+
+- `50_deploy_policy_files.sh`
+  - deploys policies, schemas, MQTT references, and payload references into `~/smarthome_workspace/docker/volumes/app/config/`
+  - deploys MQTT/payload references read-only
+  - does not convert reference assets into authority
+
+- `40_configure_sqlite.sh`
+  - initializes SQLite audit DB at `~/smarthome_workspace/docker/volumes/sqlite/db/audit_log.db`
+  - enables WAL mode
+  - creates audit tables
+
+- `20_configure_mosquitto.sh`
+  - writes Mosquitto config under `docker/volumes/mosquitto/config`
+  - default `allow_anonymous true` is for controlled LAN lab setup only
+  - production/shared-network use should replace this with password files and ACLs aligned with `common/mqtt/`
+
+- `10_configure_home_assistant.sh`
+  - writes Home Assistant config under `docker/volumes/homeassistant/config`
+  - does not overwrite an existing `configuration.yaml`
+
+- `30_configure_ollama.sh`
+  - verifies Ollama API on host-side `127.0.0.1:11434`
+  - pulls/verifies baseline model
+
+- `60_configure_notifications.sh`
+  - configures Telegram if credentials exist
+  - otherwise uses mock notification fallback
+
+---
+
+## 6. Start containers
+
 ```bash
 cd ~/smarthome_workspace/docker
 docker compose up -d
@@ -598,7 +192,33 @@ docker compose ps
 cd -
 ```
 
-### 검증
+The compose template includes:
+
+- `mosquitto`
+- `homeassistant`
+- `ollama`
+- `edge_controller_app`
+
+Current verification treats `edge_controller_app` as optional until `mac_mini/code/Dockerfile` and the operational app runtime are finalized.
+
+Inside the Compose network:
+
+- app should use `MQTT_HOST=mosquitto`
+- app should use `OLLAMA_HOST=http://ollama:11434`
+
+Host-side scripts still use:
+
+- `MQTT_HOST=127.0.0.1`
+- `OLLAMA_HOST=http://127.0.0.1:11434`
+
+This distinction is intentional.
+
+---
+
+## 7. Verify sequence
+
+Individual verification:
+
 ```bash
 bash mac_mini/scripts/verify/10_verify_docker_services.sh
 bash mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh
@@ -606,16 +226,39 @@ bash mac_mini/scripts/verify/30_verify_ollama_inference.sh
 bash mac_mini/scripts/verify/40_verify_sqlite.sh
 bash mac_mini/scripts/verify/50_verify_env_and_assets.sh
 bash mac_mini/scripts/verify/60_verify_notifications.sh
+```
+
+Aggregate verification:
+
+```bash
 bash mac_mini/scripts/verify/80_verify_services.sh
 ```
 
-실제 사용 시에는 `80_verify_services.sh`만 실행해도 되지만, 문제 발생 시에는 개별 verify 스크립트를 직접 실행해 원인을 분리하는 것이 좋다.
+Verify behavior:
+
+- `10_verify_docker_services.sh`
+  - required core services: `homeassistant`, `mosquitto`, `ollama`
+  - optional service: `edge_controller_app`
+
+- `20_verify_mqtt_pubsub.sh`
+  - uses test topic `safe_deferral/verify/mqtt_pubsub`
+
+- `40_verify_sqlite.sh`
+  - verifies DB at `~/smarthome_workspace/docker/volumes/sqlite/db/audit_log.db`
+  - checks WAL mode, integrity, and required audit tables
+
+- `50_verify_env_and_assets.sh`
+  - verifies required env vars including `MQTT_REGISTRY_DIR` and `PAYLOAD_EXAMPLES_DIR`
+  - validates policy/schema/MQTT/payload JSON readability
+  - checks required MQTT/payload files
+  - verifies topic registry `example_payload` references exist
+  - validates schema-governed payload examples using `jsonschema`
+  - verifies context examples include `doorbell_detected`
+  - rejects forbidden doorlock state fields in `pure_context_payload.device_states`
 
 ---
 
-## 11. 빠른 시작용 한 번에 실행 예시
-
-아래는 처음 설정할 때 따라 할 수 있는 예시다.
+## 8. Quick start
 
 ```bash
 cd /path/to/safe_deferral
@@ -645,184 +288,50 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 
 ---
 
-## 12. 설치/구성 중 자주 발생하는 문제와 해결 방법
+## 9. Important boundaries
 
-### 12.1 Homebrew 설치 스크립트가 관리자 권한 문제로 실패하는 경우
-증상 예시:
-- `Need sudo access on macOS (e.g. the user ... needs to be an Administrator)!`
-- `Don't run this as root!`
+### Canonical truth vs deployment-local copies
 
-원인:
-- Homebrew 설치는 **관리자 권한이 있는 일반 사용자 계정**으로 실행해야 한다.
-- `sudo bash mac_mini/scripts/install/00_install_homebrew.sh`처럼 root로 실행하면 안 된다.
+- `common/policies/` and `common/schemas/` are authoritative source assets.
+- Runtime copies under `~/smarthome_workspace/docker/volumes/app/config/` are deployed copies.
+- `.env` and Compose mounts are deployment-local configuration.
+- Deployment-local configuration must not redefine canonical policy/schema authority.
 
-해결:
-1. 관리자 권한이 있는 일반 사용자 계정으로 로그인한다.
-2. 그 계정에서 아래를 실행한다.
+### MQTT/payload references
 
-```bash
-bash mac_mini/scripts/install/00_install_homebrew.sh
+- `common/mqtt/` and `common/payloads/` support topic lookup, payload validation, governance checks, dashboard tooling, and Package G verification.
+- They do not create execution authority.
+- Governance reports are evidence artifacts only.
+
+### Doorbell/doorlock boundary
+
+- `environmental_context.doorbell_detected` is required context.
+- `doorbell_detected=true` does not authorize door unlock.
+- Doorlock state is not part of current `pure_context_payload.device_states`.
+- Doorlock-sensitive actuation must route through Class 2 escalation or a separately governed manual confirmation path with caregiver approval, ACK, and audit.
+
+### Mosquitto security boundary
+
+Default generated config uses:
+
+```conf
+listener 1883 0.0.0.0
+allow_anonymous true
 ```
 
-### 12.2 Homebrew를 수동 설치했는데도 `Homebrew is not installed`가 나오는 경우
-증상 예시:
-- `Homebrew is not installed. Run mac_mini/scripts/install/00_install_homebrew.sh first.`
-
-원인:
-- Homebrew 설치는 완료되었지만, 현재 셸의 PATH에 아직 `brew`가 반영되지 않은 경우가 많다.
-
-해결:
-```bash
-echo 'eval "$(/opt/homebrew/bin/brew shellenv zsh)"' >> ~/.zprofile
-eval "$(/opt/homebrew/bin/brew shellenv zsh)"
-hash -r
-brew --version
-which brew
-```
-
-### 12.3 macOS 기본 Python 3.9.x가 잡혀서 Python 3.11+ 검증이 실패하는 경우
-증상 예시:
-- `python3`는 존재하지만 3.9.6으로 표시됨
-- venv 생성 시 낡은 시스템 Python을 집음
-
-원인:
-- macOS 기본 `python3`가 오래된 버전일 수 있다.
-- 단순 `python3` 경로만 믿으면 Homebrew Python 대신 시스템 Python을 사용할 수 있다.
-
-현재 스크립트 원칙:
-- `10_install_homebrew_deps.sh`는 `python@3.12`를 우선 설치하고, Homebrew Python 3.11+를 직접 선택한다.
-- `30_setup_python_venv_mac.sh`도 Homebrew Python 3.11+ 경로를 직접 선택해 venv를 만든다.
-
-수동 점검 방법:
-```bash
-/opt/homebrew/opt/python@3.12/bin/python3.12 --version
-which python3
-python3 --version
-```
-
-필요 시 shellenv를 다시 적용한다.
-
-```bash
-eval "$(/opt/homebrew/bin/brew shellenv zsh)"
-hash -r
-```
-
-### 12.4 Docker는 설치했는데 `docker info`가 실패하는 경우
-증상 예시:
-- `docker` 명령은 존재하지만 `docker info`가 daemon 연결 실패로 종료됨
-
-원인:
-- macOS에서는 Docker Desktop 앱이 실행되어 **daemon이 떠 있어야** 한다.
-- 설치만 하고 앱을 실행하지 않으면 Compose가 동작하지 않는다.
-
-해결:
-```bash
-open -a Docker
-docker info
-```
-
-정상 확인:
-```bash
-docker --version
-docker compose version
-docker info
-```
-
-### 12.5 `mosquitto` 또는 `homeassistant` service is not found yet 경고가 나오는 경우
-증상 예시:
-- `'mosquitto' service is not found or not created yet. Configuration will apply on first start.`
-- `'homeassistant' service is not found or not created yet. Configuration will apply on first start.`
-
-원인:
-- 설정 스크립트는 실행되었지만, 아직 `docker compose up -d`가 수행되지 않아 컨테이너가 생성되지 않은 상태다.
-
-해석:
-- 이 경고는 보통 **치명적 오류가 아니라, 첫 컨테이너 시작 시 설정이 적용된다는 의미**다.
-
-해결:
-```bash
-cd ~/smarthome_workspace/docker
-docker compose up -d
-docker compose ps
-```
-
-필요하면 이후 설정 스크립트를 다시 실행한다.
-
-```bash
-cd /path/to/safe_deferral
-bash mac_mini/scripts/configure/20_configure_mosquitto.sh
-bash mac_mini/scripts/configure/10_configure_home_assistant.sh
-```
-
-### 12.6 Home Assistant 템플릿 경로 경고가 나오는 경우
-증상 예시:
-- `Template not found at ... configuration.yaml.template. Skipping injection.`
-
-원인 가능성:
-- 템플릿 파일이 실제로 없거나,
-- 스크립트가 보고 있는 경로와 저장소의 실제 템플릿 경로가 다를 수 있다.
-
-우선 확인:
-```bash
-cd /path/to/safe_deferral
-find . -name "configuration.yaml.template"
-find . -name "docker-compose.template.yml"
-```
-
-해석:
-- 템플릿 경고는 Mosquitto service-not-found 경고와 달리, 실제 경로/파일 유무를 확인하는 것이 좋다.
-- 템플릿이 없으면 기본 설정 보존 모드로 넘어갈 수 있지만, 설치 문서와 스크립트 경로가 drift했는지 점검해야 한다.
+This is for controlled LAN lab setup only. Production or shared-network deployments should use `password_file` and ACL rules aligned with `common/mqtt/` publisher/subscriber contracts.
 
 ---
 
-## 13. 운영 시 주의사항
+## 10. Known follow-up
 
-### 13.1 canonical truth와 deployment-local 설정을 혼동하지 말 것
-- policy table, low-risk action catalog, fault rules, schema는 canonical frozen asset이다.
-- `.env`, runtime path, compose mount는 deployment-local 설정이다.
-- deployment-local 값이 canonical truth를 대체해서는 안 된다.
+`edge_controller_app` remains optional in Docker service verification until the following are finalized:
 
-### 13.2 Mac mini는 운영 허브이지 실험 노드가 아님
-- fault injection
-- 시뮬레이션 전용 경로
-- 폐루프 평가 보조  
-같은 역할은 Raspberry Pi 계층과 분리해 유지해야 한다.
+- `mac_mini/code/Dockerfile`
+- Policy Router implementation
+- Deterministic Validator implementation
+- Safe Deferral Handler implementation
+- Audit/notification integration
+- runtime app entrypoint
 
-### 13.3 LLM은 실행 권한의 주체가 아님
-Mac mini에서 Ollama를 실행하더라도, 실제 프로젝트 원칙은 다음과 같다.
-
-- LLM은 bounded Class 1 assistance만 담당
-- deterministic validator가 실행 허용 여부를 결정
-- ambiguity는 safe deferral 또는 Class 2 escalation로 처리
-- unsafe autonomous actuation은 허용하지 않음
-
----
-
-## 14. 아직 남아 있는 향후 작업
-
-현재 README는 설치, 구성, 배포, 검증까지만 설명한다.  
-아직 향후 작업으로 남아 있는 핵심은 다음과 같다.
-
-- `mac_mini/code/` 실제 애플리케이션 구현
-- Policy Router 구현
-- Deterministic Validator 구현
-- Context-integrity-based safe deferral stage 구현
-- Audit Logger service 구현
-- Notification backend / caregiver confirmation backend 구현
-
-즉, **Mac mini 운영 환경의 바깥쪽 준비는 상당 부분 정리되었고, 앞으로는 실제 코드 구현이 핵심 단계**가 된다.
-
----
-
-## 15. 문서 갱신 원칙
-
-다음 중 하나가 바뀌면 이 README도 함께 갱신하는 것이 바람직하다.
-
-- current canonical policy/schema asset set
-- Mac mini runtime directory layout
-- Docker Compose template
-- install / configure / verify script 흐름
-- current baseline model decision
-- notification channel strategy
-
-특히 asset version이 바뀌었는데 README가 그대로면, 설치/검증 절차와 설명이 다시 drift할 수 있다.
+When finalized, `edge_controller_app` can be promoted from optional to required in `10_verify_docker_services.sh`.
