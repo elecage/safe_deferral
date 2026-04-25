@@ -1,0 +1,29 @@
+{
+  "source_node_id": "mac_mini.context_aggregator",
+  "routing_metadata": {
+    "audit_correlation_id": "example-non-visitor-001",
+    "ingest_timestamp_ms": 1710000000000,
+    "network_status": "local"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "button",
+      "event_code": "single_hit",
+      "event_timestamp_ms": 1710000000000
+    },
+    "environmental_context": {
+      "temperature": 23.5,
+      "illuminance": 120.0,
+      "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
+      "doorbell_detected": false
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "off"
+    }
+  }
+}
