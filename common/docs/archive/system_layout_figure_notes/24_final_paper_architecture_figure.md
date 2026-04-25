@@ -20,6 +20,6 @@ This forwarding file was archived during the directory cleanup of system-layout 
 If there is any conflict between older text and the consolidated document, prefer:
 
 1. `common/docs/architecture/16_system_architecture_figure.md`
-2. `common/docs/architecture/25_payload_contract_and_registry.md`
+2. `common/docs/architecture/17_payload_contract_and_registry.md`
 3. `common/docs/required_experiments.md`
 4. `common/docs/runtime/SESSION_HANDOFF.md`
