@@ -33,13 +33,16 @@ The following corrections were explicitly applied before writing the final inter
 - **Context Nodes do not go directly to the Local LLM Reasoning Layer.** They must enter through `MQTT Ingestion / State Intake` and then `Context and Runtime State Aggregation`.
 - **Emergency Nodes do not use the Local LLM as the primary decision path.** They must follow a policy-driven path through `MQTT Ingestion / State Intake` and `Policy Router`.
 - **Sensitive actuation is never triggered directly by `Caregiver Escalation`.** Execution can happen only after `Caregiver Approval` through a separately governed manual confirmation path.
+- **Caregiver Approval does not directly drive actuator hardware.** The compact paper figure may draw the path visually, but the logical interface is `Caregiver Approval -> Governed Manual Dispatcher -> Actuator Interface Nodes`.
 - **Local Audit Logging is not the direct sink of raw emergency sensing.** It records processed hub-side outcomes.
 - **MQTT topics are communication contracts, not policy authority.** The topic registry supports communication consistency but does not override frozen policies or schemas.
+- **`safe_deferral/context/input` is a field-side or controlled-simulation input plane.** Primary operational publishers are bounded input/context nodes and controlled RPi simulation bridges; Mac mini services primarily ingest and aggregate this input rather than acting as the ordinary field-side publisher.
 - **Dashboard/governance interfaces must not publish control authority.** Dashboard and governance tooling may inspect, validate, and propose changes, but must not bypass policy routing, deterministic validation, caregiver approval, ACK, or audit boundaries.
 - **Topic/payload registry edits do not create doorlock execution authority.** Doorlock-related topic entries remain sensitive communication contracts unless future frozen policy/schema revisions explicitly promote them.
 - **`doorbell_detected` is visitor-response context only.** It is not emergency evidence and does not authorize autonomous doorlock control.
 - **Interface-matrix alignment and topic/payload drift checks are governance/verification checks, not operational authorization mechanisms.**
 - **Governance backend/UI separation must be preserved.** The UI must call the backend for create/update/delete/validation/export operations and must not directly edit registry files.
+- **Compact paper figures may group Policy Router and Deterministic Validator visually.** If grouped, deterministic validation must remain described as the final admissibility boundary.
 
 If a future diagram or text conflicts with these points, this matrix should be treated as the corrected interpretation.
 
@@ -89,7 +92,8 @@ Where a row corresponds to a registry-governed interface, the `MQTT Topic / Inte
 | Policy / Validation | PV-6 | Deterministic Validator | Caregiver Escalation | `safe_deferral/escalation/class2` | `class_2_notification_payload` | Sensitive or autonomously inadmissible requests trigger escalation. | Sensitive path |
 | Policy / Validation | PV-7 | Deterministic Validator | Dispatcher / Deferral Handler | `safe_deferral/validator/output` | `validator_output` | Deterministic validator decision output is consumed by dispatcher or deferral handler. | Validator decision is authoritative within policy/schema bounds. |
 | Actuation | AC-1 | Approved Low-Risk Actuation Path | Actuator Interface Nodes | `safe_deferral/actuation/command` | `actuation_command_payload` | Approved low-risk actions are dispatched to actuators. | Lighting etc.; dispatcher path only. |
-| Actuation | AC-2 | Caregiver Approval | Actuator Interface Nodes | `safe_deferral/caregiver/confirmation` then `safe_deferral/actuation/command` | `manual_confirmation_payload` / `actuation_command_payload` | Sensitive actuation is executed only after caregiver approval through a governed manual path. | Sensitive actuation; caregiver approval is not autonomous Class 1 validator approval. |
+| Actuation | AC-2a | Caregiver Approval | Governed Manual Dispatcher | `safe_deferral/caregiver/confirmation` | `manual_confirmation_payload` | Caregiver approval or denial is passed into the governed manual path. | Sensitive actuation; caregiver approval is not autonomous Class 1 validator approval. |
+| Actuation | AC-2b | Governed Manual Dispatcher | Actuator Interface Nodes | `safe_deferral/actuation/command` | `actuation_command_payload` | Sensitive actuation is dispatched only after caregiver approval and governed manual dispatch. | Doorlock-sensitive commands require this governed path. |
 | Actuation | AC-3 | Actuator Interface Nodes | ACK Handling | `safe_deferral/actuation/ack` | `actuation_ack_payload` | Actuator-side acknowledgment or state confirmation is returned. | Closed-loop confirmation |
 | Actuation | AC-4 | ACK Handling | Local Audit Logging | `safe_deferral/audit/log` | `audit_event_payload` | ACK results are recorded through the audit path. | Audit evidence, not policy truth. |
 | Feedback / Guidance | FG-1 | Local LLM Reasoning Layer | TTS Rendering / Voice Output | internal TTS request | guidance_text | Explanation, guidance, or clarification text is sent to the voice-rendering layer. | TTS input |
@@ -101,9 +105,9 @@ Where a row corresponds to a registry-governed interface, the `MQTT Topic / Inte
 | Experiment Support | EX-1 | Scenario Orchestrator | MQTT Ingestion / State Intake | `safe_deferral/sim/context` or controlled bridge to `safe_deferral/context/input` | `policy_router_input_or_context_fixture` | Scenario-driven synthetic events are injected into the hub-side path. | Experiment entry; must not masquerade as uncontrolled operational input. |
 | Experiment Support | EX-2 | Simulation / Replay | MQTT Ingestion / State Intake | `safe_deferral/sim/context` | `policy_router_input_or_context_fixture` | Replay state or synthetic context is injected into the hub-side path. | Replay path |
 | Experiment Support | EX-3 | Fault Injection | MQTT Ingestion / State Intake | `safe_deferral/fault/injection` | `fault_injection_payload` | Fault conditions such as staleness or missing state are injected. | Fault path; experiment-only. |
-| Experiment Support | EX-4 | Context and Runtime State Aggregation | Progress / Result Publication | `safe_deferral/experiment/progress` | `experiment_progress_payload` | Runtime progress information may be reflected into experiment-visible progress publication. | Experiment observation |
-| Experiment Support | EX-5 | Local Audit Logging | Progress / Result Publication | `safe_deferral/experiment/result` | `result_export_payload` | Audit artifacts may be collected for experiment output. | Result artifact |
-| Experiment Support | EX-6 | ACK Handling | Progress / Result Publication | `safe_deferral/experiment/result` | `result_export_payload` | ACK/result summaries may be collected for experiment output. | Result summary |
+| Experiment Support | EX-4 | Context and Runtime State Aggregation | Progress / Result / Governance Reports | `safe_deferral/experiment/progress` | `experiment_progress_payload` | Runtime progress information may be reflected into experiment-visible progress publication. | Experiment observation |
+| Experiment Support | EX-5 | Local Audit Logging | Progress / Result / Governance Reports | `safe_deferral/experiment/result` | `result_export_payload` | Audit artifacts may be collected for experiment output. | Result artifact |
+| Experiment Support | EX-6 | ACK Handling | Progress / Result / Governance Reports | `safe_deferral/experiment/result` | `result_export_payload` | ACK/result summaries may be collected for experiment output. | Result summary |
 | Experiment Support | EX-7 | Scenario Orchestrator / Dashboard Backend | Dashboard Frontend | `safe_deferral/dashboard/observation` | `dashboard_observation_payload` | Dashboard observation state is published for experiment monitoring. | Visibility only, not policy truth. |
 | Experiment Support | EX-8 | Scenario Orchestrator / Integration Test Runner | Dashboard Frontend / Result Exporter | `safe_deferral/experiment/progress` | `experiment_progress_payload` | Experiment progress and run state are published. | Experiment status only. |
 | Experiment Support | EX-9 | Result Exporter / Integration Test Runner | Dashboard Frontend / Paper Analysis Tools | `safe_deferral/experiment/result` | `result_export_payload` | Experiment result summary and export events are published. | Experiment artifact only. |
@@ -131,14 +135,14 @@ It should be kept aligned with `common/mqtt/topic_registry_v1_0_0.json`.
 
 | Topic | Primary Publisher(s) | Primary Subscriber(s) | Payload Family | Authority Boundary |
 |---|---|---|---|---|
-| `safe_deferral/context/input` | `mac_mini.context_aggregator`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input` | Operational input; RPi publisher is controlled experiment/simulation mode only. |
+| `safe_deferral/context/input` | `esp32.bounded_input_node`, `esp32.context_node`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.mqtt_ingestion`, `mac_mini.policy_router`, optional audit observer | `policy_router_input` | Operational field-side input or controlled experiment/simulation input; Mac mini primarily ingests and aggregates this plane. |
 | `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | Emergency input aligned with E001~E005; doorbell is not emergency. |
 | `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | Model candidate only; not execution authority. |
 | `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional dashboard telemetry bridge | `validator_output` | Validator decision; executable outputs must remain within allowed policy/schema scope. |
 | `safe_deferral/deferral/request` | validator or safe deferral handler | safe deferral handler, audit observer, optional dashboard bridge | `safe_deferral_event` | Bounded deferral/clarification control; future schema recommended. |
 | `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | Caregiver escalation; not autonomous execution authority. |
-| `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | Governed manual path; not autonomous Class 1 validator approval. |
-| `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock node, audit observer | `actuation_command_payload` | Dispatch after approval; doorlock requires governed manual confirmation path. |
+| `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test mock | caregiver confirmation backend, governed manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | Governed manual path; not autonomous Class 1 validator approval. |
+| `safe_deferral/actuation/command` | low-risk dispatcher, governed manual dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | Dispatch after validation or governed manual approval; doorlock requires governed manual confirmation path. |
 | `safe_deferral/actuation/ack` | ESP32 actuator node, controlled RPi mock actuator | Mac mini ACK handler, audit observer, dashboard bridge | `actuation_ack_payload` | Closed-loop evidence; not pure context input. |
 | `safe_deferral/audit/log` | Mac mini operational services | Mac mini audit logging service | `audit_event_payload` | Evidence/traceability; not policy truth. |
 | `safe_deferral/sim/context` | RPi simulation runtime | controlled input bridge, RPi orchestrator, RPi dashboard | `policy_router_input_or_context_fixture` | Experiment-only input; must be gated. |
@@ -162,6 +166,7 @@ The following interfaces should not be drawn or described as normal architecture
 | Policy Router → Actuator Interface Nodes | The deterministic validator must not be bypassed. |
 | Safe Deferral and Clarification Management → User | User-facing delivery should occur through the LLM + TTS path. |
 | Caregiver Escalation → Actuator Interface Nodes | Sensitive execution requires explicit caregiver approval first. |
+| Caregiver Approval → Actuator Interface Nodes directly, without governed manual dispatch | Caregiver approval must be converted into a governed manual dispatch path before any sensitive actuator command is published. |
 | Emergency Nodes → Local Audit Logging | Audit logging records processed outcomes, not raw emergency signals as a direct sink. |
 | TTS Rendering / Voice Output → Policy Router | TTS is an output/rendering layer, not a control-input layer. |
 | Governance Dashboard UI → `common/mqtt/` files directly | The UI must call the governance backend and must not directly write registry files. |
@@ -226,7 +231,7 @@ For a more compact paper figure, the interfaces above may be grouped into the fo
 - Dashboard observation → `safe_deferral/dashboard/observation`
 - Progress publication → `safe_deferral/experiment/progress`
 - Result publication → `safe_deferral/experiment/result`
-- Audit / ACK / runtime state → Result Publication
+- Audit / ACK / runtime state → Progress / Result / Governance Reports
 
 ### G. MQTT contract interfaces
 - Operational input topics
@@ -249,6 +254,6 @@ For a more compact paper figure, the interfaces above may be grouped into the fo
 
 ## 7. One-paragraph summary
 
-The corrected interface interpretation is that ordinary bounded interaction uses context aggregation and local LLM reasoning before policy and validation, emergency sensing uses a policy-driven path rather than a primary LLM path, sensitive actuation requires caregiver approval after escalation, and user-facing explanations are generated by the LLM and delivered through TTS rather than directly by deferral or routing layers.
+The corrected interface interpretation is that ordinary bounded interaction uses context aggregation and local LLM reasoning before policy and validation, emergency sensing uses a policy-driven path rather than a primary LLM path, sensitive actuation requires caregiver approval and governed manual dispatch after escalation, and user-facing explanations are generated by the LLM and delivered through TTS rather than directly by deferral or routing layers.
 
 All MQTT-facing interfaces should remain aligned with `common/mqtt/topic_registry_v1_0_0.json`, and governance/dashboard interfaces may inspect, validate, or propose topic/payload changes without becoming policy, validator, caregiver approval, audit, or actuator authority. Interface-matrix alignment, topic/payload drift detection, and payload validation reports are governance/verification artifacts and must not be interpreted as operational authorization mechanisms.
