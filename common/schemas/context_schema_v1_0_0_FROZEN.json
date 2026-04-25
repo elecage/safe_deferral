@@ -126,7 +126,7 @@
     "device_states": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Object map of all controllable smart home devices representing their current state",
+      "description": "Object map of observable smart home device states representing current state. Presence in this schema does not imply autonomous Class 1 actuation admissibility; allowed actuation targets are governed by the low-risk action catalog.",
       "properties": {
         "living_room_light": {
           "type": "string",
