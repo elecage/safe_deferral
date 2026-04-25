@@ -8,10 +8,18 @@ It reflects:
 - the current frozen asset structure
 - device-level separation between Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure
 - the staged workflow of installation, configuration, verification, and measurement-oriented evaluation
+- the MQTT topic / payload contract governance layer
 - the need for orchestration-friendly execution during development and vibe-coding
 
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+
+Current communication and payload references:
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -65,24 +73,30 @@ Examples:
 - notification channel configuration
 - runtime `.env` generation
 - policy/schema deployment or synchronization
+- MQTT topic registry and publisher/subscriber contract reference deployment or synchronization when needed
+- payload example/template references synchronized for test, simulation, dashboard, and governance tooling when needed
 - simulation runtime configuration
 - ESP32 workspace env generation
 - ESP32 sample project preparation
 - ESP32 managed component preparation
 - embedded node-side connection parameters aligned with the operational hub when needed
+- topic/payload governance dashboard runtime configured when implemented
 - timing-node measurement assumptions aligned when used
 - out-of-band measurement profile preparation when class-wise latency evaluation is required
 
 Configuration separation principle:
 - frozen policy/schema/terminology assets are derived from `common/`
+- MQTT topic contracts are derived from `common/mqtt/`
+- payload examples/templates are derived from `common/payloads/`
 - host-local `.env`, credentials, tokens, and machine-specific files are deployment-local configuration
 - deployment-local configuration must not be treated as canonical frozen policy truth
+- MQTT contracts and payload examples must not override canonical policy/schema authority
 
 ---
 
 ### C. Verification Scripts
 Purpose:  
-Verify that each configured service, dependency, runtime path, SDK/toolchain path, and measurement path works correctly before integration or large-scale evaluation begins.
+Verify that each configured service, dependency, runtime path, SDK/toolchain path, communication contract, payload contract, and measurement path works correctly before integration or large-scale evaluation begins.
 
 Repository locations:
 - `mac_mini/scripts/verify/`
@@ -95,6 +109,12 @@ Repository locations:
 Examples:
 - Docker service checks
 - MQTT pub/sub validation
+- MQTT topic registry readability and consistency checks
+- publisher/subscriber matrix consistency checks
+- topic-to-payload contract checks
+- payload example schema-validation checks
+- `doorbell_detected` required-field checks for context payload examples
+- forbidden doorlock-in-device-states checks
 - Ollama inference validation
 - SQLite validation
 - notification validation
@@ -103,6 +123,8 @@ Examples:
 - canonical policy/schema/rules version alignment checks
 - trigger semantics consistency checks
 - Raspberry Pi base runtime checks
+- Raspberry Pi dashboard runtime checks when implemented
+- MQTT/payload governance dashboard checks when implemented
 - closed-loop audit verification
 - ESP-IDF CLI verification
 - ESP32 target-selection verification
@@ -115,19 +137,23 @@ Verification principle:
 Verification should confirm not only service health, but also architectural consistency across:
 - canonical frozen assets
 - deployed runtime copies
+- MQTT topic registry and publisher/subscriber contracts
+- payload examples/templates and schema-governed payload boundaries
 - trigger semantics
 - evaluation-side validation assumptions
 - ESP32 sample-build readiness before real node firmware generation proceeds
 
 ---
 
-## 2. Role of Shared Frozen Assets
+## 2. Role of Shared Frozen Assets and Shared Communication References
 
 Automation does not begin from raw code alone.
 
-The project depends on frozen shared assets stored in:
+The project depends on shared assets stored in:
 - `common/policies/`
 - `common/schemas/`
+- `common/mqtt/`
+- `common/payloads/`
 - `common/docs/`
 - `common/terminology/`
 
@@ -141,17 +167,27 @@ Representative canonical frozen assets include:
 - `validator_output_schema_v1_1_0_FROZEN.json`
 - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 
+Representative communication and payload reference assets include:
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+- `common/payloads/examples/`
+- `common/payloads/templates/`
+
 Optional or version-sensitive companion assets may include:
 - output profile assets
 - auxiliary deployment templates
 - support bundles for reproducibility or measurement workflows
 
-These files act as the single source of truth before runtime deployment and verification.
+These files act as the shared reference state before runtime deployment and verification.
 
 ### Authority principle
-- The authoritative reference state is the frozen asset set in the Git repository.
+- The authoritative policy/schema reference state is the frozen asset set in `common/policies/` and `common/schemas/`.
+- MQTT topic contracts in `common/mqtt/` define communication contracts, not policy authority.
+- Payload examples/templates in `common/payloads/` support implementation and testing, not policy authority.
 - Mac mini and Raspberry Pi consume deployed or synchronized runtime copies as needed, but they must not redefine local policy truth.
-- ESP32-oriented automation should remain consistent with the same canonical policy/schema assumptions where applicable.
+- ESP32-oriented automation should remain consistent with the same canonical policy/schema and MQTT topic assumptions where applicable.
 
 ---
 
@@ -162,31 +198,36 @@ These files act as the single source of truth before runtime deployment and veri
 - PowerShell scripts on Windows where that is the native operational path
 - a top-level `Makefile` or `justfile` for orchestration
 - optional measurement-oriented targets for timing and latency evaluation
+- topic/payload registry validation targets for MQTT and payload-governance checks
 
 ### Why
 - macOS-friendly and Raspberry Pi-friendly
 - Windows-friendly for ESP32 host-side SDK/toolchain bring-up
 - embedded-node-friendly when ESP32 build steps are introduced
 - measurement-friendly when timing-node workflows are introduced
+- topic/payload-governance-friendly as MQTT usage grows
 - easy to rerun individual stages
 - explicit separation of responsibilities
 - easier fault isolation and debugging
 - suitable for vibe-coding workflows and agent guidance
 
 ### Orchestration principle
-The `Makefile` or `justfile` should orchestrate the workflow, but the primary automation units should remain device-specific scripts, embedded build targets, or measurement-oriented support assets.
+The `Makefile` or `justfile` should orchestrate the workflow, but the primary automation units should remain device-specific scripts, embedded build targets, communication-contract checks, payload-validation checks, or measurement-oriented support assets.
 
 ---
 
 ## 4. Recommended Execution Model
 
-Because the project is split across Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure, orchestration should be device-aware and evaluation-aware.
+Because the project is split across Mac mini, Raspberry Pi, ESP32, optional timing infrastructure, and shared MQTT/payload contracts, orchestration should be device-aware, evaluation-aware, and communication-contract-aware.
 
 ### Recommended preflight examples
 ```bash
 make common-check
 make policy-check
 make schema-check
+make mqtt-check
+make payload-check
+make topic-contract-check
 ```
 
 ### Device-oriented examples
@@ -220,6 +261,13 @@ make measure-latency
 make timing-check
 ```
 
+### Governance-oriented examples
+```bash
+make registry-check
+make governance-check
+make governance-dashboard-check
+```
+
 ### Optional grouped targets
 ```bash
 make mac-all
@@ -232,15 +280,19 @@ make benchmark
 make fault-eval
 make latency-eval
 make closed-loop-check
+make topic-payload-check
+make dashboard-check
 ```
 
 ### Interpretation
 - `common-check`, `policy-check`, and `schema-check` should validate the canonical shared baseline before deployment-dependent steps run
+- `mqtt-check`, `payload-check`, and `topic-contract-check` should validate topic registry readability, publisher/subscriber contract consistency, topic-to-payload references, and payload example/schema alignment
 - `mac-*` targets operate on the Mac mini workflow
-- `rpi-*` targets operate on the Raspberry Pi workflow and must remain bounded to simulation, fault-injection, and evaluation tasks rather than hub-side operational runtime control
+- `rpi-*` targets operate on the Raspberry Pi workflow and must remain bounded to dashboard, simulation, fault-injection, orchestration, replay, progress/result publication, and evaluation tasks rather than hub-side operational runtime control
 - `esp32-install`, `esp32-configure`, and `esp32-verify` operate on the cross-platform ESP-IDF development-environment workflow
 - `esp32-build`, `esp32-flash`, and `esp32-check` operate on embedded build/flash/validation workflows when actual node firmware is present
 - measurement targets operate on timing or latency evaluation workflows when used
+- governance targets operate on MQTT/payload inspection and validation only, not policy override or actuation control
 - grouped targets should compose lower-level scripts, not bypass them
 
 ### ESP32 check interpretation
@@ -278,6 +330,8 @@ Accordingly:
 
 should remain semantically consistent with the same trigger set.
 
+`doorbell_detected` is not part of the emergency trigger family. It is visitor-response context and must not be interpreted as Class 0 emergency evidence or autonomous doorlock authority.
+
 This document does not redefine emergency semantics.  
 The authoritative trigger definitions remain in the shared policy table.
 
@@ -292,7 +346,7 @@ Do not merge these concerns into one large script.
 Do not collapse Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure automation into a single opaque execution path.
 
 ### C. Let orchestration call scripts, not replace them
-The `Makefile` or `justfile` should orchestrate the workflow, while the actual operational logic remains in shell scripts, PowerShell scripts, embedded build targets, or measurement-oriented support assets.
+The `Makefile` or `justfile` should orchestrate the workflow, while the actual operational logic remains in shell scripts, PowerShell scripts, embedded build targets, communication-contract checks, payload-validation checks, or measurement-oriented support assets.
 
 ### D. Preserve rerunnability
 Every step should be safe to rerun independently whenever possible.
@@ -303,8 +357,8 @@ Configuration and verification logic should use shared frozen assets from `commo
 ### F. Keep measurement automation bounded to evaluation use
 Timing capture and latency evaluation should support reproducible experiments without becoming part of the operational decision path.
 
-### G. Preserve Raspberry Pi evaluation boundary
-Raspberry Pi automation should prepare and run experiment-side simulation, fault-injection, scenario orchestration, and closed-loop verification workflows only.  
+### G. Preserve Raspberry Pi evaluation and dashboard boundary
+Raspberry Pi automation should prepare and run experiment-side dashboard, simulation, fault-injection, scenario orchestration, replay, progress/status publication, result artifact generation, and closed-loop verification workflows only.  
 It should not automate Mac mini hub-side operational runtime control.
 
 ### H. Preserve ESP32 bounded-node boundary
@@ -315,6 +369,22 @@ Automation should support scenario publication through the same input plane used
 
 ### J. Validate shared assets before deployment-dependent automation
 Automation should fail early if canonical policy/schema/rules assets are missing, unreadable, or version-inconsistent.
+
+### K. Do not hardcode MQTT topics or payload contracts in apps
+Runtime apps, dashboard apps, and experiment tools should load topic names, publisher/subscriber rules, payload families, schema paths, and example payload references from `common/mqtt/topic_registry_v1_0_0.json` whenever practical.
+
+Code should prefer stable topic identifiers or registry lookups over direct hardcoded topic strings. This makes topic renaming, payload migration, and publisher/subscriber policy review easier.
+
+### L. Keep MQTT/payload governance dashboards non-authoritative
+A future MQTT/payload management web app or dashboard may inspect topic contracts, validate payloads, show publisher/subscriber coverage, and visualize live experiment traffic.
+
+It must not:
+- modify canonical policies or schemas,
+- override validator decisions,
+- spoof caregiver approval outside controlled test mode,
+- directly publish unrestricted actuation commands,
+- dispatch doorlock commands,
+- or treat dashboard observation payloads as policy truth.
 
 ---
 
@@ -329,8 +399,15 @@ As implementation grows, the automation layer may be extended with:
 - `make latency-eval`
 - `make timing-capture`
 - `make closed-loop-check`
+- `make mqtt-check`
+- `make payload-check`
+- `make topic-contract-check`
+- `make registry-check`
+- `make governance-check`
+- `make governance-dashboard-check`
+- `make dashboard-check`
 
-These targets should call device-specific scripts and shared integration or measurement assets, rather than bypassing the structured repository layout.
+These targets should call device-specific scripts and shared integration, communication-contract, payload-validation, or measurement assets, rather than bypassing the structured repository layout.
 
 ---
 
@@ -340,9 +417,12 @@ These targets should call device-specific scripts and shared integration or meas
 - Configuration aligns each platform with the safe deferral architecture
 - Verification confirms correct behavior before integration
 - Shared frozen assets in `common/` provide the reference state
+- MQTT contracts in `common/mqtt/` define topic, publisher/subscriber, and topic-payload communication assumptions
+- Payload examples/templates in `common/payloads/` support implementation and testing without becoming policy authority
 - `Makefile` or `justfile` should orchestrate, not replace, the structured script hierarchy
 - device-specific scripts remain the primary automation units
 - ESP32 workflows should be treated as cross-platform SDK/toolchain bring-up plus later embedded-node build and validation paths, not collapsed into Mac mini or Raspberry Pi automation
-- Raspberry Pi workflows should remain bounded to simulation, fault-injection, scenario orchestration, and closed-loop evaluation rather than hub-side runtime control
+- Raspberry Pi workflows should remain bounded to dashboard, simulation, fault-injection, scenario orchestration, replay, progress/status publication, result artifact generation, and closed-loop evaluation rather than hub-side runtime control
 - optional timing-node workflows should be treated as experimental measurement automation, not as part of the operational control path
-- automation should validate canonical assets before deployment-dependent steps proceed
+- MQTT/payload governance dashboards may inspect and validate contracts but must remain non-authoritative
+- automation should validate canonical assets, topic contracts, and payload examples before deployment-dependent steps proceed
