@@ -16,17 +16,18 @@ If older wording in the legacy master handoff conflicts with newer dated addenda
 
 ## Current priority read order
 
-For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, and architecture-document-structure work, read in this order:
+For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, Mac mini install/configure/verify, and architecture-document-structure work, read in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_MQTT_PAYLOAD_ALIGNMENT_UPDATE.md`
-2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
-3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
-4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
-5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
-6. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
-7. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
-8. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
-9. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MAC_MINI_INSTALL_CONFIG_VERIFY_ALIGNMENT_UPDATE.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_MQTT_PAYLOAD_ALIGNMENT_UPDATE.md`
+3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
+4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
+5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
+6. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
+7. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
+8. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
+9. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+10. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
 
 Use the legacy handoff as historical context and operational history, not as the final authority when it conflicts with newer addenda.
 
@@ -179,11 +180,13 @@ Do not treat old active paths such as `common/docs/architecture/24_final_paper_a
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/01_installation_target_classification.md`
+- `common/docs/architecture/02_mac_mini_build_sequence.md`
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/docs/required_experiments.md`
 - `CLAUDE.md`
 - `README.md`
+- `mac_mini/docs/README.md`
 
 ---
 
@@ -204,6 +207,7 @@ Do not treat old active paths such as `common/docs/architecture/24_final_paper_a
 13. Keep governance dashboard UI separate from governance backend/service.
 14. Do not allow governance tooling to publish actuator commands, spoof caregiver approval, or create doorlock execution authority.
 15. If a future task intentionally expands policy or schema scope, update frozen assets, required experiments, prompts, README, CLAUDE, interface matrix, topic registry, payload docs, and a new dated handoff addendum together.
+16. For Mac mini install/configure/verify changes, check `SESSION_HANDOFF_2026-04-25_MAC_MINI_INSTALL_CONFIG_VERIFY_ALIGNMENT_UPDATE.md`, `mac_mini/docs/README.md`, and `02_mac_mini_build_sequence.md` together.
 
 ---
 
