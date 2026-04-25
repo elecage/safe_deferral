@@ -14,9 +14,14 @@ This document does not redefine policy truth.
 Canonical policy, schema, terminology, and related reference assets remain anchored in the shared frozen asset set under `common/`.
 
 Current active structure references:
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+
+Some Raspberry Pi governance and MQTT/payload support connections are documented in `15_interface_matrix.md` and `16_system_architecture_figure.md` but are not yet fully drawn in the current SVG figure.
 
 ---
 
@@ -207,6 +212,8 @@ Representative use:
 - schema validation support
 - experiment / verification dependency setup
 - dashboard-side runtime dependencies when applicable
+- governance backend and dashboard UI dependencies when implemented
+- result export dependencies when implemented
 
 ### Interpretation
 These files are host-side dependency manifests.  
@@ -268,7 +275,8 @@ Stores hub-side application code, including future implementations of:
 - Outbound Notification Interface
 - Caregiver Confirmation Backend
 - MQTT intake/dispatch adapters when implemented
-- topic/payload validation helpers when implemented
+- MQTT Topic Registry Loader / Contract Checker
+- Payload Validation Helper
 
 ### `mac_mini/docs/`
 Stores Mac mini-specific implementation notes if needed.
@@ -283,9 +291,9 @@ Mac mini may consume MQTT/payload contracts for validation and runtime governanc
 
 ## 4. `rpi/`
 
-The `rpi/` directory contains Raspberry Pi-side dashboard, simulation, orchestration, replay, fault-injection, and evaluation assets.
+The `rpi/` directory contains Raspberry Pi-side dashboard, simulation, orchestration, replay, fault-injection, governance support, result-export, and evaluation assets.
 
-The Raspberry Pi is the primary experiment-side dashboard, multi-node simulation, replay, fault-injection, and experiment orchestration node.
+The Raspberry Pi is the primary experiment-side dashboard, multi-node simulation, replay, fault-injection, governance support, and experiment orchestration node.
 
 ### `rpi/scripts/install/`
 Installation scripts for:
@@ -293,6 +301,8 @@ Installation scripts for:
 - Python virtual environment
 - Python dependencies
 - time synchronization client
+- dashboard/governance backend dependencies when implemented
+- payload validation and result export dependencies when implemented
 
 ### `rpi/scripts/configure/`
 Configuration scripts for:
@@ -303,6 +313,8 @@ Configuration scripts for:
 - simulation runtime setup
 - fault profile preparation
 - dashboard runtime preparation when implemented
+- governance dashboard/backend runtime preparation when implemented
+- result export path preparation
 
 ### `rpi/scripts/verify/`
 Verification scripts for:
@@ -310,9 +322,11 @@ Verification scripts for:
 - network reachability
 - simulation environment checks
 - dashboard runtime checks when implemented
+- governance backend non-authority checks when implemented
 - closed-loop audit validation
 - evaluation-side asset consistency checks
-- topic/payload contract consistency checks when implemented
+- topic registry / publisher-subscriber / payload contract consistency checks when implemented
+- payload example validation checks when implemented
 
 ### `rpi/code/`
 Stores Raspberry Pi-side future code, including:
@@ -325,6 +339,11 @@ Stores Raspberry Pi-side future code, including:
 - scenario orchestration logic
 - replay logic
 - experiment and monitoring dashboard runtime
+- MQTT/payload governance backend service
+- governance dashboard UI support
+- topic/payload contract validation utilities
+- payload example manager / validator
+- publisher/subscriber role manager
 - progress/status publication
 - result summary / graph / CSV export support
 - closed-loop evaluation orchestration logic
@@ -335,9 +354,11 @@ Stores Raspberry Pi-specific implementation notes if needed.
 
 ### Interpretation
 The Raspberry Pi consumes synchronized runtime copies derived from canonical frozen assets.  
-It supports experiment-side execution, dashboarding, and evaluation scaling, but it does not redefine canonical operational policy truth.
+It supports experiment-side execution, dashboarding, governance support, and evaluation scaling, but it does not redefine canonical operational policy truth.
 
-RPi dashboard, simulation, fault-injection, and experiment result payloads are visibility/evaluation artifacts unless explicitly validated through canonical schemas and allowed by the MQTT topic registry.
+RPi dashboard, simulation, fault-injection, governance, and experiment result payloads are visibility/evaluation/governance artifacts unless explicitly validated through canonical schemas and allowed by the MQTT topic registry.
+
+Governance backend and dashboard UI components on the Raspberry Pi must remain non-authoritative. The dashboard UI should remain a presentation and interaction layer; create/update/delete/validation/export operations should be handled by a separate MQTT/payload governance backend service. The UI must not directly edit registry files or publish operational control topics.
 
 ---
 
@@ -502,6 +523,7 @@ The repository should support:
 - **ESP32-based physical bounded input/output validation**
 - **Raspberry Pi-based scalable virtual-node and fault-injection evaluation**
 - **Raspberry Pi-based experiment dashboard and result artifact generation**
+- **Raspberry Pi-based non-authoritative MQTT/payload governance support**
 - **optional timing-node-based out-of-band latency measurement**
 
 ### G. Deployment-local files must not be confused with canonical frozen assets
@@ -511,6 +533,11 @@ Host-local runtime files, `.env`, credentials, and machine-specific configuratio
 A future MQTT/payload management web app or dashboard may inspect topic contracts, publisher/subscriber coverage, payload examples, schema validation results, and live experiment traffic.
 
 Such a dashboard must remain a governance, inspection, and validation tool. It must not become policy authority, validator authority, caregiver approval authority, or direct actuator control authority.
+
+The dashboard UI must remain a presentation and interaction layer. Create/update/delete/validation/export operations should be handled by a separate MQTT/payload governance backend service. The UI must not directly edit registry files or publish operational control topics.
+
+### I. Topic and payload hardcoding should be avoided where practical
+Runtime apps, dashboard apps, experiment tools, and firmware adapters should not hardcode MQTT topic strings or payload contracts where registry lookup or configuration lookup is practical.
 
 ---
 
@@ -536,9 +563,9 @@ Older internal names may still appear in transitional assets or source-layer ref
 - `common/payloads/` stores shared payload examples and templates
 - root-level `requirements-*.txt` files store host-side Python dependency manifests
 - `mac_mini/` stores hub-side scripts, runtime files, and future code
-- `rpi/` stores dashboard, simulation, replay, fault-injection, and experiment orchestration-side scripts and future code
+- `rpi/` stores dashboard, simulation, replay, fault-injection, governance support, result-export, and experiment orchestration-side scripts and future code
 - `esp32/` stores embedded firmware assets, cross-platform ESP-IDF development-environment scaffolding, and device-specific physical node implementation assets
-- `integration/` stores end-to-end tests, evaluation scenarios, timing/measurement assets, and canonical consistency checks
+- `integration/` stores end-to-end tests, evaluation scenarios, timing/measurement assets, topic/payload validation tests, and canonical consistency checks
 
 This structure is intended to support:
 - repository clarity
@@ -550,5 +577,6 @@ This structure is intended to support:
 - physical-node validation
 - scalable virtual-node experimentation
 - dashboard-supported experiment monitoring
+- non-authoritative MQTT/payload governance support
 - out-of-band latency measurement
 - long-term system extension
