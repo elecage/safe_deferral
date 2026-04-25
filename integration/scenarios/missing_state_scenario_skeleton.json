@@ -22,8 +22,8 @@
     {
       "step_id": 1,
       "action": "publish_fault_injected_context_payload",
-      "description": "Publish a payload with intentionally incomplete state or omitted required keys through the registry-aligned operational context input plane.",
-      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+      "description": "Publish a missing-device-state fault fixture through the registry-aligned operational context input plane.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_fault_missing_device_state.json"
     },
     {
       "step_id": 2,
@@ -48,7 +48,7 @@
   "notes": [
     "Missing-state cases should distinguish policy-input omissions from validator or action-schema omissions during later detailed expansion.",
     "This skeleton remains an integration asset and must not redefine required-key truth outside the frozen schema baseline.",
-    "Future detailed fixtures should split missing environmental_context.doorbell_detected from ordinary missing device-state cases.",
-    "doorbell_detected is a required visitor-response context field, not emergency evidence or doorlock authorization."
+    "This baseline scenario uses a missing-device-state fixture that preserves environmental_context.doorbell_detected=false.",
+    "A separate negative fixture intentionally omits doorbell_detected and should only be used by explicit negative schema-boundary tests."
   ]
 }
