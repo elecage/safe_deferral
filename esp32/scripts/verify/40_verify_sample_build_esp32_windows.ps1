@@ -18,6 +18,9 @@ $SampleProjectDir = if ($ESP32_SAMPLE_PROJECT_DIR) { $ESP32_SAMPLE_PROJECT_DIR }
 $Target = if ($IDF_TARGET) { $IDF_TARGET } else { 'esp32' }
 $LogDir = if ($ESP32_BUILD_LOG_DIR) { $ESP32_BUILD_LOG_DIR } else { Join-Path $WorkspaceDir 'logs' }
 $BuildLogFile = Join-Path $LogDir 'sample_build.log'
+$ExpectedAppName = if ($ESP32_EXPECTED_APP_NAME) { $ESP32_EXPECTED_APP_NAME } elseif ($EXPECTED_APP_NAME) { $EXPECTED_APP_NAME } else { 'hello_world' }
+$ExpectedBin = Join-Path $SampleProjectDir "build\$ExpectedAppName.bin"
+$ExpectedElf = Join-Path $SampleProjectDir "build\$ExpectedAppName.elf"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
 if (-not (Test-Path $SampleProjectDir)) {
@@ -27,17 +30,20 @@ if (-not (Test-Path $SampleProjectDir)) {
 . (Join-Path $IDF_PATH 'export.ps1') | Out-Null
 Set-Location $SampleProjectDir
 Write-Host "  [INFO] Running clean build for target $Target ..."
+Write-Host "  [INFO] Expected app name: $ExpectedAppName"
 idf.py set-target $Target | Out-Null
 try { idf.py fullclean | Out-Null } catch { }
 idf.py build 2>&1 | Tee-Object -FilePath $BuildLogFile
 
-if (-not (Test-Path (Join-Path $SampleProjectDir 'build\hello_world.bin'))) {
-    throw "Sample binary hello_world.bin was not generated. Check $BuildLogFile for build errors."
+if (-not (Test-Path $ExpectedBin)) {
+    throw "Expected sample binary was not generated: $ExpectedBin. Set ESP32_EXPECTED_APP_NAME or EXPECTED_APP_NAME if the project name is not 'hello_world'. Check $BuildLogFile for build errors."
 }
-if (-not (Test-Path (Join-Path $SampleProjectDir 'build\hello_world.elf'))) {
-    throw "Sample ELF hello_world.elf was not generated. Check $BuildLogFile for build errors."
+if (-not (Test-Path $ExpectedElf)) {
+    throw "Expected sample ELF was not generated: $ExpectedElf. Set ESP32_EXPECTED_APP_NAME or EXPECTED_APP_NAME if the project name is not 'hello_world'. Check $BuildLogFile for build errors."
 }
 
-Write-Host '  [OK] Sample build artifacts were generated successfully.'
+Write-Host '  [OK] Sample build artifacts were generated successfully:'
+Write-Host "       - $ExpectedBin"
+Write-Host "       - $ExpectedElf"
 Write-Host "  [INFO] Build log written to $BuildLogFile."
 Write-Host '==> [PASS] Sample ESP-IDF build verification completed for Windows.'
