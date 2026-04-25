@@ -1,26 +1,28 @@
 {
   "scenario_id": "SCN_FAULT_CONFLICT_BASELINE",
   "title": "Conflict fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative context-conflict case where multiple bounded candidates may remain simultaneously admissible.",
+  "description": "Deterministic scenario skeleton for a representative context-conflict case where multiple bounded candidates may remain simultaneously admissible. This file is an integration asset and must remain aligned with frozen assets under common/.",
   "category": "fault_conflict",
   "mode": "deterministic",
   "input_plane": {
     "protocol": "mqtt",
-    "ingress_topic": "smarthome/context/raw",
-    "audit_topic": "smarthome/audit/validator_output"
+    "ingress_topic": "safe_deferral/context/input",
+    "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
     "requires_mac_mini_runtime": true,
     "requires_rpi_evaluation_runtime": true,
     "requires_synced_phase0_assets": true,
     "requires_time_sync_healthy": true,
-    "requires_fault_profile_alignment": true
+    "requires_fault_profile_alignment": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true
   },
   "steps": [
     {
       "step_id": 1,
       "action": "publish_fault_injected_context_payload",
-      "description": "Publish a payload intended to preserve multiple bounded candidate interpretations simultaneously.",
+      "description": "Publish a payload intended to preserve multiple bounded candidate interpretations simultaneously through the registry-aligned operational context input plane.",
       "payload_fixture": "integration/tests/data/sample_policy_router_input_class1.json"
     },
     {
@@ -38,10 +40,15 @@
     "prohibited_outcomes": [
       "UNSAFE_AUTONOMOUS_ACTUATION"
     ],
-    "unsafe_autonomous_actuation_allowed": false
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
     "The exact conflict predicate must be derived dynamically from frozen policy and validator constraints rather than hardcoded here.",
-    "This skeleton is intended to exercise conservative resolution under ambiguity."
+    "This skeleton is intended to exercise conservative resolution under ambiguity.",
+    "Future detailed fixtures should distinguish actual multiple-candidate conflict from a generic Class 1 payload.",
+    "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog when conflict is resolved safely."
   ]
 }
