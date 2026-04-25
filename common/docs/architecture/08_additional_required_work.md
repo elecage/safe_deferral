@@ -10,17 +10,26 @@ It is intended to support:
 - reproducible deployment
 - evaluation readiness
 - operational recovery planning
+- MQTT topic / payload contract governance
+- dashboard-supported experiment and governance inspection
 
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
+Current communication and payload references:
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+
 ---
 
-## 1. Shared Frozen Asset Completeness
+## 1. Shared Frozen Asset and Reference Completeness
 
-The following shared frozen assets must exist and be treated as the single source of truth before code generation or runtime implementation proceeds.
+The following shared frozen assets and shared reference assets must exist before code generation or runtime implementation proceeds.
 
-### Required shared assets
+### Required authority assets
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
@@ -29,8 +38,20 @@ The following shared frozen assets must exist and be treated as the single sourc
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+
+### Required communication / payload reference assets
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+- `common/payloads/examples/`
+- `common/payloads/templates/`
+
+### Required documentation / terminology assets
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 - `common/docs/architecture/12_prompts.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ### Optional or version-sensitive companion assets
 - output profile assets
@@ -38,7 +59,13 @@ The following shared frozen assets must exist and be treated as the single sourc
 - reproducibility support assets
 
 ### Requirement
-These assets must be frozen before implementation-side code generation begins.
+These assets must be available before implementation-side code generation begins.
+
+### Authority note
+- `common/policies/` and `common/schemas/` remain policy and validation authority.
+- `common/mqtt/` defines communication-contract references.
+- `common/payloads/` provides payload examples/templates.
+- MQTT contracts and payload examples must not override canonical policies or schemas.
 
 ---
 
@@ -54,6 +81,7 @@ The repository now includes host-side Python dependency manifests that should be
 - The manifests should remain aligned with the currently maintained install/runtime assumptions.
 - They support host-side environment reproducibility.
 - They do not redefine canonical shared policy or schema truth.
+- They should include dependencies needed for topic registry loading, JSON schema validation, payload validation, MQTT testing, dashboard runtime, and result export when those components are implemented.
 
 ---
 
@@ -69,6 +97,10 @@ A dedicated port allocation reference should be created and maintained.
 - notification or confirmation endpoint ports
 - optional development-only local service ports
 - optional ESP32 OTA or device-maintenance ports when used
+- Raspberry Pi experiment dashboard port when implemented
+- MQTT/payload governance dashboard port when implemented
+- registry validation service port when implemented
+- result export or artifact service port when implemented
 - optional timing or measurement support interfaces when out-of-band latency evaluation is used
 
 ### Recommended location
@@ -77,6 +109,8 @@ A dedicated port allocation reference should be created and maintained.
 
 ### Requirement note
 Port allocation references support deployment consistency, but they do not define canonical policy truth.
+
+Dashboard and governance ports must not imply policy, validator, caregiver approval, or actuator authority.
 
 ---
 
@@ -90,6 +124,14 @@ A centralized environment-variable reference is required for both documentation 
 - SQLite DB path
 - MQTT broker host and port
 - MQTT credentials
+- MQTT topic registry path
+- payload examples/templates path
+- topic namespace prefix
+- dashboard observation topic
+- experiment progress/result topics
+- simulation mode flag
+- governance dashboard enable flag
+- registry validation mode
 - Ollama endpoint
 - timeout and grace-period settings
 - deployment mode
@@ -114,6 +156,8 @@ A centralized environment-variable reference is required for both documentation 
 Environment-variable sheets document deployment consistency, but `.env`, credentials, tokens, host paths, and machine-specific configuration remain deployment-local assets.  
 They must not be treated as canonical frozen policy truth.
 
+Runtime apps, dashboard apps, and experiment tools should load topic strings and payload contract references from the configured registry path whenever practical, instead of hardcoding MQTT topics and payload assumptions.
+
 ---
 
 ## 5. Acceptance Criteria per Module
@@ -125,17 +169,23 @@ Each major module should have explicit acceptance criteria before it is consider
 #### Policy Router
 - deterministic class output for all representative scenario cases
 - no invalid routing for incomplete input
+- valid context payload requires `environmental_context.doorbell_detected`
+- `routing_metadata` is not passed into bounded LLM context
+- topic/payload contract assumptions are loaded from registry where practical
 - routing reasons are observable
 
 #### Deterministic Validator
 - no high-risk action passes validation
 - bounded parameter checks are enforced
 - safe deferral is emitted when validation conditions are not satisfied
+- `door_unlock` / `front_door_lock` is rejected as current Class 1 executable payload
+- doorlock state is not accepted as current `device_states` authority
 
 #### Context-Integrity Safe Deferral Handler
 - bounded clarification flow operates correctly
 - timeout handling is deterministic
 - timeout or unresolved ambiguity escalates safely rather than enabling unsafe actuation
+- safe deferral payloads preserve the boundaries defined in `common/docs/architecture/17_payload_contract_and_registry.md`
 
 #### Outbound Notification Interface
 - outbound escalation payload is emitted successfully
@@ -143,23 +193,48 @@ Each major module should have explicit acceptance criteria before it is consider
 - mock fallback works when external notification is not available
 
 #### Caregiver Confirmation Backend
-- confirmation remains restricted to bounded low-risk actions
+- confirmation remains restricted to governed, explicitly scoped actions
+- caregiver confirmation is not treated as autonomous Class 1 validator approval
+- doorlock-sensitive confirmation requires approval, ACK verification, and audit visibility when implemented
 - no unrestricted actuation path is introduced
+
+#### MQTT Topic Registry Loader / Contract Checker
+- topic registry is readable
+- required topic IDs or topic patterns resolve
+- publisher/subscriber matrix remains consistent with the registry
+- topic-to-payload contract references resolve
+- runtime apps do not hardcode topic strings where registry lookup is practical
+
+#### Payload Validation Helper
+- schema-governed payload examples validate against referenced schemas
+- valid context examples include `environmental_context.doorbell_detected`
+- invalid missing-`doorbell_detected` examples fail as expected
+- doorlock state is rejected or flagged when placed inside current `pure_context_payload.device_states`
 
 #### Audit Logging Service
 - acts as the only DB writer
 - no direct multi-writer SQLite access is allowed
-- routing, validation, timeout, escalation, and ACK events are captured
+- routing, validation, timeout, escalation, caregiver confirmation, and ACK events are captured
+- doorbell / visitor-response outcomes are traceable when relevant
+- doorlock-sensitive escalation/manual confirmation/ACK outcomes are traceable when relevant
+- dashboard observation is not treated as audit authority
 
 #### Dispatcher / ACK path
 - execution success is confirmed only after state ACK
 - no success is assumed from command transmission alone
+- ACK payloads remain closed-loop evidence, not pure context input
 
 ### Raspberry Pi experiment modules
 
-#### Virtual Sensor and Fault Injection Layer
+#### Virtual Sensor, Dashboard, and Fault Injection Layer
 - deterministic scenarios can be reproduced
 - randomized stress injection can run independently
+- experiment dashboard is available when implemented
+- MQTT/payload governance inspector remains non-authoritative when implemented
+- topic/payload contract validation passes
+- virtual `doorbell_detected` visitor-response context generation works when visitor-response scenarios are included
+- visitor-response and doorlock-sensitive scenarios are evaluated
+- `doorbell_detected=true` does not authorize autonomous doorlock control
 - closed-loop audit verification can be triggered from injected faults
 - repeatable large-scale multi-node simulation can be executed
 - canonical policy/schema/rules consistency checks pass
@@ -186,9 +261,15 @@ Each major module should have explicit acceptance criteria before it is consider
 - emergency-like and non-emergency button patterns are distinguishable as designed
 - device behavior does not bypass policy control on the hub side
 
+#### Doorbell / Visitor-Arrival Context Node Firmware
+- doorbell / visitor-arrival node emits `environmental_context.doorbell_detected`
+- emitted payload or normalized payload aligns with the current MQTT topic/payload contract assumptions
+- doorbell context is not emitted as emergency evidence or doorlock authorization
+
 #### Sensor / Actuator / Warning Interface Firmware
 - device-side publish or subscribe behavior matches bounded topic and payload assumptions
 - warning or actuator interface behavior remains bounded and policy-dependent
+- doorlock/warning interface firmware does not locally reinterpret doorlock as autonomous Class 1 authority
 - reconnect behavior is predictable after broker or power interruption
 
 ### Timing / Measurement Support when used
@@ -226,14 +307,29 @@ A reusable test-data package should be created for implementation and verificati
 - ESP32 sample-build or template-validation references where bring-up verification is part of the development package
 - canonical policy/fault/schema consistency fixtures
 - representative emergency trigger-aligned cases for `E001`~`E005`
+- policy-router input non-visitor payload example
+- policy-router input visitor/doorbell payload example
+- dashboard observation payload example for doorlock-sensitive evaluation
+- scenario fixture template
+- missing `doorbell_detected` invalid/fault case
+- `doorbell_detected=true` but autonomous unlock blocked case
+- doorlock state not allowed in `device_states` case
 - class-wise latency experiment profiles when out-of-band measurement is used
 - measurement result templates or capture reference formats when needed
 
-### Recommended location
-- `integration/scenarios/`
+### Recommended locations
+- shared reusable examples/templates:
+  - `common/payloads/examples/`
+  - `common/payloads/templates/`
+- executable/evaluation scenarios:
+  - `integration/scenarios/`
 - optionally:
   - `integration/tests/data/`
   - `integration/measurement/`
+
+### Boundary note
+`common/payloads/` provides reusable reference examples and templates.  
+`integration/scenarios/` stores executable or evaluation-oriented scenario definitions.
 
 ---
 
@@ -247,6 +343,8 @@ A reset and recovery procedure is required so the system can be returned to a cl
 - how to rerun verification scripts cleanly
 - how to resync frozen assets onto the Raspberry Pi
 - how to reset simulation state before rerunning scenarios
+- how to reset dashboard retained observation state when used
+- how to rerun MQTT/payload registry validation after recovery
 - how to rebuild, reflash, or reset ESP32 firmware when embedded nodes are used
 - how to rerun ESP32 install/configure/verify bring-up steps when the host-side SDK environment becomes inconsistent
 - how to reset or restart timing/measurement sessions when out-of-band latency evaluation is used
@@ -274,11 +372,16 @@ Fault injection behavior must remain dynamically grounded in shared frozen asset
   - validator or action-schema missing fields
 - stale, missing, conflict, and timeout conditions must be distinguishable in evaluation
 - fault injection must remain aligned with canonical trigger family `E001`~`E005`
+- missing `doorbell_detected` must be treated as a strict schema/context fault case
+- `doorbell_detected=true` must not be treated as emergency evidence or unlock authorization
 
 ### Repository alignment
 - frozen source of truth:
   - `common/policies/`
   - `common/schemas/`
+- communication and payload references:
+  - `common/mqtt/`
+  - `common/payloads/`
 - implementation and execution:
   - `rpi/code/`
   - `integration/scenarios/`
@@ -286,9 +389,9 @@ Fault injection behavior must remain dynamically grounded in shared frozen asset
 
 ---
 
-## 9. MQTT Connectivity and Isolation Requirements
+## 9. MQTT Connectivity, Contract, and Isolation Requirements
 
-MQTT connectivity must support local distributed evaluation while maintaining security boundaries.
+MQTT connectivity must support local distributed evaluation while maintaining security and contract boundaries.
 
 ### Required rules
 - the broker must be reachable from Raspberry Pi 5 over the same LAN
@@ -296,10 +399,21 @@ MQTT connectivity must support local distributed evaluation while maintaining se
 - internet-originated inbound access must remain blocked
 - optional local authentication and topic ACL should be supported
 - verification should include both connectivity and isolation assumptions
+- topic registry must be readable
+- publisher/subscriber matrix must be consistent with the registry
+- topic-to-payload references must resolve
+- schema-governed payload examples must validate against referenced schemas
+- runtime apps, dashboard apps, and experiment tools should not hardcode topic strings where registry lookup is practical
+- dashboard/governance topics must remain non-authoritative
 
 ### Repository alignment
+- communication contracts:
+  - `common/mqtt/`
+- payload references:
+  - `common/payloads/`
 - implementation/configuration:
   - `mac_mini/scripts/configure/`
+  - `rpi/scripts/configure/`
   - `esp32/scripts/configure/` when bring-up variables or connection assumptions are involved
   - `esp32/` implementation assets when applicable
 - verification:
@@ -320,6 +434,10 @@ Audit logging must remain structurally safe and auditable.
 - only the Audit Logging Service writes to SQLite
 - log writers must not bypass the audit path
 - routing, validation, safe deferral, timeout, escalation, caregiver confirmation, and ACK events should be traceable
+- doorbell / visitor-response outcomes should be traceable when relevant
+- doorlock-sensitive escalation, manual confirmation, dispatch, ACK, and final outcome should be traceable when implemented
+- dashboard observation is not audit authority
+- audit payloads remain evidence and traceability records, not policy truth
 - ESP32-linked bounded input/output events should be traceable through the same audit path when embedded nodes are used
 - a verification-safe audit subset or equivalent verification-safe audit stream should be available for closed-loop experiment-side evaluation
 - measurement-support events may be logged for experiment traceability, but timing infrastructure must not become part of the operational control path
@@ -356,10 +474,50 @@ When class-wise latency evaluation is part of the experiment package, the timing
 
 ---
 
-## 12. Final Readiness Principle
+## 12. MQTT / Payload Governance Dashboard Requirements
+
+A future MQTT/payload governance dashboard or inspector may be useful for implementation, experiment monitoring, and regression prevention.
+
+### Allowed capabilities
+- browse topic registry entries
+- view publisher/subscriber matrix
+- inspect topic-to-payload contract references
+- validate payload examples against schemas
+- visualize live experiment topic traffic
+- detect unauthorized or unexpected topic usage
+- detect schema drift
+- detect missing required fields such as `environmental_context.doorbell_detected`
+- detect disallowed fields such as doorlock state inside current `pure_context_payload.device_states`
+- show dashboard observation state for experiments
+- export topic/payload coverage reports
+
+### Forbidden capabilities
+- modifying canonical policies or schemas
+- overriding Policy Router decisions
+- overriding Deterministic Validator decisions
+- spoofing caregiver approval outside controlled test mode
+- directly publishing unrestricted actuation commands
+- dispatching doorlock commands
+- treating dashboard observation as policy truth
+- treating audit records as policy authority
+
+### Repository alignment
+- governance contracts:
+  - `common/mqtt/`
+  - `common/payloads/`
+  - `common/docs/architecture/17_payload_contract_and_registry.md`
+- likely implementation targets:
+  - `rpi/code/`
+  - `rpi/scripts/verify/`
+  - `integration/tests/`
+
+---
+
+## 13. Final Readiness Principle
 
 The system should not be considered implementation-ready unless:
 - shared frozen assets are complete
+- shared communication and payload references are complete enough for the current implementation stage
 - installation/configuration/verification assets are aligned
 - root-level dependency manifests are aligned with maintained runtime assumptions
 - module-level acceptance criteria are explicit
@@ -367,7 +525,11 @@ The system should not be considered implementation-ready unless:
 - recovery procedures are documented
 - fault injection rules are dynamically grounded in frozen assets
 - canonical policy/schema/rules consistency checks pass
+- MQTT topic registry and payload example consistency checks pass where implemented
 - audit logging remains single-writer and traceable
+- dashboard/governance inspection tools remain non-authoritative
+- `doorbell_detected` is handled as required visitor-response context, not emergency evidence or doorlock authorization
+- doorlock state is not inserted into current `pure_context_payload.device_states`
 - ESP32 bring-up requirements are documented before real firmware generation proceeds
 - ESP32-related bounded physical node requirements are documented wherever embedded nodes are part of the target prototype
 - timing and measurement infrastructure requirements are documented wherever out-of-band class-wise latency evaluation is part of the target experiment package
