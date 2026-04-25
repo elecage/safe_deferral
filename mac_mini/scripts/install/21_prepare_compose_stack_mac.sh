@@ -24,6 +24,8 @@ VOLUMES=(
   "volumes/ollama/data"
   "volumes/app/config/policies"
   "volumes/app/config/schemas"
+  "volumes/app/config/mqtt"
+  "volumes/app/config/payloads"
   "volumes/sqlite/db"
 )
 
@@ -43,5 +45,9 @@ fi
 
 cp "${TEMPLATE_FILE}" "${TARGET_COMPOSE_FILE}"
 echo "  [OK] docker-compose.yml refreshed from template."
+
+echo "  [INFO] MQTT and payload reference directories were created for later configure/deploy steps:"
+echo "    - ${COMPOSE_DIR}/volumes/app/config/mqtt"
+echo "    - ${COMPOSE_DIR}/volumes/app/config/payloads"
 
 echo "==> [PASS] Docker Compose workspace prepared."
