@@ -23,6 +23,9 @@ if [ ! -f "${TARGET_FILE}" ]; then
     # Mac mini 브로커에 접속할 수 있도록 허용하기 위한 필수 설정입니다.
     # WARNING: 이 설정은 LAN-only Trust Boundary를 형성하므로, 인터넷 기원(WAN)의
     # 인바운드 트래픽은 반드시 하드웨어 라우터 방화벽이나 macOS 방화벽으로 차단되어야 합니다.
+    # NOTE: allow_anonymous true is for controlled LAN lab setup only.
+    # Production or shared-network deployments should replace this with password_file
+    # and explicit ACL rules aligned with common/mqtt publisher/subscriber contracts.
     cat <<EOF > "${TARGET_FILE}"
 listener 1883 0.0.0.0
 allow_anonymous true
