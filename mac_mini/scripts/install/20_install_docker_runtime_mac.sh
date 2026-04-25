@@ -7,6 +7,14 @@ set -euo pipefail
 
 echo "==> [20_install_docker_runtime_mac] Checking Docker runtime..."
 
+# 0. Homebrew prerequisite 확인
+if ! command -v brew >/dev/null 2>&1; then
+    echo "  [FATAL] Homebrew is not installed. Run mac_mini/scripts/install/00_install_homebrew.sh first."
+    exit 1
+fi
+
+echo "  [OK] Homebrew is available."
+
 # 1. Docker CLI 및 Desktop App 분리 확인
 if ! command -v docker &> /dev/null; then
     if [ -d "/Applications/Docker.app" ]; then
