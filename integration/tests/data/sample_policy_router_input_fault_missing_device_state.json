@@ -1,0 +1,24 @@
+{
+  "source_node_id": "virtual_node_bedroom_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_fault_missing_device_state_case_001",
+    "network_status": "online",
+    "fault_injection": {
+      "fault_type": "missing_device_state",
+      "intended_fault_profile": "incomplete_context_state",
+      "controlled_experiment_only": true
+    }
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "ambient_state_update"
+    },
+    "environmental_context": {
+      "temperature_c": 22.8,
+      "doorbell_detected": false
+    },
+    "device_states": {}
+  },
+  "notes": "Fault-specific missing-device-state fixture. This keeps environmental_context.doorbell_detected=false so it remains schema-boundary compatible while exercising incomplete device-state handling. It must route only to conservative safe outcomes."
+}
