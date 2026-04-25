@@ -38,16 +38,47 @@ if [ "${COMPOSE_FILE_FOUND}" = false ]; then
     exit 1
 fi
 
-SERVICES=("homeassistant" "mosquitto" "ollama" "edge_controller_app")
+CORE_SERVICES=("homeassistant" "mosquitto" "ollama")
+OPTIONAL_SERVICES=("edge_controller_app")
 
-for service in "${SERVICES[@]}"; do
+SERVICE_LIST="$(docker compose config --services 2>/dev/null || true)"
+if [ -z "${SERVICE_LIST}" ]; then
+    echo "  [FATAL] Unable to read services from Docker Compose configuration."
+    echo "          Run 'docker compose config' in ${COMPOSE_DIR} for details."
+    exit 1
+fi
+
+echo "  [INFO] Verifying required core services..."
+for service in "${CORE_SERVICES[@]}"; do
+    if ! printf '%s\n' "${SERVICE_LIST}" | grep -qx "${service}"; then
+        echo "  [FATAL] Required core service '${service}' is not defined in the compose file."
+        exit 1
+    fi
+
     if [ -n "$(docker compose ps --status running -q "${service}" 2>/dev/null)" ]; then
         echo "  [OK] ${service} service is running."
     else
-        echo "  [FATAL] ${service} service is not in the 'running' state."
+        echo "  [FATAL] Required core service '${service}' is not in the 'running' state."
         echo "          Diagnostic hint: Run 'docker compose logs ${service}' to check for errors."
         exit 1
     fi
 done
 
-echo "==> [PASS] All required Docker Compose services are up and running."
+echo "  [INFO] Checking optional application services..."
+for service in "${OPTIONAL_SERVICES[@]}"; do
+    if ! printf '%s\n' "${SERVICE_LIST}" | grep -qx "${service}"; then
+        echo "  [WARN] Optional service '${service}' is not defined in the compose file."
+        echo "         This is acceptable before the edge controller application image is finalized."
+        continue
+    fi
+
+    if [ -n "$(docker compose ps --status running -q "${service}" 2>/dev/null)" ]; then
+        echo "  [OK] Optional service '${service}' is running."
+    else
+        echo "  [WARN] Optional service '${service}' is defined but not running."
+        echo "         This is acceptable during early bring-up if mac_mini/code/Dockerfile or app runtime is not finalized."
+        echo "         Diagnostic hint: Run 'docker compose logs ${service}' when app verification becomes required."
+    fi
+done
+
+echo "==> [PASS] Required Docker Compose core services are up and running."
