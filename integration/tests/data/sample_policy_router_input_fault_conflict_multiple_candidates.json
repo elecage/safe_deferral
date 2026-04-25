@@ -1,0 +1,40 @@
+{
+  "source_node_id": "virtual_node_livingroom_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_fault_conflict_case_001",
+    "network_status": "online",
+    "fault_injection": {
+      "fault_type": "multiple_candidate_conflict",
+      "intended_fault_profile": "ambiguous_low_risk_candidates",
+      "controlled_experiment_only": true
+    }
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "button",
+      "event_code": "single_hit"
+    },
+    "environmental_context": {
+      "temperature_c": 23.2,
+      "illuminance_lux": 40,
+      "occupancy_detected": true,
+      "doorbell_detected": false
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off"
+    }
+  },
+  "candidate_conflict_annotation": {
+    "annotation_only_not_policy_truth": true,
+    "candidate_targets": [
+      "living_room_light",
+      "bedroom_light"
+    ],
+    "expected_safe_resolution": [
+      "SAFE_DEFERRAL",
+      "CLASS_2"
+    ]
+  },
+  "notes": "Fault-specific conflict fixture for multiple bounded low-risk candidate interpretation. Candidate conflict annotation is evaluation metadata only and does not create policy truth. The fixture preserves doorbell_detected=false and contains no doorlock state."
+}
