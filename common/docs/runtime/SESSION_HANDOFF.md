@@ -16,15 +16,16 @@ If older wording in the legacy master handoff conflicts with newer dated addenda
 
 ## Current priority read order
 
-For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, payload, and architecture-document-structure work, read in this order:
+For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, and architecture-document-structure work, read in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
-2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
-3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
-4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
-5. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
-6. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
-7. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
+3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
+4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
+5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
+6. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
+7. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+8. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
 
 Use the legacy handoff as historical context and operational history, not as the final authority when it conflicts with newer addenda.
 
@@ -35,7 +36,7 @@ Use the legacy handoff as historical context and operational history, not as the
 ### 1. Role separation
 
 - Mac mini = safety-critical operational edge hub.
-- Raspberry Pi 5 = experiment dashboard, orchestration, simulation, replay, fault injection, progress/status publication, and result artifact generation support host.
+- Raspberry Pi 5 = experiment dashboard, orchestration, simulation, replay, fault injection, progress/status publication, result artifact generation support host, and non-authoritative MQTT/payload governance support host when implemented.
 - ESP32 = bounded physical node layer.
 - STM32 or equivalent timing node = optional out-of-band measurement node, not part of the operational control plane.
 
@@ -113,10 +114,27 @@ Doorlock state, manual approval state, and ACK state should be represented throu
 - manual confirmation path internal state,
 - future schema revision.
 
-### 6. Current active architecture figure and payload docs
+### 6. MQTT / payload governance boundary
 
-The current active architecture-figure and payload-boundary documents are:
+`common/mqtt/` and `common/payloads/` are shared reference layers.
 
+They support:
+
+- topic namespace review,
+- publisher/subscriber role review,
+- topic-to-payload contract review,
+- schema/example payload linkage,
+- governance dashboard and validation tooling.
+
+They do **not** create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority.
+
+The governance dashboard UI must remain a UI layer. Topic/payload create, update, delete, validation, and export operations should be handled by a separate governance backend/service.
+
+### 7. Current active architecture figure, interface, and payload docs
+
+The current active architecture-figure, interface, and payload-boundary documents are:
+
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
@@ -128,7 +146,7 @@ Do not treat old active paths such as `common/docs/architecture/24_final_paper_a
 
 ---
 
-## Current authoritative documents
+## Current authoritative and reference documents
 
 ### Policies
 
@@ -145,12 +163,23 @@ Do not treat old active paths such as `common/docs/architecture/24_final_paper_a
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 
+### MQTT / payload references
+
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+- `common/payloads/examples/`
+- `common/payloads/templates/`
+
 ### Architecture / experiment docs
 
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/01_installation_target_classification.md`
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/docs/required_experiments.md`
 - `CLAUDE.md`
 - `README.md`
@@ -165,11 +194,15 @@ Do not treat old active paths such as `common/docs/architecture/24_final_paper_a
 4. Do not treat `doorbell_detected=true` as unlock authorization.
 5. Do not add doorlock state to current `device_states`.
 6. Do not add doorlock to Class 1 candidate or validator executable payloads.
-7. Keep RPi dashboard/orchestration as experiment-side support, not policy authority.
+7. Keep RPi dashboard/orchestration/governance as experiment-side support, not policy authority.
 8. Keep Mac mini as safety-critical operational hub.
 9. Keep scenario fixtures, dashboards, and test apps from becoming policy truth.
 10. Use `common/docs/architecture/17_payload_contract_and_registry.md` when deciding where payload fields belong.
-11. If a future task intentionally expands policy or schema scope, update frozen assets, required experiments, prompts, README, CLAUDE, and a new dated handoff addendum together.
+11. Keep `common/docs/architecture/15_interface_matrix.md` aligned with `common/mqtt/topic_registry_v1_0_0.json`.
+12. Do not hardcode MQTT topic strings in apps where registry lookup is practical.
+13. Keep governance dashboard UI separate from governance backend/service.
+14. Do not allow governance tooling to publish actuator commands, spoof caregiver approval, or create doorlock execution authority.
+15. If a future task intentionally expands policy or schema scope, update frozen assets, required experiments, prompts, README, CLAUDE, interface matrix, topic registry, payload docs, and a new dated handoff addendum together.
 
 ---
 
