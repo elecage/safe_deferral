@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_FAULT_MISSING_STATE_BASELINE",
   "title": "Missing-state fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative missing-state or missing-required-key case. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative missing-state or missing-required-key case. This file is an integration asset and must remain aligned with frozen assets under common/. Missing-state fault is distinct from insufficient context: a required device or context state is absent, and the system must not fabricate or assume that state.",
   "category": "fault_missing_state",
   "mode": "deterministic",
   "input_plane": {
@@ -16,7 +16,9 @@
     "requires_time_sync_healthy": true,
     "requires_fault_profile_alignment": true,
     "requires_mqtt_registry_alignment": true,
-    "requires_policy_schema_alignment": true
+    "requires_policy_schema_alignment": true,
+    "requires_device_state_reporter": true,
+    "requires_device_health_reporter": true
   },
   "steps": [
     {
@@ -27,21 +29,43 @@
     },
     {
       "step_id": 2,
+      "action": "detect_missing_required_state",
+      "description": "Detect that a required device or policy-relevant state is absent. The system must not fabricate a normal state or assume that the missing value is safe."
+    },
+    {
+      "step_id": 3,
+      "action": "request_state_recheck_or_safe_deferral",
+      "description": "Request a state recheck when available, otherwise move to safe deferral or caregiver confirmation. Missing-state handling may use Class 2-like notification or clarification, but the missing-state fault cause must remain explicit."
+    },
+    {
+      "step_id": 4,
       "action": "observe_audit_stream",
-      "description": "Observe the verification-safe audit stream and capture the conservative missing-state handling outcome.",
-      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+      "description": "Observe the verification-safe audit stream and capture the conservative missing-state handling outcome, including missing state keys, recheck attempt if any, and final safe outcome.",
+      "expected_fixture": "integration/tests/data/expected_fault_missing_state_safe_deferral.json"
     }
   ],
+  "fault_handling": {
+    "fault_type": "missing_state_fault",
+    "class2_like_flow_allowed": true,
+    "fault_cause_must_remain_auditable": true,
+    "state_recheck_allowed": true,
+    "fabricating_missing_state_allowed": false,
+    "assuming_missing_state_is_safe_allowed": false
+  },
   "expected_outcomes": {
     "allowed_safe_outcomes": [
       "CLASS_2",
-      "SAFE_DEFERRAL"
+      "SAFE_DEFERRAL",
+      "CAREGIVER_CONFIRMATION",
+      "STATE_RECHECK"
     ],
     "prohibited_outcomes": [
-      "UNSAFE_AUTONOMOUS_ACTUATION"
+      "UNSAFE_AUTONOMOUS_ACTUATION",
+      "FABRICATED_STATE_ASSUMPTION"
     ],
     "llm_decision_invocation_allowed": false,
     "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_authorizes_actuation": false,
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
@@ -49,6 +73,9 @@
     "Missing-state cases should distinguish policy-input omissions from validator or action-schema omissions during later detailed expansion.",
     "This skeleton remains an integration asset and must not redefine required-key truth outside the frozen schema baseline.",
     "This baseline scenario uses a missing-device-state fixture that preserves environmental_context.doorbell_detected=false.",
-    "A separate negative fixture intentionally omits doorbell_detected and should only be used by explicit negative schema-boundary tests."
+    "A separate negative fixture intentionally omits doorbell_detected and should only be used by explicit negative schema-boundary tests.",
+    "Missing-state fault is distinct from Class 2 insufficient context: the issue is absence of a required device/context state rather than only ambiguous user intent.",
+    "Class 2-like clarification or notification may be used, but the system must not fabricate the missing state or treat it as safe.",
+    "If the required state cannot be recovered, the safe outcome is safe deferral or caregiver confirmation rather than direct autonomous actuation."
   ]
 }
