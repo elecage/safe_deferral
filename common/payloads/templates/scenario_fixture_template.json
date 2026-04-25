@@ -1,0 +1,46 @@
+{
+  "scenario_id": "template_scenario_id",
+  "scenario_family": "visitor_response_or_low_risk_or_emergency_or_fault",
+  "description": "Describe the scenario intent and expected safe behavior.",
+  "input_topic": "safe_deferral/context/input",
+  "input_payload": {
+    "source_node_id": "rpi.simulation_runtime_controlled_mode",
+    "routing_metadata": {
+      "audit_correlation_id": "template-correlation-id",
+      "ingest_timestamp_ms": 1710000000000,
+      "network_status": "local_controlled_simulation"
+    },
+    "pure_context_payload": {
+      "trigger_event": {
+        "event_type": "button",
+        "event_code": "single_hit",
+        "event_timestamp_ms": 1710000000000
+      },
+      "environmental_context": {
+        "temperature": 23.5,
+        "illuminance": 100.0,
+        "occupancy_detected": true,
+        "smoke_detected": false,
+        "gas_detected": false,
+        "doorbell_detected": false
+      },
+      "device_states": {
+        "living_room_light": "off",
+        "bedroom_light": "off",
+        "living_room_blind": "closed",
+        "tv_main": "off"
+      }
+    }
+  },
+  "experiment_annotation": {
+    "doorlock_state": null,
+    "manual_approval_state": null,
+    "ack_state": null,
+    "note": "Experiment annotation is not part of pure_context_payload."
+  },
+  "expected_outcome": {
+    "route_class": "CLASS_1_OR_CLASS_2_OR_CLASS_0",
+    "autonomous_sensitive_actuation_allowed": false,
+    "notes": []
+  }
+}
