@@ -1,0 +1,15 @@
+{
+  "experiment_id": "visitor_response_eval_demo",
+  "run_id": "run-example-001",
+  "scenario_id": "visitor_possible_unlock_intent_001",
+  "status": "running",
+  "current_step": "caregiver_escalation_waiting",
+  "completed_steps": [
+    "input_ingested",
+    "policy_routed",
+    "validator_rejected_escalation",
+    "class_2_notification_sent"
+  ],
+  "timestamp_ms": 1710000000700,
+  "authority_note": "Experiment progress is status-only and has no operational control authority."
+}
