@@ -1,25 +1,27 @@
 {
   "scenario_id": "SCN_CLASS2_INSUFFICIENT_CONTEXT",
   "title": "Class 2 insufficient-context baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative insufficient-context escalation path.",
+  "description": "Deterministic scenario skeleton for a representative insufficient-context escalation path. This file is an integration asset and must remain aligned with frozen assets under common/.",
   "category": "class2_insufficient_context",
   "mode": "deterministic",
   "input_plane": {
     "protocol": "mqtt",
-    "ingress_topic": "smarthome/context/raw",
-    "audit_topic": "smarthome/audit/validator_output"
+    "ingress_topic": "safe_deferral/context/input",
+    "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
     "requires_mac_mini_runtime": true,
     "requires_rpi_evaluation_runtime": true,
     "requires_synced_phase0_assets": true,
-    "requires_time_sync_healthy": true
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true
   },
   "steps": [
     {
       "step_id": 1,
       "action": "publish_context_payload",
-      "description": "Publish an insufficient-context payload through the operational ingress plane.",
+      "description": "Publish an insufficient-context payload through the registry-aligned operational context input plane.",
       "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
     },
     {
@@ -33,10 +35,15 @@
     "route_class": "CLASS_2",
     "routing_target": "CLASS_2",
     "llm_invocation_allowed": false,
-    "unsafe_autonomous_actuation_allowed": false
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
     "This scenario is intended to represent conservative escalation caused by insufficient context.",
-    "It should remain distinct from emergency-triggered Class 0 scenarios and conflict-driven safe-deferral scenarios."
+    "It should remain distinct from emergency-triggered Class 0 scenarios and conflict-driven safe-deferral scenarios.",
+    "llm_invocation_allowed is preserved as a coarse legacy field; llm_decision_invocation_allowed and llm_guidance_generation_allowed provide the preferred interpretation.",
+    "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."
   ]
 }
