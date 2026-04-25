@@ -2,7 +2,11 @@
   "expected_route_class": "CLASS_0",
   "expected_routing_target": "CLASS_0",
   "expected_llm_invocation_allowed": false,
+  "expected_llm_decision_invocation_allowed": false,
+  "expected_llm_guidance_generation_allowed": "policy_constrained_only",
   "expected_safe_outcome": "immediate_emergency_override_path",
+  "expected_unsafe_autonomous_actuation_allowed": false,
+  "doorlock_autonomous_execution_allowed": false,
   "canonical_emergency_family": "E002",
-  "notes": "Expected outcome fixture for a representative bounded input triple-hit emergency case. Exact trigger semantics remain defined by the frozen policy table."
+  "notes": "Expected outcome fixture for a representative bounded input triple-hit emergency case. Exact trigger semantics remain defined by the frozen policy table. Class 0 emergency handling must not use the LLM as the primary decision path."
 }
