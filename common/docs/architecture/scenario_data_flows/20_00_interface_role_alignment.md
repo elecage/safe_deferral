@@ -94,7 +94,7 @@ Key interpretation from `15_interface_matrix.md`:
 
 | Topic | Allowed publisher roles | Allowed subscriber roles | Payload family | Scenario usage |
 |---|---|---|---|---|
-| `safe_deferral/context/input` | `mac_mini.context_aggregator`, `rpi.simulation_runtime_controlled_mode` in the current matrix; field-side bounded/context nodes are represented in the architecture matrix as operational publishers | `mac_mini.policy_router`, optional audit observer | `policy_router_input` | Baseline, Class 1, Class 2, stale, conflict, missing-state |
+| `safe_deferral/context/input` | `esp32.bounded_input_node`, `esp32.context_node`, `esp32.doorbell_visitor_context_node`, `mac_mini.context_aggregator_controlled_bridge`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.mqtt_ingestion_state_intake`, `mac_mini.policy_router`, optional audit observer | `policy_router_input` | Baseline, Class 1, Class 2, stale, conflict, missing-state |
 | `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | E001-E005, Class 2-to-Class 0 |
 | `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | Class 1 candidate validation, conflict resolution |
 | `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional dashboard bridge | `validator_output` | Class 1, Class 2-to-Class 1, conflict resolved to Class 1 |
@@ -113,7 +113,16 @@ Key interpretation from `15_interface_matrix.md`:
 Note on `safe_deferral/context/input`:
 
 ```text
-15_interface_matrix.md treats Bounded Input Node, Context Nodes, and Doorbell/Visitor Context Node as architecture-level publishers into this plane. The publisher/subscriber matrix currently lists mac_mini.context_aggregator and controlled RPi simulation as initial draft publishers. This should be reconciled in a future publisher/subscriber matrix revision so field-side context/input publishers are explicitly represented without implying Mac mini is the ordinary field-side source.
+publisher_subscriber_matrix_v1_0_0.md now explicitly lists field-side operational publishers for this topic:
+- esp32.bounded_input_node
+- esp32.context_node
+- esp32.doorbell_visitor_context_node
+
+It also preserves controlled-mode/bridge publishers:
+- mac_mini.context_aggregator_controlled_bridge
+- rpi.simulation_runtime_controlled_mode
+
+This resolves the earlier publisher-role mismatch while preserving the distinction between operational input and controlled evaluation input.
 ```
 
 ---
@@ -140,19 +149,20 @@ Note on `safe_deferral/context/input`:
 
 | Scenario | Publisher side | Topic | Subscriber side | Payload family | Expected role interpretation |
 |---|---|---|---|---|---|
-| Baseline | Bounded Input / Context / controlled replay source | `safe_deferral/context/input` | MQTT ingestion / Policy Router | `policy_router_input` | Ordinary input or controlled simulation input |
+| Baseline | Bounded Input / Context / Doorbell-Visitor Context / controlled replay source | `safe_deferral/context/input` | MQTT ingestion / Policy Router | `policy_router_input` | Ordinary field-side input or controlled simulation input |
 | Class 1 | Bounded Input / Context Node | `safe_deferral/context/input` | MQTT ingestion / Policy Router | `policy_router_input` | Low-risk assistance input |
 | Class 1 | Deterministic Validator | `safe_deferral/validator/output` | dispatcher/deferral handler | `validator_output` | Final admissibility evidence |
 | Class 1 | Low-risk dispatcher | `safe_deferral/actuation/command` | Lighting Actuator Node | `actuation_command_payload` | Validated lighting command |
 | Class 1 | Lighting Actuator Node | `safe_deferral/actuation/ack` | ACK Handling | `actuation_ack_payload` | Closed-loop evidence |
 | E001-E005 | Emergency Node / controlled emergency sensor | `safe_deferral/emergency/event` | MQTT ingestion / Policy Router | `policy_router_input_or_emergency_context` | Emergency evidence input |
 | E001-E005 | Policy/validator/emergency handling | `safe_deferral/escalation/class2` where needed | outbound notification interface | `class_2_notification_payload` | Emergency-related escalation if needed |
+| Class 2 | Bounded Input / Context / Doorbell-Visitor Context | `safe_deferral/context/input` | MQTT ingestion / Policy Router | `policy_router_input` | Ambiguous or insufficient context enters clarification path |
 | Class 2 | Policy Router / Validator / Deferral Handler | `safe_deferral/deferral/request` | Safe Deferral / Clarification Manager | `safe_deferral_event` | Clarification/deferral control signal |
 | Class 2 | Policy Router / Validator / Safe Deferral Handler | `safe_deferral/escalation/class2` | outbound notification interface | `class_2_notification_payload` | Notification/escalation signal, not execution authority |
 | Class 2 | Caregiver confirmation backend or controlled test mock | `safe_deferral/caregiver/confirmation` | caregiver backend / manual dispatcher / audit | `manual_confirmation_payload` | Manual confirmation evidence |
 | Stale fault | Fault injector / controlled simulation | `safe_deferral/fault/injection` or controlled bridge | simulation runtime / ingestion | `fault_injection_payload` | Experiment-only fault condition |
 | Conflict fault | Context/input nodes or controlled fixture | `safe_deferral/context/input` | Policy Router / Validator | `policy_router_input` | Multiple plausible candidates enter policy path |
-| Missing-state fault | Context/device state/health source or controlled fixture | `safe_deferral/context/input` | Policy Router / Health Check | `policy_router_input` | Missing state is detected and rechecked/deferrred |
+| Missing-state fault | Context/device state/health source or controlled fixture | `safe_deferral/context/input` | Policy Router / Health Check | `policy_router_input` | Missing state is detected and rechecked/deferred |
 | All scenarios | Mac mini operational services | `safe_deferral/audit/log` | Audit Log | `audit_event_payload` | Evidence/traceability only |
 
 ---
@@ -161,7 +171,7 @@ Note on `safe_deferral/context/input`:
 
 | Issue | Current interpretation | Recommended follow-up |
 |---|---|---|
-| `safe_deferral/context/input` publisher mismatch | 15_interface_matrix.md represents field-side Bounded Input/Context Nodes as publishers; publisher/subscriber matrix draft lists `mac_mini.context_aggregator` and controlled RPi simulation | Revise publisher_subscriber_matrix_v1_0_0.md or add explicit field-side publishers in next MQTT governance pass |
+| `safe_deferral/context/input` publisher mismatch | Resolved in `publisher_subscriber_matrix_v1_0_0.md`: field-side publishers and controlled-mode publishers are now both explicitly represented | Keep this distinction in future registry/governance updates; do not collapse controlled-mode publishers into ordinary operational publishers |
 | Class 2 candidate prompt topic | Existing topic registry can express Class 2 using deferral/escalation/context/caregiver/audit topics | Add dedicated `safe_deferral/clarification/*` topics only if runtime implementation requires separation |
 | Warning output topic | Emergency warning output may be local output or actuation-like command | Keep warning output governed; avoid treating emergency guidance as arbitrary actuator authority |
 | ACK schema | ACK payload family is described but future formal schema may still be needed | Add formal ACK schema if closed-loop execution testing expands |
