@@ -14,12 +14,14 @@ It reflects:
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
-Current communication and payload references:
+Current interface, communication, and payload references:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -45,6 +47,11 @@ Examples:
 - ESP32 prerequisite/toolchain installation
 - ESP-IDF installation and export readiness
 - optional timing-node toolchain preparation when out-of-band latency measurement is used
+- registry/payload validation dependencies installed where implemented
+- governance backend service dependencies installed where implemented
+- governance dashboard UI dependencies installed where implemented
+- topic/payload validation utility dependencies installed where implemented
+- payload export/report dependencies installed where implemented
 
 Interpretation:
 Installation prepares the target platform or host-side development environment, but it does not yet establish project-specific runtime alignment.
@@ -80,7 +87,12 @@ Examples:
 - ESP32 sample project preparation
 - ESP32 managed component preparation
 - embedded node-side connection parameters aligned with the operational hub when needed
+- MQTT/payload governance backend configured when implemented
+- governance dashboard UI configured as a presentation layer when implemented
+- governance backend API endpoint configured when implemented
+- governance dashboard UI prevented from directly editing registry files
 - topic/payload governance dashboard runtime configured when implemented
+- result export path configured when implemented
 - timing-node measurement assumptions aligned when used
 - out-of-band measurement profile preparation when class-wise latency evaluation is required
 
@@ -91,6 +103,8 @@ Configuration separation principle:
 - host-local `.env`, credentials, tokens, and machine-specific files are deployment-local configuration
 - deployment-local configuration must not be treated as canonical frozen policy truth
 - MQTT contracts and payload examples must not override canonical policy/schema authority
+- governance dashboard UI must remain separated from the governance backend service
+- governance configuration must not grant policy, validator, caregiver approval, audit, actuator, or doorlock authority
 
 ---
 
@@ -115,6 +129,12 @@ Examples:
 - payload example schema-validation checks
 - `doorbell_detected` required-field checks for context payload examples
 - forbidden doorlock-in-device-states checks
+- governance dashboard UI does not directly write registry files
+- governance backend does not modify canonical policies/schemas
+- governance tooling cannot publish actuator or doorlock commands
+- governance tooling cannot spoof caregiver approval
+- governance/dashboard topics remain non-authoritative
+- topic/payload hardcoding drift check passes where implemented
 - Ollama inference validation
 - SQLite validation
 - notification validation
@@ -124,7 +144,8 @@ Examples:
 - trigger semantics consistency checks
 - Raspberry Pi base runtime checks
 - Raspberry Pi dashboard runtime checks when implemented
-- MQTT/payload governance dashboard checks when implemented
+- MQTT/payload governance backend checks when implemented
+- MQTT/payload governance dashboard UI checks when implemented
 - closed-loop audit verification
 - ESP-IDF CLI verification
 - ESP32 target-selection verification
@@ -139,6 +160,9 @@ Verification should confirm not only service health, but also architectural cons
 - deployed runtime copies
 - MQTT topic registry and publisher/subscriber contracts
 - payload examples/templates and schema-governed payload boundaries
+- governance backend/UI separation
+- governance non-authority boundary
+- topic/payload hardcoding drift checks where implemented
 - trigger semantics
 - evaluation-side validation assumptions
 - ESP32 sample-build readiness before real node firmware generation proceeds
@@ -174,6 +198,8 @@ Representative communication and payload reference assets include:
 - `common/payloads/README.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 Optional or version-sensitive companion assets may include:
 - output profile assets
@@ -188,6 +214,7 @@ These files act as the shared reference state before runtime deployment and veri
 - Payload examples/templates in `common/payloads/` support implementation and testing, not policy authority.
 - Mac mini and Raspberry Pi consume deployed or synchronized runtime copies as needed, but they must not redefine local policy truth.
 - ESP32-oriented automation should remain consistent with the same canonical policy/schema and MQTT topic assumptions where applicable.
+- Governance backend and dashboard automation may inspect, validate, draft, and report topic/payload changes, but must not create operational authority.
 
 ---
 
@@ -199,6 +226,7 @@ These files act as the shared reference state before runtime deployment and veri
 - a top-level `Makefile` or `justfile` for orchestration
 - optional measurement-oriented targets for timing and latency evaluation
 - topic/payload registry validation targets for MQTT and payload-governance checks
+- separate governance backend and governance UI validation targets when implemented
 
 ### Why
 - macOS-friendly and Raspberry Pi-friendly
@@ -212,7 +240,7 @@ These files act as the shared reference state before runtime deployment and veri
 - suitable for vibe-coding workflows and agent guidance
 
 ### Orchestration principle
-The `Makefile` or `justfile` should orchestrate the workflow, but the primary automation units should remain device-specific scripts, embedded build targets, communication-contract checks, payload-validation checks, or measurement-oriented support assets.
+The `Makefile` or `justfile` should orchestrate the workflow, but the primary automation units should remain device-specific scripts, embedded build targets, communication-contract checks, payload-validation checks, governance backend/UI checks, or measurement-oriented support assets.
 
 ---
 
@@ -265,7 +293,11 @@ make timing-check
 ```bash
 make registry-check
 make governance-check
+make governance-backend-check
+make governance-ui-check
 make governance-dashboard-check
+make topic-drift-check
+make payload-example-check
 ```
 
 ### Optional grouped targets
@@ -288,11 +320,14 @@ make dashboard-check
 - `common-check`, `policy-check`, and `schema-check` should validate the canonical shared baseline before deployment-dependent steps run
 - `mqtt-check`, `payload-check`, and `topic-contract-check` should validate topic registry readability, publisher/subscriber contract consistency, topic-to-payload references, and payload example/schema alignment
 - `mac-*` targets operate on the Mac mini workflow
-- `rpi-*` targets operate on the Raspberry Pi workflow and must remain bounded to dashboard, simulation, fault-injection, orchestration, replay, progress/result publication, and evaluation tasks rather than hub-side operational runtime control
+- `rpi-*` targets operate on the Raspberry Pi workflow and must remain bounded to dashboard, simulation, fault-injection, orchestration, replay, progress/result publication, non-authoritative MQTT/payload governance support, and evaluation tasks rather than hub-side operational runtime control
 - `esp32-install`, `esp32-configure`, and `esp32-verify` operate on the cross-platform ESP-IDF development-environment workflow
 - `esp32-build`, `esp32-flash`, and `esp32-check` operate on embedded build/flash/validation workflows when actual node firmware is present
 - measurement targets operate on timing or latency evaluation workflows when used
 - governance targets operate on MQTT/payload inspection and validation only, not policy override or actuation control
+- `governance-backend-check` should verify backend API behavior, draft/change-report handling, and non-authority constraints
+- `governance-ui-check` or `governance-dashboard-check` should verify UI/backend separation and direct-registry-edit prevention
+- `topic-drift-check` should detect hardcoded topic/payload drift where practical
 - grouped targets should compose lower-level scripts, not bypass them
 
 ### ESP32 check interpretation
@@ -346,7 +381,7 @@ Do not merge these concerns into one large script.
 Do not collapse Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure automation into a single opaque execution path.
 
 ### C. Let orchestration call scripts, not replace them
-The `Makefile` or `justfile` should orchestrate the workflow, while the actual operational logic remains in shell scripts, PowerShell scripts, embedded build targets, communication-contract checks, payload-validation checks, or measurement-oriented support assets.
+The `Makefile` or `justfile` should orchestrate the workflow, while the actual operational logic remains in shell scripts, PowerShell scripts, embedded build targets, communication-contract checks, payload-validation checks, governance checks, or measurement-oriented support assets.
 
 ### D. Preserve rerunnability
 Every step should be safe to rerun independently whenever possible.
@@ -357,8 +392,8 @@ Configuration and verification logic should use shared frozen assets from `commo
 ### F. Keep measurement automation bounded to evaluation use
 Timing capture and latency evaluation should support reproducible experiments without becoming part of the operational decision path.
 
-### G. Preserve Raspberry Pi evaluation and dashboard boundary
-Raspberry Pi automation should prepare and run experiment-side dashboard, simulation, fault-injection, scenario orchestration, replay, progress/status publication, result artifact generation, and closed-loop verification workflows only.  
+### G. Preserve Raspberry Pi evaluation, dashboard, and governance boundary
+Raspberry Pi automation should prepare and run experiment-side dashboard, simulation, fault-injection, scenario orchestration, replay, progress/status publication, result artifact generation, non-authoritative MQTT/payload governance support, and closed-loop verification workflows only.  
 It should not automate Mac mini hub-side operational runtime control.
 
 ### H. Preserve ESP32 bounded-node boundary
@@ -371,20 +406,33 @@ Automation should support scenario publication through the same input plane used
 Automation should fail early if canonical policy/schema/rules assets are missing, unreadable, or version-inconsistent.
 
 ### K. Do not hardcode MQTT topics or payload contracts in apps
-Runtime apps, dashboard apps, and experiment tools should load topic names, publisher/subscriber rules, payload families, schema paths, and example payload references from `common/mqtt/topic_registry_v1_0_0.json` whenever practical.
+Runtime apps, dashboard apps, experiment tools, and firmware adapters should load topic names, publisher/subscriber rules, payload families, schema paths, and example payload references from `common/mqtt/topic_registry_v1_0_0.json` whenever practical.
 
 Code should prefer stable topic identifiers or registry lookups over direct hardcoded topic strings. This makes topic renaming, payload migration, and publisher/subscriber policy review easier.
 
 ### L. Keep MQTT/payload governance dashboards non-authoritative
 A future MQTT/payload management web app or dashboard may inspect topic contracts, validate payloads, show publisher/subscriber coverage, and visualize live experiment traffic.
 
-It must not:
-- modify canonical policies or schemas,
-- override validator decisions,
-- spoof caregiver approval outside controlled test mode,
+The dashboard UI must remain a presentation and interaction layer.
+
+Create, update, delete, validation, and export operations should be handled by a separate MQTT/payload governance backend service.
+
+The dashboard UI must not:
+- directly edit registry files,
+- directly publish operational control topics,
 - directly publish unrestricted actuation commands,
 - dispatch doorlock commands,
+- spoof caregiver approval,
+- override validator decisions,
+- modify canonical policies or schemas,
 - or treat dashboard observation payloads as policy truth.
+
+The governance backend must not:
+- silently modify canonical policies or schemas,
+- publish actuator or doorlock commands,
+- spoof caregiver approval,
+- override validator decisions,
+- or convert draft/proposed registry changes into live operational authority.
 
 ---
 
@@ -401,13 +449,17 @@ As implementation grows, the automation layer may be extended with:
 - `make closed-loop-check`
 - `make mqtt-check`
 - `make payload-check`
+- `make payload-example-check`
 - `make topic-contract-check`
+- `make topic-drift-check`
 - `make registry-check`
 - `make governance-check`
+- `make governance-backend-check`
+- `make governance-ui-check`
 - `make governance-dashboard-check`
 - `make dashboard-check`
 
-These targets should call device-specific scripts and shared integration, communication-contract, payload-validation, or measurement assets, rather than bypassing the structured repository layout.
+These targets should call device-specific scripts and shared integration, communication-contract, payload-validation, governance, or measurement assets, rather than bypassing the structured repository layout.
 
 ---
 
@@ -422,7 +474,8 @@ These targets should call device-specific scripts and shared integration, commun
 - `Makefile` or `justfile` should orchestrate, not replace, the structured script hierarchy
 - device-specific scripts remain the primary automation units
 - ESP32 workflows should be treated as cross-platform SDK/toolchain bring-up plus later embedded-node build and validation paths, not collapsed into Mac mini or Raspberry Pi automation
-- Raspberry Pi workflows should remain bounded to dashboard, simulation, fault-injection, scenario orchestration, replay, progress/status publication, result artifact generation, and closed-loop evaluation rather than hub-side runtime control
+- Raspberry Pi workflows should remain bounded to dashboard, simulation, fault-injection, scenario orchestration, replay, progress/status publication, result artifact generation, non-authoritative MQTT/payload governance support, and closed-loop evaluation rather than hub-side runtime control
 - optional timing-node workflows should be treated as experimental measurement automation, not as part of the operational control path
 - MQTT/payload governance dashboards may inspect and validate contracts but must remain non-authoritative
-- automation should validate canonical assets, topic contracts, and payload examples before deployment-dependent steps proceed
+- governance dashboard UI and governance backend service should be verified separately when implemented
+- automation should validate canonical assets, topic contracts, payload examples, governance boundaries, and topic/payload drift before deployment-dependent steps proceed
