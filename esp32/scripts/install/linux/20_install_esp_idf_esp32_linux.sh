@@ -13,6 +13,17 @@ if ! command -v git >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; the
     exit 1
 fi
 
+WORKSPACE_DIR="${HOME}/esp32_workspace"
+ENV_FILE="${WORKSPACE_DIR}/.env"
+
+if [ -f "${ENV_FILE}" ]; then
+    echo "  [INFO] Loading ESP32 environment variables from ${ENV_FILE}..."
+    # shellcheck disable=SC1090
+    source "${ENV_FILE}"
+else
+    echo "  [INFO] ${ENV_FILE} not found. Using built-in ESP-IDF install defaults."
+fi
+
 ESP_ROOT="${ESP_ROOT:-$HOME/esp}"
 IDF_PATH="${IDF_PATH:-$ESP_ROOT/esp-idf}"
 ESP_IDF_GIT_REF="${ESP_IDF_GIT_REF:-}"
@@ -20,6 +31,12 @@ IDF_TOOLS_PATH="${IDF_TOOLS_PATH:-$HOME/.espressif}"
 
 mkdir -p "${ESP_ROOT}"
 export IDF_TOOLS_PATH
+
+echo "  [INFO] Effective ESP-IDF install settings:"
+echo "         - ESP_ROOT=${ESP_ROOT}"
+echo "         - IDF_PATH=${IDF_PATH}"
+echo "         - IDF_TOOLS_PATH=${IDF_TOOLS_PATH}"
+echo "         - ESP_IDF_GIT_REF=${ESP_IDF_GIT_REF:-<current checkout>}"
 
 if [ ! -d "${IDF_PATH}/.git" ]; then
     echo "  [INFO] Cloning ESP-IDF into ${IDF_PATH}..."
@@ -56,4 +73,4 @@ echo "  [OK] ESP-IDF installed."
 echo "  [INFO] To activate the environment in the current shell, run:"
 echo "         . ${IDF_PATH}/export.sh"
 
-echo "==> [PASS] ESP-IDF installation draft completed for Linux."
+echo "==> [PASS] ESP-IDF installation completed for Linux."
