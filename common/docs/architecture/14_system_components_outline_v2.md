@@ -58,7 +58,7 @@ Role:
 - context sensing,
 - visitor-arrival / doorbell context sensing,
 - emergency sensing,
-- and actuator interfacing.
+- and bounded actuator interfacing.
 
 ### 2.4 Mac mini Edge Hub
 The main operational edge hub.
@@ -209,7 +209,7 @@ The device-side actuation layer.
 
 Examples:
 - lighting control node,
-- representative doorlock interface node,
+- governed sensitive-action interface node,
 - warning interface node.
 
 Role:
@@ -219,6 +219,7 @@ Role:
 Important interpretation:
 - doorlock interface nodes may exist as implementation-facing or experiment-facing components,
 - but doorlock must not be treated as autonomous Class 1 low-risk authority under the current baseline.
+- In compact paper figures, this layer should be described as bounded or governed sensitive-action interfacing rather than as autonomous doorlock execution.
 
 ---
 
@@ -235,7 +236,8 @@ Inputs may include:
 - actuator ACK or state updates.
 
 Role:
-- receives all local field-side signals into the edge hub.
+- receives all local field-side signals into the edge hub,
+- supports registry-aware MQTT intake where topic registry lookup is used.
 
 ### 4.2 Context and Runtime State Aggregation
 A broader aggregation layer than simple sensing aggregation.
@@ -325,6 +327,7 @@ Role:
 Important interpretation:
 - actual execution authority resides here together with policy,
 - not inside the LLM.
+- In compact paper figures, Policy Router and Deterministic Validator may be visually grouped only if deterministic validation remains clearly described as the final admissibility boundary.
 
 ### 4.6 MQTT Topic Registry Loader / Contract Checker
 The registry-consistency support layer for runtime and verification code.
@@ -367,6 +370,7 @@ Role:
 Important interpretation:
 - this is not a general sensitive-actuation path,
 - and doorlock must not be treated as automatically included here.
+- In compact figures, this should be labeled as Class 1 bounded execution and currently lighting only.
 
 ### 4.9 Safe Deferral and Clarification Management
 The management layer for cases where immediate autonomous execution is not justified.
@@ -466,6 +470,7 @@ Role:
 - start/stop control through orchestration layer,
 - progress monitoring,
 - result summary display,
+- approval-status visibility only,
 - graph/CSV export visibility where available.
 
 Important interpretation:
@@ -498,13 +503,19 @@ Examples:
 - conflict,
 - missing `doorbell_detected` as a strict schema/context fault case.
 
-### 5.5 Progress / Result Publication
-Provides experiment-state visibility.
+### 5.5 Progress / Result / Governance Reports
+Provides experiment-state visibility and non-authoritative governance-report support.
 
 Role:
 - progress update,
 - artifact publication,
-- reproducibility support.
+- reproducibility support,
+- validation report publication,
+- governance report publication.
+
+Important interpretation:
+- validation reports and governance reports are evidence/support artifacts,
+- not validator authority or operational authorization.
 
 ### 5.6 Topic / Payload Contract Validation
 Validates communication and payload references for experiment and governance tooling.
@@ -660,6 +671,7 @@ Bounded Input + Context
 → Deterministic Validator  
 → Safe Deferral and Clarification Management or Caregiver Escalation  
 → Caregiver Approval  
+→ Governed Manual Dispatcher  
 → Sensitive Actuator Path  
 → ACK Handling  
 → Local Audit Logging  
@@ -697,13 +709,15 @@ The paper figure should preserve visibility of at least the following concepts:
 - Actuator Interface Nodes
 - Context and Runtime State Aggregation
 - Local LLM Reasoning Layer
-- Policy Routing + Validation
+- Policy Router + Deterministic Validator
 - Approved Low-Risk Actuation
 - Safe Deferral and Clarification Management
 - Caregiver Escalation / Approval
+- Governed manual dispatch for sensitive actions
 - TTS Rendering / Voice Output
 - Local ACK + Audit Logging
 - Raspberry Pi experiment support
+- Non-authoritative Raspberry Pi governance/report support
 
 Optional development/evaluation support inset:
 - MQTT Topic / Payload Registry
@@ -735,6 +749,7 @@ Optional development/evaluation support inset:
 - validator-bound,
 - caregiver-mediated,
 - approval required,
+- governed manual dispatch,
 - ACK and audit required.
 
 ### 8.4 Clarification interaction path
