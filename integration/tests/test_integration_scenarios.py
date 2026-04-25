@@ -1,15 +1,17 @@
 """
 Integration scenario tests using the adapter.
 
-Each test loads a scenario skeleton, executes it through policy_router directly,
-and asserts the observed result matches the expected fixture.
+Each scenario test loads a scenario skeleton, executes it through policy_router
+or deterministic adapter-level Class 2 clarification hooks, and asserts the
+observed result matches the expected fixture.
 
 Scenario files and fixture paths are read from the existing integration asset tree.
-No policy values or expected outcomes are hardcoded in this file.
+Policy values and expected outcomes should remain in fixture files, not in test logic.
 """
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -21,7 +23,8 @@ if str(_INTEGRATION_TESTS) not in sys.path:
     sys.path.insert(0, str(_INTEGRATION_TESTS))
 
 from integration_test_runner_skeleton import find_repo_root, load_scenario  # noqa: E402
-from integration_adapter import execute_scenario  # noqa: E402
+from integration_adapter import execute_scenario, _class2_fixture_observed  # noqa: E402
+from expected_outcome_comparator import compare_values  # noqa: E402
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -31,6 +34,14 @@ def _run(scenario_rel_path: str):
     repo_root = find_repo_root(_REPO_ROOT)
     scenario = load_scenario(repo_root, scenario_rel_path)
     return execute_scenario(scenario)
+
+
+def _load_json(rel_path: str) -> dict:
+    path = _REPO_ROOT / rel_path
+    with path.open("r", encoding="utf-8") as fp:
+        payload = json.load(fp)
+    assert isinstance(payload, dict), f"Expected object fixture: {rel_path}"
+    return payload
 
 
 # ── CLASS 0 emergency scenarios ──────────────────────────────────────────────
@@ -73,16 +84,59 @@ class TestClass1Scenarios:
         assert result.passed, _fail_detail(result)
 
 
-# ── CLASS 2 escalation scenario ──────────────────────────────────────────────
+# ── CLASS 2 clarification / transition scenario ──────────────────────────────
 
 
 class TestClass2Scenarios:
     def test_class2_insufficient_context(self):
-        """CLASS_2: insufficient context routes to caregiver escalation path."""
+        """CLASS_2: insufficient context enters clarification/transition state."""
         result = _run(
             "integration/scenarios/class2_insufficient_context_scenario_skeleton.json"
         )
         assert result.passed, _fail_detail(result)
+
+    def test_class2_candidate_prompt_step_is_observable(self):
+        """The adapter exposes bounded candidate prompt metadata for Class 2."""
+        result = _run(
+            "integration/scenarios/class2_insufficient_context_scenario_skeleton.json"
+        )
+        candidate_steps = [
+            sr for sr in result.step_results if sr.action == "generate_bounded_candidate_choices"
+        ]
+        assert candidate_steps, "No candidate generation step found"
+        observed = candidate_steps[0].observed
+        assert observed is not None
+        expected = _load_json("integration/tests/data/expected_class2_candidate_prompt.json")
+        comparison = compare_values(observed, expected)
+        assert comparison.passed, comparison.to_dict()
+
+    @pytest.mark.parametrize(
+        ("sample_fixture", "expected_fixture"),
+        [
+            (
+                "integration/tests/data/sample_class2_user_selection_class1.json",
+                "integration/tests/data/expected_class2_transition_class1.json",
+            ),
+            (
+                "integration/tests/data/sample_class2_user_selection_class0.json",
+                "integration/tests/data/expected_class2_transition_class0.json",
+            ),
+            (
+                "integration/tests/data/sample_class2_timeout_no_response.json",
+                "integration/tests/data/expected_class2_timeout_safe_deferral.json",
+            ),
+        ],
+    )
+    def test_class2_transition_fixtures_compare(self, sample_fixture, expected_fixture):
+        """Phase 6 Class 2 transition fixtures compare through the adapter mapping."""
+        sample = _load_json(sample_fixture)
+        expected = _load_json(expected_fixture)
+        observed = _class2_fixture_observed(sample)
+        transition_family = expected.get("expected_transition_family")
+        if transition_family:
+            observed["transition_family"] = transition_family
+        comparison = compare_values(observed, expected)
+        assert comparison.passed, comparison.to_dict()
 
 
 # ── fault scenarios ───────────────────────────────────────────────────────────
@@ -90,12 +144,12 @@ class TestClass2Scenarios:
 
 class TestFaultScenarios:
     def test_stale_fault(self):
-        """Stale event routes to CLASS_2 (C204)."""
+        """Stale event routes to conservative CLASS_2 handling (C204-like)."""
         result = _run("integration/scenarios/stale_fault_scenario_skeleton.json")
         assert result.passed, _fail_detail(result)
 
     def test_missing_state_fault(self):
-        """Missing context state routes to CLASS_2 (C202)."""
+        """Missing context state routes to conservative safe handling."""
         result = _run("integration/scenarios/missing_state_scenario_skeleton.json")
         assert result.passed, _fail_detail(result)
 
@@ -136,9 +190,7 @@ class TestAdapterStepBehavior:
             repo_root, "integration/scenarios/class0_e001_scenario_skeleton.json"
         )
         result = execute_scenario(scenario)
-        observe_steps = [
-            sr for sr in result.step_results if sr.action == "observe_audit_stream"
-        ]
+        observe_steps = [sr for sr in result.step_results if sr.action == "observe_audit_stream"]
         assert observe_steps, "No observe step found"
         for os_ in observe_steps:
             assert os_.comparison is not None, f"Step {os_.step_id} has no comparison"
