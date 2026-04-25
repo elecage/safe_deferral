@@ -1,0 +1,9 @@
+{
+  "fault_profile_id": "FAULT_MISSING_CONTEXT_01",
+  "fault_type": "missing_state",
+  "target_field": "environmental_context.doorbell_detected",
+  "manipulation": "remove_required_key",
+  "expected_outcome": "class_2_escalation",
+  "expected_trigger_id": "C202",
+  "authority_note": "This is a controlled schema/fault case and must not authorize actuation."
+}
