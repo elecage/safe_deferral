@@ -19,12 +19,12 @@ It does not override policy or schema assets.
 
 | Topic | Publishers | Subscribers | Payload family | Authority level | Notes |
 |---|---|---|---|---|---|
-| `safe_deferral/context/input` | `mac_mini.context_aggregator`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input` | operational input | Must include `environmental_context.doorbell_detected`; RPi publisher is controlled-mode only |
+| `safe_deferral/context/input` | `esp32.bounded_input_node`, `esp32.context_node`, `esp32.doorbell_visitor_context_node`, `mac_mini.context_aggregator_controlled_bridge`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.mqtt_ingestion_state_intake`, `mac_mini.policy_router`, optional audit observer | `policy_router_input` | operational input / controlled experiment input | Must include `environmental_context.doorbell_detected`; field-side ESP32 publishers represent operational input; Mac mini bridge and RPi publisher are controlled-mode or aggregation bridge publishers only |
 | `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | emergency operational input | Must align with E001~E005; doorbell is not emergency |
 | `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | model candidate, not authority | Door unlock is disallowed as current Class 1 candidate |
 | `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional RPi dashboard bridge | `validator_output` | validator decision | Executable payload must stay within low-risk catalog |
 | `safe_deferral/deferral/request` | validator, safe deferral handler | safe deferral handler, audit observer, optional RPi dashboard bridge | `safe_deferral_event` | bounded deferral control | Future schema recommended |
-| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | caregiver escalation | Manual confirmation path is not autonomous execution authority |
+| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | caregiver escalation / Class 2 clarification notification | Manual confirmation path is not autonomous execution authority |
 | `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test app mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | governed manual path | Future schema recommended; mock publisher must be test/evaluation artifact only |
 | `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | dispatch after approval | Doorlock requires governed manual confirmation path; governance/dashboard/test-app must not publish this directly |
 | `safe_deferral/actuation/ack` | ESP32 actuator node, controlled RPi mock actuator | Mac mini ACK handler, audit observer, dashboard bridge | `actuation_ack_payload` | closed-loop evidence | ACK is not pure context input |
@@ -34,6 +34,27 @@ It does not override policy or schema assets.
 | `safe_deferral/dashboard/observation` | RPi orchestrator, dashboard backend, optional Mac mini telemetry bridge | RPi dashboard frontend, optional test app | `dashboard_observation_payload` | visibility, not policy | Retained observation status allowed |
 | `safe_deferral/experiment/progress` | RPi orchestrator, integration test runner | RPi dashboard frontend, result exporter | `experiment_progress_payload` | experiment status | Future schema recommended |
 | `safe_deferral/experiment/result` | RPi orchestrator, integration test runner, result exporter | RPi dashboard frontend, optional paper analysis tools | `result_export_payload` | experiment artifact | Trace to scenario/run IDs |
+
+---
+
+## Operational vs controlled-mode publisher clarification
+
+The `safe_deferral/context/input` topic has both operational publishers and controlled-mode publishers.
+
+| Publisher | Publisher class | Intended use | Authority note |
+|---|---|---|---|
+| `esp32.bounded_input_node` | field-side operational publisher | bounded user input, repeated input, candidate-selection input | Input only; not actuation authority |
+| `esp32.context_node` | field-side operational publisher | ordinary environmental or context update | Context only; not policy authority |
+| `esp32.doorbell_visitor_context_node` | field-side operational publisher | visitor/doorbell context via `environmental_context.doorbell_detected` | Visitor context only; not emergency evidence or doorlock authority |
+| `mac_mini.context_aggregator_controlled_bridge` | Mac mini controlled aggregation bridge | normalized context re-publication only when an implementation explicitly uses a bridge pattern | Bridge must not fabricate context or bypass policy routing |
+| `rpi.simulation_runtime_controlled_mode` | controlled evaluation publisher | deterministic scenario replay and integration tests | Experiment mode only |
+
+This clarification aligns this matrix with:
+
+```text
+common/docs/architecture/15_interface_matrix.md
+common/docs/architecture/scenario_data_flows/20_00_interface_role_alignment.md
+```
 
 ---
 
