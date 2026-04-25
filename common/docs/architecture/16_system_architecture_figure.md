@@ -44,9 +44,36 @@ This document does **not** override frozen policies or schemas. If any conflict 
 
 This figure should be treated as the current active Mac-mini-centered operational architecture figure.
 
-However, the current SVG does not yet fully draw every Raspberry Pi support-layer connection, MQTT/payload governance flow, dashboard observation flow, experiment progress/result topic flow, registry-management interface, MQTT-aware interface matrix alignment check, topic/payload hardcoding drift check, payload validation report flow, or governance backend/UI separation validation flow.
+The current SVG now compactly represents:
 
-Those elements are documented in this file and in `common/docs/architecture/15_interface_matrix.md`, and should be reflected in a future figure revision.
+- ESP32 bounded physical nodes,
+- bounded input, context, emergency, and bounded actuator-interfacing nodes,
+- Mac mini MQTT ingestion with registry-aware MQTT intake,
+- context/runtime aggregation,
+- local LLM-assisted reasoning,
+- Policy Router plus Deterministic Validator as the final admissibility boundary,
+- Class 1 low-risk execution as currently lighting only,
+- safe deferral and clarification management,
+- caregiver escalation and approval for governed manual dispatch,
+- TTS guidance,
+- ACK and audit closure,
+- Raspberry Pi non-authoritative monitoring, orchestration, governance checks, and result publication,
+- Raspberry Pi progress/result/governance report support.
+
+However, the current SVG remains a compact paper figure. It does not fully draw every detailed support-layer connection, including:
+
+- all Raspberry Pi support-layer MQTT connections,
+- complete MQTT/payload governance backend flow,
+- governance dashboard UI flow,
+- publisher/subscriber role management,
+- payload example management,
+- topic registry CRUD/review workflow,
+- MQTT-aware interface matrix alignment checks,
+- topic/payload hardcoding drift checks,
+- payload validation report flow,
+- governance backend/UI separation validation.
+
+Those detailed elements are documented in this file, in `common/docs/architecture/14_system_components_outline_v2.md`, and in `common/docs/architecture/15_interface_matrix.md`.
 
 ### Current figure status
 
@@ -57,40 +84,15 @@ It is strongest for explaining:
 - ESP32 bounded physical nodes,
 - Mac mini operational control loop,
 - local LLM-assisted interpretation,
-- deterministic policy/validation,
+- deterministic policy routing and validation,
 - safe deferral,
-- caregiver-mediated sensitive-actuation handling,
-- ACK and audit closure.
+- caregiver-mediated sensitive-actuation handling through governed manual dispatch,
+- ACK and audit closure,
+- Raspberry Pi non-authoritative experiment and governance-report support.
 
-It is not yet a complete visual representation of:
+It intentionally uses compact labels rather than drawing all governance/backend implementation paths.
 
-- all Raspberry Pi support-layer MQTT connections,
-- MQTT/payload governance backend flow,
-- governance dashboard UI flow,
-- publisher/subscriber role management,
-- payload example management,
-- topic registry CRUD/review workflow,
-- MQTT-aware interface matrix alignment checks,
-- topic/payload hardcoding drift checks,
-- payload validation report flow,
-- governance backend/UI separation validation.
-
-These items are intentionally captured in the document explanation first and should be added visually in a later figure revision.
-
-It emphasizes the operational closed loop across:
-
-- bounded user input,
-- context and emergency ingestion,
-- local LLM-assisted intent interpretation,
-- deterministic policy routing,
-- deterministic validation,
-- low-risk execution,
-- context-integrity-based safe deferral,
-- caregiver-mediated approval for sensitive actions,
-- policy-constrained TTS/user feedback,
-- and local acknowledgement plus audit closure.
-
-The Raspberry Pi 5 region is retained as a support-side monitoring and experiment layer, not as the primary operational control authority.
+The Raspberry Pi 5 region is retained as a support-side monitoring, experiment, and governance-report layer, not as the primary operational control authority.
 
 ---
 
@@ -100,16 +102,16 @@ The figure should be read as four major regions.
 
 | Region | Role | Authority boundary |
 |---|---|---|
-| ESP32 device layer | Bounded physical input, sensing, emergency/event detection, doorbell / visitor-arrival context sensing, actuator/warning interfaces | No high-level reasoning authority; no autonomous sensitive-actuation authority |
-| Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, caregiver escalation, ACK, audit, topic registry loading, and payload validation support | Primary operational authority under frozen policy/schema constraints; registry/payload helpers support consistency but do not create authority |
-| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, execution, direct registry-file editing, canonical policy/schema editing, actuator command publishing, or doorlock command publishing authority |
+| ESP32 device layer | Bounded physical input, sensing, emergency/event detection, doorbell / visitor-arrival context sensing, bounded actuator/warning interfaces | No high-level reasoning authority; no autonomous sensitive-actuation authority |
+| Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, caregiver escalation, governed manual dispatch handling, ACK, audit, topic registry loading, and payload validation support | Primary operational authority under frozen policy/schema constraints; registry/payload helpers support consistency but do not create authority |
+| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review, governance reports | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, execution, direct registry-file editing, canonical policy/schema editing, actuator command publishing, or doorlock command publishing authority |
 | Optional measurement node | Out-of-band timing and latency capture | Measurement-only; not operational control plane |
 
 ---
 
 ## 4. ESP32 device layer
 
-The ESP32 layer represents field-side interaction and actuation endpoints.
+The ESP32 layer represents field-side interaction and bounded actuation endpoints.
 
 It may include:
 
@@ -119,7 +121,7 @@ It may include:
 - doorbell / visitor-arrival context node,
 - lighting control node,
 - optional gas/fire/fall sensing or event-interface nodes,
-- planned doorlock or warning interface nodes.
+- planned governed sensitive-action or warning interface nodes.
 
 Important interpretation:
 
@@ -127,6 +129,7 @@ Important interpretation:
 2. ESP32 nodes may emit events or states that are normalized into schema-valid payloads.
 3. ESP32 nodes must not locally replace policy routing, validator logic, or caregiver approval.
 4. ESP32 doorlock or warning interface nodes may exist for representative or caregiver-mediated evaluation, but must not reinterpret doorlock as autonomous Class 1 low-risk execution authority.
+5. The paper figure uses “lighting and governed sensitive-action interface” and “bounded actuator interfacing” to avoid implying ESP32-local doorlock authority.
 
 ### Doorbell / visitor-arrival context
 
@@ -160,11 +163,12 @@ according to the scenario.
 
 The Mac mini region is the operational control core.
 
-Its L-shaped boundary intentionally includes the caregiver-approval region in the same host-level operational enclosure. This reflects the interpretation that caregiver approval handling is not external to the control loop, but a governed part of the operational architecture.
+Its L-shaped boundary includes the caregiver-approval region in the same host-level operational enclosure. This reflects the interpretation that caregiver approval handling is not external to the control loop, but a governed part of the operational architecture.
 
 The Mac mini region includes:
 
 - MQTT ingestion and state intake,
+- registry-aware MQTT intake where practical,
 - context and runtime aggregation,
 - local LLM reasoning,
 - Policy Router,
@@ -174,6 +178,7 @@ The Mac mini region includes:
 - context-integrity-based safe deferral stage,
 - caregiver escalation,
 - caregiver approval handling,
+- governed manual dispatch handling for sensitive actions,
 - TTS rendering or user feedback generation,
 - approved low-risk dispatch interface,
 - ACK handling,
@@ -192,17 +197,20 @@ The topic registry loader and payload validation helper support:
 
 These helpers support communication consistency, schema/payload boundary checks, and governance/verification evidence. They do not replace policy/schema authority, do not create actuator authority, and do not function as operational authorization mechanisms.
 
+The compact paper figure visually groups Policy Router and Deterministic Validator in one block. This grouping is only visual: deterministic validation remains the final admissibility boundary and cannot be bypassed.
+
 The Mac mini may expose operational telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard. This exposure does not make the RPi dashboard a policy authority.
 
 ---
 
 ## 6. Raspberry Pi 5 support region
 
-The Raspberry Pi 5 region is the support-side experiment and monitoring layer.
+The Raspberry Pi 5 region is the support-side experiment, monitoring, and governance-report layer.
 
 It may include:
 
 - Monitoring / Experiment Dashboard,
+- approval-status visibility only,
 - experiment support runtime,
 - simulation and replay,
 - virtual sensor and state generation,
@@ -212,6 +220,8 @@ It may include:
 - scenario orchestration,
 - progress/status publication,
 - result summaries,
+- validation reports,
+- governance reports,
 - CSV/graph export,
 - evaluation artifact generation,
 - MQTT/payload governance backend,
@@ -226,7 +236,7 @@ It may include:
 
 The RPi dashboard is a support-side visibility and experiment-operations console.
 
-The MQTT/payload governance backend and governance dashboard UI may be documented as part of the Raspberry Pi support-side toolchain even if their visual links are not yet drawn in the current SVG figure.
+The MQTT/payload governance backend and governance dashboard UI may be documented as part of the Raspberry Pi support-side toolchain even if their visual links are not fully drawn in the current SVG figure.
 
 They may support:
 
@@ -312,7 +322,7 @@ MQTT-facing interfaces should remain aligned with:
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/docs/architecture/15_interface_matrix.md`
 
-The currently documented MQTT-facing interfaces include context input, emergency events, LLM candidate action, validator output, safe deferral request, Class 2 escalation, caregiver confirmation, actuation command, actuation ACK, audit log, simulation context, fault injection, dashboard observation, experiment progress, and experiment result topics.
+For `safe_deferral/context/input`, the ordinary operational publishers are field-side bounded input/context nodes, with controlled RPi simulation publishers allowed only in gated experiment mode. Mac mini services primarily ingest and aggregate this input plane.
 
 The normalized operational input must preserve the payload boundaries defined in:
 
@@ -400,6 +410,7 @@ Doorlock-sensitive outcomes should proceed through:
 - Class 2 escalation,
 - separately governed manual confirmation path,
 - caregiver approval,
+- governed manual dispatch,
 - ACK verification,
 - local audit logging.
 
@@ -491,15 +502,24 @@ Detailed interface and topic coverage are defined in:
 
 ---
 
-## 10. Figure elements not yet fully drawn
+## 10. Figure elements compactly represented vs not fully drawn
 
-The current SVG does not yet fully draw:
+The current SVG compactly represents:
 
-- Raspberry Pi support-layer MQTT connections,
+- Raspberry Pi progress/result/governance reports,
+- registry-aware MQTT intake,
+- Policy Router + Deterministic Validator grouping,
+- governed manual dispatch wording,
+- lighting-only current Class 1 execution,
+- bounded ESP32 actuator interfacing.
+
+The current SVG does not fully draw:
+
+- all Raspberry Pi support-layer MQTT connections,
 - dashboard observation topic flows,
 - experiment progress/result topic flows,
-- MQTT/payload governance backend,
-- governance dashboard UI,
+- full MQTT/payload governance backend API flow,
+- governance dashboard UI flow,
 - publisher/subscriber role manager,
 - payload example manager,
 - topic registry CRUD/review workflow,
@@ -508,9 +528,7 @@ The current SVG does not yet fully draw:
 - payload validation report flow,
 - governance backend/UI separation validation flow.
 
-These should be added in a future figure revision.
-
-Until the SVG is revised, the explanatory text in this document and the MQTT-aware interface matrix in `common/docs/architecture/15_interface_matrix.md` should be used to interpret the full support-layer and governance-layer design.
+Until a more detailed support/governance figure is created, the explanatory text in this document and the MQTT-aware interface matrix in `common/docs/architecture/15_interface_matrix.md` should be used to interpret the full support-layer and governance-layer design.
 
 ---
 
@@ -518,11 +536,11 @@ Until the SVG is revised, the explanatory text in this document and the MQTT-awa
 
 Suggested paper caption:
 
-> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and actuator/warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, interface-matrix alignment, topic/payload drift detection, payload-boundary validation support, context-integrity-based safe deferral, caregiver-mediated escalation, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, publisher/subscriber role review, interface-matrix alignment, topic/payload drift reporting, and validation report generation, without becoming policy or execution authority.
+> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and bounded actuator or warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, interface-matrix alignment, topic/payload drift detection, payload-boundary validation support, context-integrity-based safe deferral, caregiver-mediated escalation, governed manual dispatch for sensitive actions, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result/governance report publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, publisher/subscriber role review, interface-matrix alignment, topic/payload drift reporting, and validation report generation, without becoming policy or execution authority.
 
 Shorter caption:
 
-> Overall system architecture showing bounded physical input, local LLM-assisted interpretation, deterministic policy validation, safe deferral, caregiver-mediated sensitive actuation, local audit closure, and Raspberry Pi-based experiment monitoring with non-authoritative MQTT/payload governance support.
+> Overall system architecture showing bounded physical input, local LLM-assisted interpretation, deterministic policy validation, safe deferral, caregiver-mediated sensitive actuation through governed manual dispatch, local audit closure, and Raspberry Pi-based experiment monitoring with non-authoritative MQTT/payload governance-report support.
 
 ---
 
@@ -535,14 +553,15 @@ This figure supports the paper’s main claims because it shows:
 3. Safe deferral is a first-class outcome rather than an error state.
 4. Sensitive actuation is separated from low-risk autonomous execution.
 5. Caregiver approval is modeled as a governed path.
-6. ACK and audit closure are part of the closed loop.
-7. RPi dashboard/simulation is an experiment-support layer, not operational authority.
-8. Payload boundaries are necessary to prevent state and authority drift.
-9. MQTT/payload governance is separated from operational authority.
-10. Topic/payload registry edits cannot create doorlock execution authority.
-11. Some RPi/governance connections are documented but not yet drawn in the current SVG and should be added in a future figure revision.
-12. Interface-matrix alignment and topic/payload drift checks are governance/verification evidence, not execution authority.
-13. Governance dashboard UI and governance backend separation is part of the safety boundary.
+6. Governed manual dispatch is required for sensitive actions.
+7. ACK and audit closure are part of the closed loop.
+8. RPi dashboard/simulation/governance-report support is an experiment-support layer, not operational authority.
+9. Payload boundaries are necessary to prevent state and authority drift.
+10. MQTT/payload governance is separated from operational authority.
+11. Topic/payload registry edits cannot create doorlock execution authority.
+12. Some RPi/governance connections are compactly represented but not fully drawn in the current SVG.
+13. Interface-matrix alignment and topic/payload drift checks are governance/verification evidence, not execution authority.
+14. Governance dashboard UI and governance backend separation is part of the safety boundary.
 
 ---
 
@@ -573,10 +592,11 @@ The key interpretation is:
 - Mac mini is the safety-critical operational edge hub.
 - The local LLM assists intent interpretation but does not authorize execution.
 - Deterministic policy and validation control admissibility.
+- Class 1 low-risk autonomous execution is currently lighting only.
 - Safe deferral and caregiver escalation prevent unsafe autonomous action.
 - Doorbell context supports visitor-response interpretation but does not authorize doorlock control.
-- Doorlock-sensitive execution remains caregiver-mediated or manually governed.
-- RPi provides experiment/dashboard/simulation/fault-injection support without becoming authority.
+- Doorlock-sensitive execution remains caregiver-mediated and governed by manual dispatch.
+- RPi provides experiment/dashboard/simulation/fault-injection/governance-report support without becoming authority.
 - MQTT/payload governance tooling may inspect, validate, and propose communication-contract changes without becoming operational authority.
 - Interface-matrix alignment, topic-drift checks, and payload validation reports support governance/verification only.
 - Governance dashboard UI and backend service separation prevents registry-management tooling from becoming control authority.
