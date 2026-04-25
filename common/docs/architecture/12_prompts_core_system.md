@@ -55,8 +55,8 @@ Older internal names may still appear in transitional assets or source-layer ref
 context-integrity-based safe deferral stage
 
 Respect repository separation:
-- mac_mini/ = operational hub
-- rpi/ = simulation / fault injection / closed-loop evaluation
+- mac_mini/ = safety-critical operational edge hub
+- rpi/ = experiment dashboard, simulation, fault injection, orchestration, replay, and closed-loop evaluation support
 - esp32/ = bounded physical node layer
 - integration/measurement/ = optional out-of-band timing and latency evaluation support
 
@@ -64,6 +64,7 @@ Additional constraint for doorlock-related generation:
 - Do not assume that door unlock is part of the currently authorized autonomous low-risk Class 1 actuation scope.
 - You may generate representative doorlock-node interface code, caregiver-mediated approval logic, ACK handling, and audit logging support.
 - Do not generate unrestricted autonomous door-unlock execution paths.
+- Treat `doorbell_detected` as `environmental_context.doorbell_detected`, a visitor-response interpretation context signal. It must not be interpreted as autonomous doorlock authorization.
 - If a doorlock-related action is proposed, keep it aligned with:
   - caregiver escalation,
   - bounded manual approval,
@@ -279,7 +280,9 @@ Requirements:
   - illuminance
   - occupancy
   - device states
-  - doorbell event
+  - `doorbell_detected` visitor-response context signal
+- `doorbell_detected` must be emitted as `environmental_context.doorbell_detected` according to `context_schema_v1_0_0_FROZEN.json`.
+- `doorbell_detected` is an interpretation context signal and must not be treated as autonomous doorlock authorization.
 - Each virtual node must have:
   - unique node_id
   - topic namespace
