@@ -58,6 +58,25 @@ This repository contains the frozen assets, scripts, schemas, policies, experime
 
 ---
 
+## Current Safety Boundary
+
+현재 frozen baseline에서 **Class 1 autonomous low-risk action**은 다음 조명 제어에 한정된다.
+
+- `light_on` → `living_room_light`
+- `light_on` → `bedroom_light`
+- `light_off` → `living_room_light`
+- `light_off` → `bedroom_light`
+
+Doorlock control, door opening, blinds, TV, gas valve, stove, medication device, mobility device, and other sensitive or non-catalog actions are **not** part of the current Class 1 autonomous low-risk scope.
+
+Doorlock may be used as a representative sensitive-actuation evaluation case, but it must not be emitted as a Class 1 LLM candidate action or approved as a validator executable payload. Sensitive actuation requests must be handled through Class 2 escalation or a separately governed manual confirmation path.
+
+The authoritative low-risk action source is:
+
+- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
+
+---
+
 ## Main Scenario
 
 본 시스템은 사용자의 제한된 물리 입력과 환경 센서 이벤트를 바탕으로, 로컬 엣지 허브(Mac mini) 내에서 클라우드 의존 없이 처리되며, 철저한 정책 기반 검증을 거쳐 동작한다.
@@ -78,12 +97,13 @@ This repository contains the frozen assets, scripts, schemas, policies, experime
   → LLM을 거치지 않고 결정론적으로 즉시 로컬 보호 조치를 수행하고, 이후 외부 알림 경로를 사용할 수 있음
 
 - **Class 1 (Low-Risk Local Assistance)**  
-  일상적이며 bounded low-risk action 후보를 허용할 수 있는 상황  
-  → 로컬 LLM은 자유 대화가 아니라, 엄격한 candidate action schema 안에서만 제한된 제안을 수행
+  현재 frozen low-risk catalog에 포함된 bounded low-risk action 후보만 허용할 수 있는 상황  
+  → 로컬 LLM은 자유 대화가 아니라, 엄격한 candidate action schema 안에서만 제한된 제안을 수행  
+  → 현재 autonomous execution scope는 `light_on` / `light_off` 조명 제어에 한정됨
 
 - **Class 2 (Caregiver Escalation)**  
-  stale context, missing state, 필수 입력 부족, 모호성 지속 등으로 자율 경로를 포기해야 하는 상황  
-  → 처음부터 보호자 개입 경로로 전환
+  stale context, missing state, 필수 입력 부족, 모호성 지속, sensitive actuation request 등으로 자율 경로를 포기해야 하는 상황  
+  → 처음부터 보호자 개입 또는 별도 governed manual confirmation path로 전환
 
 ### 3단계: 결정론적 안전 검증 및 Safe Deferral
 Class 1 경로에서 LLM이 제안한 액션은 곧바로 실행되지 않고, **Deterministic Validator**를 통해 검증된다.
@@ -91,7 +111,7 @@ Class 1 경로에서 LLM이 제안한 액션은 곧바로 실행되지 않고, *
 Validator는 다음 세 가지 중 하나만 허용한다.
 
 - **실행 승인 (Approved)**  
-  제안된 단일 저위험 액션이 안전하다고 판단되면 dispatcher / actuator interface로 전달
+  제안된 단일 저위험 액션이 authoritative low-risk catalog 안에서 안전하다고 판단되면 dispatcher / actuator interface로 전달
 
 - **안전 보류 (Safe Deferral)**  
   타겟이 모호하거나, 후보가 둘 이상 남거나, 문맥이 불충분한 경우  
@@ -99,7 +119,7 @@ Validator는 다음 세 가지 중 하나만 허용한다.
   → 이후 bounded button-based clarification 또는 제한적 확인 절차를 통해 모호성 해소를 시도
 
 - **거부 및 에스컬레이션 (Rejected Escalation)**  
-  정책을 명백히 위반하거나 실행 실패, 상태 ACK 불일치, 하드 실패가 의심되면 제어를 차단하고 Class 2로 전환
+  정책을 명백히 위반하거나 실행 실패, 상태 ACK 불일치, 하드 실패, sensitive actuation request가 의심되면 제어를 차단하고 Class 2로 전환
 
 ### 4단계: 보호자 권한 위임 및 알림 (Caregiver Escalation)
 Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소되지 않으면, 시스템은 안전한 아웃바운드 통신(Telegram 등)을 통해 보호자에게 제한적 권한을 위임한다.
@@ -109,6 +129,8 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
 - 현재 환경/기기 컨텍스트 요약
 - unresolved reason
 - 수동 확인 또는 제한적 승인 경로
+
+이때 `manual_confirmation_path`는 보호자의 review, confirm, deny, intervene 경로를 설명하는 필드이며, 그 자체가 autonomous low-risk execution이나 sensitive actuation을 승인하는 권한 필드는 아니다.
 
 ### 5단계: 폐루프 피드백 및 로컬 감사 로깅 (Closed-loop Feedback & Audit Logging)
 - 제어 명령 이후에는 반드시 **상태 ACK**를 확인
@@ -140,8 +162,9 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
 
 기대 동작:
 - **Class 0**: 즉시 로컬 보호 조치
-- **Class 1**: bounded low-risk local assistance
+- **Class 1**: bounded low-risk local assistance under the authoritative light-control catalog
 - **Class 2** 또는 **Safe Deferral**: 자율 실행 차단 후 caregiver escalation 또는 bounded clarification
+- **Sensitive actuation request**: autonomous execution 차단 후 Class 2 escalation 또는 별도 governed manual confirmation path
 
 ### 2. 클래스별 지연 시간 검증 (Class-wise Latency)
 각 클래스는 서로 다른 경로를 가지므로 지연 시간도 경로별로 측정한다.
@@ -181,12 +204,14 @@ Raspberry Pi 5 기반 fault injection과 Mac mini의 verification-safe audit str
 
 ## Experimental Validation Infrastructure
 
-실험 인프라는 다음처럼 역할 분리될 수 있다.
+실험 인프라는 다음처럼 역할 분리된다.
 
-- **Mac mini**: 운영 허브 및 핵심 판단 경로
-- **Raspberry Pi 5**: simulation, fault injection, closed-loop experiment orchestration
+- **Mac mini**: safety-critical operational edge hub, including policy routing, local LLM reasoning, deterministic validation, safe deferral, caregiver escalation/approval handling, ACK, and audit logging
+- **Raspberry Pi 5**: experiment-side support region, including Monitoring / Experiment Dashboard, simulation, replay, fault injection, closed-loop experiment orchestration, progress/status publication, result summary, graph/CSV export, and evaluation artifact generation
 - **ESP32**: bounded physical node layer (button, sensor, actuator/warning interface)
 - **Optional STM32 or dedicated timing node**: out-of-band latency measurement infrastructure
+
+Raspberry Pi 5 hosts the experiment and monitoring dashboard. The dashboard is a support-side visibility and experiment-operations console; it is not the policy authority, validator authority, caregiver approval authority, or primary operational hub. Mac mini may expose telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard.
 
 이 분리는 운영 경로와 실험/계측 경로를 구분하여 재현성과 계측 신뢰도를 높이기 위한 것이다.
 
@@ -196,7 +221,7 @@ Raspberry Pi 5 기반 fault injection과 Mac mini의 verification-safe audit str
 
 - `common/`: shared frozen assets such as policies, schemas, documentation, and terminology
 - `mac_mini/`: Mac mini installation, configuration, verification scripts, runtime files, and future code
-- `rpi/`: Raspberry Pi installation, configuration, verification scripts, and future experiment code
+- `rpi/`: Raspberry Pi installation, configuration, verification scripts, experiment/dashboard runtime, and future experiment code
 - `esp32/`: embedded firmware, device-specific implementation assets, and bounded physical node code
 - `integration/`: end-to-end tests, scenarios, and experiment assets
 
