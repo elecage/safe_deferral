@@ -16,14 +16,15 @@ If older wording in the legacy master handoff conflicts with newer dated addenda
 
 ## Current priority read order
 
-For current architecture, policy/schema, dashboard, experiment, doorbell, and doorlock-sensitive work, read in this order:
+For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, payload, and architecture-document-structure work, read in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
-2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
-3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
-4. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
-5. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
-6. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
+3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
+4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
+5. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
+6. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+7. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
 
 Use the legacy handoff as historical context and operational history, not as the final authority when it conflicts with newer addenda.
 
@@ -112,6 +113,19 @@ Doorlock state, manual approval state, and ACK state should be represented throu
 - manual confirmation path internal state,
 - future schema revision.
 
+### 6. Current active architecture figure and payload docs
+
+The current active architecture-figure and payload-boundary documents are:
+
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+
+Historical system-layout figure notes have been moved to:
+
+- `common/docs/archive/system_layout_figure_notes/`
+
+Do not treat old active paths such as `common/docs/architecture/24_final_paper_architecture_figure.md` or `common/docs/architecture/25_payload_contract_and_registry.md` as current active references.
+
 ---
 
 ## Current authoritative documents
@@ -133,11 +147,11 @@ Doorlock state, manual approval state, and ACK state should be represented throu
 
 ### Architecture / experiment docs
 
-- `common/docs/architecture/24_final_paper_architecture_figure.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/01_installation_target_classification.md`
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/docs/required_experiments.md`
-- `common/docs/paper/01_paper_contributions.md`
 - `CLAUDE.md`
 - `README.md`
 
@@ -154,7 +168,8 @@ Doorlock state, manual approval state, and ACK state should be represented throu
 7. Keep RPi dashboard/orchestration as experiment-side support, not policy authority.
 8. Keep Mac mini as safety-critical operational hub.
 9. Keep scenario fixtures, dashboards, and test apps from becoming policy truth.
-10. If a future task intentionally expands policy or schema scope, update frozen assets, required experiments, prompts, README, CLAUDE, and a new dated handoff addendum together.
+10. Use `common/docs/architecture/17_payload_contract_and_registry.md` when deciding where payload fields belong.
+11. If a future task intentionally expands policy or schema scope, update frozen assets, required experiments, prompts, README, CLAUDE, and a new dated handoff addendum together.
 
 ---
 
