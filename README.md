@@ -71,9 +71,17 @@ Doorlock control, door opening, blinds, TV, gas valve, stove, medication device,
 
 Doorlock may be used as a representative sensitive-actuation evaluation case, but it must not be emitted as a Class 1 LLM candidate action or approved as a validator executable payload. Sensitive actuation requests must be handled through Class 2 escalation or a separately governed manual confirmation path.
 
+`doorbell_detected` is a required boolean field in `environmental_context`. It represents a recent doorbell or visitor-arrival signal for visitor-response interpretation. It does **not** authorize autonomous doorlock control.
+
+Current `context_schema.device_states` does not include doorlock state. Doorlock state, manual approval state, and ACK state should be represented through experiment annotations, mock approval state, dashboard-side observation, audit artifacts, manual-confirmation-path internal state, or a future schema revision.
+
 The authoritative low-risk action source is:
 
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
+
+The authoritative context schema source is:
+
+- `common/schemas/context_schema_v1_0_0_FROZEN.json`
 
 ---
 
@@ -86,7 +94,10 @@ The authoritative low-risk action source is:
 ### 1단계: 이벤트 발생 및 순수 컨텍스트 수집 (Input & Context Gathering)
 - 사용자가 bounded physical button을 조작하거나 환경 센서가 임계치를 초과하면 이벤트가 발생
 - 시스템은 네트워크 상태, 내부 지연 시간 등 운영 메타데이터를 LLM 입력에 직접 섞지 않고, 오직 순수 물리 환경 정보와 기기 상태, 트리거 이벤트 중심의 **pure context payload**를 구성
-- 이를 통해 LLM이 시스템 메타데이터를 환경 데이터로 오인하는 것을 방지
+- 모든 valid context payload는 `environmental_context.doorbell_detected`를 포함해야 하며, non-visitor scenario의 기본값은 `false`이다
+- visitor-response 또는 doorlock-sensitive scenario에서는 `doorbell_detected=true/false`를 통해 최근 도어벨/방문자 도착 context 유무를 표현할 수 있다
+- `doorbell_detected=true`는 방문자 응답 의도 해석을 보조하는 context signal일 뿐, door unlock authorization이 아니다
+- 이를 통해 LLM이 시스템 메타데이터를 환경 데이터로 오인하는 것을 방지하고, visitor-response 상황에서도 민감 액추에이션 경계를 유지한다
 
 ### 2단계: 정책 라우터 기반 위험도 분기 (Policy Routing)
 가장 먼저 **Policy Router**가 입력과 컨텍스트를 분석해 최상위 정책표에 따라 다음 세 클래스 중 하나로 라우팅한다.
@@ -127,6 +138,7 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
 알림 페이로드에는 다음이 포함될 수 있다.
 - 이벤트 요약
 - 현재 환경/기기 컨텍스트 요약
+- visitor-response context summary, including `doorbell_detected` when relevant
 - unresolved reason
 - 수동 확인 또는 제한적 승인 경로
 
@@ -153,9 +165,14 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
   - emergency triple-hit
   - long-press
   - 센서 임계치 초과
+  - doorbell / visitor-arrival event via `doorbell_detected`
 - 환경 컨텍스트 조건
   - 온도
   - 조도
+  - 점유 상태
+  - smoke_detected
+  - gas_detected
+  - doorbell_detected
   - 기기 상태
   - 센서 freshness
   - 통신 상태
@@ -165,13 +182,14 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
 - **Class 1**: bounded low-risk local assistance under the authoritative light-control catalog
 - **Class 2** 또는 **Safe Deferral**: 자율 실행 차단 후 caregiver escalation 또는 bounded clarification
 - **Sensitive actuation request**: autonomous execution 차단 후 Class 2 escalation 또는 별도 governed manual confirmation path
+- **Doorlock-sensitive visitor-response**: `doorbell_detected` may affect interpretation or explanation, but autonomous unlock remains blocked
 
 ### 2. 클래스별 지연 시간 검증 (Class-wise Latency)
 각 클래스는 서로 다른 경로를 가지므로 지연 시간도 경로별로 측정한다.
 
 - **Class 0**: emergency trigger → local protective action / external dispatch
 - **Class 1**: button event → validated low-risk action / Safe Deferral decision
-- **Class 2**: button event → caregiver notification dispatch
+- **Class 2**: button event or visitor-response sensitive request → caregiver notification dispatch
 
 측정 지표:
 - p50 latency
@@ -191,6 +209,7 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
 - context conflict injection
 - sensor/state staleness injection
 - missing state injection
+- missing `doorbell_detected` context for strict visitor-response payload validation
 
 핵심 기준:
 - **Unsafe Actuation Rate (UAR) = 0%**
@@ -212,6 +231,8 @@ Raspberry Pi 5 기반 fault injection과 Mac mini의 verification-safe audit str
 - **Optional STM32 or dedicated timing node**: out-of-band latency measurement infrastructure
 
 Raspberry Pi 5 hosts the experiment and monitoring dashboard. The dashboard is a support-side visibility and experiment-operations console; it is not the policy authority, validator authority, caregiver approval authority, or primary operational hub. Mac mini may expose telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard.
+
+For visitor-response and doorlock-sensitive experiments, Raspberry Pi 5 orchestration and dashboard layers should expose `doorbell_detected` state, autonomous-unlock-blocked status, caregiver escalation state, manual approval state, ACK state, and audit completeness. Doorlock state is not currently part of the official `device_states` context contract and should be handled through experiment annotations, dashboard-side observation, audit artifacts, manual-confirmation-path internal state, or a future schema revision.
 
 이 분리는 운영 경로와 실험/계측 경로를 구분하여 재현성과 계측 신뢰도를 높이기 위한 것이다.
 
