@@ -1,0 +1,191 @@
+{
+  "coordinate_map_version": "1.0.0-draft",
+  "status": "DRAFT",
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "aspect_ratio": "16:9",
+    "coordinate_origin": "top_left"
+  },
+  "seed": {
+    "OV_STYLE_SEED": 20260425,
+    "OV_BASE_BACKGROUND_SEED": 20260425,
+    "OV_OVERLAY_STYLE_SEED": 20260425
+  },
+  "notes": [
+    "Coordinates are initial draft coordinates for Phase OV-1 scaffold only.",
+    "Coordinates must be refined after the canonical background is approved.",
+    "Scenario overlays must use these keys rather than inventing new node names.",
+    "The canonical background file, not the seed alone, is the actual visual baseline."
+  ],
+  "nodes": {
+    "mac_mini_edge_hub": {
+      "display_name": "Mac mini Edge Hub",
+      "component_family": "edge_runtime",
+      "apartment_zone": "living_room_tv_or_network_area",
+      "x": 960,
+      "y": 610
+    },
+    "mqtt_broker_runtime": {
+      "display_name": "MQTT Broker / Runtime",
+      "component_family": "messaging_layer",
+      "apartment_zone": "logical_mac_mini_runtime",
+      "x": 960,
+      "y": 540
+    },
+    "bounded_input_node": {
+      "display_name": "Bounded Input Node",
+      "component_family": "field_input_node",
+      "apartment_zone": "wheelchair_or_bedside_or_living_room_user_reach_zone",
+      "x": 420,
+      "y": 690
+    },
+    "context_node": {
+      "display_name": "Context Node",
+      "component_family": "field_context_node",
+      "apartment_zone": "living_room_wall_or_ceiling",
+      "x": 760,
+      "y": 410
+    },
+    "doorbell_visitor_context_node": {
+      "display_name": "Doorbell / Visitor Context Node",
+      "component_family": "field_context_node",
+      "apartment_zone": "entrance_door",
+      "x": 260,
+      "y": 420
+    },
+    "temperature_sensor_node": {
+      "display_name": "Temperature Sensor Node",
+      "component_family": "emergency_sensor_node",
+      "apartment_zone": "kitchen_living_room_ceiling",
+      "x": 720,
+      "y": 350
+    },
+    "smoke_sensor_node": {
+      "display_name": "Smoke Sensor Node",
+      "component_family": "emergency_sensor_node",
+      "apartment_zone": "kitchen_ceiling",
+      "x": 780,
+      "y": 300
+    },
+    "gas_sensor_node": {
+      "display_name": "Gas Sensor Node",
+      "component_family": "emergency_sensor_node",
+      "apartment_zone": "kitchen_lower_wall_or_gas_range_area",
+      "x": 820,
+      "y": 560
+    },
+    "fall_detection_node": {
+      "display_name": "Fall Detection Node",
+      "component_family": "emergency_sensor_node",
+      "apartment_zone": "living_room_or_bedroom_floor_area",
+      "x": 610,
+      "y": 720
+    },
+    "lighting_actuator_node": {
+      "display_name": "Lighting Actuator Node",
+      "component_family": "actuator_node",
+      "apartment_zone": "living_room_ceiling_light_or_switch_area",
+      "x": 1120,
+      "y": 310
+    },
+    "tts_voice_output_node": {
+      "display_name": "TTS / Voice Output Node",
+      "component_family": "user_feedback_node",
+      "apartment_zone": "living_room_smart_speaker_area",
+      "x": 1080,
+      "y": 650
+    },
+    "display_output_node": {
+      "display_name": "Display Output Node",
+      "component_family": "user_feedback_node",
+      "apartment_zone": "living_room_tablet_or_wall_display_area",
+      "x": 1220,
+      "y": 620
+    },
+    "warning_output_node": {
+      "display_name": "Warning Output Node",
+      "component_family": "warning_feedback_node",
+      "apartment_zone": "living_room_or_entrance_warning_area",
+      "x": 1260,
+      "y": 360
+    },
+    "caregiver_notification_interface": {
+      "display_name": "Caregiver Notification Interface",
+      "component_family": "external_notification_interface",
+      "apartment_zone": "outside_apartment_boundary_mobile_cloud_icon",
+      "x": 1580,
+      "y": 240
+    },
+    "policy_router": {
+      "display_name": "Policy Router",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1370,
+      "y": 500
+    },
+    "deterministic_validator": {
+      "display_name": "Deterministic Validator",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1460,
+      "y": 590
+    },
+    "class2_clarification_manager": {
+      "display_name": "Class 2 Clarification Manager",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1440,
+      "y": 690
+    },
+    "llm_guidance_layer": {
+      "display_name": "LLM Guidance Layer",
+      "component_family": "mac_mini_runtime_component_guidance_only",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1320,
+      "y": 650
+    },
+    "actuator_dispatcher": {
+      "display_name": "Actuator Dispatcher",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1340,
+      "y": 740
+    },
+    "ack_handling": {
+      "display_name": "ACK Handling",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1460,
+      "y": 760
+    },
+    "audit_log": {
+      "display_name": "Audit Log",
+      "component_family": "evidence_traceability_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1540,
+      "y": 820
+    },
+    "health_check_routine": {
+      "display_name": "Health Check Routine",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1520,
+      "y": 470
+    },
+    "safe_deferral_manager": {
+      "display_name": "Safe Deferral Manager",
+      "component_family": "mac_mini_runtime_component",
+      "apartment_zone": "right_side_runtime_panel",
+      "x": 1320,
+      "y": 820
+    },
+    "rpi_scenario_orchestrator": {
+      "display_name": "Raspberry Pi Scenario Orchestrator",
+      "component_family": "controlled_experiment_component",
+      "apartment_zone": "outside_operational_boundary_test_panel",
+      "x": 260,
+      "y": 900
+    }
+  }
+}
