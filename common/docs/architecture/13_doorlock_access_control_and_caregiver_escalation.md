@@ -24,7 +24,7 @@ A major objective of this project is to support users who cannot easily speak or
 
 - constrained alternative input (for example, single-hit or bounded button input),
 - environmental and device context,
-- event context such as a doorbell press,
+- visitor-response context such as `doorbell_detected`, which represents a recent doorbell or visitor-arrival signal,
 - and LLM-based interpretation of likely user intent.
 
 In such settings, the user may intend actions such as:
@@ -101,6 +101,8 @@ Even a short accidental unlock may create a harm window that cannot be undone by
 ### 4.3 Ambiguity of visitor context
 A doorbell event does not uniquely imply that the user wants the door opened.
 
+In the current context schema, `doorbell_detected=true` is a visitor-response interpretation signal. It does **not** authorize autonomous doorlock control.
+
 The same event may correspond to many possible user intentions:
 - notify me only,
 - call my caregiver,
@@ -130,12 +132,20 @@ A user may express a visitor-response intention through constrained input, such 
 
 The system may then collect:
 - physical environment context,
-- device state context,
-- event context such as doorbell activation,
+- observable device state context,
+- `doorbell_detected` as visitor-response context,
 - caregiver presence/absence context if available,
 - and other bounded assistance-relevant information.
 
 This information may be provided to the LLM for **intent interpretation**.
+
+Current schema boundary:
+
+- `doorbell_detected` is part of `environmental_context`.
+- Doorlock state is **not** currently part of `context_schema.device_states`.
+- Doorlock state, approval state, and ACK state should be represented through separate experiment annotations, mock approval state, dashboard-side observations, audit artifacts, or a future schema revision.
+
+This boundary means that doorlock can remain an implementation-facing representative interface without being silently inserted into the current pure-context device-state contract.
 
 ## 5.2 But door unlock must not enter autonomous Class 1 execution
 Even if the LLM infers that the user likely wants the door opened, the current architecture must prevent that interpretation from becoming autonomous unlock execution.
@@ -157,7 +167,7 @@ This means the effective execution path is:
 - safety restriction enforcement,
 - caregiver handoff,
 - manual approval,
-- bounded actuator dispatch,
+- bounded actuator dispatch through a separately governed manual confirmation path,
 - ACK verification,
 - local audit logging.
 
@@ -172,12 +182,14 @@ When the user produces a bounded input event, the system collects a context pack
 
 - the user’s alternative input signal,
 - relevant environmental context,
-- relevant device state,
-- relevant visitor event context,
+- observable device state context,
+- `doorbell_detected` as relevant visitor-response context,
 - and other bounded physical context useful for interpretation.
 
 The LLM-facing input should remain focused on meaningful user-intent context.  
 Operational routing metadata, network diagnostics, or unrelated internal system metadata should not be mixed into that interpretation payload unless explicitly required.
+
+Doorlock state is not currently included in `context_schema.device_states`; if an experiment needs doorlock state, approval state, or ACK state, it should keep those values outside the current pure-context `device_states` object unless a future schema revision explicitly adds them.
 
 ## Step 2. LLM-based intent interpretation under bounded actuation restrictions
 The LLM may interpret the user’s likely intent and generate bounded intent candidates such as:
@@ -215,11 +227,11 @@ Once autonomous unlock is blocked, the system should transition into a caregiver
 The system may send a bounded outbound notification through a safe outbound-only channel, such as Telegram, containing:
 
 - situation summary,
-- visitor event summary,
+- visitor event summary including `doorbell_detected` when relevant,
 - relevant context summary,
 - and a manual confirmation path for caregiver review.
 
-Door unlock may be issued only after caregiver approval through an explicitly bounded approval path.
+Door unlock may be issued only after caregiver approval through a separately governed manual confirmation path outside the Class 1 validator executable payload.
 
 ## Step 5. Closed-loop ACK verification and local audit logging
 If caregiver approval results in a doorlock command being issued, the system must verify physical or device-state acknowledgment.
@@ -234,6 +246,7 @@ That closed-loop verification should include:
 The following should be logged locally through the single-writer audit path:
 
 - user input interpretation summary,
+- `doorbell_detected` or visitor-response context when relevant,
 - LLM output classification,
 - validator rejection or escalation record,
 - caregiver approval outcome,
@@ -301,14 +314,20 @@ However, it has strong implications for how existing assets should be interprete
 ### 9.1 Low-risk action catalog
 If door unlock is not present in the frozen low-risk action catalog, then it must not be silently treated as a standard autonomous Class 1 action.
 
-### 9.2 Candidate action schema
+### 9.2 Context schema
+`doorbell_detected` is currently the schema-level visitor-response context signal.
+
+Doorlock state is not currently part of `context_schema.device_states`. This does not mean doorlock is out of implementation scope; it means the current pure-context device-state contract does not authorize or carry doorlock state as a normal Class 1 context field.
+
+### 9.3 Candidate action schema
 If doorlock action types are absent from the permitted candidate action domain, then autonomous unlock must remain structurally blocked.
 
-### 9.3 Validator output behavior
+### 9.4 Validator output behavior
 Validator behavior must remain consistent with the principle that restricted sensitive actions are escalated rather than silently admitted into the execution path.
 
-### 9.4 Required experiments
+### 9.5 Required experiments
 This interpretation implies that doorlock-related tests should focus on:
+- doorbell-context-aware visitor-response interpretation,
 - blocked autonomous unlock,
 - caregiver handoff,
 - manual approval path,
@@ -329,7 +348,8 @@ Possible future addition:
 Possible future addition:
 - schema support for bounded caregiver-approved doorlock actuation records,
 - explicit approval metadata,
-- explicit ACK/outcome logging fields.
+- explicit ACK/outcome logging fields,
+- optional or required doorlock state representation if it becomes part of a future pure-context contract.
 
 ### 10.3 Low-risk catalog review
 This document does **not** recommend silently adding door unlock to the autonomous low-risk catalog.
@@ -348,6 +368,7 @@ Prompt files and coding instructions should reflect the following rules:
 
 - do not assume doorlock is part of autonomous low-risk Class 1 execution,
 - do not generate direct autonomous unlock logic without caregiver approval,
+- treat `doorbell_detected` as visitor-response context, not unlock authorization,
 - treat doorlock as a sensitive actuation domain,
 - allow representative doorlock-node implementation,
 - but preserve the distinction between implementation-facing interface support and authorized autonomous actuation scope.
@@ -368,19 +389,23 @@ The following experiment families are recommended.
 Goal:
 - verify that LLM-inferred unlock intent is not autonomously executed.
 
-### 12.2 Caregiver escalation path validation
+### 12.2 Doorbell-context-aware interpretation
+Goal:
+- verify that `doorbell_detected=true` and `doorbell_detected=false` are interpreted differently where appropriate, while neither state authorizes autonomous door unlock.
+
+### 12.3 Caregiver escalation path validation
 Goal:
 - verify that doorlock-sensitive requests are routed to caregiver approval instead of autonomous dispatch.
 
-### 12.3 Manual approval to ACK closed loop
+### 12.4 Manual approval to ACK closed loop
 Goal:
 - verify:
-  - caregiver approval,
-  - command dispatch,
+  - caregiver approval through a separately governed manual confirmation path,
+  - command dispatch outside the Class 1 validator executable payload,
   - physical/device ACK,
   - local audit logging.
 
-### 12.4 Safe deferral for ambiguous visitor-response intent
+### 12.5 Safe deferral for ambiguous visitor-response intent
 Goal:
 - verify that ambiguous visitor situations can be resolved without unsafe autonomous unlock.
 
@@ -391,9 +416,10 @@ Goal:
 The current recommended interpretation is:
 
 - implement doorlock as a representative bounded actuator interface if needed,
+- use `doorbell_detected` as visitor-response context,
 - allow the LLM to interpret constrained user intent in visitor-response situations,
 - do not allow autonomous unlock as a standard Class 1 low-risk action,
-- route unlock-related sensitive outcomes through caregiver escalation,
+- route unlock-related sensitive outcomes through caregiver escalation or a separately governed manual confirmation path,
 - require ACK-based closed-loop verification,
 - and log all relevant steps locally.
 
@@ -405,6 +431,8 @@ This preserves the research goal of using LLMs to support limited-input users, w
 
 In the current safe_deferral architecture, doorlock opening is treated as a **sensitive actuation domain**, not as an ordinary low-risk assistance action.
 
-The LLM may help interpret what the user wants in a visitor-related situation, but it must not autonomously authorize or execute door unlock. Instead, door unlock must remain structurally blocked from autonomous Class 1 execution and should proceed only through caregiver escalation, manual approval, ACK-based closed-loop verification, and local audit logging.
+`doorbell_detected` may help the system interpret a visitor-related situation, but it does not authorize autonomous door unlock.
+
+The LLM may help interpret what the user wants in a visitor-related situation, but it must not autonomously authorize or execute door unlock. Instead, door unlock must remain structurally blocked from autonomous Class 1 execution and should proceed only through caregiver escalation, a separately governed manual confirmation path, ACK-based closed-loop verification, and local audit logging.
 
 This interpretation allows the project to support alternative-input intent recovery without sacrificing residential security and user safety.
