@@ -206,9 +206,11 @@ Requirements:
   - temperature,
   - illuminance,
   - occupancy-adjacent bounded signals,
+  - `doorbell_detected` visitor-response context signal,
   - simple device-state reporting,
   but do not invent unsupported schema fields.
 - Sensor payloads must align with the frozen context schema and aligned project documents.
+- `doorbell_detected` must be represented as `environmental_context.doorbell_detected` and must not authorize autonomous doorlock control.
 - Sampling and publish behavior must be deterministic and easy to replay in evaluation contexts.
 - Include safe handling for sensor initialization failure, unavailable readings, and stale data conditions.
 - Do not interpret sensed values into local autonomous actuator behavior.
@@ -463,7 +465,7 @@ Requirements:
 - The runner must load scenario definitions from repository-managed files rather than hardcoding cases.
 - Each scenario should support:
   - bounded input event
-  - environmental context
+  - environmental context including `doorbell_detected` where visitor-response interpretation is relevant
   - device state context
   - intended interpretation label
   - optional expected safe outcome label
@@ -477,6 +479,7 @@ Requirements:
   - consume bounded input plus context
   - produce bounded interpretation candidates
   - remain policy/validator constrained for all executable outcomes
+- Visitor-response scenarios should represent doorbell context using `environmental_context.doorbell_detected`. This field is an interpretation context signal and must not authorize autonomous doorlock control.
 - The runner must compute at least:
   - Intent Recovery Accuracy
   - Top-k Candidate Containment
@@ -523,12 +526,14 @@ Requirements:
   - intended interpretation label
   - optional expected safe outcome
   - notes on ambiguity or insufficiency
+- Visitor-response scenarios must represent doorbell context using `environmental_context.doorbell_detected` from the frozen context schema.
+- `doorbell_detected` is an interpretation context signal and must not authorize autonomous doorlock control.
 - Include scenario families such as:
   1. same bounded input, different environmental context
   2. same bounded input, different device state context
   3. ambiguity that should lead to safe deferral
   4. ambiguity that should lead to caregiver escalation
-  5. visitor-response / doorbell situations with multiple candidate interpretations
+  5. visitor-response / `doorbell_detected` situations with multiple candidate interpretations
   6. cases where direct mapping over-escalates
   7. cases where rule-only logic fails to recover intended interpretation
 - Preserve the distinction between:
@@ -559,6 +564,8 @@ Target repository areas:
 
 Requirements:
 - The purpose of this component is to evaluate whether visitor-response situations are handled safely under the current architecture interpretation.
+- Visitor-response scenarios must represent doorbell context using `environmental_context.doorbell_detected`.
+- `doorbell_detected` may affect interpretation confidence or routing explanation, but it must not authorize autonomous doorlock control.
 - The flow must support scenarios where the system may interpret candidate intentions such as:
   - notify only
   - call caregiver
@@ -580,6 +587,7 @@ Requirements:
   - timeout
   - mismatch
 - Generate evaluation outputs for:
+  - doorbell-context-aware interpretation
   - autonomous unlock blocked verification
   - caregiver escalation correctness
   - approval-path correctness
@@ -590,6 +598,7 @@ Requirements:
   - common/docs/required_experiments.md
   - common/docs/paper/01_paper_contributions.md
 - Include unit or integration tests for:
+  - `doorbell_detected=true` vs `doorbell_detected=false` interpretation difference where applicable
   - blocked autonomous unlock
   - caregiver escalation path
   - approval required before dispatch
@@ -604,12 +613,12 @@ Requirements:
 Implement an experiment dashboard control surface for the safe deferral project.
 
 Target repository areas:
-- mac_mini/code/ (if backend/API support is needed)
-- any dashboard-oriented repository area already used by the project
+- rpi/code/ or the RPi dashboard-oriented repository area
 - integration/measurement/ (only if result-export integration is needed)
+- mac_mini/code/ only for telemetry, audit-summary, or control-state APIs/topics consumed by the RPi dashboard
 
 Requirements:
-- Treat the dashboard as an experiment operations console rather than a low-level debug tool.
+- Treat the dashboard as a Raspberry Pi 5-hosted experiment operations and monitoring console rather than a low-level debug tool or policy authority.
 - The dashboard should support:
   - experiment selection
   - preflight readiness visibility
@@ -619,21 +628,23 @@ Requirements:
   - result summary
   - graph/CSV export hooks when available
 - It must support doorlock-sensitive experiment visibility such as:
+  - `doorbell_detected` visitor-response context state
   - autonomous unlock blocked status
   - caregiver escalation state
   - manual approval state
   - ACK state
   - audit completeness state
 - Do not implement unrestricted doorlock control UI as if it were a standard low-risk autonomous action.
-- The dashboard may initiate experiment execution, but it must not bypass policy, validator, or orchestration boundaries.
+- The dashboard may initiate experiment execution through the experiment/orchestration layer, but it must not bypass policy, validator, caregiver approval, or audit boundaries.
 - Keep the design aligned with:
   - common/docs/required_experiments.md
   - common/docs/paper/01_paper_contributions.md
   - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
-- If backend support is required, keep Mac mini as the natural control-side host.
+- If backend support is required, keep Raspberry Pi 5 as the experiment dashboard host. Mac mini may expose governed operational telemetry, audit summaries, and control-state APIs/topics consumed by the RPi dashboard, but it must not become the experiment dashboard authority.
 - Include tests or verification notes for:
   - experiment readiness display
   - required-node state display
+  - `doorbell_detected` visitor-response state display
   - experiment start/stop flow
   - sensitive-actuation status panel rendering
   - result export path rendering when available
@@ -647,17 +658,17 @@ Requirements:
 Implement a developer/test-app flow for fine-grained experiment control and debug visibility.
 
 Target repository areas:
-- mac_mini/code/ (if backend/API support is needed)
-- any test-app-oriented repository area already used by the project
+- rpi/code/ or a test-app-oriented experiment support area when used for experiment/debug control
+- mac_mini/code/ only if governed operational telemetry, mock bridge, or runtime adapter support is needed
 - integration/tests/
 - integration/scenarios/
 
 Requirements:
-- Treat the test app as a developer/research control surface rather than the main operations dashboard.
+- Treat the test app as a developer/research control surface rather than the main RPi-hosted operations dashboard.
 - The test app should support finer-grained interactions such as:
   - raw scenario invocation
   - direct mapping vs rule-only vs LLM-assisted baseline selection
-  - visitor-response mock event injection
+  - visitor-response mock event injection using `environmental_context.doorbell_detected`
   - caregiver approval mock state injection
   - ACK success/timeout/mismatch simulation
   - raw payload/log/debug visibility
@@ -668,9 +679,10 @@ Requirements:
   - common/docs/required_experiments.md
   - common/docs/paper/01_paper_contributions.md
   - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
-- Prefer Mac mini as the control-side host when a host distinction is needed.
+- Keep developer/test-app control clearly separated from the RPi-hosted experiment dashboard. If Mac mini APIs are used, they should expose governed operational telemetry or mock control endpoints without bypassing policy, validator, caregiver approval, or audit boundaries.
 - Include tests or verification notes for:
   - baseline selector behavior
+  - `doorbell_detected` mock injection
   - mock approval state injection
   - ACK mock behavior
   - raw scenario execution
@@ -690,12 +702,12 @@ Target repository areas:
 - integration/tests/
 
 Requirements:
-- Treat Raspberry Pi as the natural host for scenario execution, simulation, replay, and fault-injection support.
+- Treat Raspberry Pi 5 as the natural host for experiment dashboard support, scenario execution, simulation, replay, fault-injection support, progress/status publication, and result artifact generation.
 - The orchestrator must support sequence-based sensitive-actuation scenarios rather than only single isolated events.
 - At minimum, support:
   - visitor-response scenario family selection
-  - bounded input or doorbell-style trigger injection
-  - contextual state bundle setup
+  - bounded input or `doorbell_detected` trigger/context injection
+  - contextual state bundle setup using the frozen context schema
   - expected safe outcome declaration
   - caregiver approval state variants:
     - approved
@@ -707,17 +719,20 @@ Requirements:
     - timeout
     - mismatch
   - audit/result artifact collection
-- The orchestrator should publish progress/state information in a way that Mac mini-side dashboard/test-app layers can observe.
+- The orchestrator should publish progress/state information in a way that the RPi-hosted dashboard and any developer/test-app layers can observe.
+- Mac mini may expose safety-critical operational telemetry, audit summaries, and control-state topics for the RPi dashboard, but Mac mini must remain the operational edge hub rather than the experiment dashboard host.
 - Keep the role distinction explicit:
-  - Raspberry Pi = execution/replay/fault-injection support
-  - Mac mini = control-side UI and result visibility
+  - Raspberry Pi 5 = experiment dashboard, orchestration, replay, fault-injection support, progress/status publication, and result artifact generation
+  - Mac mini = safety-critical operational edge hub exposing telemetry/audit/control-state topics for the RPi dashboard
 - Do not reinterpret doorlock as a standard autonomous low-risk action during orchestration.
+- Do not treat `doorbell_detected` as doorlock unlock authorization.
 - Keep the design aligned with:
   - common/docs/required_experiments.md
   - common/docs/paper/01_paper_contributions.md
   - common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md
 - Include tests or verification notes for:
   - visitor-response family loading
+  - `doorbell_detected` context injection
   - approval-state branch execution
   - ACK branch execution
   - result artifact generation
