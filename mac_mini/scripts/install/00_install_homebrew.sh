@@ -15,6 +15,21 @@ fi
 
 echo "  [OK] Operating System is macOS."
 
+# 1a. Homebrew는 root로 설치하면 안 됨
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "  [FAIL] Do not run Homebrew installation as root."
+    echo "  [INFO] Re-run this script as the normal macOS user account that will operate the Mac mini hub."
+    exit 1
+fi
+
+# 1b. 관리자 권한 안내. Homebrew 설치 과정에서 sudo/admin 권한이 필요할 수 있음
+if ! id -Gn | grep -qw admin; then
+    echo "  [WARN] Current user may not have macOS admin privileges."
+    echo "  [INFO] Homebrew installation may fail if sudo/admin access is unavailable."
+else
+    echo "  [OK] Current user appears to be in the macOS admin group."
+fi
+
 # 2. 이미 설치되어 있으면 종료
 if command -v brew >/dev/null 2>&1; then
     echo "  [OK] Homebrew is already installed. Skipping installation."
