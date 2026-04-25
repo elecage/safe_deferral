@@ -2,14 +2,47 @@
   "registry_version": "1.0.0",
   "status": "DRAFT",
   "description": "Initial MQTT topic registry for safe_deferral. Topic names are implementation-facing draft contracts and must be reviewed before freezing.",
-  "authority_note": "This registry defines communication contracts, not policy authority. Policies and schemas under common/policies and common/schemas remain authoritative.",
+  "authority_note": "This registry defines communication contracts, not policy authority. Policies and schemas under common/policies and common/schemas remain authoritative. Interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are governance/verification evidence artifacts and must not be interpreted as operational authorization mechanisms.",
+  "package_g_note": "Package G validates topic registry readability, publisher/subscriber consistency, topic-payload contract resolution, payload example validation, interface-matrix alignment, topic/payload hardcoding drift detection, governance backend/UI separation, and governance report non-authority.",
   "global_rules": [
     "All schema-governed payloads must validate against the referenced schema.",
+    "All referenced example_payload files should exist under common/payloads/examples/ when specified.",
     "Dashboard topics are visibility artifacts and must not become policy authority.",
     "Audit topics are evidence artifacts and must not become policy authority.",
     "RPi simulation and fault topics are allowed only in controlled experiment or simulation mode.",
     "doorbell_detected is visitor-response context only and must not authorize autonomous doorlock control.",
-    "Doorlock-sensitive outcomes must route through Class 2 escalation or separately governed manual confirmation with ACK and audit."
+    "Doorlock-sensitive outcomes must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.",
+    "Governance dashboard UI must call the governance backend for create/update/delete/validation/export operations and must not directly edit registry files.",
+    "Governance dashboard UI must not publish operational control topics, expose unrestricted actuator consoles, or expose direct doorlock command controls.",
+    "Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert draft/proposed changes into live authority without review.",
+    "FAULT_CONTRACT_DRIFT_01 is a governance/verification fault profile and must not be treated as an operational control path."
+  ],
+  "governance_validation_artifacts": [
+    {
+      "artifact": "interface_matrix_alignment_report",
+      "producer": "governance_backend_or_verification_script",
+      "authority_boundary": "evidence_only_not_operational_authorization"
+    },
+    {
+      "artifact": "topic_drift_report",
+      "producer": "governance_backend_or_verification_script",
+      "authority_boundary": "evidence_only_not_policy_truth"
+    },
+    {
+      "artifact": "payload_validation_report",
+      "producer": "payload_validator_or_governance_backend",
+      "authority_boundary": "evidence_only_not_schema_authority"
+    },
+    {
+      "artifact": "governance_backend_ui_separation_report",
+      "producer": "verification_script_or_integration_test",
+      "authority_boundary": "evidence_only_not_control_authority"
+    },
+    {
+      "artifact": "proposed_change_review_report",
+      "producer": "governance_backend",
+      "authority_boundary": "proposed_changes_only_not_live_authority_without_review"
+    }
   ],
   "topics": [
     {
@@ -320,7 +353,8 @@
       "audit_recommended": true,
       "notes": [
         "Fault generation must derive constraints from frozen policy/schema/rules assets.",
-        "Future schema recommended if fault command payload stabilizes."
+        "Future schema recommended if fault command payload stabilizes.",
+        "FAULT_CONTRACT_DRIFT_01 is governance/verification only and must not create runtime authority."
       ]
     },
     {
