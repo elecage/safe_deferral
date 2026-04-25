@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 30_prepare_managed_components_esp32.sh
 # Purpose: Prepare managed component cache and optional project-level placeholder
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
@@ -25,7 +25,18 @@ MANAGED_COMPONENTS_CACHE_DIR="${TARGET_WORKSPACE}/managed_components_cache"
 COMPONENT_PLACEHOLDER_FILE="${SAMPLE_PROJECT_DIR}/idf_component.yml"
 
 mkdir -p "${MANAGED_COMPONENTS_CACHE_DIR}"
-mkdir -p "${SAMPLE_PROJECT_DIR}"
+
+if [ ! -d "${SAMPLE_PROJECT_DIR}" ]; then
+    echo "  [FATAL] Sample project directory not found: ${SAMPLE_PROJECT_DIR}"
+    echo "          Please run 40_prepare_sample_project_esp32.sh before this script."
+    exit 1
+fi
+
+if [ ! -f "${SAMPLE_PROJECT_DIR}/CMakeLists.txt" ] || [ ! -d "${SAMPLE_PROJECT_DIR}/main" ]; then
+    echo "  [FATAL] Sample project does not look like a prepared ESP-IDF project: ${SAMPLE_PROJECT_DIR}"
+    echo "          Please run 40_prepare_sample_project_esp32.sh before this script."
+    exit 1
+fi
 
 if [ ! -f "${COMPONENT_PLACEHOLDER_FILE}" ]; then
     cat <<EOF > "${COMPONENT_PLACEHOLDER_FILE}"
@@ -38,4 +49,5 @@ else
 fi
 
 echo "  [OK] Managed component cache directory prepared at ${MANAGED_COMPONENTS_CACHE_DIR}."
+echo "  [INFO] This script is intended to run after 40_prepare_sample_project_esp32.sh."
 echo "==> [PASS] Managed component workspace preparation completed."
