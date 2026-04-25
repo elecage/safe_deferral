@@ -40,8 +40,17 @@ function Add-EnvVarIfMissing {
         }
         Add-Content -Path $EnvFile -Value "`$$Key = '$Value'"
         Write-Host "  [OK] Appended missing key: $Key"
+    } else {
+        Write-Host "  [INFO] Preserving existing key: $Key"
     }
 }
+
+Add-EnvVarIfMissing -Key 'ESP32_NODE_ROLE' -Value 'bounded_physical_node' -Comment 'ESP32 role boundary for safe_deferral'
+Add-EnvVarIfMissing -Key 'ALLOW_ESP32_POLICY_AUTHORITY' -Value 'false'
+Add-EnvVarIfMissing -Key 'ALLOW_ESP32_VALIDATOR_AUTHORITY' -Value 'false'
+Add-EnvVarIfMissing -Key 'ALLOW_ESP32_LLM_INFERENCE' -Value 'false'
+Add-EnvVarIfMissing -Key 'ALLOW_ESP32_CAREGIVER_APPROVAL_AUTHORITY' -Value 'false'
+Add-EnvVarIfMissing -Key 'ALLOW_ESP32_DIRECT_DOORLOCK_AUTHORITY' -Value 'false'
 
 Add-EnvVarIfMissing -Key 'ESP32_WORKSPACE_DIR' -Value $WorkspaceDir -Comment 'Common ESP32 Workspace Settings'
 Add-EnvVarIfMissing -Key 'ESP_ROOT' -Value (Join-Path $HOME 'esp')
@@ -56,4 +65,5 @@ Add-EnvVarIfMissing -Key 'ESPPORT' -Value '' -Comment 'Optional serial port over
 Add-EnvVarIfMissing -Key 'ESPBAUD' -Value '460800'
 
 Write-Warning "Review IDF_PATH, ESP_IDF_GIT_REF, and ESPPORT in $EnvFile."
+Write-Host '  [INFO] ESP32 authority flags must remain false unless a future documented architecture revision changes them.'
 Write-Host '==> [PASS] ESP32 common environment variables configured for Windows.'
