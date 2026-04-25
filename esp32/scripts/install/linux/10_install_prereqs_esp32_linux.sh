@@ -51,4 +51,31 @@ fi
 python3 --version | awk '{print "    - "$0}'
 dfu-util --version 2>&1 | awk 'NR==1{print "    - "$0}'
 
+echo "  [INFO] Checking serial-port group membership for ESP32 flash/monitor access..."
+SERIAL_GROUP_CANDIDATES=(dialout uucp tty plugdev)
+USER_GROUPS="$(id -nG "${USER}" 2>/dev/null || groups "${USER}" 2>/dev/null || true)"
+HAS_SERIAL_GROUP=false
+
+for group_name in "${SERIAL_GROUP_CANDIDATES[@]}"; do
+    if printf '%s\n' "${USER_GROUPS}" | tr ' ' '\n' | grep -qx "${group_name}"; then
+        HAS_SERIAL_GROUP=true
+        echo "  [OK] User '${USER}' is a member of serial-access group: ${group_name}"
+        break
+    fi
+done
+
+if [ "${HAS_SERIAL_GROUP}" != "true" ]; then
+    echo "  [WARNING] User '${USER}' may not have serial-port access for ESP32 flash/monitor."
+    echo "            Current groups: ${USER_GROUPS:-<unknown>}"
+    case "${PKG_MANAGER}" in
+      apt|dnf)
+        echo "            Suggested command: sudo usermod -aG dialout ${USER}"
+        ;;
+      pacman)
+        echo "            Suggested command: sudo usermod -aG uucp ${USER}"
+        ;;
+    esac
+    echo "            Log out and back in after changing group membership."
+fi
+
 echo "==> [PASS] Linux prerequisites installed successfully."
