@@ -1,0 +1,42 @@
+{
+  "payload_family": "CLASS2_USER_SELECTION",
+  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "clarification_id": "clarification_sample_class2_002",
+  "audit_correlation_id": "sample_class2_case_002",
+  "source_scenario": "SCN_CLASS2_INSUFFICIENT_CONTEXT",
+  "source_layer": "class2_clarification_manager",
+  "unresolved_reason": "insufficient_context",
+  "candidate_choices": [
+    {
+      "candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "prompt": "조명을 켤까요?",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true,
+      "allowed_next_path": "bounded_low_risk_assistance_path"
+    },
+    {
+      "candidate_id": "C3_EMERGENCY_HELP",
+      "prompt": "긴급상황인가요?",
+      "candidate_transition_target": "CLASS_0",
+      "requires_confirmation": true,
+      "allowed_next_path": "immediate_emergency_override_path"
+    }
+  ],
+  "presentation_channel": "tts",
+  "selection_result": {
+    "selected_candidate_id": "C3_EMERGENCY_HELP",
+    "selection_source": "bounded_input_node",
+    "confirmed": true,
+    "selection_timestamp_ms": 1777100002000
+  },
+  "transition_target": "CLASS_0",
+  "timeout_result": "not_applicable",
+  "llm_boundary": {
+    "candidate_generation_only": true,
+    "final_decision_allowed": false,
+    "actuation_authority_allowed": false,
+    "emergency_trigger_authority_allowed": false
+  },
+  "timestamp_ms": 1777100002000,
+  "notes": "User selected the emergency-help candidate. This selection is confirmation evidence for policy routing to the emergency path; LLM candidate text alone does not trigger Class 0."
+}
