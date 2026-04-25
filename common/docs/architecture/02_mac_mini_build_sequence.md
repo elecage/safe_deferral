@@ -226,8 +226,12 @@ Hub-side application development must remain bounded by:
 - canonical schemas
 - canonical escalation semantics
 
+Hub-side context models and adapters must include `environmental_context.doorbell_detected` as a required field. Non-visitor scenarios should default it to `false`; visitor-response scenarios may set it to `true`.
+
 The LLM must not become an autonomous execution authority.  
 The deterministic validator remains the approval authority before any hub-side actuation dispatch.
+
+`doorbell_detected=true` may support visitor-response interpretation, but it must not authorize autonomous doorlock control. Doorlock-related sensitive actuation must remain outside the Class 1 validator executable payload and route to Class 2 escalation or a separately governed manual confirmation path unless future frozen policy/schema revisions explicitly change this boundary.
 
 ---
 
@@ -239,9 +243,10 @@ Connect and validate operational flows with real or semi-real physical nodes.
 1. Connect ESP32 button node
 2. Connect ESP32 lighting control node
 3. Connect representative environmental sensing node used in the current canonical validation baseline
-4. Validate end-to-end Class 0 / Class 1 / Class 2 behavior
-5. Validate safe deferral behavior under incomplete or conflicting context
-6. Validate bounded physical input/output behavior without bypassing policy control
+4. Connect ESP32 doorbell / visitor-arrival context node where visitor-response or doorlock-sensitive validation is included
+5. Validate end-to-end Class 0 / Class 1 / Class 2 behavior
+6. Validate safe deferral behavior under incomplete or conflicting context
+7. Validate bounded physical input/output behavior without bypassing policy control
 
 ### Optional experimental physical-node targets
 - ESP32 gas sensor node
@@ -249,7 +254,7 @@ Connect and validate operational flows with real or semi-real physical nodes.
 - ESP32 fall-detection interface node
 
 ### Planned extension targets
-- ESP32 doorlock or warning interface node beyond the current canonical low-risk action scope
+- ESP32 doorlock or warning interface node beyond the current canonical low-risk action scope; doorlock must remain caregiver-mediated or manually governed unless future frozen policy/schema revisions explicitly promote it
 
 ### Canonical emergency alignment
 Physical-node validation should remain consistent with the canonical emergency trigger family defined by policy:
@@ -259,6 +264,8 @@ Physical-node validation should remain consistent with the canonical emergency t
 - `E003`: smoke detected
 - `E004`: gas detected
 - `E005`: fall detected
+
+`doorbell_detected` is not a current emergency trigger. It is visitor-response context and must not be interpreted as Class 0 emergency evidence or doorlock execution authority.
 
 ### Phase intent
 This phase corresponds to the **physical-node validation layer** of the project.  
@@ -275,17 +282,20 @@ It is intended to verify that real bounded input and output paths behave correct
 
 ## Phase 8. Evaluation Extension with Virtual Nodes and Timing Infrastructure
 
-Extend the operational hub with Raspberry Pi-based simulation, fault injection, and experiment orchestration tooling.
+Extend the operational hub with Raspberry Pi-based simulation, fault injection, experiment dashboard, and experiment orchestration tooling.
 
-1. Connect Raspberry Pi 5 as simulation and evaluation node
+1. Connect Raspberry Pi 5 as simulation, dashboard, orchestration, and evaluation node
 2. Deploy multi-node virtual sensor/state runtime
-3. Deploy virtual emergency sensors
-4. Deploy fault injector harness
-5. Run stale / missing / conflict / fail-safe experiments
-6. Run closed-loop automated verification
-7. Prepare optional STM32 timing node or equivalent dedicated timing node
-8. Run out-of-band class-wise latency measurement
-9. Run scalable routing, safety, latency, and fault-handling experiments
+3. Deploy virtual `doorbell_detected` visitor-response context generation when required for visitor-response or doorlock-sensitive experiments
+4. Deploy virtual emergency sensors
+5. Deploy fault injector harness
+6. Deploy the Raspberry Pi 5 experiment and monitoring dashboard for scenario selection, node readiness, progress visualization, result summaries, and CSV/graph export
+7. Run stale / missing / conflict / fail-safe experiments
+8. Run visitor-response and doorlock-sensitive evaluation scenarios using `doorbell_detected`, autonomous-unlock-blocked checks, caregiver escalation state, manual approval state, ACK state, and audit completeness
+9. Run closed-loop automated verification
+10. Prepare optional STM32 timing node or equivalent dedicated timing node
+11. Run out-of-band class-wise latency measurement
+12. Run scalable routing, safety, latency, and fault-handling experiments
 
 ### Phase intent
 This phase corresponds to the **virtual-node evaluation and experimental validation layer** of the project.  
@@ -294,7 +304,7 @@ It is intended to support repeatable large-scale experiments that would be impra
 ### Role separation
 - **Mac mini**: operational hub
 - **ESP32**: bounded physical node layer
-- **Raspberry Pi 5**: multi-node simulation, fault injection, and closed-loop evaluation node
+- **Raspberry Pi 5**: experiment dashboard, multi-node simulation, fault injection, scenario orchestration, replay, closed-loop evaluation, progress/status publication, and result artifact generation
 - **STM32 timing node or equivalent**: optional out-of-band latency measurement infrastructure
 
 ### Repository locations
@@ -309,18 +319,20 @@ It is intended to support repeatable large-scale experiments that would be impra
 The Raspberry Pi 5 extends evaluation capacity, but it does not redefine canonical operational policy.  
 The operational hub remains the Mac mini.
 
+The Raspberry Pi 5 dashboard and orchestration layers may visualize visitor-response or doorlock-sensitive experiment state, but they must not bypass policy routing, deterministic validation, caregiver approval, ACK verification, or audit logging.
+
 ---
 
 ## Architectural Summary
 
 - The **Mac mini** is the primary operational hub.
-- The **ESP32** is the embedded physical node layer for bounded input, sensing, and actuator/warning interfacing within the applicable scope.
-- The **Raspberry Pi 5** is the scalable simulation and experiment orchestration node.
+- The **ESP32** is the embedded physical node layer for bounded input, sensing, visitor-response context generation, and actuator/warning interfacing within the applicable scope.
+- The **Raspberry Pi 5** is the scalable simulation, experiment dashboard, scenario orchestration, fault injection, replay, and result artifact generation node.
 - **STM32 timing nodes or equivalent dedicated measurement nodes** may be used for out-of-band class-wise latency measurement.
 - Shared frozen assets are maintained under **`common/`**.
 - Hub-side setup, configuration, verification, and future code are maintained under **`mac_mini/`**.
 - Embedded device firmware and device-specific implementation assets are maintained under **`esp32/`**.
-- Simulation-side setup, configuration, verification, and future code are maintained under **`rpi/`**.
+- Simulation-side setup, configuration, verification, dashboard, and future code are maintained under **`rpi/`**.
 - End-to-end validation and experiment scenarios are maintained under **`integration/`**.
 
 ---
@@ -336,6 +348,6 @@ The Mac mini build sequence should preserve the following order of truth:
 5. verify services and asset alignment
 6. develop bounded hub-side applications
 7. validate physical-node integration
-8. extend evaluation through virtual-node and timing infrastructure
+8. extend evaluation through virtual-node, dashboard, orchestration, and timing infrastructure
 
 At no point should deployment-local convenience override the canonical frozen policy/schema baseline.
