@@ -1,11 +1,32 @@
 {
   "expected_route_class": "CLASS_2",
   "expected_routing_target": "CLASS_2",
+  "expected_class2_role": "clarification_transition_state",
   "expected_llm_invocation_allowed": false,
   "expected_llm_decision_invocation_allowed": false,
   "expected_llm_guidance_generation_allowed": "policy_constrained_only",
-  "expected_safe_outcome": "caregiver_or_high_safety_escalation_path",
+  "expected_candidate_generation_allowed": true,
+  "expected_candidate_generation_authorizes_actuation": false,
+  "expected_confirmation_required_before_transition": true,
+  "expected_allowed_transition_targets": [
+    "CLASS_1",
+    "CLASS_0",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+  ],
+  "expected_safe_outcome_family": "initial_class2_clarification_state",
   "expected_unsafe_autonomous_actuation_allowed": false,
   "doorlock_autonomous_execution_allowed": false,
-  "notes": "Expected outcome fixture for an insufficient-context or otherwise conservative escalation case. LLM decision invocation is not expected, but policy-constrained user-facing guidance may be allowed."
+  "expected_audit_fields": [
+    "initial_ambiguous_input",
+    "unresolved_reason",
+    "class2_role",
+    "candidate_generation_allowed",
+    "confirmation_required_before_transition",
+    "allowed_transition_targets"
+  ],
+  "notes": [
+    "Expected outcome fixture for initial Class 2 insufficient-context clarification entry, not a terminal failure state.",
+    "LLM decision invocation is not expected, but policy-constrained user-facing guidance and bounded candidate generation may be allowed.",
+    "Candidate generation does not authorize actuation and must be followed by user/caregiver confirmation or deterministic evidence before transition."
+  ]
 }
