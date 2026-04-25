@@ -3,13 +3,13 @@
   "routing_metadata": {
     "audit_correlation_id": "example-visitor-doorbell-001",
     "ingest_timestamp_ms": 1710000000100,
-    "network_status": "local_controlled_simulation"
+    "network_status": "online"
   },
   "pure_context_payload": {
     "trigger_event": {
-      "event_type": "button",
-      "event_code": "single_hit",
-      "event_timestamp_ms": 1710000000100
+      "event_type": "sensor",
+      "event_code": "doorbell_detected",
+      "timestamp_ms": 1710000000100
     },
     "environmental_context": {
       "temperature": 23.5,
