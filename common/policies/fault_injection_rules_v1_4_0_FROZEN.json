@@ -4,13 +4,23 @@
   "asset_dependencies": [
     "policy_table_v1_1_2_FROZEN.json",
     "context_schema_v1_0_0_FROZEN.json",
-    "validator_output_schema_v1_1_0_FROZEN.json"
+    "validator_output_schema_v1_1_0_FROZEN.json",
+    "topic_registry_v1_0_0.json",
+    "publisher_subscriber_matrix_v1_0_0.md",
+    "topic_payload_contracts_v1_0_0.md",
+    "15_interface_matrix.md",
+    "17_payload_contract_and_registry.md"
   ],
-  "dependency_contract_note": "Dynamic references and selector-based profile generation in this file are part of the frozen dependency surface. If the referenced schema or policy structure changes, this file must be reviewed for consistency rather than assumed to remain valid.",
+  "dependency_contract_note": "Dynamic references and selector-based profile generation in this file are part of the frozen dependency surface. If the referenced schema, policy, MQTT topic registry, publisher/subscriber matrix, topic-payload contract, interface matrix, or payload registry structure changes, this file must be reviewed for consistency rather than assumed to remain valid.",
   "dynamic_references": {
     "freshness_limit": "$.global_constraints.freshness_threshold_ms",
     "required_environmental_keys": "$.properties.environmental_context.required",
-    "required_device_keys": "$.properties.device_states.required"
+    "required_device_keys": "$.properties.device_states.required",
+    "topic_registry_entries": "common/mqtt/topic_registry_v1_0_0.json",
+    "publisher_subscriber_matrix": "common/mqtt/publisher_subscriber_matrix_v1_0_0.md",
+    "topic_payload_contracts": "common/mqtt/topic_payload_contracts_v1_0_0.md",
+    "interface_matrix": "common/docs/architecture/15_interface_matrix.md",
+    "payload_registry": "common/docs/architecture/17_payload_contract_and_registry.md"
   },
   "deterministic_profiles": {
     "FAULT_STALENESS_01": {
@@ -125,6 +135,33 @@
       "expected_trigger_id": "E005",
       "expected_routing_layer": "Policy Router",
       "schema_dependency_note": "Requires trigger_event.event_code support for fall_detected in context_schema_v1_0_0_FROZEN.json"
+    },
+    "FAULT_CONTRACT_DRIFT_01": {
+      "fault_type": "topic_payload_contract_drift",
+      "target_surface": "mqtt_payload_governance",
+      "manipulation": "inject_unknown_topic_or_wrong_payload_family_or_role_mismatch",
+      "example_mutations": [
+        "publish_to_unknown_topic",
+        "use_wrong_payload_family_for_registered_topic",
+        "assign_forbidden_publisher_role",
+        "omit_required_payload_field",
+        "attempt_doorlock_command_topic_misuse"
+      ],
+      "expected_outcome": "governance_verification_fail_no_runtime_authority",
+      "expected_routing_layer": "MQTT / Payload Governance Verification",
+      "expected_report_artifacts": [
+        "interface_matrix_alignment_report",
+        "topic_drift_report",
+        "payload_validation_report"
+      ],
+      "prohibited_outcomes": [
+        "policy_authority_change",
+        "validator_authority_change",
+        "caregiver_approval_spoof",
+        "actuator_dispatcher",
+        "doorlock_dispatch"
+      ],
+      "interpretation_note": "This is a governance/verification fault, not an operational control fault. Detection reports are evidence artifacts and must not create runtime authority."
     }
   },
   "randomized_stress_profile": {
@@ -155,6 +192,7 @@
       ]
     },
     "generator_note": "Randomized stress injection should avoid intentionally satisfying declared class_0 emergency predicates unless the run is explicitly labeled as an emergency-focused stress profile.",
+    "governance_drift_note": "Topic/payload contract drift should be evaluated under a distinct governance verification profile rather than mixed into default operational non-emergency chaos runs.",
     "future_extension_note": "If emergency-inclusive randomized runs are introduced later, they should use a distinct reporting label and be evaluated separately from the default NON_EMERGENCY_RANDOM mode.",
     "interpretation_note": "If a randomized run is intentionally configured to include emergency predicates, the expected class_0 outcome should be treated as policy-consistent and evaluated under a separate emergency-randomized profile rather than this default non-emergency chaos profile."
   }
