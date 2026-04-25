@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/elecage/safe_deferral/integration/scenarios/scenario_manifest_schema.json",
   "title": "safe_deferral scenario manifest schema",
-  "description": "Documentation schema for integration scenario skeleton manifests. This schema describes the scenario asset contract; it does not define policy or schema authority.",
+  "description": "Documentation schema for integration scenario skeleton manifests. This schema describes the scenario asset contract; it does not define policy or schema authority. It explicitly documents Class 2 clarification/transition fields introduced by policy_table_v1_2_0_FROZEN.json.",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -87,6 +87,17 @@
       "type": "object",
       "additionalProperties": {
         "type": "boolean"
+      },
+      "properties": {
+        "requires_class2_clarification_manager": {
+          "type": "boolean"
+        },
+        "requires_user_feedback_output": {
+          "type": "boolean"
+        },
+        "requires_bounded_selection_input": {
+          "type": "boolean"
+        }
       }
     },
     "steps": {
@@ -122,6 +133,84 @@
           "expected_fixture": {
             "type": "string",
             "minLength": 1
+          },
+          "candidate_choices": {
+            "$ref": "#/$defs/candidate_choices"
+          }
+        }
+      }
+    },
+    "clarification_interaction": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Class 2 clarification/transition metadata. This is scenario metadata and must not be interpreted as pure context, validator output, or actuator command.",
+      "properties": {
+        "class2_role": {
+          "type": "string",
+          "enum": [
+            "clarification_transition_state"
+          ]
+        },
+        "candidate_generation_actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_generation_boundary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "presentation_channels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selection_inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confirmation_required_before_transition": {
+          "type": "boolean",
+          "const": true
+        },
+        "timeout_behavior": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "transition_outcomes": {
+      "type": "array",
+      "description": "Allowed outcome families after Class 2 clarification. These outcomes describe scenario expectations, not direct actuation authority.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "transition_target",
+          "condition"
+        ],
+        "properties": {
+          "transition_target": {
+            "type": "string",
+            "enum": [
+              "CLASS_1",
+              "CLASS_0",
+              "SAFE_DEFERRAL",
+              "CAREGIVER_CONFIRMATION",
+              "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "example_confirmation": {
+            "type": "string"
+          },
+          "allowed_next_path": {
+            "type": "string"
           }
         }
       }
@@ -135,6 +224,12 @@
         },
         "routing_target": {
           "type": "string"
+        },
+        "class2_role": {
+          "type": "string",
+          "enum": [
+            "clarification_transition_state"
+          ]
         },
         "allowed_safe_outcomes": {
           "type": "array",
@@ -160,6 +255,28 @@
             "string"
           ]
         },
+        "candidate_generation_allowed": {
+          "type": "boolean"
+        },
+        "candidate_generation_authorizes_actuation": {
+          "type": "boolean"
+        },
+        "confirmation_required_before_transition": {
+          "type": "boolean"
+        },
+        "allowed_transition_targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "CLASS_1",
+              "CLASS_0",
+              "SAFE_DEFERRAL",
+              "CAREGIVER_CONFIRMATION",
+              "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+            ]
+          }
+        },
         "unsafe_autonomous_actuation_allowed": {
           "type": "boolean"
         },
@@ -179,6 +296,51 @@
       "type": "array",
       "items": {
         "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "candidate_choices": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "candidate_id",
+          "candidate_transition_target"
+        ],
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "user_prompt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "candidate_transition_target": {
+            "type": "string",
+            "enum": [
+              "CLASS_1",
+              "CLASS_0",
+              "SAFE_DEFERRAL",
+              "CAREGIVER_CONFIRMATION",
+              "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+            ]
+          },
+          "requires_user_or_caregiver_confirmation": {
+            "type": "boolean"
+          },
+          "requires_confirmation": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }
