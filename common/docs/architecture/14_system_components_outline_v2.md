@@ -13,12 +13,17 @@ This revision reflects the following important corrections:
 
 - the local LLM does not only recover likely user intent,
 - it also generates runtime-aware user-facing guidance,
-- and safe deferral may lead to a bounded clarification interaction rather than ending the interaction immediately.
+- safe deferral may lead to a bounded clarification interaction rather than ending the interaction immediately,
+- and MQTT/payload governance is treated as a separate non-authoritative development/evaluation support path rather than as operational control authority.
 
 This document is a system-architecture interpretation note and should be read together with:
 - `common/docs/paper/04_section2_system_design_outline.md`
 - `common/docs/required_experiments.md`
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
 - `CLAUDE.md`
 
 ---
@@ -47,6 +52,7 @@ The field device layer.
 Role:
 - bounded input capture,
 - context sensing,
+- visitor-arrival / doorbell context sensing,
 - emergency sensing,
 - and actuator interfacing.
 
@@ -58,6 +64,8 @@ Role:
 - runtime-state aggregation,
 - policy routing,
 - deterministic validation,
+- MQTT topic registry loading / contract checking for runtime consistency where used,
+- payload validation support where used,
 - safe deferral / clarification management,
 - caregiver escalation,
 - TTS output,
@@ -68,11 +76,57 @@ Role:
 The experiment-support layer.
 
 Role:
+- experiment and monitoring dashboard,
 - scenario orchestration,
 - replay,
 - simulation,
 - fault injection,
-- and result publication.
+- progress publication,
+- result artifact publication,
+- MQTT/payload governance backend support,
+- governance dashboard UI support,
+- topic/payload contract validation support,
+- and payload example / publisher-subscriber role inspection.
+
+Important interpretation:
+- Raspberry Pi 5 remains an experiment, dashboard, governance-inspection, and evaluation support layer.
+- It is not the primary operational hub.
+- It does not hold policy, validator, caregiver approval, or actuator authority.
+
+### 2.6 MQTT / Payload Governance Backend
+The governance backend is a non-authoritative service layer for topic and payload management support.
+
+Role:
+- manages draft topic/payload registry edits,
+- validates topic-payload contracts,
+- manages publisher/subscriber role assignments,
+- validates payload examples against referenced schemas,
+- exports proposed change reports,
+- and supports dashboard UI interactions.
+
+Important interpretation:
+- it may create, edit, delete, validate, and export draft registry changes,
+- but it does not directly modify canonical policy/schema authority,
+- does not publish actuator commands,
+- does not spoof caregiver approval,
+- and does not create doorlock execution authority.
+
+### 2.7 Governance Dashboard UI
+The governance dashboard UI is a presentation and interaction layer for MQTT/payload governance.
+
+Role:
+- displays the topic registry,
+- supports create/edit/delete draft interactions through the governance backend,
+- visualizes publisher/subscriber role assignments,
+- visualizes payload validation results,
+- visualizes doorbell/doorlock boundary warnings,
+- and displays proposed change reports.
+
+Important interpretation:
+- the UI does not write registry files directly,
+- does not alter canonical policies or schemas,
+- does not publish operational control messages,
+- and does not dispatch doorlock or actuator commands.
 
 ---
 
@@ -98,11 +152,18 @@ Examples:
 - temperature,
 - illuminance,
 - device states,
-- occupancy-adjacent status.
+- occupancy-adjacent status,
+- doorbell / visitor-arrival context.
 
 Role:
 - provide context for intent recovery,
-- provide context for runtime-aware explanation generation.
+- provide context for runtime-aware explanation generation,
+- provide visitor-response context when `doorbell_detected` is relevant.
+
+Important interpretation:
+- `doorbell_detected` is emitted as `environmental_context.doorbell_detected`.
+- It does not authorize autonomous doorlock control.
+- Doorlock state is not currently part of `context_schema.device_states`.
 
 ### 3.3 Emergency Nodes
 Provide emergency-trigger information.
@@ -118,7 +179,8 @@ Role:
 
 Important interpretation:
 - emergency handling is policy-driven,
-- emergency signals are not routed through the local LLM as the primary decision path.
+- emergency signals are not routed through the local LLM as the primary decision path,
+- `doorbell_detected` is not an emergency trigger.
 
 ### 3.4 Actuator Interface Nodes
 The device-side actuation layer.
@@ -131,6 +193,10 @@ Examples:
 Role:
 - execute only approved actions,
 - return ACK or state confirmation.
+
+Important interpretation:
+- doorlock interface nodes may exist as implementation-facing or experiment-facing components,
+- but doorlock must not be treated as autonomous Class 1 low-risk authority under the current baseline.
 
 ---
 
@@ -173,6 +239,7 @@ Role:
 Important interpretation:
 - Context Nodes feed this layer.
 - Emergency Nodes may be reflected into runtime state, but the primary emergency decision path remains policy-driven.
+- Doorlock state, manual approval state, and ACK state should not be silently inserted into current pure-context `device_states`.
 
 ### 4.3 Local LLM Reasoning Layer
 A broader reasoning layer than intent recovery alone.
@@ -237,7 +304,34 @@ Important interpretation:
 - actual execution authority resides here together with policy,
 - not inside the LLM.
 
-### 4.6 Approved Low-Risk Actuation Path
+### 4.6 MQTT Topic Registry Loader / Contract Checker
+The registry-consistency support layer for runtime and verification code.
+
+Role:
+- loads topic definitions from `common/mqtt/`,
+- prevents topic string drift where registry lookup is practical,
+- checks publisher/subscriber assumptions,
+- resolves payload family, schema, example payload, QoS, retain, and authority-level information.
+
+Important interpretation:
+- this component supports communication consistency,
+- but it does not create policy authority or actuator authority.
+
+### 4.7 Payload Validation Helper
+The payload-consistency support layer.
+
+Role:
+- validates schema-governed payloads,
+- checks required `environmental_context.doorbell_detected` in valid context examples,
+- flags missing or malformed payload fields,
+- flags or rejects doorlock state inside current `pure_context_payload.device_states`,
+- and supports test/dashboard/governance validation reports.
+
+Important interpretation:
+- this component supports schema and payload-boundary consistency,
+- but it does not replace the canonical schemas under `common/schemas/`.
+
+### 4.8 Approved Low-Risk Actuation Path
 The execution path for approved low-risk actions.
 
 Current example scope:
@@ -250,10 +344,10 @@ Important interpretation:
 - this is not a general sensitive-actuation path,
 - and doorlock must not be treated as automatically included here.
 
-### 4.7 Safe Deferral and Clarification Management
+### 4.9 Safe Deferral and Clarification Management
 The management layer for cases where immediate autonomous execution is not justified.
 
-#### 4.7.1 Safe Deferral
+#### 4.9.1 Safe Deferral
 Role:
 - prevents unsafe autonomous actuation,
 - sets the interaction into a deferred state,
@@ -265,13 +359,13 @@ Examples:
 - unresolved candidate,
 - policy restriction.
 
-#### 4.7.2 Clarification-Needed Deferral
+#### 4.9.2 Clarification-Needed Deferral
 Role:
 - identifies cases that can be recovered through additional bounded user input,
 - keeps a pending clarification state,
 - provides the basis for clarification prompt generation.
 
-#### 4.7.3 Escalation-Required Deferral
+#### 4.9.3 Escalation-Required Deferral
 Role:
 - identifies cases that cannot be safely resolved by follow-up user input alone,
 - forwards the interaction toward caregiver escalation.
@@ -280,7 +374,7 @@ Important interpretation:
 - Safe Deferral itself does not “speak” to the user.
 - It provides the structured state and reasons from which the LLM can generate user-facing guidance, and TTS can then render that guidance.
 
-### 4.8 Caregiver Escalation
+### 4.10 Caregiver Escalation
 The handoff layer for sensitive or non-autonomously-resolvable actions.
 
 Role:
@@ -291,7 +385,7 @@ Role:
 Important interpretation:
 - this is central for representative sensitive-actuation cases such as doorlock-related requests.
 
-### 4.9 TTS Rendering / Voice Output
+### 4.11 TTS Rendering / Voice Output
 The voice-rendering layer for user-facing messages.
 
 Role:
@@ -310,7 +404,7 @@ Important interpretation:
 - TTS is the rendering/output layer,
 - while explanation and prompt generation occur in the LLM reasoning layer.
 
-### 4.10 ACK Handling
+### 4.12 ACK Handling
 The result-confirmation layer.
 
 Role:
@@ -318,7 +412,7 @@ Role:
 - distinguishes success / timeout / mismatch,
 - updates runtime state accordingly.
 
-### 4.11 Local Audit Logging
+### 4.13 Local Audit Logging
 The local recording layer for interpreted and executed outcomes.
 
 Examples of logged content:
@@ -338,7 +432,23 @@ Important interpretation:
 
 ## 5. Raspberry Pi 5 support-layer components
 
-### 5.1 Scenario Orchestrator
+### 5.1 Experiment and Monitoring Dashboard
+Provides experiment operation and monitoring visibility.
+
+Role:
+- experiment selection,
+- preflight readiness visibility,
+- required-node connectivity/status display,
+- start/stop control through orchestration layer,
+- progress monitoring,
+- result summary display,
+- graph/CSV export visibility where available.
+
+Important interpretation:
+- it may initiate experiment execution through the orchestrator,
+- but it does not bypass policy, validator, caregiver approval, ACK, or audit boundaries.
+
+### 5.2 Scenario Orchestrator
 Runs experiment scenarios.
 
 Examples:
@@ -347,7 +457,7 @@ Examples:
 - clarification-interaction scenarios,
 - sensitive-actuation validation scenarios.
 
-### 5.2 Simulation / Replay
+### 5.3 Simulation / Replay
 Supports event and state replay.
 
 Role:
@@ -355,15 +465,16 @@ Role:
 - context replay,
 - clarification-turn replay.
 
-### 5.3 Fault Injection
+### 5.4 Fault Injection
 Injects controlled fault conditions.
 
 Examples:
 - staleness,
 - missing state,
-- conflict.
+- conflict,
+- missing `doorbell_detected` as a strict schema/context fault case.
 
-### 5.4 Progress / Result Publication
+### 5.5 Progress / Result Publication
 Provides experiment-state visibility.
 
 Role:
@@ -371,7 +482,84 @@ Role:
 - artifact publication,
 - reproducibility support.
 
+### 5.6 Topic / Payload Contract Validation
+Validates communication and payload references for experiment and governance tooling.
+
+Role:
+- topic registry validation,
+- publisher/subscriber consistency checking,
+- topic-to-payload contract validation,
+- payload example validation,
+- schema path and example path resolution.
+
 Important interpretation:
+- this is validation and governance support,
+- not operational policy authority.
+
+### 5.7 MQTT / Payload Governance Backend
+Provides backend operations for topic and payload governance.
+
+Role:
+- draft topic creation,
+- draft topic editing,
+- draft topic deletion,
+- publisher/subscriber role management,
+- payload family and schema/example linkage,
+- validation report generation,
+- proposed change export.
+
+Important interpretation:
+- it may manage draft governance artifacts,
+- but it does not directly edit canonical policy/schema authority,
+- does not publish actuator commands,
+- and does not create doorlock execution authority.
+
+### 5.8 Governance Dashboard UI
+Provides the UI surface for MQTT/payload governance.
+
+Role:
+- topic registry browsing,
+- topic detail display,
+- create/edit/delete draft interactions through backend APIs,
+- publisher/subscriber role display and editing through backend APIs,
+- payload validation result display,
+- doorbell/doorlock boundary warning display,
+- proposed change report display.
+
+Important interpretation:
+- it is a UI layer only,
+- not the backend service,
+- not a policy authority,
+- and not an actuator console.
+
+### 5.9 Payload Example Manager
+Manages and validates payload examples/templates for governance support.
+
+Role:
+- list payload examples,
+- list payload templates,
+- validate schema-governed examples,
+- generate draft examples for review,
+- export validation reports.
+
+Important interpretation:
+- payload examples are reference assets,
+- not policy authority or schema authority.
+
+### 5.10 Publisher / Subscriber Role Manager
+Manages allowed or known communication roles.
+
+Role:
+- list known publisher roles,
+- list known subscriber roles,
+- validate role assignment against topic authority level,
+- distinguish operational roles from experiment-only roles,
+- distinguish dashboard/governance roles from policy/validator/dispatcher roles.
+
+Important interpretation:
+- dashboard/governance roles must not be assigned direct actuator, caregiver approval, validator, or policy authority unless explicitly marked as controlled test-mode roles.
+
+Important interpretation for the RPi layer as a whole:
 - Raspberry Pi remains an experiment-support layer,
 - not the primary operational hub.
 
@@ -440,6 +628,20 @@ Bounded Input + Context
 → TTS Rendering / Voice Output  
 → User
 
+### 6.5 MQTT / payload governance flow
+User / Developer  
+→ Governance Dashboard UI  
+→ MQTT / Payload Governance Backend  
+→ Topic Registry Loader / Payload Validator  
+→ Draft Registry Change / Validation Report  
+→ Review / Commit Workflow
+
+Important interpretation:
+- this flow does not publish actuator commands,
+- does not modify canonical policy/schema truth directly,
+- does not create doorlock execution authority,
+- and does not bypass policy, validator, caregiver approval, ACK, or audit boundaries.
+
 ---
 
 ## 7. Concepts that should remain visible in the paper figure
@@ -450,6 +652,7 @@ The paper figure should preserve visibility of at least the following concepts:
 - Caregiver
 - Bounded Input Node
 - Context Nodes
+- Doorbell / Visitor-Arrival Context Node where visitor-response evaluation is shown
 - Emergency Nodes
 - Actuator Interface Nodes
 - Context and Runtime State Aggregation
@@ -461,6 +664,13 @@ The paper figure should preserve visibility of at least the following concepts:
 - TTS Rendering / Voice Output
 - Local ACK + Audit Logging
 - Raspberry Pi experiment support
+
+Optional development/evaluation support inset:
+- MQTT Topic / Payload Registry
+- MQTT / Payload Governance Backend
+- Governance Dashboard UI
+- Topic / Payload Validation
+- Publisher / Subscriber Role Management
 
 ---
 
@@ -495,10 +705,17 @@ The paper figure should preserve visibility of at least the following concepts:
 - TTS voice output,
 - user guidance.
 
+### 8.6 MQTT/payload governance path
+- registry-driven topic/payload management,
+- publisher/subscriber role validation,
+- dashboard UI separated from backend service,
+- no policy, validator, caregiver approval, or actuator authority,
+- no doorlock execution authority creation through registry edits.
+
 ---
 
 ## 9. One-sentence summary
 
 The revised v2 interpretation is:
 
-> The local LLM recovers likely user intent and generates runtime-aware explanations and clarification prompts under constrained-input conditions, while actuation authority remains with policy routing, deterministic validation, and caregiver-mediated escalation for sensitive actions.
+> The local LLM recovers likely user intent and generates runtime-aware explanations and clarification prompts under constrained-input conditions, while actuation authority remains with policy routing, deterministic validation, and caregiver-mediated escalation for sensitive actions; MQTT/payload governance supports registry-driven communication management without becoming operational control authority.
