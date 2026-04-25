@@ -38,10 +38,10 @@
 - target: `living_room_light`, `bedroom_light`
 
 즉,
-- doorlock은 현재 **구현 대상 범위**에는 포함되지만,
+- doorlock은 현재 **구현 대상 범위**에는 포함될 수 있지만,
 - 현재 frozen baseline 기준의 **authoritative autonomous Class 1 low-risk scope와 자동으로 동일시하면 안 된다.**
 
-doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 frozen 정책/실험 문서와 정합성을 맞춰야 한다.
+doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 frozen 정책/스키마/실험 문서와 정합성을 맞춰야 한다.
 
 ### 3. doorlock에 대한 논문적 해석
 문서와 구현에서 doorlock은 단순 편의 기능이 아니라 **representative sensitive actuation case**로 해석한다.
@@ -51,15 +51,16 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - **LLM 기반 의도 복원과 민감 액추에이션 통제 사이의 경계**를 드러내는 대표 사례라는 점에 있다.
 
 현재 해석에서:
-- LLM은 제한 입력과 컨텍스트를 바탕으로 intent candidate를 복원할 수 있다.
+- LLM은 제한 입력과 컨텍스트를 바탕으로 intent recovery를 보조할 수 있다.
 - 그러나 door unlock은 unrestricted autonomous execution path로 가면 안 된다.
-- 현재 아키텍처 해석에서는 caregiver escalation, bounded manual approval, deterministic validation, ACK-based closed-loop verification, local audit logging 경로와 정렬되어야 한다.
+- doorlock control 같은 sensitive actuation request는 Class 1 low-risk candidate action이나 validator executable payload로 승인하면 안 된다.
+- 현재 아키텍처 해석에서는 Class 2 escalation, 별도 governed manual confirmation path, caregiver-mediated approval, deterministic validation, ACK-based closed-loop verification, local audit logging 경로와 정렬되어야 한다.
 
 ### 4. dashboard / test app / orchestration 역할 분리
 도어락 관련 실험은 단순 대시보드 카드가 아니라, dashboard + test app + scenario orchestration에 걸친 다층 실험 흐름으로 해석한다.
 
 #### dashboard
-대시보드는 **experiment operations console**로 해석한다.
+대시보드는 **Raspberry Pi 5에 배치되는 experiment and monitoring dashboard**로 해석한다.
 주요 책임은 다음과 같다.
 - experiment selection
 - preflight readiness visibility
@@ -68,12 +69,15 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - progress monitoring
 - result summary
 - graph/CSV export visibility
+- evaluation artifact export
 - doorlock-sensitive experiment status visibility
   - autonomous unlock blocked
   - caregiver escalation state
   - manual approval state
   - ACK state
   - audit completeness state
+
+대시보드는 policy authority, validator authority, caregiver approval authority, primary operational hub가 아니다. 대시보드는 Mac mini가 제공하는 operational telemetry, audit summaries, control-state topics를 소비하여 실험 상태와 결과를 시각화할 수 있다.
 
 #### test app
 테스트 앱은 **developer/research control surface**로 해석한다.
@@ -86,8 +90,10 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - ACK success/timeout/mismatch simulation
 - raw payload/log/debug visibility
 
+테스트 앱은 dashboard와 같은 UI일 필요가 없다. 테스트 앱이 별도 구현될 경우, 실험 디버깅과 raw control에 가까운 개발자 도구로 해석한다.
+
 #### scenario orchestration
-시나리오 오케스트레이션은 doorlock-sensitive experiment를 반드시 포함하는 sequence-based execution layer로 해석한다.
+시나리오 오케스트레이션은 doorlock-sensitive experiment를 반드시 포함할 수 있는 sequence-based execution layer로 해석한다.
 주요 책임은 다음과 같다.
 - visitor-response scenario family selection
 - bounded input or doorbell-style trigger injection
@@ -99,10 +105,26 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 #### host separation
 현재 기본 해석은 다음과 같다.
-- Mac mini = dashboard / test app / control-side integration / result visibility 중심
-- Raspberry Pi = scenario execution / replay / fault injection / progress publication 중심
+- Mac mini = safety-critical operational edge hub
+  - MQTT/state intake
+  - context aggregation
+  - local LLM reasoning
+  - policy routing
+  - deterministic validation
+  - context-integrity safe deferral handling
+  - caregiver escalation/approval handling
+  - ACK/audit logging
+  - RPi dashboard가 소비할 telemetry/control-state topic 노출
+- Raspberry Pi 5 = experiment-side support and dashboard host
+  - Monitoring / Experiment Dashboard
+  - scenario orchestration
+  - simulation / replay
+  - fault injection
+  - virtual node driving
+  - progress/status publication
+  - result summary 및 graph/CSV/evaluation artifact export
 
-따라서 Raspberry Pi에 UI가 반드시 있어야 하는 것은 아니다.
+따라서 dashboard는 현재 기준에서 Raspberry Pi 5의 support-side experiment and monitoring console로 해석한다. Mac mini는 운영 판단과 안전 제어의 중심이지, experiment dashboard host로 해석하지 않는다.
 
 ---
 
@@ -164,11 +186,13 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 ### addendum example
 * `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
 * `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
+* `/common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
 
 원칙:
 - `SESSION_HANDOFF.md`는 장기적인 master summary 역할을 한다.
 - 문서가 너무 길어져 connector 기반 업데이트가 위험하거나, 큰 milestone/topic update가 생기면 **날짜/주제 기반 addendum 문서**를 추가한다.
 - 이후 세션은 master만 보지 말고, 필요한 addendum도 함께 확인해야 한다.
+- handoff 계열 문서는 작업 이력과 인수인계 성격이 강하므로, 중간 단계에서 모두 재작성하기보다 기준 문서 정합화 후 마지막에 한꺼번에 정리하는 것을 선호한다.
 
 ---
 
@@ -176,12 +200,14 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 1. `/common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 2. `/common/policies/policy_table_v1_1_2_FROZEN.json`
-3. `/common/docs/required_experiments.md`
-4. `/common/docs/paper/01_paper_contributions.md`
-5. `/common/docs/runtime/SESSION_HANDOFF.md`
-6. 최신 `SESSION_HANDOFF` addendum 문서들
-7. `/CLAUDE.md`
-8. `/common/docs/architecture/12_prompts.md`
+3. `/common/docs/architecture/24_final_paper_architecture_figure.md`
+4. `/common/docs/architecture/01_installation_target_classification.md`
+5. `/common/docs/required_experiments.md`
+6. `/common/docs/paper/01_paper_contributions.md`
+7. `/common/docs/runtime/SESSION_HANDOFF.md`
+8. 최신 `SESSION_HANDOFF` addendum 문서들
+9. `/CLAUDE.md`
+10. `/common/docs/architecture/12_prompts.md`
 
 그 다음 필요 시 아래를 읽는다.
 - `/common/docs/architecture/12_prompts_core_system.md`
@@ -198,6 +224,8 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 ### 최우선 기준 문서
 * `/README.md`
+* `/common/docs/architecture/24_final_paper_architecture_figure.md`
+* `/common/docs/architecture/01_installation_target_classification.md`
 * `/common/docs/required_experiments.md`
 * `/common/docs/paper/01_paper_contributions.md`
 * `/common/docs/runtime/SESSION_HANDOFF.md`
@@ -219,6 +247,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 * `/common/docs/architecture/12_prompts_core_system.md`
 * `/common/docs/architecture/12_prompts_nodes_and_evaluation.md`
 * `/common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+* `/common/docs/architecture/24_final_paper_architecture_figure.md`
 
 ### 시나리오 / integration 문서
 * `/integration/README.md`
@@ -326,11 +355,13 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 ## 절대 하지 말 것
 
-- FROZEN 파일은 수정 금지
+- FROZEN 파일은 임의 수정 금지. 단, 정책/스키마 정합성 오류나 final architecture baseline과의 불일치가 확인된 경우에는 명시적 검토 기록과 커밋 근거를 남기고 수정할 수 있다.
 - 클라우드 API 호출 코드 작성 금지 (엣지 전용 시스템)
 - 정책 파일 우회 로직 작성 금지
 - deployment-local 파일(.env, runtime copy, synced copy)을 canonical truth처럼 취급 금지
+- context schema에 존재하는 device state를 current authoritative autonomous low-risk Class 1 action target으로 임의 승격 금지
 - doorlock implementation scope를 현재 authoritative autonomous low-risk Class 1 scope로 임의 승격 금지
+- candidate_action_schema 또는 validator_output_schema.executable_payload에 doorlock/sensitive actuation을 임의 추가 금지
 - 논문 contribution을 이유로 unrestricted autonomous sensitive actuation path를 정당화하지 말 것
 
 ---
@@ -364,10 +395,12 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 문서가 충돌할 때는 다음 우선순위를 따른다.
 
 1. FROZEN 정책/스키마
-2. `/common/docs/required_experiments.md`
-3. `/common/docs/paper/01_paper_contributions.md`
-4. `/common/docs/runtime/SESSION_HANDOFF.md` 및 관련 addendum
-5. device-layer README와 integration 문서
-6. `CLAUDE.md`
+2. `/common/docs/architecture/24_final_paper_architecture_figure.md`
+3. `/common/docs/architecture/01_installation_target_classification.md`
+4. `/common/docs/required_experiments.md`
+5. `/common/docs/paper/01_paper_contributions.md`
+6. `/common/docs/runtime/SESSION_HANDOFF.md` 및 관련 addendum
+7. device-layer README와 integration 문서
+8. `CLAUDE.md`
 
 즉, `CLAUDE.md`는 작업 안내 문서이지, canonical truth 자체는 아니다.
