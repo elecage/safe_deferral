@@ -1,0 +1,48 @@
+{
+  "payload_family": "CLASS2_TIMEOUT_OR_NO_RESPONSE",
+  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "clarification_id": "clarification_sample_class2_003",
+  "audit_correlation_id": "sample_class2_case_003",
+  "source_scenario": "SCN_CLASS2_INSUFFICIENT_CONTEXT",
+  "source_layer": "class2_clarification_manager",
+  "unresolved_reason": "timeout_or_no_response",
+  "candidate_choices": [
+    {
+      "candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "prompt": "조명을 켤까요?",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true,
+      "allowed_next_path": "bounded_low_risk_assistance_path"
+    },
+    {
+      "candidate_id": "C3_EMERGENCY_HELP",
+      "prompt": "긴급상황인가요?",
+      "candidate_transition_target": "CLASS_0",
+      "requires_confirmation": true,
+      "allowed_next_path": "immediate_emergency_override_path"
+    },
+    {
+      "candidate_id": "C4_CANCEL_OR_WAIT",
+      "prompt": "취소하고 대기할까요?",
+      "candidate_transition_target": "SAFE_DEFERRAL",
+      "requires_confirmation": true,
+      "allowed_next_path": "safe_deferral_or_caregiver_confirmation"
+    }
+  ],
+  "presentation_channel": "tts",
+  "selection_result": {
+    "selection_source": "timeout_or_no_response",
+    "confirmed": false,
+    "selection_timestamp_ms": 1777100015000
+  },
+  "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+  "timeout_result": "safe_deferral_or_caregiver_confirmation",
+  "llm_boundary": {
+    "candidate_generation_only": true,
+    "final_decision_allowed": false,
+    "actuation_authority_allowed": false,
+    "emergency_trigger_authority_allowed": false
+  },
+  "timestamp_ms": 1777100015000,
+  "notes": "No user or caregiver confirmation was received. The system must not assume intent and must transition to safe deferral or caregiver confirmation."
+}
