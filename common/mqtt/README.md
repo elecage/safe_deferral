@@ -10,7 +10,9 @@ It is intended to make MQTT communication explicit and reviewable across:
 - Raspberry Pi experiment/dashboard/orchestration support,
 - ESP32 bounded physical nodes,
 - optional measurement/export tooling,
-- integration tests and scenario replay.
+- integration tests and scenario replay,
+- MQTT/payload governance backend and dashboard UI,
+- Package G system-integrity and governance-boundary validation.
 
 This directory does **not** override canonical policies or schemas.
 
@@ -18,7 +20,9 @@ Authoritative sources remain:
 
 - `common/policies/`
 - `common/schemas/`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/required_experiments.md`
 
 ---
 
@@ -30,11 +34,11 @@ Authoritative sources remain:
 
 - `publisher_subscriber_matrix_v1_0_0.md`
   - Human-readable publisher/subscriber matrix.
-  - Useful for implementation planning, review, and debugging.
+  - Useful for implementation planning, review, debugging, and governance UI rendering.
 
 - `topic_payload_contracts_v1_0_0.md`
   - Human-readable topic-to-payload contract notes.
-  - Explains payload boundaries and forbidden interpretations.
+  - Explains payload boundaries, schema references, example references, and forbidden interpretations.
 
 ---
 
@@ -48,7 +52,10 @@ In particular:
 - audit topics are evidence/traceability artifacts, not policy truth;
 - RPi simulation/fault topics are experiment support, not operational authority;
 - caregiver confirmation topics must not be confused with Class 1 autonomous validator approval;
-- actuation ACK topics are closed-loop evidence, not pure context input.
+- actuation ACK topics are closed-loop evidence, not pure context input;
+- topic registry entries are communication contracts, not routing or execution authority;
+- topic-payload mappings are contract references, not schema authority;
+- interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are governance/verification evidence, not operational authorization mechanisms.
 
 ---
 
@@ -62,6 +69,36 @@ In particular:
 6. RPi may publish simulation/fault topics only in controlled experiment/simulation mode.
 7. `environmental_context.doorbell_detected` remains context only and must not authorize autonomous doorlock control.
 8. Doorlock-related sensitive outcomes must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.
+9. Governance dashboard UI must call the governance backend for create/update/delete/validation/export operations.
+10. Governance dashboard UI must not directly edit registry files, publish operational control topics, expose unrestricted actuator consoles, or expose direct doorlock command controls.
+11. Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert draft/proposed changes into live authority without review.
+12. `FAULT_CONTRACT_DRIFT_01` and related Package G checks are governance/verification checks, not operational fault paths.
+
+---
+
+## Package G validation coverage
+
+The MQTT/payload governance validation package should check at least:
+
+- topic registry readability,
+- publisher/subscriber matrix consistency,
+- topic-to-payload contract resolution,
+- referenced example payload existence,
+- schema validation for schema-governed examples,
+- interface-matrix alignment,
+- topic/payload hardcoding drift detection,
+- governance backend/UI separation,
+- governance report non-authority.
+
+Recommended evidence artifacts:
+
+- interface-matrix alignment report,
+- topic-drift report,
+- payload validation report,
+- governance backend/UI separation report,
+- proposed-change review report.
+
+These reports are evidence artifacts only.
 
 ---
 
@@ -74,8 +111,10 @@ A future MQTT/payload management web app or dashboard may be useful for:
 - validating example payloads,
 - visualizing live topic traffic during experiments,
 - detecting schema drift,
+- detecting topic/payload hardcoding drift,
 - auditing stale or unauthorized topics,
-- exporting topic/payload coverage reports.
+- exporting topic/payload coverage reports,
+- exporting proposed-change review reports.
 
 However, such a dashboard must remain a **governance, inspection, and validation tool**.
-It must not become policy authority, validator authority, caregiver approval authority, or direct actuator control authority.
+It must not become policy authority, validator authority, caregiver approval authority, audit authority, direct actuator control authority, or doorlock execution authority.
