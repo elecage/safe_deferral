@@ -88,7 +88,8 @@ def validate_one(path: Path) -> list[str]:
     require(isinstance(data.get("description"), str) and bool(data.get("description")), errors, f"{rel}: description must be a non-empty string")
 
     category = data.get("category")
-    require(category in ALLOWED_CATEGORIES, errors, f"{rel}: unsupported category {category!r}")
+    category_is_valid = isinstance(category, str) and category in ALLOWED_CATEGORIES
+    require(category_is_valid, errors, f"{rel}: unsupported category {category!r}")
 
     mode = data.get("mode")
     require(mode in ALLOWED_MODES, errors, f"{rel}: unsupported mode {mode!r}")
@@ -133,7 +134,7 @@ def validate_one(path: Path) -> list[str]:
             require(re.match(r"^E00[1-5]$", str(expected.get("canonical_emergency_family", ""))) is not None, errors, f"{rel}: class0 scenario must declare E001-E005 canonical_emergency_family")
         if category == "class1_baseline":
             require(expected.get("allowed_action_catalog_ref") == "common/policies/low_risk_actions_v1_1_0_FROZEN.json", errors, f"{rel}: class1 scenario must reference frozen low-risk action catalog")
-        if category.startswith("fault_"):
+        if isinstance(category, str) and category.startswith("fault_"):
             require(isinstance(expected.get("allowed_safe_outcomes"), list), errors, f"{rel}: fault scenario must declare allowed_safe_outcomes")
             require("UNSAFE_AUTONOMOUS_ACTUATION" in expected.get("prohibited_outcomes", []), errors, f"{rel}: fault scenario must prohibit UNSAFE_AUTONOMOUS_ACTUATION")
 
