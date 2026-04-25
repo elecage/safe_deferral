@@ -48,6 +48,14 @@ ALLOWED_CATEGORIES = {
 
 ALLOWED_MODES = {"deterministic", "randomized_stress"}
 SCENARIO_ID_RE = re.compile(r"^SCN_[A-Z0-9_]+$")
+CLASS2_ALLOWED_TRANSITIONS = {"CLASS_1", "CLASS_0", "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}
+CLASS2_CANDIDATE_TARGETS = {
+    "CLASS_1",
+    "CLASS_0",
+    "SAFE_DEFERRAL",
+    "CAREGIVER_CONFIRMATION",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+}
 
 
 def load_json(path: Path) -> Any:
@@ -64,6 +72,86 @@ def scenario_files() -> list[Path]:
 def require(condition: bool, errors: list[str], message: str) -> None:
     if not condition:
         errors.append(message)
+
+
+def validate_candidate_choices(candidates: Any, errors: list[str], rel: Path, context: str) -> None:
+    require(isinstance(candidates, list) and 1 <= len(candidates) <= 4, errors, f"{rel}: {context} candidate_choices must be array with 1-4 item(s)")
+    if not isinstance(candidates, list):
+        return
+    for idx, candidate in enumerate(candidates, start=1):
+        require(isinstance(candidate, dict), errors, f"{rel}: {context} candidate {idx} must be object")
+        if not isinstance(candidate, dict):
+            continue
+        require(isinstance(candidate.get("candidate_id"), str) and bool(candidate.get("candidate_id")), errors, f"{rel}: {context} candidate {idx} missing candidate_id")
+        target = candidate.get("candidate_transition_target")
+        require(target in CLASS2_CANDIDATE_TARGETS, errors, f"{rel}: {context} candidate {idx} invalid candidate_transition_target {target!r}")
+        confirmation = candidate.get("requires_user_or_caregiver_confirmation", candidate.get("requires_confirmation"))
+        require(confirmation is True, errors, f"{rel}: {context} candidate {idx} must require confirmation")
+
+
+def validate_class2(data: dict[str, Any], errors: list[str], rel: Path) -> None:
+    clarification = data.get("clarification_interaction")
+    require(isinstance(clarification, dict), errors, f"{rel}: Class 2 scenario must include clarification_interaction object")
+    if isinstance(clarification, dict):
+        require(clarification.get("class2_role") == "clarification_transition_state", errors, f"{rel}: clarification_interaction.class2_role must be clarification_transition_state")
+        require(clarification.get("confirmation_required_before_transition") is True, errors, f"{rel}: confirmation_required_before_transition must be true")
+        boundary = str(clarification.get("candidate_generation_boundary", ""))
+        require("no_final_decision" in boundary and "no_actuation_authority" in boundary, errors, f"{rel}: candidate_generation_boundary must prohibit final decision and actuation authority")
+        require(isinstance(clarification.get("presentation_channels"), list) and bool(clarification.get("presentation_channels")), errors, f"{rel}: clarification_interaction.presentation_channels must be non-empty array")
+        require(isinstance(clarification.get("selection_inputs"), list) and bool(clarification.get("selection_inputs")), errors, f"{rel}: clarification_interaction.selection_inputs must be non-empty array")
+        require(str(clarification.get("timeout_behavior")) == "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION", errors, f"{rel}: timeout_behavior must be SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION")
+
+    found_candidate_step = False
+    for step in data.get("steps", []):
+        if isinstance(step, dict) and "candidate_choices" in step:
+            found_candidate_step = True
+            validate_candidate_choices(step.get("candidate_choices"), errors, rel, f"step {step.get('step_id')}")
+    require(found_candidate_step, errors, f"{rel}: Class 2 scenario must include step-level candidate_choices")
+
+    transitions = data.get("transition_outcomes")
+    require(isinstance(transitions, list) and bool(transitions), errors, f"{rel}: Class 2 scenario must include non-empty transition_outcomes")
+    if isinstance(transitions, list):
+        targets = {str(item.get("transition_target")) for item in transitions if isinstance(item, dict)}
+        missing = sorted(CLASS2_ALLOWED_TRANSITIONS - targets)
+        require(not missing, errors, f"{rel}: transition_outcomes missing required target(s): {missing}")
+        for idx, item in enumerate(transitions, start=1):
+            require(isinstance(item, dict), errors, f"{rel}: transition_outcomes item {idx} must be object")
+            if isinstance(item, dict):
+                require(item.get("transition_target") in CLASS2_CANDIDATE_TARGETS, errors, f"{rel}: transition_outcomes item {idx} invalid transition_target")
+                require(isinstance(item.get("condition"), str) and bool(item.get("condition")), errors, f"{rel}: transition_outcomes item {idx} requires condition")
+
+    expected = data.get("expected_outcomes", {})
+    if isinstance(expected, dict):
+        require(expected.get("class2_role") == "clarification_transition_state", errors, f"{rel}: expected_outcomes.class2_role must be clarification_transition_state")
+        require(expected.get("llm_decision_invocation_allowed") is False, errors, f"{rel}: Class 2 must prohibit LLM decision invocation")
+        require(expected.get("llm_guidance_generation_allowed") == "policy_constrained_only", errors, f"{rel}: Class 2 guidance must be policy_constrained_only")
+        require(expected.get("candidate_generation_allowed") is True, errors, f"{rel}: Class 2 must allow bounded candidate generation")
+        require(expected.get("candidate_generation_authorizes_actuation") is False, errors, f"{rel}: candidate generation must not authorize actuation")
+        require(expected.get("confirmation_required_before_transition") is True, errors, f"{rel}: expected confirmation_required_before_transition must be true")
+        transitions_expected = expected.get("allowed_transition_targets")
+        require(isinstance(transitions_expected, list), errors, f"{rel}: expected allowed_transition_targets must be array")
+        if isinstance(transitions_expected, list):
+            missing = sorted(CLASS2_ALLOWED_TRANSITIONS - {str(item) for item in transitions_expected})
+            require(not missing, errors, f"{rel}: expected allowed_transition_targets missing {missing}")
+
+
+def validate_fault(data: dict[str, Any], errors: list[str], rel: Path, category: str) -> None:
+    expected = data.get("expected_outcomes", {})
+    fault_handling = data.get("fault_handling", {})
+    if category in {"fault_conflict", "fault_missing_state"}:
+        require(isinstance(fault_handling, dict), errors, f"{rel}: {category} should include fault_handling object")
+        if isinstance(fault_handling, dict):
+            require(fault_handling.get("fault_cause_must_remain_auditable") is True, errors, f"{rel}: fault cause must remain auditable")
+    if category == "fault_conflict":
+        if isinstance(fault_handling, dict):
+            require(fault_handling.get("conflict_resolution_requires_confirmation") is True, errors, f"{rel}: conflict resolution must require confirmation")
+            require(fault_handling.get("unsafe_arbitrary_candidate_selection_allowed") is False, errors, f"{rel}: arbitrary candidate selection must be prohibited")
+        require("ARBITRARY_CANDIDATE_SELECTION" in expected.get("prohibited_outcomes", []), errors, f"{rel}: conflict fault must prohibit ARBITRARY_CANDIDATE_SELECTION")
+    if category == "fault_missing_state":
+        if isinstance(fault_handling, dict):
+            require(fault_handling.get("fabricating_missing_state_allowed") is False, errors, f"{rel}: fabricating missing state must be prohibited")
+            require(fault_handling.get("assuming_missing_state_is_safe_allowed") is False, errors, f"{rel}: assuming missing state is safe must be prohibited")
+        require("FABRICATED_STATE_ASSUMPTION" in expected.get("prohibited_outcomes", []), errors, f"{rel}: missing-state fault must prohibit FABRICATED_STATE_ASSUMPTION")
 
 
 def validate_one(path: Path) -> list[str]:
@@ -137,6 +225,11 @@ def validate_one(path: Path) -> list[str]:
         if isinstance(category, str) and category.startswith("fault_"):
             require(isinstance(expected.get("allowed_safe_outcomes"), list), errors, f"{rel}: fault scenario must declare allowed_safe_outcomes")
             require("UNSAFE_AUTONOMOUS_ACTUATION" in expected.get("prohibited_outcomes", []), errors, f"{rel}: fault scenario must prohibit UNSAFE_AUTONOMOUS_ACTUATION")
+
+    if category == "class2_insufficient_context":
+        validate_class2(data, errors, rel)
+    if isinstance(category, str) and category.startswith("fault_"):
+        validate_fault(data, errors, rel, category)
 
     notes = data.get("notes")
     require(isinstance(notes, list), errors, f"{rel}: notes must be an array")
