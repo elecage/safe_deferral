@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 10_write_env_files_esp32.sh
 # Purpose: Generate or append common ESP32 development environment variables
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
@@ -39,8 +39,17 @@ append_env_var() {
         fi
         echo "${key}=${value}" >> "${ENV_FILE}"
         echo "  [OK] Appended missing key: ${key}"
+    else
+        echo "  [INFO] Preserving existing key: ${key}"
     fi
 }
+
+append_env_var "ESP32_NODE_ROLE" "bounded_physical_node" "ESP32 role boundary for safe_deferral"
+append_env_var "ALLOW_ESP32_POLICY_AUTHORITY" "false"
+append_env_var "ALLOW_ESP32_VALIDATOR_AUTHORITY" "false"
+append_env_var "ALLOW_ESP32_LLM_INFERENCE" "false"
+append_env_var "ALLOW_ESP32_CAREGIVER_APPROVAL_AUTHORITY" "false"
+append_env_var "ALLOW_ESP32_DIRECT_DOORLOCK_AUTHORITY" "false"
 
 append_env_var "ESP32_WORKSPACE_DIR" "${WORKSPACE_DIR}" "Common ESP32 Workspace Settings"
 append_env_var "ESP_ROOT" "${HOME}/esp"
@@ -55,4 +64,5 @@ append_env_var "ESPPORT" "" "Optional serial port override (for example: /dev/tt
 append_env_var "ESPBAUD" "460800"
 
 echo "  [WARNING] ACTION REQUIRED: Review IDF_PATH, ESP_IDF_GIT_REF, and ESPPORT in ${ENV_FILE}."
+echo "  [INFO] ESP32 authority flags must remain false unless a future documented architecture revision changes them."
 echo "==> [PASS] ESP32 common environment variables configured."
