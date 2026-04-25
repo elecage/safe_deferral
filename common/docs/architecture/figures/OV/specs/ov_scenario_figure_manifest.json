@@ -1,0 +1,428 @@
+{
+  "manifest_version": "1.0.0-draft",
+  "status": "DRAFT",
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "aspect_ratio": "16:9"
+  },
+  "seeds": {
+    "OV_STYLE_SEED": 20260425,
+    "OV_BASE_BACKGROUND_SEED": 20260425,
+    "OV_OVERLAY_STYLE_SEED": 20260425
+  },
+  "base_background": {
+    "planned_asset": "../base/ov_base_korean_apartment_v1.png",
+    "metadata": "../base/ov_base_korean_apartment_v1.metadata.json",
+    "status": "not_created_yet"
+  },
+  "coordinate_map": "ov_node_coordinate_map.json",
+  "style_guide": "ov_style_guide.md",
+  "prompt_template": "ov_generation_prompt_template.md",
+  "figures": [
+    {
+      "figure_id": "OV-00",
+      "slug": "baseline",
+      "scenario_name": "Baseline",
+      "scenario_file": "integration/scenarios/baseline_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_00_baseline.svg",
+      "planned_png": "../scenarios/OV_00_baseline.png",
+      "route_family": "baseline_or_normal_context",
+      "main_visual_situation": "Ordinary indoor context input, policy routing, and audit observation.",
+      "active_nodes": [
+        "bounded_input_node",
+        "context_node",
+        "mac_mini_edge_hub",
+        "mqtt_broker_runtime",
+        "policy_router",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/context/input",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+        "common/schemas/context_schema_v1_0_0_FROZEN.json",
+        "common/policies/policy_table_v1_2_0_FROZEN.json"
+      ],
+      "expected_outcome": "Context is routed and audited without implying unsafe actuation."
+    },
+    {
+      "figure_id": "OV-01",
+      "slug": "class1_baseline",
+      "scenario_name": "Class 1 Bounded Low-Risk Assistance",
+      "scenario_file": "integration/scenarios/class1_baseline_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_01_class1_baseline.svg",
+      "planned_png": "../scenarios/OV_01_class1_baseline.png",
+      "route_family": "CLASS_1",
+      "main_visual_situation": "User requests low-risk lighting assistance; validator approves lighting command and ACK is recorded.",
+      "active_nodes": [
+        "bounded_input_node",
+        "context_node",
+        "mac_mini_edge_hub",
+        "llm_guidance_layer",
+        "policy_router",
+        "deterministic_validator",
+        "actuator_dispatcher",
+        "lighting_actuator_node",
+        "ack_handling",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/context/input",
+        "safe_deferral/llm/candidate_action",
+        "safe_deferral/validator/output",
+        "safe_deferral/actuation/command",
+        "safe_deferral/actuation/ack",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input",
+        "candidate_action",
+        "validator_output",
+        "actuation_command_payload",
+        "actuation_ack_payload",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/policies/low_risk_actions_v1_1_0_FROZEN.json",
+        "common/schemas/candidate_action_schema_v1_0_0_FROZEN.json",
+        "common/schemas/validator_output_schema_v1_1_0_FROZEN.json"
+      ],
+      "expected_outcome": "Low-risk lighting action executes only after deterministic validator approval and ACK logging."
+    },
+    {
+      "figure_id": "OV-02",
+      "slug": "class0_e001_high_temperature",
+      "scenario_name": "Class 0 E001 High Temperature",
+      "scenario_file": "integration/scenarios/class0_e001_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_02_class0_e001_high_temperature.svg",
+      "planned_png": "../scenarios/OV_02_class0_e001_high_temperature.png",
+      "route_family": "CLASS_0",
+      "main_visual_situation": "Temperature sensor reports high temperature in the kitchen/living area.",
+      "active_nodes": [
+        "temperature_sensor_node",
+        "mac_mini_edge_hub",
+        "mqtt_broker_runtime",
+        "policy_router",
+        "warning_output_node",
+        "caregiver_notification_interface",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/emergency/event",
+        "safe_deferral/escalation/class2",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input_or_emergency_context",
+        "class_2_notification_payload",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json"
+      ],
+      "expected_outcome": "Class 0 emergency handling proceeds without LLM final decision authority."
+    },
+    {
+      "figure_id": "OV-03",
+      "slug": "class0_e002_triple_hit",
+      "scenario_name": "Class 0 E002 Triple-Hit Emergency Input",
+      "scenario_file": "integration/scenarios/class0_e002_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_03_class0_e002_triple_hit.svg",
+      "planned_png": "../scenarios/OV_03_class0_e002_triple_hit.png",
+      "route_family": "CLASS_0",
+      "main_visual_situation": "User presses bounded input repeatedly to trigger triple-hit emergency input.",
+      "active_nodes": [
+        "bounded_input_node",
+        "mac_mini_edge_hub",
+        "mqtt_broker_runtime",
+        "policy_router",
+        "warning_output_node",
+        "caregiver_notification_interface",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/emergency/event",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input_or_emergency_context",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json"
+      ],
+      "expected_outcome": "Triple-hit input is treated as deterministic emergency evidence, not LLM-generated emergency authority."
+    },
+    {
+      "figure_id": "OV-04",
+      "slug": "class0_e003_smoke",
+      "scenario_name": "Class 0 E003 Smoke Detected",
+      "scenario_file": "integration/scenarios/class0_e003_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_04_class0_e003_smoke.svg",
+      "planned_png": "../scenarios/OV_04_class0_e003_smoke.png",
+      "route_family": "CLASS_0",
+      "main_visual_situation": "Smoke sensor detects smoke near the kitchen ceiling.",
+      "active_nodes": [
+        "smoke_sensor_node",
+        "mac_mini_edge_hub",
+        "mqtt_broker_runtime",
+        "policy_router",
+        "warning_output_node",
+        "caregiver_notification_interface",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/emergency/event",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input_or_emergency_context",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json"
+      ],
+      "expected_outcome": "Smoke evidence routes to Class 0 emergency handling and audit."
+    },
+    {
+      "figure_id": "OV-05",
+      "slug": "class0_e004_gas",
+      "scenario_name": "Class 0 E004 Gas Detected",
+      "scenario_file": "integration/scenarios/class0_e004_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_05_class0_e004_gas.svg",
+      "planned_png": "../scenarios/OV_05_class0_e004_gas.png",
+      "route_family": "CLASS_0",
+      "main_visual_situation": "Gas sensor detects gas near the kitchen or gas range.",
+      "active_nodes": [
+        "gas_sensor_node",
+        "mac_mini_edge_hub",
+        "mqtt_broker_runtime",
+        "policy_router",
+        "warning_output_node",
+        "caregiver_notification_interface",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/emergency/event",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input_or_emergency_context",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json"
+      ],
+      "expected_outcome": "Gas evidence routes to Class 0 emergency handling and audit."
+    },
+    {
+      "figure_id": "OV-06",
+      "slug": "class0_e005_fall",
+      "scenario_name": "Class 0 E005 Fall Detected",
+      "scenario_file": "integration/scenarios/class0_e005_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_06_class0_e005_fall.svg",
+      "planned_png": "../scenarios/OV_06_class0_e005_fall.png",
+      "route_family": "CLASS_0",
+      "main_visual_situation": "Fall detection node reports a fall in the living room or bedroom area.",
+      "active_nodes": [
+        "fall_detection_node",
+        "mac_mini_edge_hub",
+        "mqtt_broker_runtime",
+        "policy_router",
+        "warning_output_node",
+        "caregiver_notification_interface",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/emergency/event",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input_or_emergency_context",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json"
+      ],
+      "expected_outcome": "Fall evidence routes to Class 0 emergency handling and audit."
+    },
+    {
+      "figure_id": "OV-07",
+      "slug": "class2_insufficient_context",
+      "scenario_name": "Class 2 Insufficient Context Clarification",
+      "scenario_file": "integration/scenarios/class2_insufficient_context_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_07_class2_insufficient_context.svg",
+      "planned_png": "../scenarios/OV_07_class2_insufficient_context.png",
+      "route_family": "CLASS_2",
+      "main_visual_situation": "Ambiguous user/context input leads to bounded candidate clarification and transition options.",
+      "active_nodes": [
+        "bounded_input_node",
+        "context_node",
+        "mac_mini_edge_hub",
+        "policy_router",
+        "class2_clarification_manager",
+        "llm_guidance_layer",
+        "tts_voice_output_node",
+        "display_output_node",
+        "caregiver_notification_interface",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/context/input",
+        "safe_deferral/deferral/request",
+        "safe_deferral/escalation/class2",
+        "safe_deferral/caregiver/confirmation",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input",
+        "clarification_interaction",
+        "class_2_notification_payload",
+        "manual_confirmation_payload",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+        "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json"
+      ],
+      "expected_outcome": "Class 2 clarification/transition state; candidate generation does not authorize actuation."
+    },
+    {
+      "figure_id": "OV-08",
+      "slug": "stale_fault",
+      "scenario_name": "Stale Fault",
+      "scenario_file": "integration/scenarios/stale_fault_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_08_stale_fault.svg",
+      "planned_png": "../scenarios/OV_08_stale_fault.png",
+      "route_family": "FAULT_STALE_STATE",
+      "main_visual_situation": "Stale sensor or context state is detected and direct actuation is blocked.",
+      "active_nodes": [
+        "context_node",
+        "rpi_scenario_orchestrator",
+        "mac_mini_edge_hub",
+        "policy_router",
+        "health_check_routine",
+        "safe_deferral_manager",
+        "tts_voice_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/context/input",
+        "safe_deferral/fault/injection",
+        "safe_deferral/deferral/request",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input",
+        "fault_injection_payload",
+        "safe_deferral_event",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/mqtt/topic_registry_v1_1_0.json"
+      ],
+      "expected_outcome": "Stale state is not treated as fresh; system performs recheck, Class 2-like handling, or safe deferral."
+    },
+    {
+      "figure_id": "OV-09",
+      "slug": "conflict_fault",
+      "scenario_name": "Conflict Fault",
+      "scenario_file": "integration/scenarios/conflict_fault_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_09_conflict_fault.svg",
+      "planned_png": "../scenarios/OV_09_conflict_fault.png",
+      "route_family": "FAULT_CONFLICT_CANDIDATES",
+      "main_visual_situation": "Multiple plausible low-risk candidates conflict and require user/caregiver confirmation.",
+      "active_nodes": [
+        "bounded_input_node",
+        "context_node",
+        "mac_mini_edge_hub",
+        "policy_router",
+        "deterministic_validator",
+        "class2_clarification_manager",
+        "llm_guidance_layer",
+        "tts_voice_output_node",
+        "display_output_node",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/context/input",
+        "safe_deferral/llm/candidate_action",
+        "safe_deferral/deferral/request",
+        "safe_deferral/caregiver/confirmation",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input",
+        "candidate_action",
+        "clarification_interaction",
+        "manual_confirmation_payload",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+        "common/schemas/candidate_action_schema_v1_0_0_FROZEN.json"
+      ],
+      "expected_outcome": "System must not arbitrarily select a candidate; confirmation or safe deferral is required."
+    },
+    {
+      "figure_id": "OV-10",
+      "slug": "missing_state_fault",
+      "scenario_name": "Missing-State Fault",
+      "scenario_file": "integration/scenarios/missing_state_scenario_skeleton.json",
+      "planned_svg": "../scenarios/OV_10_missing_state_fault.svg",
+      "planned_png": "../scenarios/OV_10_missing_state_fault.png",
+      "route_family": "FAULT_MISSING_STATE",
+      "main_visual_situation": "Required device/context state is missing; the system requests recheck or safely defers.",
+      "active_nodes": [
+        "context_node",
+        "health_check_routine",
+        "mac_mini_edge_hub",
+        "policy_router",
+        "safe_deferral_manager",
+        "tts_voice_output_node",
+        "caregiver_notification_interface",
+        "audit_log"
+      ],
+      "topics": [
+        "safe_deferral/context/input",
+        "safe_deferral/deferral/request",
+        "safe_deferral/escalation/class2",
+        "safe_deferral/audit/log"
+      ],
+      "payload_families": [
+        "policy_router_input",
+        "safe_deferral_event",
+        "class_2_notification_payload",
+        "audit_event_payload"
+      ],
+      "schemas_or_policies": [
+        "common/policies/policy_table_v1_2_0_FROZEN.json",
+        "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
+        "common/mqtt/topic_registry_v1_1_0.json"
+      ],
+      "expected_outcome": "Missing state must not be fabricated or assumed safe; recheck or safe deferral is required."
+    }
+  ]
+}
