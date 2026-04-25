@@ -20,10 +20,14 @@ This document is a system-architecture interpretation note and should be read to
 - `common/docs/paper/04_section2_system_design_outline.md`
 - `common/docs/required_experiments.md`
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
 - `CLAUDE.md`
 
 ---
@@ -92,6 +96,10 @@ Important interpretation:
 - Raspberry Pi 5 remains an experiment, dashboard, governance-inspection, and evaluation support layer.
 - It is not the primary operational hub.
 - It does not hold policy, validator, caregiver approval, or actuator authority.
+- It does not hold doorlock dispatch authority.
+- It does not directly edit canonical policy/schema assets.
+- It does not allow governance backend or dashboard UI to publish actuator or doorlock commands.
+- It does not allow governance UI to directly edit registry files.
 
 ### 2.6 MQTT / Payload Governance Backend
 The governance backend is a non-authoritative service layer for topic and payload management support.
@@ -101,14 +109,21 @@ Role:
 - validates topic-payload contracts,
 - manages publisher/subscriber role assignments,
 - validates payload examples against referenced schemas,
+- runs interface-matrix alignment checks,
+- generates topic/payload drift reports where implemented,
 - exports proposed change reports,
+- supports governance backend/UI separation validation,
 - and supports dashboard UI interactions.
 
 Important interpretation:
 - it may create, edit, delete, validate, and export draft registry changes,
 - but it does not directly modify canonical policy/schema authority,
+- does not directly modify canonical policies or schemas,
 - does not publish actuator commands,
+- does not publish doorlock commands,
 - does not spoof caregiver approval,
+- does not override Policy Router or Deterministic Validator decisions,
+- does not convert draft/proposed changes into live operational authority without review,
 - and does not create doorlock execution authority.
 
 ### 2.7 Governance Dashboard UI
@@ -119,13 +134,20 @@ Role:
 - supports create/edit/delete draft interactions through the governance backend,
 - visualizes publisher/subscriber role assignments,
 - visualizes payload validation results,
+- visualizes interface-matrix alignment results,
+- visualizes topic/payload drift warnings where implemented,
+- visualizes UI/backend contract failure states,
 - visualizes doorbell/doorlock boundary warnings,
 - and displays proposed change reports.
 
 Important interpretation:
+- the UI must call the governance backend for create/update/delete/validation/export operations,
 - the UI does not write registry files directly,
 - does not alter canonical policies or schemas,
 - does not publish operational control messages,
+- does not publish operational control topics,
+- does not expose unrestricted actuator consoles,
+- does not expose direct doorlock command controls,
 - and does not dispatch doorlock or actuator commands.
 
 ---
@@ -310,6 +332,8 @@ The registry-consistency support layer for runtime and verification code.
 Role:
 - loads topic definitions from `common/mqtt/`,
 - prevents topic string drift where registry lookup is practical,
+- checks alignment with `common/docs/architecture/15_interface_matrix.md`,
+- detects topic/payload hardcoding drift where implemented,
 - checks publisher/subscriber assumptions,
 - resolves payload family, schema, example payload, QoS, retain, and authority-level information.
 
@@ -490,7 +514,10 @@ Role:
 - publisher/subscriber consistency checking,
 - topic-to-payload contract validation,
 - payload example validation,
-- schema path and example path resolution.
+- schema path and example path resolution,
+- interface-matrix alignment validation,
+- topic/payload hardcoding drift detection,
+- dashboard/governance non-authority validation.
 
 Important interpretation:
 - this is validation and governance support,
@@ -505,13 +532,19 @@ Role:
 - draft topic deletion,
 - publisher/subscriber role management,
 - payload family and schema/example linkage,
+- interface-matrix alignment validation,
+- topic/payload drift report generation,
+- governance backend/UI separation validation support,
 - validation report generation,
 - proposed change export.
 
 Important interpretation:
 - it may manage draft governance artifacts,
 - but it does not directly edit canonical policy/schema authority,
-- does not publish actuator commands,
+- does not directly modify canonical policies or schemas,
+- does not publish actuator or doorlock commands,
+- does not spoof caregiver approval,
+- does not convert proposed changes into live authority without review,
 - and does not create doorlock execution authority.
 
 ### 5.8 Governance Dashboard UI
@@ -523,6 +556,9 @@ Role:
 - create/edit/delete draft interactions through backend APIs,
 - publisher/subscriber role display and editing through backend APIs,
 - payload validation result display,
+- interface-matrix alignment display,
+- topic/payload drift warning display,
+- UI/backend contract failure display,
 - doorbell/doorlock boundary warning display,
 - proposed change report display.
 
@@ -530,7 +566,10 @@ Important interpretation:
 - it is a UI layer only,
 - not the backend service,
 - not a policy authority,
-- and not an actuator console.
+- not an actuator console,
+- does not directly edit registry files,
+- does not directly publish operational control topics,
+- and does not expose direct doorlock command controls.
 
 ### 5.9 Payload Example Manager
 Manages and validates payload examples/templates for governance support.
@@ -641,6 +680,7 @@ Important interpretation:
 - does not modify canonical policy/schema truth directly,
 - does not create doorlock execution authority,
 - and does not bypass policy, validator, caregiver approval, ACK, or audit boundaries.
+- interface-matrix alignment and topic-drift validation are verification/governance checks, not operational authorization mechanisms.
 
 ---
 
@@ -667,9 +707,12 @@ The paper figure should preserve visibility of at least the following concepts:
 
 Optional development/evaluation support inset:
 - MQTT Topic / Payload Registry
+- MQTT-aware Interface Matrix
 - MQTT / Payload Governance Backend
 - Governance Dashboard UI
 - Topic / Payload Validation
+- Topic Drift Check
+- Payload Example Validation
 - Publisher / Subscriber Role Management
 
 ---
@@ -708,6 +751,9 @@ Optional development/evaluation support inset:
 ### 8.6 MQTT/payload governance path
 - registry-driven topic/payload management,
 - publisher/subscriber role validation,
+- interface-matrix alignment,
+- topic/payload drift detection,
+- proposed-change review boundary,
 - dashboard UI separated from backend service,
 - no policy, validator, caregiver approval, or actuator authority,
 - no doorlock execution authority creation through registry edits.
