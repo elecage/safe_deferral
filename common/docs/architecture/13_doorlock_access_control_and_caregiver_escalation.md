@@ -10,7 +10,8 @@ The purpose of this document is to clarify:
 - how the LLM may participate in interpreting limited user input,
 - why door unlock must not be treated as an autonomous low-risk Class 1 action in the current baseline,
 - how caregiver escalation, bounded confirmation, ACK validation, and audit logging should be combined into a safe closed-loop pathway,
-- what policy/schema/prompt/experiment implications follow from this interpretation.
+- what policy/schema/prompt/experiment implications follow from this interpretation,
+- and why MQTT/payload governance tooling may describe doorlock-related communication contracts without creating doorlock execution authority.
 
 This document is an architecture and safety-interpretation document.  
 It does **not by itself** redefine the canonical frozen policy or schema baseline.  
@@ -79,6 +80,20 @@ The LLM must not be the final authority for:
 - autonomous door unlock approval,
 - door unlock execution authorization,
 - override of policy-restricted actuation domains.
+
+## 3.4 MQTT/payload governance does not create doorlock authority
+MQTT/payload governance tooling may describe, validate, and propose communication contracts for doorlock-related implementation or experiments.
+
+However, creating or editing a doorlock-related topic, payload example, publisher role, subscriber role, or dashboard panel does **not** create doorlock execution authority.
+
+In particular, MQTT/payload governance tooling must not:
+
+- promote door unlock into autonomous Class 1 execution,
+- override the low-risk action catalog,
+- override deterministic validator behavior,
+- spoof caregiver approval,
+- dispatch doorlock commands,
+- or treat dashboard/governance configuration as policy authority.
 
 ---
 
@@ -171,6 +186,13 @@ This means the effective execution path is:
 - ACK verification,
 - local audit logging.
 
+## 5.4 Doorlock-related MQTT topics remain communication contracts
+Doorlock-related MQTT topics may exist as implementation-facing or experiment-facing communication contracts.
+
+Such topics must be marked as sensitive, governed, caregiver-mediated, manual-confirmation, or experiment-only as appropriate.
+
+They must not be labeled or treated as ordinary autonomous Class 1 low-risk actuation topics under the current baseline.
+
 ---
 
 ## 6. Recommended Closed-Loop Handling Pipeline
@@ -253,6 +275,15 @@ The following should be logged locally through the single-writer audit path:
 - device ACK result,
 - final actuation or non-actuation result.
 
+## Step 6. Governance dashboard visibility without authority
+If an MQTT/payload governance dashboard is implemented, it may display doorlock-sensitive topic contracts, payload validation results, publisher/subscriber roles, and boundary warnings.
+
+The dashboard UI should remain a presentation and interaction layer only.
+
+Topic/payload create, update, delete, validation, and export operations should be handled by a separate governance backend service.
+
+Neither the dashboard UI nor the governance backend may bypass policy, validator, caregiver approval, ACK verification, or audit logging.
+
 ---
 
 ## 7. What the LLM Is Allowed to Do
@@ -325,7 +356,19 @@ If doorlock action types are absent from the permitted candidate action domain, 
 ### 9.4 Validator output behavior
 Validator behavior must remain consistent with the principle that restricted sensitive actions are escalated rather than silently admitted into the execution path.
 
-### 9.5 Required experiments
+### 9.5 MQTT topic and payload registry
+Doorlock-related topic or payload entries in `common/mqtt/` or `common/payloads/` are communication and documentation references unless a future policy/schema revision explicitly changes their authority.
+
+A topic registry entry may describe:
+
+- a governed manual confirmation path,
+- a caregiver-mediated command path,
+- a mock or experiment-only doorlock-sensitive flow,
+- or dashboard observation of doorlock-sensitive state.
+
+It must not by itself create an autonomous low-risk Class 1 door unlock path.
+
+### 9.6 Required experiments
 This interpretation implies that doorlock-related tests should focus on:
 - doorbell-context-aware visitor-response interpretation,
 - blocked autonomous unlock,
@@ -360,6 +403,18 @@ If that question is revisited in the future, it should require:
 - explicit experiment updates,
 - and likely additional safety constraints.
 
+### 10.4 MQTT / payload registry review
+If doorlock support becomes more formal, related topic and payload contracts should be reviewed together with policy and schema changes.
+
+That review should confirm:
+
+- whether the topic is operational, experiment-only, dashboard-only, or manual-confirmation-only,
+- which publisher roles may publish,
+- which subscriber roles may consume,
+- what schema or payload family governs it,
+- whether ACK and audit requirements are explicit,
+- and whether the topic could be misread as autonomous Class 1 authority.
+
 ---
 
 ## 11. Prompt Implications
@@ -371,13 +426,15 @@ Prompt files and coding instructions should reflect the following rules:
 - treat `doorbell_detected` as visitor-response context, not unlock authorization,
 - treat doorlock as a sensitive actuation domain,
 - allow representative doorlock-node implementation,
-- but preserve the distinction between implementation-facing interface support and authorized autonomous actuation scope.
+- but preserve the distinction between implementation-facing interface support and authorized autonomous actuation scope,
+- ensure that MQTT/payload governance tooling can describe and validate doorlock-related communication contracts but cannot create doorlock execution authority.
 
 This is especially relevant to:
 - architecture prompts,
 - Claude Code prompts,
 - firmware-generation prompts,
-- and future actuator-dispatch prompts.
+- future actuator-dispatch prompts,
+- and `common/docs/architecture/12_prompts_mqtt_payload_governance.md`.
 
 ---
 
@@ -409,6 +466,10 @@ Goal:
 Goal:
 - verify that ambiguous visitor situations can be resolved without unsafe autonomous unlock.
 
+### 12.6 MQTT/payload governance boundary validation
+Goal:
+- verify that doorlock-related topic or payload registry edits do not create autonomous Class 1 execution authority.
+
 ---
 
 ## 13. Current Recommendation
@@ -421,7 +482,8 @@ The current recommended interpretation is:
 - do not allow autonomous unlock as a standard Class 1 low-risk action,
 - route unlock-related sensitive outcomes through caregiver escalation or a separately governed manual confirmation path,
 - require ACK-based closed-loop verification,
-- and log all relevant steps locally.
+- log all relevant steps locally,
+- and ensure that MQTT/payload governance tooling can describe and validate doorlock-related communication contracts but cannot create doorlock execution authority.
 
 This preserves the research goal of using LLMs to support limited-input users, while preventing unsafe autonomous unlock behavior.
 
@@ -434,5 +496,7 @@ In the current safe_deferral architecture, doorlock opening is treated as a **se
 `doorbell_detected` may help the system interpret a visitor-related situation, but it does not authorize autonomous door unlock.
 
 The LLM may help interpret what the user wants in a visitor-related situation, but it must not autonomously authorize or execute door unlock. Instead, door unlock must remain structurally blocked from autonomous Class 1 execution and should proceed only through caregiver escalation, a separately governed manual confirmation path, ACK-based closed-loop verification, and local audit logging.
+
+MQTT/payload governance tooling may describe, validate, and help manage doorlock-related communication contracts, but it cannot create doorlock execution authority or bypass policy, validator, caregiver approval, ACK, or audit boundaries.
 
 This interpretation allows the project to support alternative-input intent recovery without sacrificing residential security and user safety.
