@@ -16,20 +16,21 @@ If older wording in the legacy master handoff conflicts with newer dated addenda
 
 ## Current priority read order
 
-For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, Mac mini install/configure/verify, Raspberry Pi install/configure/verify, and architecture-document-structure work, read in this order:
+For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, Mac mini install/configure/verify, Raspberry Pi install/configure/verify, ESP32 install/configure/verify, and architecture-document-structure work, read in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_RPI_SCRIPT_ALIGNMENT_UPDATE.md`
-2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MAC_MINI_INSTALL_CONFIG_VERIFY_ALIGNMENT_UPDATE.md`
-3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_RPI_SCRIPT_ALIGNMENT_PLAN.md`
-4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_MQTT_PAYLOAD_ALIGNMENT_UPDATE.md`
-5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
-6. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
-7. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
-8. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
-9. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
-10. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
-11. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
-12. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ESP32_SCRIPT_ALIGNMENT_PLAN.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_RPI_SCRIPT_ALIGNMENT_UPDATE.md`
+3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MAC_MINI_INSTALL_CONFIG_VERIFY_ALIGNMENT_UPDATE.md`
+4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_RPI_SCRIPT_ALIGNMENT_PLAN.md`
+5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_MQTT_PAYLOAD_ALIGNMENT_UPDATE.md`
+6. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
+7. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
+8. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
+9. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
+10. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
+11. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
+12. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+13. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
 
 Use the legacy handoff as historical context and operational history, not as the final authority when it conflicts with newer addenda.
 
@@ -211,6 +212,7 @@ Do not treat old active paths such as `common/docs/architecture/24_final_paper_a
 15. If a future task intentionally expands policy or schema scope, update frozen assets, required experiments, prompts, README, CLAUDE, interface matrix, topic registry, payload docs, and a new dated handoff addendum together.
 16. For Mac mini install/configure/verify changes, check `SESSION_HANDOFF_2026-04-25_MAC_MINI_INSTALL_CONFIG_VERIFY_ALIGNMENT_UPDATE.md`, `mac_mini/docs/README.md`, and `02_mac_mini_build_sequence.md` together.
 17. For Raspberry Pi install/configure/verify changes, check `SESSION_HANDOFF_2026-04-25_RPI_SCRIPT_ALIGNMENT_UPDATE.md` and preserve the non-authoritative RPi boundary.
+18. For ESP32 install/configure/verify changes, check `SESSION_HANDOFF_2026-04-25_ESP32_SCRIPT_ALIGNMENT_PLAN.md` and preserve the bounded physical-node boundary.
 
 ---
 
