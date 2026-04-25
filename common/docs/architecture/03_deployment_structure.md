@@ -18,6 +18,10 @@ It is intended to be used as a reference for:
 This document does not replace the canonical frozen policy/schema baseline.  
 The shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
+The current active architecture-figure and payload-boundary references are:
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+
 ---
 
 ## A. Installation
@@ -64,6 +68,7 @@ Installed services, runtimes, and experimental node assumptions are configured f
 - SQLite schema initialized
 - runtime `.env` files written
 - simulation runtime parameters configured
+- `doorbell_detected` visitor-response context generation and normalization configured where visitor-response or doorlock-sensitive experiments are used
 - ESP32 node-side connection parameters aligned with the operational hub when needed
 - timing-node measurement assumptions aligned when out-of-band latency measurement is used
 
@@ -78,6 +83,9 @@ Installed services, runtimes, and experimental node assumptions are configured f
 
 ### Interpretation
 Configuration means the installed components are now aligned with the project architecture, frozen assets, runtime assumptions, and experimental validation design.
+
+Payload placement and authority boundaries must follow:
+- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ### Configuration separation principle
 - frozen policy/schema/terminology assets are derived from `common/`
@@ -100,6 +108,8 @@ Each service, dependency, runtime path, and experimental validation path works c
 - runtime assets are present and valid
 - canonical frozen assets are deployed and readable
 - canonical policy/schema/rules version alignment passes
+- schema-valid context payload generation verifies required `environmental_context.doorbell_detected`
+- visitor-response / doorlock-sensitive experiment payloads verify that `doorbell_detected` is context only, not doorlock authorization
 - Raspberry Pi simulation runtime passes base checks
 - closed-loop audit verification passes
 - ESP32-linked bounded input/output path can be validated during integration testing
@@ -120,6 +130,7 @@ Verification must confirm not only service health, but also architectural consis
 - canonical frozen assets
 - deployed runtime copies
 - trigger semantics
+- payload placement and authority boundaries
 - evaluation-side validation assumptions
 
 ---
@@ -176,6 +187,8 @@ Accordingly:
 
 must remain semantically aligned with the same canonical trigger set.
 
+`doorbell_detected` is not part of the current canonical emergency trigger family. It is a visitor-response context signal and must not be interpreted as Class 0 emergency evidence or autonomous doorlock authority.
+
 This document does not redefine emergency semantics.  
 The authoritative trigger definitions remain in the shared policy table.
 
@@ -188,8 +201,8 @@ The Mac mini is the primary operational hub.
 It hosts the core runtime services, hub-side applications, and operational verification flow.
 
 ### Raspberry Pi 5
-The Raspberry Pi 5 is the simulation and evaluation node.  
-It hosts virtual sensor nodes, multi-node simulation, emergency simulation, fault injection, scenario orchestration, and closed-loop experiment workflows.
+The Raspberry Pi 5 is the experiment-side support node.  
+It hosts the experiment and monitoring dashboard, virtual sensor nodes, multi-node simulation, emergency simulation, fault injection, scenario orchestration, replay, closed-loop experiment workflows, progress/status publication, and result artifact generation.
 
 It does **not** host the core operational hub services of the system, such as:
 - Home Assistant
@@ -202,8 +215,10 @@ It does **not** host the core operational hub services of the system, such as:
 Instead, it consumes synchronized runtime copies of frozen assets and supports experiment-side execution only.
 
 ### ESP32
-ESP32 devices are embedded physical nodes used for bounded button input, sensing, or actuator/warning interfacing where required.  
+ESP32 devices are embedded physical nodes used for bounded button input, environmental sensing, doorbell / visitor-arrival context sensing, or actuator/warning interfacing where required.  
 They are implementation targets and also form the physical bounded input/output validation layer during integration testing.
+
+ESP32 doorlock or warning interface nodes must not locally reinterpret doorlock as autonomous Class 1 authority.
 
 ### STM32 Timing Node or Equivalent
 An STM32 timing node or another dedicated measurement node may be used as optional experimental timing infrastructure.  
@@ -237,8 +252,8 @@ These assets are necessary for deployment, but they must not override or redefin
 - **Shared frozen assets** in `common/` provide the canonical reference state used by Mac mini, Raspberry Pi, and ESP32-related implementation work.
 - **Deployment-local configuration** remains host-specific and is not part of the canonical frozen policy baseline.
 - **Mac mini** remains the only operational hub for core runtime services.
-- **Raspberry Pi 5** remains an experiment-side simulation, fault-injection, and evaluation node rather than a replacement for the Mac mini runtime.
-- **ESP32 physical nodes** support bounded real-world input/output validation.
+- **Raspberry Pi 5** remains an experiment-side dashboard, simulation, orchestration, replay, fault-injection, and evaluation node rather than a replacement for the Mac mini runtime.
+- **ESP32 physical nodes** support bounded real-world input/output validation, including visitor-response context sensing where applicable.
 - **Optional STM32 timing infrastructure** supports out-of-band latency measurement.
 - **Integration assets** validate cross-device behavior after isolated verification is complete.
 
