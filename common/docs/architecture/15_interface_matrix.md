@@ -12,13 +12,16 @@ It is intended to support:
 - and consistency checks against MQTT topic, publisher/subscriber, and payload contracts.
 
 This document should be read together with:
+- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/docs/architecture/14_system_components_outline_v2.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/docs/paper/04_section2_system_design_outline.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
 - `CLAUDE.md`
 
 ---
@@ -35,6 +38,8 @@ The following corrections were explicitly applied before writing the final inter
 - **Dashboard/governance interfaces must not publish control authority.** Dashboard and governance tooling may inspect, validate, and propose changes, but must not bypass policy routing, deterministic validation, caregiver approval, ACK, or audit boundaries.
 - **Topic/payload registry edits do not create doorlock execution authority.** Doorlock-related topic entries remain sensitive communication contracts unless future frozen policy/schema revisions explicitly promote them.
 - **`doorbell_detected` is visitor-response context only.** It is not emergency evidence and does not authorize autonomous doorlock control.
+- **Interface-matrix alignment and topic/payload drift checks are governance/verification checks, not operational authorization mechanisms.**
+- **Governance backend/UI separation must be preserved.** The UI must call the backend for create/update/delete/validation/export operations and must not directly edit registry files.
 
 If a future diagram or text conflicts with these points, this matrix should be treated as the corrected interpretation.
 
@@ -42,8 +47,12 @@ If a future diagram or text conflicts with these points, this matrix should be t
 
 ## 3. Interface matrix
 
-The matrix below is intentionally MQTT-aware.  
-Where a row corresponds to a registry-governed interface, the `MQTT Topic / Interface` and `Payload Family` columns should remain aligned with `common/mqtt/topic_registry_v1_0_0.json`.
+The matrix below is intentionally MQTT-aware.
+
+Where a row corresponds to a registry-governed interface, the `MQTT Topic / Interface`, `Payload Family`, publisher/subscriber roles, and authority boundary should remain aligned with:
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
 
 | Category | ID | Source Block | Destination Block | MQTT Topic / Interface | Payload Family | Description | Notes |
 |---|---|---|---|---|---|---|---|
@@ -110,6 +119,8 @@ Where a row corresponds to a registry-governed interface, the `MQTT Topic / Inte
 | Governance Support | GV-5 | MQTT / Payload Governance Backend | Publisher / Subscriber Role Manager | internal governance API | role_validation_request | Backend validates publisher/subscriber role assignments. | Dashboard/gov roles must not receive actuator/caregiver authority. |
 | Governance Support | GV-6 | MQTT / Payload Governance Backend | Draft Registry Change / Validation Report | file/export artifact | governance_change_report | Backend exports proposed changes and validation reports. | Review/commit workflow required before repository changes. |
 | Governance Support | GV-7 | MQTT / Payload Governance Backend | `common/mqtt/` and `common/payloads/` reference assets | reviewed repository change only | registry_or_payload_reference_update | Approved changes may be committed through normal repository review. | No silent policy/schema edits; no direct live control authority. |
+| Governance Support | GV-8 | MQTT / Payload Governance Backend | Interface Matrix Alignment Check | internal governance validation | interface_matrix_alignment_report | Backend validates proposed topic/payload behavior against this matrix. | Verification/governance check only; not operational authorization. |
+| Governance Support | GV-9 | MQTT / Payload Governance Backend | Topic Drift Check | internal governance validation | topic_drift_report | Backend detects hardcoded or unauthorized topic/payload drift where implementation files are in scope. | Drift check only; not policy authority. |
 
 ---
 
@@ -136,6 +147,8 @@ It should be kept aligned with `common/mqtt/topic_registry_v1_0_0.json`.
 | `safe_deferral/experiment/progress` | RPi orchestrator, integration test runner | RPi dashboard frontend, result exporter | `experiment_progress_payload` | Experiment status only. |
 | `safe_deferral/experiment/result` | RPi orchestrator, integration test runner, result exporter | RPi dashboard frontend, optional paper analysis tools | `result_export_payload` | Experiment artifact only. |
 
+Governance validation artifacts such as interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports may be exported as files or dashboard artifacts. They are not operational MQTT control topics and must not create runtime authority.
+
 ---
 
 ## 5. Prohibited or misleading interfaces
@@ -152,10 +165,17 @@ The following interfaces should not be drawn or described as normal architecture
 | Emergency Nodes → Local Audit Logging | Audit logging records processed outcomes, not raw emergency signals as a direct sink. |
 | TTS Rendering / Voice Output → Policy Router | TTS is an output/rendering layer, not a control-input layer. |
 | Governance Dashboard UI → `common/mqtt/` files directly | The UI must call the governance backend and must not directly write registry files. |
+| Governance Dashboard UI → direct registry file write | The UI must use the governance backend API for draft/create/update/delete/validation/export operations. |
 | Governance Dashboard UI → MQTT operational control topics directly | The UI is not an actuator console or control authority. |
+| Governance Dashboard UI → doorlock command control | The UI must not expose direct doorlock command controls. |
+| Governance Dashboard UI → unrestricted actuator console | The UI must not expose unrestricted actuator consoles. |
 | MQTT / Payload Governance Backend → canonical policies/schemas directly | Governance tooling must not silently rewrite policy/schema authority. |
 | MQTT / Payload Governance Backend → Actuator Interface Nodes | Governance tooling cannot dispatch actuator commands. |
+| MQTT / Payload Governance Backend → doorlock command publish | Governance backend cannot publish actuator or doorlock commands. |
 | MQTT / Payload Governance Backend → Caregiver Approval | Governance tooling cannot spoof or replace caregiver approval. |
+| MQTT / Payload Governance Backend → live authority without review | Draft/proposed changes cannot become live operational authority without review/commit workflow. |
+| Interface-matrix alignment report → operational authorization | Alignment reports are governance/verification evidence, not execution authority. |
+| Topic-drift report → operational authorization | Drift reports are governance/verification evidence, not execution authority. |
 | Dashboard Observation → Policy Router | Dashboard observation is visibility only, not policy input truth. |
 | Dashboard Observation → Deterministic Validator | Dashboard observation is not validation input authority. |
 | `safe_deferral/dashboard/observation` → policy truth | Dashboard observation payloads are visibility artifacts. |
@@ -221,6 +241,9 @@ For a more compact paper figure, the interfaces above may be grouped into the fo
 - Governance Backend → Payload Example Manager / Validator
 - Governance Backend → Publisher / Subscriber Role Manager
 - Governance Backend → Draft Change / Validation Report
+- Governance Backend → Interface Matrix Alignment Check
+- Governance Backend → Topic Drift Check
+- Governance Backend → Payload Validation Report
 
 ---
 
@@ -228,4 +251,4 @@ For a more compact paper figure, the interfaces above may be grouped into the fo
 
 The corrected interface interpretation is that ordinary bounded interaction uses context aggregation and local LLM reasoning before policy and validation, emergency sensing uses a policy-driven path rather than a primary LLM path, sensitive actuation requires caregiver approval after escalation, and user-facing explanations are generated by the LLM and delivered through TTS rather than directly by deferral or routing layers.
 
-All MQTT-facing interfaces should remain aligned with `common/mqtt/topic_registry_v1_0_0.json`, and governance/dashboard interfaces may inspect, validate, or propose topic/payload changes without becoming policy, validator, caregiver approval, audit, or actuator authority.
+All MQTT-facing interfaces should remain aligned with `common/mqtt/topic_registry_v1_0_0.json`, and governance/dashboard interfaces may inspect, validate, or propose topic/payload changes without becoming policy, validator, caregiver approval, audit, or actuator authority. Interface-matrix alignment, topic/payload drift detection, and payload validation reports are governance/verification artifacts and must not be interpreted as operational authorization mechanisms.
