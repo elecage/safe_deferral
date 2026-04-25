@@ -366,6 +366,9 @@ Package G 구현/검증 시 최소한 다음 항목을 확인한다.
 * `/common/docs/architecture/15_interface_matrix.md`
 * `/common/docs/architecture/16_system_architecture_figure.md`
 * `/common/docs/architecture/17_payload_contract_and_registry.md`
+* `/common/docs/architecture/18_scenario_node_component_mapping.md`
+* `/common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+* `/common/docs/architecture/20_scenario_data_flow_matrix.md`
 
 ### MQTT / payload 문서
 * `/common/mqtt/topic_registry_v1_0_0.json`
