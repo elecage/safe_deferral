@@ -37,7 +37,7 @@ else
     echo "  [INFO] No MQTT authentication credentials provided. Proceeding anonymously."
 fi
 
-TEST_TOPIC="smarthome/verify/test"
+TEST_TOPIC="safe_deferral/verify/mqtt_pubsub"
 TEST_MSG="verify_$(date +%s)"
 LOG_FILE="/tmp/mqtt_verify_$$.log"
 
