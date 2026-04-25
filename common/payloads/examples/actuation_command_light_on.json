@@ -1,0 +1,9 @@
+{
+  "command_id": "example-actuation-light-on-001",
+  "source_decision": "validator_output",
+  "action": "light_on",
+  "target_device": "living_room_light",
+  "requires_ack": true,
+  "audit_correlation_id": "example-light-on-001",
+  "authority_note": "This low-risk command is valid only after deterministic validator approval."
+}
