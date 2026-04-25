@@ -7,11 +7,16 @@ This document defines the recommended repository structure for the safe deferral
 It reflects:
 - the current frozen asset strategy
 - device-level separation between Mac mini, Raspberry Pi, ESP32, and optional timing infrastructure
-- the distinction between shared assets, operational scripts, embedded firmware, measurement assets, and integration assets
+- the distinction between shared assets, operational scripts, embedded firmware, measurement assets, integration assets, MQTT contracts, and payload examples/templates
 - the canonical terminology of the project
 
 This document does not redefine policy truth.  
 Canonical policy, schema, terminology, and related reference assets remain anchored in the shared frozen asset set under `common/`.
+
+Current active structure references:
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
 
 ---
 
@@ -25,8 +30,19 @@ safe_deferral/
 ├── common/
 │   ├── policies/
 │   ├── schemas/
+│   ├── mqtt/
+│   │   ├── README.md
+│   │   ├── topic_registry_v1_0_0.json
+│   │   ├── publisher_subscriber_matrix_v1_0_0.md
+│   │   └── topic_payload_contracts_v1_0_0.md
+│   ├── payloads/
+│   │   ├── README.md
+│   │   ├── examples/
+│   │   └── templates/
 │   ├── docs/
-│   │   └── architecture/
+│   │   ├── architecture/
+│   │   ├── runtime/
+│   │   └── archive/
 │   └── terminology/
 ├── mac_mini/
 │   ├── scripts/
@@ -64,9 +80,9 @@ safe_deferral/
 
 ## 1. `common/`
 
-The `common/` directory contains shared frozen assets and common reference documents.
+The `common/` directory contains shared frozen assets, common reference documents, MQTT communication contracts, and payload examples/templates.
 
-These files act as the single source of truth before runtime deployment.
+These files act as the shared reference layer before runtime deployment.
 
 ### `common/policies/`
 Stores shared policy assets, including:
@@ -100,15 +116,63 @@ Representative canonical files:
 - `validator_output_schema_v1_1_0_FROZEN.json`
 - `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
 
+### `common/mqtt/`
+Stores MQTT topic, publisher/subscriber, and topic-payload communication contracts.
+
+Representative files:
+- `README.md`
+- `topic_registry_v1_0_0.json`
+- `publisher_subscriber_matrix_v1_0_0.md`
+- `topic_payload_contracts_v1_0_0.md`
+
+This directory manages:
+- topic namespace assumptions
+- allowed publishers
+- allowed subscribers
+- payload family mapping
+- schema/example references
+- QoS and retain guidance
+- operational vs experiment-only topic boundaries
+- dashboard/observation topic boundaries
+
+`common/mqtt/` is a communication-contract reference layer. It does not override `common/policies/` or `common/schemas/`.
+
+### `common/payloads/`
+Stores shared payload examples and templates.
+
+Recommended subfolders:
+- `common/payloads/examples/`
+- `common/payloads/templates/`
+
+Example payload categories:
+- policy-router input examples
+- pure context payload examples
+- visitor-response / `doorbell_detected` examples
+- candidate action examples
+- validator output examples
+- Class 2 notification examples
+- manual confirmation examples
+- actuation ACK examples
+- dashboard observation examples
+- experiment annotation examples
+- scenario fixture templates
+- result export templates
+
+`common/payloads/` is not policy authority and does not replace JSON schemas. Any schema-governed section embedded in a payload example must validate against the corresponding schema under `common/schemas/`.
+
 ### `common/docs/`
 Stores shared documentation, including:
 - installation and deployment references
 - architecture documents
+- runtime handoff documents
+- archived historical notes
 - evaluation planning documents
 - implementation-boundary guidance
 
 Recommended subfolders:
 - `common/docs/architecture/`
+- `common/docs/runtime/`
+- `common/docs/archive/`
 
 ### `common/terminology/`
 Stores frozen terminology and naming records.
@@ -117,8 +181,10 @@ Representative file:
 - `TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 
 ### Interpretation
-The `common/` directory is the canonical reference layer.  
-Runtime copies may be deployed elsewhere, but the authoritative frozen baseline is maintained here.
+The `common/` directory is the shared reference layer.  
+Runtime copies may be deployed elsewhere, but authoritative frozen policy and schema baselines remain in `common/policies/` and `common/schemas/`.
+
+MQTT and payload files support communication governance, implementation guidance, testing, and documentation consistency; they do not create autonomous policy or actuation authority.
 
 ---
 
@@ -140,6 +206,7 @@ Representative use:
 - MQTT publishing utilities
 - schema validation support
 - experiment / verification dependency setup
+- dashboard-side runtime dependencies when applicable
 
 ### Interpretation
 These files are host-side dependency manifests.  
@@ -169,6 +236,7 @@ Configuration scripts for:
 - notification settings
 - environment file generation
 - frozen asset deployment
+- MQTT topic/payload contract deployment or reference checks when needed
 
 ### `mac_mini/scripts/verify/`
 Verification scripts for:
@@ -179,6 +247,7 @@ Verification scripts for:
 - notification path
 - runtime environment validation
 - deployed asset/version consistency checks
+- topic/payload contract consistency checks when implemented
 
 ### `mac_mini/runtime/`
 Stores runtime deployment templates and service-oriented runtime assets.
@@ -198,6 +267,8 @@ Stores hub-side application code, including future implementations of:
 - Audit Logging Service
 - Outbound Notification Interface
 - Caregiver Confirmation Backend
+- MQTT intake/dispatch adapters when implemented
+- topic/payload validation helpers when implemented
 
 ### `mac_mini/docs/`
 Stores Mac mini-specific implementation notes if needed.
@@ -206,13 +277,15 @@ Stores Mac mini-specific implementation notes if needed.
 `mac_mini/runtime/` is a deployment/runtime zone, not the canonical source of frozen policy truth.  
 Canonical policy and schema definitions remain under `common/`.
 
+Mac mini may consume MQTT/payload contracts for validation and runtime governance, but those contracts do not override policy or schema authority.
+
 ---
 
 ## 4. `rpi/`
 
-The `rpi/` directory contains Raspberry Pi-side simulation and evaluation assets.
+The `rpi/` directory contains Raspberry Pi-side dashboard, simulation, orchestration, replay, fault-injection, and evaluation assets.
 
-The Raspberry Pi is the primary multi-node simulation, fault-injection, and experiment orchestration node.
+The Raspberry Pi is the primary experiment-side dashboard, multi-node simulation, replay, fault-injection, and experiment orchestration node.
 
 ### `rpi/scripts/install/`
 Installation scripts for:
@@ -225,25 +298,35 @@ Installation scripts for:
 Configuration scripts for:
 - runtime `.env` generation
 - frozen asset synchronization
+- MQTT/payload contract synchronization or reference checks when needed
 - time synchronization
 - simulation runtime setup
 - fault profile preparation
+- dashboard runtime preparation when implemented
 
 ### `rpi/scripts/verify/`
 Verification scripts for:
 - base runtime readiness
 - network reachability
 - simulation environment checks
+- dashboard runtime checks when implemented
 - closed-loop audit validation
 - evaluation-side asset consistency checks
+- topic/payload contract consistency checks when implemented
 
 ### `rpi/code/`
 Stores Raspberry Pi-side future code, including:
 - virtual sensor nodes
 - virtual emergency sensors
+- virtual `doorbell_detected` visitor-response context generation
 - multi-node simulation runtime
 - fault injector harness
 - simulation publishers
+- scenario orchestration logic
+- replay logic
+- experiment and monitoring dashboard runtime
+- progress/status publication
+- result summary / graph / CSV export support
 - closed-loop evaluation orchestration logic
 - large-scale experiment-side control logic
 
@@ -252,7 +335,9 @@ Stores Raspberry Pi-specific implementation notes if needed.
 
 ### Interpretation
 The Raspberry Pi consumes synchronized runtime copies derived from canonical frozen assets.  
-It supports experiment-side execution and evaluation scaling, but it does not redefine canonical operational policy truth.
+It supports experiment-side execution, dashboarding, and evaluation scaling, but it does not redefine canonical operational policy truth.
+
+RPi dashboard, simulation, fault-injection, and experiment result payloads are visibility/evaluation artifacts unless explicitly validated through canonical schemas and allowed by the MQTT topic registry.
 
 ---
 
@@ -260,7 +345,7 @@ It supports experiment-side execution and evaluation scaling, but it does not re
 
 The `esp32/` directory contains embedded-device implementation assets and cross-platform development-environment scaffolding.
 
-ESP32 devices are used for bounded physical interaction, sensing, or actuator/warning interfacing within the applicable scope.
+ESP32 devices are used for bounded physical interaction, sensing, visitor-response context generation, or actuator/warning interfacing within the applicable scope.
 
 ### `esp32/scripts/install/`
 Stores cross-platform ESP32 SDK/toolchain setup scripts.
@@ -284,6 +369,7 @@ Representative responsibilities:
 - ESP-IDF workspace preparation
 - managed component preparation
 - sample project preparation
+- broker/topic configuration references when needed
 
 ### `esp32/scripts/verify/`
 Stores cross-platform ESP32 development-environment verification scripts.
@@ -293,6 +379,7 @@ Representative responsibilities:
 - target selection verification
 - component resolution verification
 - sample build verification
+- bounded MQTT publish/subscribe verification when implemented
 
 ### `esp32/code/`
 Stores device-specific source code and embedded logic.
@@ -302,6 +389,7 @@ Representative target categories:
   - bounded button node logic
   - lighting control node logic
   - representative environmental sensing node logic used in the current validation baseline
+  - doorbell / visitor-arrival context node logic emitting `environmental_context.doorbell_detected`
 - **optional experimental targets**
   - gas sensor node logic
   - fire detection sensor node logic
@@ -313,6 +401,7 @@ Common embedded behaviors may include:
 - MQTT publish/subscribe client behavior
 - bounded input interpretation
 - sensing payload generation
+- `doorbell_detected` visitor-response context generation
 - actuator/warning interfacing logic
 
 ### `esp32/firmware/`
@@ -335,7 +424,9 @@ Stores ESP32-specific implementation notes, including:
 
 ### Interpretation
 The ESP32 directory supports both present validation targets and future physical-node extensions.  
-It now includes explicit install / configure / verify scaffolding for ESP-IDF-based development-environment bring-up before full node-firmware implementation.
+It includes explicit install / configure / verify scaffolding for ESP-IDF-based development-environment bring-up before full node-firmware implementation.
+
+ESP32 doorlock or warning interface nodes must not locally reinterpret doorlock as autonomous Class 1 authority.
 
 ---
 
@@ -350,6 +441,7 @@ Stores:
 - canonical asset consistency tests
 - reproducibility scripts
 - system-level behavioral checks
+- MQTT topic/payload contract tests when implemented
 
 ### `integration/scenarios/`
 Stores:
@@ -370,6 +462,9 @@ Stores:
 `integration/` is the cross-device validation layer.  
 It should contain system-wide tests and evaluation assets that do not belong to only one device-specific directory.
 
+`common/payloads/` provides reusable reference examples and templates.  
+`integration/scenarios/` stores executable or evaluation-oriented scenario definitions.
+
 ---
 
 ## 7. Directory Design Principles
@@ -378,7 +473,15 @@ It should contain system-wide tests and evaluation assets that do not belong to 
 - Shared frozen assets belong in `common/`
 - Device-specific setup and runtime code belong in `mac_mini/`, `rpi/`, or `esp32/`
 
-### B. Installation, configuration, and verification must remain separated
+### B. Policy/schema authority must be separated from MQTT and payload examples
+- `common/policies/` defines routing/action authority
+- `common/schemas/` defines validation authority
+- `common/mqtt/` defines topic/publisher/subscriber/payload communication contracts
+- `common/payloads/` stores shared examples and templates
+
+MQTT contracts and payload examples help implementation and review, but they do not override canonical policy or schema truth.
+
+### C. Installation, configuration, and verification must remain separated
 Each device directory should preserve:
 - `install/`
 - `configure/`
@@ -386,22 +489,28 @@ Each device directory should preserve:
 
 This keeps the build lifecycle explicit and script responsibilities clear.
 
-### C. Runtime code should remain separate from operational scripts
+### D. Runtime code should remain separate from operational scripts
 - scripts define setup and validation behavior
 - code stores executable application logic
 - firmware stores embedded-device build targets, templates, and deployable node logic
 
-### D. Integration and measurement assets should remain independent from device-local scripts
+### E. Integration and measurement assets should remain independent from device-local scripts
 System-wide tests, scenarios, timing/measurement assets, and canonical consistency tests belong in `integration/`, not inside a single device folder.
 
-### E. Physical-node validation and virtual-node evaluation should both be representable
+### F. Physical-node validation and virtual-node evaluation should both be representable
 The repository should support:
 - **ESP32-based physical bounded input/output validation**
 - **Raspberry Pi-based scalable virtual-node and fault-injection evaluation**
+- **Raspberry Pi-based experiment dashboard and result artifact generation**
 - **optional timing-node-based out-of-band latency measurement**
 
-### F. Deployment-local files must not be confused with canonical frozen assets
+### G. Deployment-local files must not be confused with canonical frozen assets
 Host-local runtime files, `.env`, credentials, and machine-specific configuration belong to deployment/runtime handling and must not be treated as canonical frozen policy truth.
+
+### H. MQTT/payload dashboard boundary
+A future MQTT/payload management web app or dashboard may inspect topic contracts, publisher/subscriber coverage, payload examples, schema validation results, and live experiment traffic.
+
+Such a dashboard must remain a governance, inspection, and validation tool. It must not become policy authority, validator authority, caregiver approval authority, or direct actuator control authority.
 
 ---
 
@@ -420,10 +529,14 @@ Older internal names may still appear in transitional assets or source-layer ref
 
 ## 9. Architectural Summary
 
-- `common/` stores shared frozen assets and reference documents
+- `common/` stores shared frozen assets, MQTT contracts, payload examples/templates, and reference documents
+- `common/policies/` stores policy authority
+- `common/schemas/` stores validation authority
+- `common/mqtt/` stores MQTT topic/publisher/subscriber/payload communication contracts
+- `common/payloads/` stores shared payload examples and templates
 - root-level `requirements-*.txt` files store host-side Python dependency manifests
 - `mac_mini/` stores hub-side scripts, runtime files, and future code
-- `rpi/` stores simulation-side scripts and future experiment orchestration code
+- `rpi/` stores dashboard, simulation, replay, fault-injection, and experiment orchestration-side scripts and future code
 - `esp32/` stores embedded firmware assets, cross-platform ESP-IDF development-environment scaffolding, and device-specific physical node implementation assets
 - `integration/` stores end-to-end tests, evaluation scenarios, timing/measurement assets, and canonical consistency checks
 
@@ -432,7 +545,10 @@ This structure is intended to support:
 - implementation planning
 - reproducibility
 - vibe-coding guidance
+- MQTT communication-contract governance
+- payload example/template reuse
 - physical-node validation
 - scalable virtual-node experimentation
+- dashboard-supported experiment monitoring
 - out-of-band latency measurement
 - long-term system extension
