@@ -29,6 +29,7 @@
 현재 구현 대상 범위에는 다음이 포함될 수 있다.
 - lighting path
 - representative sensing path
+- `doorbell_detected` visitor-response context path
 - doorlock representative interface path
 
 ### 2. authoritative autonomous low-risk Class 1 scope
@@ -38,12 +39,32 @@
 - target: `living_room_light`, `bedroom_light`
 
 즉,
-- doorlock은 현재 **구현 대상 범위**에는 포함될 수 있지만,
+- doorbell/visitor-response context와 doorlock은 현재 **구현·실험 대상 범위**에는 포함될 수 있지만,
 - 현재 frozen baseline 기준의 **authoritative autonomous Class 1 low-risk scope와 자동으로 동일시하면 안 된다.**
 
 doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 frozen 정책/스키마/실험 문서와 정합성을 맞춰야 한다.
 
-### 3. doorlock에 대한 논문적 해석
+### 3. doorbell / visitor-response context 해석
+`doorbell_detected`는 현재 `context_schema_v1_0_0_FROZEN.json`의 `environmental_context`에 포함되는 required boolean field다.
+
+해석 원칙:
+- 모든 valid context payload에는 `environmental_context.doorbell_detected`를 포함해야 한다.
+- non-visitor scenario의 기본값은 `false`로 둔다.
+- visitor-response scenario에서는 최근 도어벨 또는 방문자 도착 이벤트가 있을 때 `true`로 둘 수 있다.
+- `doorbell_detected=true`는 visitor-response intent interpretation에 사용할 수 있는 context signal이다.
+- `doorbell_detected=true`는 doorlock unlock authorization이 아니다.
+
+현재 `context_schema.device_states`에는 doorlock state가 포함되어 있지 않다. 따라서 `doorlock`, `front_door_lock`, `door_lock_state` 같은 필드를 `pure_context_payload.device_states`에 임의 추가하지 않는다.
+
+Doorlock state, manual approval state, ACK state는 현재 schema에서는 다음 중 하나로 분리해서 다룬다.
+- experiment annotation
+- mock approval state
+- dashboard-side observation field
+- audit artifact
+- manual confirmation path internal state
+- future schema revision
+
+### 4. doorlock에 대한 논문적 해석
 문서와 구현에서 doorlock은 단순 편의 기능이 아니라 **representative sensitive actuation case**로 해석한다.
 
 즉,
@@ -51,12 +72,12 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - **LLM 기반 의도 복원과 민감 액추에이션 통제 사이의 경계**를 드러내는 대표 사례라는 점에 있다.
 
 현재 해석에서:
-- LLM은 제한 입력과 컨텍스트를 바탕으로 intent recovery를 보조할 수 있다.
+- LLM은 제한 입력과 `doorbell_detected`를 포함한 컨텍스트를 바탕으로 intent recovery를 보조할 수 있다.
 - 그러나 door unlock은 unrestricted autonomous execution path로 가면 안 된다.
 - doorlock control 같은 sensitive actuation request는 Class 1 low-risk candidate action이나 validator executable payload로 승인하면 안 된다.
 - 현재 아키텍처 해석에서는 Class 2 escalation, 별도 governed manual confirmation path, caregiver-mediated approval, deterministic validation, ACK-based closed-loop verification, local audit logging 경로와 정렬되어야 한다.
 
-### 4. dashboard / test app / orchestration 역할 분리
+### 5. dashboard / test app / orchestration 역할 분리
 도어락 관련 실험은 단순 대시보드 카드가 아니라, dashboard + test app + scenario orchestration에 걸친 다층 실험 흐름으로 해석한다.
 
 #### dashboard
@@ -71,6 +92,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - graph/CSV export visibility
 - evaluation artifact export
 - doorlock-sensitive experiment status visibility
+  - `doorbell_detected` visitor-response context state
   - autonomous unlock blocked
   - caregiver escalation state
   - manual approval state
@@ -85,7 +107,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - raw scenario invocation
 - baseline selection
 - direct mapping vs rule-only vs LLM-assisted comparison execution
-- visitor-response mock event injection
+- visitor-response mock event injection using `environmental_context.doorbell_detected`
 - caregiver approval mock state injection
 - ACK success/timeout/mismatch simulation
 - raw payload/log/debug visibility
@@ -96,8 +118,8 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 시나리오 오케스트레이션은 doorlock-sensitive experiment를 반드시 포함할 수 있는 sequence-based execution layer로 해석한다.
 주요 책임은 다음과 같다.
 - visitor-response scenario family selection
-- bounded input or doorbell-style trigger injection
-- contextual state bundle setup
+- bounded input or `doorbell_detected` trigger/context injection
+- contextual state bundle setup using the frozen context schema
 - caregiver approval state branch execution
 - ACK outcome branch execution
 - audit/result artifact collection
@@ -164,6 +186,7 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
   - safe deferral,
   - escalation correctness,
   - autonomous unlock blocked,
+  - doorbell-context-aware visitor-response interpretation,
   - approval/ACK/audit completeness,
   - bounded authority 하의 intent recovery improvement
   를 보여주는 방향으로 설계해야 한다.
@@ -187,6 +210,8 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 * `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
 * `/common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
 * `/common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
+* `/common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
+* `/common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
 
 원칙:
 - `SESSION_HANDOFF.md`는 장기적인 master summary 역할을 한다.
@@ -200,18 +225,20 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 
 1. `/common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 2. `/common/policies/policy_table_v1_1_2_FROZEN.json`
-3. `/common/docs/architecture/24_final_paper_architecture_figure.md`
-4. `/common/docs/architecture/01_installation_target_classification.md`
-5. `/common/docs/required_experiments.md`
-6. `/common/docs/paper/01_paper_contributions.md`
-7. `/common/docs/runtime/SESSION_HANDOFF.md`
-8. 최신 `SESSION_HANDOFF` addendum 문서들
-9. `/CLAUDE.md`
-10. `/common/docs/architecture/12_prompts.md`
+3. `/common/schemas/context_schema_v1_0_0_FROZEN.json`
+4. `/common/docs/architecture/24_final_paper_architecture_figure.md`
+5. `/common/docs/architecture/01_installation_target_classification.md`
+6. `/common/docs/required_experiments.md`
+7. `/common/docs/paper/01_paper_contributions.md`
+8. `/common/docs/runtime/SESSION_HANDOFF.md`
+9. 최신 `SESSION_HANDOFF` addendum 문서들
+10. `/CLAUDE.md`
+11. `/common/docs/architecture/12_prompts.md`
 
 그 다음 필요 시 아래를 읽는다.
 - `/common/docs/architecture/12_prompts_core_system.md`
 - `/common/docs/architecture/12_prompts_nodes_and_evaluation.md`
+- `/common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `/integration/scenarios/scenario_manifest_rules.md`
 - `/integration/scenarios/scenario_review_guide.md`
 - `/integration/tests/integration_test_runner_skeleton.py`
@@ -360,6 +387,9 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 - 정책 파일 우회 로직 작성 금지
 - deployment-local 파일(.env, runtime copy, synced copy)을 canonical truth처럼 취급 금지
 - context schema에 존재하는 device state를 current authoritative autonomous low-risk Class 1 action target으로 임의 승격 금지
+- `doorbell_detected`를 doorlock unlock authorization으로 해석 금지
+- valid context payload에서 `environmental_context.doorbell_detected` 누락 금지
+- `pure_context_payload.device_states`에 `doorlock`, `front_door_lock`, `door_lock_state` 같은 필드 임의 추가 금지
 - doorlock implementation scope를 현재 authoritative autonomous low-risk Class 1 scope로 임의 승격 금지
 - candidate_action_schema 또는 validator_output_schema.executable_payload에 doorlock/sensitive actuation을 임의 추가 금지
 - 논문 contribution을 이유로 unrestricted autonomous sensitive actuation path를 정당화하지 말 것
@@ -386,7 +416,9 @@ doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 f
 3. 구현 시 스키마와 정책을 참조한다.
 4. 빌드 또는 실행 전에는 install / configure / verify 상태가 완료되었는지 먼저 확인한다.
 5. integration 관련 코드를 작성할 경우 scenario manifest, review guide, fixture, comparator 구조와 정합성을 확인한다.
-6. `/common/docs/architecture/06_implementation_plan.md`, `/common/docs/architecture/07_task_breakdown.md`, `/common/docs/architecture/08_additional_required_work.md`, `/common/docs/architecture/10_install_script_structure.md`, `/common/docs/architecture/11_configuration_script_structure.md`, `/common/docs/required_experiments.md`, `/common/docs/paper/01_paper_contributions.md`, `/common/docs/runtime/SESSION_HANDOFF.md` 및 필요한 addendum 문서에 수정/추가사항이 생기면 같이 반영한다.
+6. 모든 context fixture, simulation payload, test payload에는 `environmental_context.doorbell_detected`를 포함한다. non-visitor scenario 기본값은 `false`다.
+7. visitor-response / doorlock-sensitive scenario에서는 `doorbell_detected=true/false` 분기를 명시하고, 이 값이 unlock authorization이 아님을 유지한다.
+8. `/common/docs/architecture/06_implementation_plan.md`, `/common/docs/architecture/07_task_breakdown.md`, `/common/docs/architecture/08_additional_required_work.md`, `/common/docs/architecture/10_install_script_structure.md`, `/common/docs/architecture/11_configuration_script_structure.md`, `/common/docs/required_experiments.md`, `/common/docs/paper/01_paper_contributions.md`, `/common/docs/runtime/SESSION_HANDOFF.md` 및 필요한 addendum 문서에 수정/추가사항이 생기면 같이 반영한다.
 
 ---
 
