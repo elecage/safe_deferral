@@ -5,6 +5,7 @@ Minimal integration test runner skeleton for the safe_deferral integration layer
 Purpose:
 - load a scenario skeleton JSON file,
 - resolve referenced fixture files,
+- retain raw step metadata for adapter-level scenario semantics,
 - print a machine-readable summary,
 - fail fast when required fixture paths are missing or invalid.
 
@@ -47,6 +48,7 @@ class StepResolution:
     action: str
     payload_fixture: LoadedFixture | None
     expected_fixture: LoadedFixture | None
+    raw_step: dict[str, Any]
 
 
 @dataclass
@@ -136,6 +138,7 @@ def resolve_steps(repo_root: Path, scenario: LoadedScenario) -> list[StepResolut
                 action=str(step.get("action", "UNKNOWN")),
                 payload_fixture=payload_fixture,
                 expected_fixture=expected_fixture,
+                raw_step=step,
             )
         )
     return resolved
