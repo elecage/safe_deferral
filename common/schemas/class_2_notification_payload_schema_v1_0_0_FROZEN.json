@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "class_2_notification_payload_schema_v1_0_0",
-  "description": "Authoritative schema for caregiver escalation payload emitted when the system transitions to Class 2 escalation. This schema governs the outbound Class 2 notification contract and should not be overridden by companion output-profile assets.",
+  "description": "Authoritative schema for caregiver escalation payload emitted when the system transitions to Class 2 escalation. This schema governs the outbound Class 2 notification contract and should not be overridden by companion output-profile assets. For doorlock-sensitive or other sensitive actuation cases, this payload may describe escalation and a governed manual confirmation path, but it must not itself authorize actuation or bypass validator, caregiver approval, ACK, or audit boundaries.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -27,7 +27,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 300,
-      "description": "Instruction or route by which a caregiver can review, confirm, deny, or intervene. This field may describe a governed manual confirmation path, but does not by itself authorize autonomous low-risk execution or sensitive actuation."
+      "description": "Instruction or route by which a caregiver can review, confirm, deny, or intervene. This field may describe a governed manual confirmation path, but does not by itself authorize autonomous low-risk execution or sensitive actuation. For sensitive actuation such as doorlock control, this field describes a review route only and does not create execution authority."
     },
     "audit_correlation_id": {
       "type": "string",
