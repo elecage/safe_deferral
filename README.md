@@ -1,6 +1,6 @@
 # 지체장애인을 위한 프라이버시 인지 엣지 스마트홈 시스템
 
-This repository contains the frozen assets, scripts, schemas, policies, experiment documents, and future codebase for a privacy-aware safe deferral smart-home system.
+This repository contains the frozen assets, scripts, schemas, policies, experiment documents, MQTT/payload communication references, and future codebase for a privacy-aware safe deferral smart-home system.
 
 ## System Overview
 
@@ -9,6 +9,8 @@ This repository contains the frozen assets, scripts, schemas, policies, experime
 
 영문 설명:  
 **A Privacy-Aware Edge Smart Home System with Context-Aware LLM Assistance for Accessible Interaction under Physical and Speech Limitations**
+
+The system also maintains MQTT topic, publisher/subscriber, and payload contracts as repository-governed communication references so that runtime applications, dashboards, governance tools, and experiment tools do not rely on uncontrolled hardcoded topic or payload assumptions.
 
 ---
 
@@ -56,6 +58,11 @@ This repository contains the frozen assets, scripts, schemas, policies, experime
 - 정상 상황뿐 아니라 stale context, missing state, timeout, 버튼 패턴 오류, 센서 충돌 같은 결함 조건에서도 보수적 안전 정책이 유지되어야 함
 - 이를 위해 fault injection과 closed-loop audit verification 기반의 실험 체계를 사용
 
+### 5. MQTT / Payload Contract Governance
+- MQTT topic, publisher/subscriber, and payload contracts are managed as repository-governed reference assets.
+- Runtime applications, dashboards, governance tools, and experiment scripts should avoid uncontrolled hardcoded topic/payload drift where registry-based lookup is practical.
+- Governance validation reports support consistency checking only and do not create policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.
+
 ---
 
 ## Current Safety Boundary
@@ -74,6 +81,8 @@ Doorlock may be used as a representative sensitive-actuation evaluation case, bu
 `doorbell_detected` is a required boolean field in `environmental_context`. It represents a recent doorbell or visitor-arrival signal for visitor-response interpretation. It does **not** authorize autonomous doorlock control.
 
 Current `context_schema.device_states` does not include doorlock state. Doorlock state, manual approval state, and ACK state should be represented through experiment annotations, mock approval state, dashboard-side observation, audit artifacts, manual-confirmation-path internal state, or a future schema revision.
+
+MQTT topic entries, topic-payload mappings, payload validation reports, interface-matrix alignment reports, and topic-drift reports are governance/verification artifacts. They must not be interpreted as policy authority, validator authority, caregiver approval authority, audit authority, or actuator/doorlock execution authority.
 
 The authoritative low-risk action source is:
 
@@ -98,6 +107,7 @@ The authoritative context schema source is:
 - visitor-response 또는 doorlock-sensitive scenario에서는 `doorbell_detected=true/false`를 통해 최근 도어벨/방문자 도착 context 유무를 표현할 수 있다
 - `doorbell_detected=true`는 방문자 응답 의도 해석을 보조하는 context signal일 뿐, door unlock authorization이 아니다
 - 이를 통해 LLM이 시스템 메타데이터를 환경 데이터로 오인하는 것을 방지하고, visitor-response 상황에서도 민감 액추에이션 경계를 유지한다
+- MQTT-facing traffic should remain aligned with the topic registry, publisher/subscriber matrix, topic-payload contracts, and interface matrix. Topic IDs, payload families, and publisher/subscriber roles are communication contracts, not operational authorization mechanisms.
 
 ### 2단계: 정책 라우터 기반 위험도 분기 (Policy Routing)
 가장 먼저 **Policy Router**가 입력과 컨텍스트를 분석해 최상위 정책표에 따라 다음 세 클래스 중 하나로 라우팅한다.
@@ -210,14 +220,19 @@ Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소
 - sensor/state staleness injection
 - missing state injection
 - missing `doorbell_detected` context for strict visitor-response payload validation
+- topic/payload contract drift injection
 
 핵심 기준:
 - **Unsafe Actuation Rate (UAR) = 0%**
 - expected safe outcome과 observed behavior의 일치
 - emergency protection preservation
+- topic/payload drift detection without creating runtime authority
 
 ### 4. 폐루프 자동 검증 (Closed-loop Automated Verification)
 Raspberry Pi 5 기반 fault injection과 Mac mini의 verification-safe audit stream을 이용해, 사람이 수동으로 보지 않아도 기대되는 safe outcome과 실제 결과를 비교해 Pass/Fail을 자동 판정한다.
+
+### 5. MQTT / Payload Contract and Governance Boundary Verification
+Verify topic registry readability, publisher/subscriber matrix consistency, topic-to-payload contract resolution, payload example validation, interface-matrix alignment, topic/payload hardcoding drift detection, governance backend/UI separation, and governance report non-authority.
 
 ---
 
@@ -225,24 +240,30 @@ Raspberry Pi 5 기반 fault injection과 Mac mini의 verification-safe audit str
 
 실험 인프라는 다음처럼 역할 분리된다.
 
-- **Mac mini**: safety-critical operational edge hub, including policy routing, local LLM reasoning, deterministic validation, safe deferral, caregiver escalation/approval handling, ACK, and audit logging
-- **Raspberry Pi 5**: experiment-side support region, including Monitoring / Experiment Dashboard, simulation, replay, fault injection, closed-loop experiment orchestration, progress/status publication, result summary, graph/CSV export, and evaluation artifact generation
+- **Mac mini**: safety-critical operational edge hub, including policy routing, local LLM reasoning, deterministic validation, safe deferral, caregiver escalation/approval handling, ACK, audit logging, topic registry loading, and payload validation support
+- **Raspberry Pi 5**: experiment-side support region, including Monitoring / Experiment Dashboard, simulation, replay, fault injection, closed-loop experiment orchestration, progress/status publication, result summary, graph/CSV export, evaluation artifact generation, and non-authoritative MQTT/payload governance support
 - **ESP32**: bounded physical node layer (button, sensor, actuator/warning interface)
 - **Optional STM32 or dedicated timing node**: out-of-band latency measurement infrastructure
 
 Raspberry Pi 5 hosts the experiment and monitoring dashboard. The dashboard is a support-side visibility and experiment-operations console; it is not the policy authority, validator authority, caregiver approval authority, or primary operational hub. Mac mini may expose telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard.
 
+The MQTT/payload governance dashboard UI, if implemented, must call a separate governance backend for create/update/delete/validation/export operations. The UI must not directly edit registry files, publish operational control topics, expose unrestricted actuator consoles, or provide direct doorlock command controls.
+
+The governance backend may generate validation reports, proposed-change reports, interface-matrix alignment reports, topic-drift reports, and payload validation reports, but it must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert proposed changes into live authority without review.
+
 For visitor-response and doorlock-sensitive experiments, Raspberry Pi 5 orchestration and dashboard layers should expose `doorbell_detected` state, autonomous-unlock-blocked status, caregiver escalation state, manual approval state, ACK state, and audit completeness. Doorlock state is not currently part of the official `device_states` context contract and should be handled through experiment annotations, dashboard-side observation, audit artifacts, manual-confirmation-path internal state, or a future schema revision.
 
-이 분리는 운영 경로와 실험/계측 경로를 구분하여 재현성과 계측 신뢰도를 높이기 위한 것이다.
+이 분리는 운영 경로와 실험/계측/거버넌스 경로를 구분하여 재현성, 계측 신뢰도, communication-contract consistency를 높이기 위한 것이다.
 
 ---
 
 ## Repository Structure
 
 - `common/`: shared frozen assets such as policies, schemas, documentation, and terminology
+- `common/mqtt/`: MQTT topic registry, publisher/subscriber matrix, and topic-payload contract references
+- `common/payloads/`: example payloads, payload templates, and payload validation references
 - `mac_mini/`: Mac mini installation, configuration, verification scripts, runtime files, and future code
-- `rpi/`: Raspberry Pi installation, configuration, verification scripts, experiment/dashboard runtime, and future experiment code
+- `rpi/`: Raspberry Pi installation, configuration, verification scripts, experiment/dashboard runtime, non-authoritative governance-support runtime, and future experiment code
 - `esp32/`: embedded firmware, device-specific implementation assets, and bounded physical node code
 - `integration/`: end-to-end tests, scenarios, and experiment assets
 
@@ -253,9 +274,26 @@ For visitor-response and doorlock-sensitive experiments, Raspberry Pi 5 orchestr
 This repository is being initialized with:
 - frozen policy assets
 - frozen schema assets
+- MQTT topic registry, publisher/subscriber matrix, and topic-payload contract references
+- payload example/template management references
+- governance-boundary verification documents
 - installation/configuration/verification scripts
 - terminology freeze records
 - architecture and experiment documents
+
+---
+
+## Key Reference Documents
+
+- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/required_experiments.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
 
 ---
 
