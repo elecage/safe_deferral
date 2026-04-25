@@ -26,12 +26,15 @@ This document does **not** override frozen policies or schemas. If any conflict 
 
 - `common/policies/`
 - `common/schemas/`
+- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/14_system_components_outline_v2.md`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/required_experiments.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
 
 ---
 
@@ -41,7 +44,7 @@ This document does **not** override frozen policies or schemas. If any conflict 
 
 This figure should be treated as the current active Mac-mini-centered operational architecture figure.
 
-However, the current SVG does not yet fully draw every Raspberry Pi support-layer connection, MQTT/payload governance flow, dashboard observation flow, experiment progress/result topic flow, or registry-management interface.
+However, the current SVG does not yet fully draw every Raspberry Pi support-layer connection, MQTT/payload governance flow, dashboard observation flow, experiment progress/result topic flow, registry-management interface, MQTT-aware interface matrix alignment check, topic/payload hardcoding drift check, payload validation report flow, or governance backend/UI separation validation flow.
 
 Those elements are documented in this file and in `common/docs/architecture/15_interface_matrix.md`, and should be reflected in a future figure revision.
 
@@ -66,7 +69,11 @@ It is not yet a complete visual representation of:
 - governance dashboard UI flow,
 - publisher/subscriber role management,
 - payload example management,
-- topic registry CRUD/review workflow.
+- topic registry CRUD/review workflow,
+- MQTT-aware interface matrix alignment checks,
+- topic/payload hardcoding drift checks,
+- payload validation report flow,
+- governance backend/UI separation validation.
 
 These items are intentionally captured in the document explanation first and should be added visually in a later figure revision.
 
@@ -95,7 +102,7 @@ The figure should be read as four major regions.
 |---|---|---|
 | ESP32 device layer | Bounded physical input, sensing, emergency/event detection, doorbell / visitor-arrival context sensing, actuator/warning interfaces | No high-level reasoning authority; no autonomous sensitive-actuation authority |
 | Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, caregiver escalation, ACK, audit, topic registry loading, and payload validation support | Primary operational authority under frozen policy/schema constraints; registry/payload helpers support consistency but do not create authority |
-| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, or execution authority |
+| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, execution, direct registry-file editing, canonical policy/schema editing, actuator command publishing, or doorlock command publishing authority |
 | Optional measurement node | Out-of-band timing and latency capture | Measurement-only; not operational control plane |
 
 ---
@@ -176,11 +183,14 @@ The topic registry loader and payload validation helper support:
 
 - registry-based topic lookup where practical,
 - publisher/subscriber contract checking,
+- publisher/subscriber role consistency checking,
+- interface-matrix alignment checking,
+- topic/payload hardcoding drift detection where implemented,
 - schema/payload boundary consistency,
 - `doorbell_detected` required-field checks,
 - and prevention of doorlock state drift into current pure-context `device_states`.
 
-These helpers support communication consistency and schema/payload boundary checks; they do not replace policy/schema authority and do not create actuator authority.
+These helpers support communication consistency, schema/payload boundary checks, and governance/verification evidence. They do not replace policy/schema authority, do not create actuator authority, and do not function as operational authorization mechanisms.
 
 The Mac mini may expose operational telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard. This exposure does not make the RPi dashboard a policy authority.
 
@@ -207,6 +217,10 @@ It may include:
 - MQTT/payload governance backend,
 - governance dashboard UI,
 - topic/payload contract validation,
+- interface-matrix alignment validation,
+- topic/payload drift report generation,
+- payload validation report generation,
+- governance backend/UI separation validation,
 - payload example manager,
 - publisher/subscriber role manager.
 
@@ -221,6 +235,10 @@ They may support:
 - publisher/subscriber role review,
 - payload family and schema/example linkage,
 - payload example validation,
+- interface-matrix alignment validation,
+- topic/payload drift report generation,
+- payload validation report generation,
+- governance backend/UI separation validation,
 - proposed change reports,
 - live or replayed topic traffic inspection,
 - doorbell/doorlock boundary warnings.
@@ -233,7 +251,11 @@ They are **not**:
 - primary operational hub,
 - direct sensitive-actuation authority,
 - direct doorlock dispatch authority,
-- canonical schema/policy editing authority.
+- canonical schema/policy editing authority,
+- direct registry-file editing authority through the UI,
+- actuator or doorlock command publishing authority,
+- caregiver approval spoofing authority,
+- a path for draft/proposed changes to become live operational authority without review.
 
 The RPi dashboard and orchestration layers may visualize visitor-response or doorlock-sensitive experiment state, including:
 
@@ -417,17 +439,24 @@ It may include:
 - topic registry loader / contract checker,
 - payload example manager / validator,
 - publisher/subscriber role manager,
+- interface-matrix alignment reports,
+- topic-drift reports,
+- payload validation reports,
 - draft registry change reports,
+- proposed-change reports,
 - review/commit workflow.
 
 This path may inspect, validate, and propose communication-contract changes. It must not:
 
 - publish actuator commands,
+- publish doorlock commands,
 - modify canonical policies/schemas directly,
 - create doorlock execution authority,
 - spoof caregiver approval,
 - bypass deterministic validation,
 - or treat dashboard observation as policy truth.
+
+Interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are governance/verification artifacts, not operational authorization mechanisms.
 
 ---
 
@@ -448,6 +477,9 @@ The architecture figure should be read with the following payload boundaries.
 | MQTT topic registry | `common/mqtt/`, governance backend, validation reports, review/commit workflow | Policy/schema authority or actuator authorization |
 | payload examples/templates | `common/payloads/`, payload validation helper, governance backend, test/scenario scaffolds | Policy truth or schema authority |
 | governance draft changes | Governance backend, validation report, review/commit workflow | Live runtime control or doorlock execution authority |
+| interface-matrix alignment report | Governance backend, verification report, dashboard artifact | Operational authorization |
+| topic-drift report | Governance backend, verification report, dashboard artifact | Policy truth or execution authority |
+| payload validation report | Governance backend, verification report, dashboard artifact | Schema authority or actuation authority |
 
 Detailed payload rules are defined in:
 
@@ -470,7 +502,11 @@ The current SVG does not yet fully draw:
 - governance dashboard UI,
 - publisher/subscriber role manager,
 - payload example manager,
-- topic registry CRUD/review workflow.
+- topic registry CRUD/review workflow,
+- MQTT-aware interface matrix alignment check,
+- topic drift check,
+- payload validation report flow,
+- governance backend/UI separation validation flow.
 
 These should be added in a future figure revision.
 
@@ -482,7 +518,7 @@ Until the SVG is revised, the explanatory text in this document and the MQTT-awa
 
 Suggested paper caption:
 
-> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and actuator/warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, payload-boundary validation support, context-integrity-based safe deferral, caregiver-mediated escalation, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, and publisher/subscriber role review, without becoming policy or execution authority.
+> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and actuator/warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, interface-matrix alignment, topic/payload drift detection, payload-boundary validation support, context-integrity-based safe deferral, caregiver-mediated escalation, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, publisher/subscriber role review, interface-matrix alignment, topic/payload drift reporting, and validation report generation, without becoming policy or execution authority.
 
 Shorter caption:
 
@@ -505,6 +541,8 @@ This figure supports the paper’s main claims because it shows:
 9. MQTT/payload governance is separated from operational authority.
 10. Topic/payload registry edits cannot create doorlock execution authority.
 11. Some RPi/governance connections are documented but not yet drawn in the current SVG and should be added in a future figure revision.
+12. Interface-matrix alignment and topic/payload drift checks are governance/verification evidence, not execution authority.
+13. Governance dashboard UI and governance backend separation is part of the safety boundary.
 
 ---
 
@@ -540,4 +578,6 @@ The key interpretation is:
 - Doorlock-sensitive execution remains caregiver-mediated or manually governed.
 - RPi provides experiment/dashboard/simulation/fault-injection support without becoming authority.
 - MQTT/payload governance tooling may inspect, validate, and propose communication-contract changes without becoming operational authority.
+- Interface-matrix alignment, topic-drift checks, and payload validation reports support governance/verification only.
+- Governance dashboard UI and backend service separation prevents registry-management tooling from becoming control authority.
 - ACK and audit closure complete the safety argument.
