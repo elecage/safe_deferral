@@ -6,20 +6,24 @@
   "mode": "deterministic",
   "input_plane": {
     "protocol": "mqtt",
-    "ingress_topic": "smarthome/context/raw",
-    "audit_topic": "smarthome/audit/validator_output"
+    "ingress_topic": "safe_deferral/emergency/event",
+    "normalized_policy_input_topic": "safe_deferral/context/input",
+    "bridge_mode": "controlled_runtime_or_experiment_bridge",
+    "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
     "requires_mac_mini_runtime": true,
     "requires_rpi_evaluation_runtime": true,
     "requires_synced_phase0_assets": true,
-    "requires_time_sync_healthy": true
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true
   },
   "steps": [
     {
       "step_id": 1,
-      "action": "publish_context_payload",
-      "description": "Publish an emergency-aligned bounded-input triple-hit payload through the same operational ingress plane.",
+      "action": "publish_emergency_event_payload",
+      "description": "Publish an E002 emergency-aligned bounded-input triple-hit payload through the registry-aligned emergency ingress plane or a controlled bridge that produces policy-router-compatible input.",
       "payload_fixture": "integration/tests/data/sample_policy_router_input_class0_e002_button_triple_hit.json"
     },
     {
@@ -33,11 +37,16 @@
     "route_class": "CLASS_0",
     "routing_target": "CLASS_0",
     "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
     "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false,
     "canonical_emergency_family": "E002"
   },
   "notes": [
     "Exact trigger semantics remain defined by the frozen policy table.",
-    "This scenario is intended for emergency override path validation and later class-wise latency profiling."
+    "This scenario is intended for emergency override path validation and later class-wise latency profiling.",
+    "Class 0 emergency handling must not use the LLM as the primary decision path.",
+    "doorbell_detected is not emergency evidence and does not authorize doorlock control."
   ]
 }
