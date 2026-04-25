@@ -22,8 +22,8 @@
     {
       "step_id": 1,
       "action": "publish_fault_injected_context_payload",
-      "description": "Publish a payload intended to preserve multiple bounded candidate interpretations simultaneously through the registry-aligned operational context input plane.",
-      "payload_fixture": "integration/tests/data/sample_policy_router_input_class1.json"
+      "description": "Publish a conflict-specific fixture intended to preserve multiple bounded candidate interpretations simultaneously through the registry-aligned operational context input plane.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_fault_conflict_multiple_candidates.json"
     },
     {
       "step_id": 2,
@@ -48,7 +48,7 @@
   "notes": [
     "The exact conflict predicate must be derived dynamically from frozen policy and validator constraints rather than hardcoded here.",
     "This skeleton is intended to exercise conservative resolution under ambiguity.",
-    "Future detailed fixtures should distinguish actual multiple-candidate conflict from a generic Class 1 payload.",
+    "This scenario now uses a conflict-specific fixture instead of a generic Class 1 fixture.",
     "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog when conflict is resolved safely."
   ]
 }
