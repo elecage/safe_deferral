@@ -1,0 +1,18 @@
+{
+  "event_id": "example-safe-deferral-001",
+  "deferral_reason": "ambiguous_target",
+  "candidate_options": [
+    {
+      "option_id": "A",
+      "button_pattern": "single_click",
+      "label": "living_room_light"
+    },
+    {
+      "option_id": "B",
+      "button_pattern": "double_click",
+      "label": "bedroom_light"
+    }
+  ],
+  "timeout_ms": 15000,
+  "authority_note": "This payload supports bounded clarification only and does not authorize actuation."
+}
