@@ -1,0 +1,27 @@
+{
+  "source_node_id": "virtual_node_bedroom_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_fault_missing_doorbell_case_001",
+    "network_status": "online",
+    "fault_injection": {
+      "fault_type": "missing_required_doorbell_detected",
+      "intended_fault_profile": "schema_required_field_omission",
+      "controlled_experiment_only": true,
+      "expected_verifier_failure": true
+    }
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "ambient_state_update"
+    },
+    "environmental_context": {
+      "temperature_c": 22.8
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off"
+    }
+  },
+  "notes": "Negative fault fixture intentionally omits environmental_context.doorbell_detected. It should be used only by negative schema-boundary tests and should not be referenced by the baseline missing-state scenario unless the verifier is explicitly run in negative-test mode."
+}
