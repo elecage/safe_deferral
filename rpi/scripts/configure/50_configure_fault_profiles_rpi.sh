@@ -57,7 +57,21 @@ if ! jq -e '.dynamic_references | type == "object" and length > 0' "${FAULT_RULE
     exit 1
 fi
 
-echo "  [OK] Profile separation and top-level dynamic references verified."
+if ! jq -e '
+    .dynamic_references.freshness_limit == "$.global_constraints.freshness_threshold_ms" and
+    .dynamic_references.required_environmental_keys == "$.properties.environmental_context.required" and
+    .dynamic_references.required_device_keys == "$.properties.device_states.required"
+' "${FAULT_RULES_FILE}" >/dev/null 2>&1; then
+    echo "  [FATAL] dynamic_references do not match the expected policy/schema JSONPath contract."
+    echo "          Expected:"
+    echo "            freshness_limit=$.global_constraints.freshness_threshold_ms"
+    echo "            required_environmental_keys=$.properties.environmental_context.required"
+    echo "            required_device_keys=$.properties.device_states.required"
+    echo "          Re-sync frozen policy/schema assets and review fault_injection_rules_v1_4_0_FROZEN.json."
+    exit 1
+fi
+
+echo "  [OK] Profile separation and dynamic reference JSONPath contract verified."
 
 HAS_VALID_SAFE_OUTCOMES=$(jq '[.deterministic_profiles[] | ((has("allowed_safe_outcomes") and (.allowed_safe_outcomes | type == "array" and length > 0)) or (has("expected_outcome") and (.expected_outcome | type == "string" and length > 0)))] | all' "${FAULT_RULES_FILE}")
 if [ "${HAS_VALID_SAFE_OUTCOMES}" != "true" ]; then
