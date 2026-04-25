@@ -6,7 +6,11 @@ Status: **DRAFT**
 
 This document summarizes the initial MQTT publisher/subscriber relationships for the `safe_deferral` project.
 
-The machine-readable source is:
+The current machine-readable role-metadata source is:
+
+- `common/mqtt/topic_registry_v1_1_0.json`
+
+Historical topic/payload baseline:
 
 - `common/mqtt/topic_registry_v1_0_0.json`
 
@@ -20,11 +24,11 @@ It does not override policy or schema assets.
 | Topic | Publishers | Subscribers | Payload family | Authority level | Notes |
 |---|---|---|---|---|---|
 | `safe_deferral/context/input` | `esp32.bounded_input_node`, `esp32.context_node`, `esp32.doorbell_visitor_context_node`, `mac_mini.context_aggregator_controlled_bridge`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.mqtt_ingestion_state_intake`, `mac_mini.policy_router`, optional audit observer | `policy_router_input` | operational input / controlled experiment input | Must include `environmental_context.doorbell_detected`; field-side ESP32 publishers represent operational input; Mac mini bridge and RPi publisher are controlled-mode or aggregation bridge publishers only |
-| `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | emergency operational input | Must align with E001~E005; doorbell is not emergency |
+| `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.mqtt_ingestion_state_intake`, `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | emergency operational input / controlled experiment input | Must align with E001~E005; doorbell is not emergency |
 | `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | model candidate, not authority | Door unlock is disallowed as current Class 1 candidate |
 | `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional RPi dashboard bridge | `validator_output` | validator decision | Executable payload must stay within low-risk catalog |
-| `safe_deferral/deferral/request` | validator, safe deferral handler | safe deferral handler, audit observer, optional RPi dashboard bridge | `safe_deferral_event` | bounded deferral control | Future schema recommended |
-| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | caregiver escalation / Class 2 clarification notification | Manual confirmation path is not autonomous execution authority |
+| `safe_deferral/deferral/request` | validator, safe deferral handler, Class 2 clarification manager | safe deferral handler, Class 2 clarification manager, audit observer, optional RPi dashboard bridge | `safe_deferral_event` | bounded deferral / clarification control | Future schema recommended |
+| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler, Class 2 clarification manager | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | caregiver escalation / Class 2 clarification notification | Manual confirmation path is not autonomous execution authority |
 | `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test app mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | governed manual path | Future schema recommended; mock publisher must be test/evaluation artifact only |
 | `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | dispatch after approval | Doorlock requires governed manual confirmation path; governance/dashboard/test-app must not publish this directly |
 | `safe_deferral/actuation/ack` | ESP32 actuator node, controlled RPi mock actuator | Mac mini ACK handler, audit observer, dashboard bridge | `actuation_ack_payload` | closed-loop evidence | ACK is not pure context input |
@@ -34,6 +38,23 @@ It does not override policy or schema assets.
 | `safe_deferral/dashboard/observation` | RPi orchestrator, dashboard backend, optional Mac mini telemetry bridge | RPi dashboard frontend, optional test app | `dashboard_observation_payload` | visibility, not policy | Retained observation status allowed |
 | `safe_deferral/experiment/progress` | RPi orchestrator, integration test runner | RPi dashboard frontend, result exporter | `experiment_progress_payload` | experiment status | Future schema recommended |
 | `safe_deferral/experiment/result` | RPi orchestrator, integration test runner, result exporter | RPi dashboard frontend, optional paper analysis tools | `result_export_payload` | experiment artifact | Trace to scenario/run IDs |
+
+---
+
+## Machine-readable role metadata
+
+`topic_registry_v1_1_0.json` mirrors this matrix with structured fields:
+
+```text
+publisher_roles
+subscriber_roles
+role_classes
+authority_level
+allowed_in_operational_runtime
+allowed_in_experiment_runtime
+```
+
+Use the JSON registry for automated governance validation and this markdown matrix for human review.
 
 ---
 
@@ -54,6 +75,7 @@ This clarification aligns this matrix with:
 ```text
 common/docs/architecture/15_interface_matrix.md
 common/docs/architecture/scenario_data_flows/20_00_interface_role_alignment.md
+common/mqtt/topic_registry_v1_1_0.json
 ```
 
 ---
@@ -80,16 +102,17 @@ Before implementing a topic, confirm:
 
 1. Is the publisher allowed for this topic?
 2. Is the subscriber allowed for this topic?
-3. Is the payload family correct?
-4. Does the payload have a formal schema?
-5. If schema-governed, does it validate against `common/schemas/`?
-6. Does the topic accidentally give authority to dashboard/test/simulation components?
-7. Does the topic accidentally allow doorlock control through Class 1?
-8. Does the topic preserve audit/ACK expectations?
-9. Does the topic align with `common/docs/architecture/15_interface_matrix.md`?
-10. Does the topic align with `common/docs/architecture/17_payload_contract_and_registry.md`?
-11. Are referenced example payload files present under `common/payloads/examples/`?
-12. Would `FAULT_CONTRACT_DRIFT_01` detect misuse of the topic, payload family, or publisher role?
+3. Is the publisher/subscriber role class correct in `topic_registry_v1_1_0.json`?
+4. Is the payload family correct?
+5. Does the payload have a formal schema?
+6. If schema-governed, does it validate against `common/schemas/`?
+7. Does the topic accidentally give authority to dashboard/test/simulation components?
+8. Does the topic accidentally allow doorlock control through Class 1?
+9. Does the topic preserve audit/ACK expectations?
+10. Does the topic align with `common/docs/architecture/15_interface_matrix.md`?
+11. Does the topic align with `common/docs/architecture/17_payload_contract_and_registry.md`?
+12. Are referenced example payload files present under `common/payloads/examples/`?
+13. Would `FAULT_CONTRACT_DRIFT_01` detect misuse of the topic, payload family, publisher role, or subscriber role?
 
 ---
 
@@ -101,6 +124,7 @@ Recommended dashboard capabilities:
 
 - show topic contract rows,
 - show allowed publishers/subscribers,
+- show publisher/subscriber role classes from `topic_registry_v1_1_0.json`,
 - validate example payloads,
 - flag unauthorized topic traffic,
 - flag payload/schema drift,
