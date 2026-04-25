@@ -19,6 +19,13 @@ LEGACY_TOPICS = {
     "smarthome/context/raw",
     "smarthome/audit/validator_output",
 }
+CLASS2_SUPPORTING_TOPICS = {
+    "safe_deferral/context/input",
+    "safe_deferral/deferral/request",
+    "safe_deferral/escalation/class2",
+    "safe_deferral/caregiver/confirmation",
+    "safe_deferral/audit/log",
+}
 
 
 def load_json(path: Path) -> Any:
@@ -52,6 +59,10 @@ def main() -> int:
         return 1
 
     errors: list[str] = []
+    missing_class2_topics = sorted(CLASS2_SUPPORTING_TOPICS - allowed_topics)
+    if missing_class2_topics:
+        errors.append(f"topic registry missing Class 2 supporting topic(s): {missing_class2_topics}")
+
     files = scenario_files()
     if not files:
         print("ERROR: no scenario skeleton files found", file=sys.stderr)
@@ -91,13 +102,21 @@ def main() -> int:
         if input_plane.get("audit_topic") != "safe_deferral/audit/log":
             errors.append(f"{rel}: audit_topic must be safe_deferral/audit/log")
 
+        if category == "class2_insufficient_context":
+            if ingress != "safe_deferral/context/input":
+                errors.append(f"{rel}: Class 2 initial ambiguous input must enter through safe_deferral/context/input")
+            if "safe_deferral/deferral/request" not in allowed_topics:
+                errors.append(f"{rel}: Class 2 clarification requires safe_deferral/deferral/request in registry")
+            if "safe_deferral/caregiver/confirmation" not in allowed_topics:
+                errors.append(f"{rel}: Class 2 clarification requires safe_deferral/caregiver/confirmation in registry")
+
     if errors:
         print("Scenario topic alignment verification failed:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print(f"OK: verified topic alignment for {len(files)} scenario manifest(s)")
+    print(f"OK: verified topic alignment for {len(files)} scenario manifest(s), including Class 2 supporting topics")
     return 0
 
 
