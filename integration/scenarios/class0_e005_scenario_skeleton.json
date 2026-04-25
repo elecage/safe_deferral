@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E005_FALL",
   "title": "Class 0 E005 fall emergency scenario",
-  "description": "Deterministic scenario skeleton for a representative E005-aligned fall-detected emergency path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative E005-aligned fall-detected emergency path. This file is an integration asset and must remain aligned with frozen assets under common/. E005 may be reached directly from fall evidence or during Class 2 clarification if the user confirms a fall/emergency condition or new deterministic fall evidence arrives.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {
@@ -33,6 +33,11 @@
       "expected_fixture": "integration/tests/data/expected_routing_class0_e005_fall.json"
     }
   ],
+  "class2_transition_reference": {
+    "may_be_reached_from_class2": true,
+    "required_condition": "During Class 2 clarification, the user/caregiver confirms fall or emergency help, or deterministic fall evidence arrives from the emergency evidence path. The transition remains policy-driven and must not be triggered by LLM candidate text alone.",
+    "prohibited_shortcut": "LLM guidance or candidate prompt text must not independently trigger E005 or Class 0 emergency handling."
+  },
   "expected_outcomes": {
     "route_class": "CLASS_0",
     "routing_target": "CLASS_0",
@@ -47,6 +52,7 @@
     "Dedicated E005 fall-detected payload fixture now available in sample_policy_router_input_class0_e005_fall.json.",
     "This scenario validates fall-detected event trigger semantics and is aligned with the required experiments document's canonical emergency family coverage.",
     "Class 0 emergency handling must not use the LLM as the primary decision path.",
+    "During Class 2 clarification, E005 can be reached only through user/caregiver emergency confirmation or deterministic fall evidence.",
     "doorbell_detected is not emergency evidence and does not authorize doorlock control."
   ]
 }
