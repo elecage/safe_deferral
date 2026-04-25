@@ -184,6 +184,7 @@
     "safe_execution_note": "Validated execution must remain ACK-confirmed and bounded to the low-risk catalog.",
     "sensitive_actuation_note": "Sensitive actuation requests, including doorlock control, are not part of the Class 1 autonomous low-risk action scope in this policy version. Such requests must not be approved as low-risk executable payloads and must be handled through Class 2 escalation or a separately governed manual confirmation path.",
     "doorbell_context_note": "Doorbell or visitor-arrival detection may be used as policy-relevant context for visitor-response interpretation, but it does not authorize autonomous doorlock control. Doorlock-related sensitive actuation must remain routed to Class 2 escalation or a separately governed manual confirmation path.",
+    "mqtt_payload_governance_note": "MQTT topic entries, topic-payload mappings, interface-matrix alignment reports, topic-drift reports, and payload validation reports are governance/verification artifacts and must not be interpreted as policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.",
     "reviewer_note": "This policy table defines routing and safety interpretation, while detailed action admissibility remains jointly constrained by the low-risk action catalog and validator schema."
   }
 }
