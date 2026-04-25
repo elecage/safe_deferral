@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 40_verify_sample_build_esp32.sh
 # Purpose: Verify that a sample ESP-IDF project can be built successfully
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
@@ -26,6 +26,9 @@ SAMPLE_PROJECT_DIR="${ESP32_SAMPLE_PROJECT_DIR:-${WORKSPACE_DIR}/samples/hello_i
 TARGET="${IDF_TARGET:-esp32}"
 LOG_DIR="${ESP32_BUILD_LOG_DIR:-${WORKSPACE_DIR}/logs}"
 BUILD_LOG_FILE="${LOG_DIR}/sample_build.log"
+EXPECTED_APP_NAME="${ESP32_EXPECTED_APP_NAME:-${EXPECTED_APP_NAME:-hello_world}}"
+EXPECTED_BIN="${SAMPLE_PROJECT_DIR}/build/${EXPECTED_APP_NAME}.bin"
+EXPECTED_ELF="${SAMPLE_PROJECT_DIR}/build/${EXPECTED_APP_NAME}.elf"
 
 mkdir -p "${LOG_DIR}"
 
@@ -40,21 +43,26 @@ source "${IDF_PATH}/export.sh" >/dev/null 2>&1
 
 cd "${SAMPLE_PROJECT_DIR}"
 echo "  [INFO] Running clean build for target ${TARGET} ..."
+echo "  [INFO] Expected app name: ${EXPECTED_APP_NAME}"
 idf.py set-target "${TARGET}" >/dev/null
 idf.py fullclean >/dev/null 2>&1 || true
 idf.py build | tee "${BUILD_LOG_FILE}"
 
-if [ ! -f "${SAMPLE_PROJECT_DIR}/build/hello_world.bin" ]; then
-    echo "  [FATAL] Sample binary hello_world.bin was not generated."
+if [ ! -f "${EXPECTED_BIN}" ]; then
+    echo "  [FATAL] Expected sample binary was not generated: ${EXPECTED_BIN}"
+    echo "          Set ESP32_EXPECTED_APP_NAME or EXPECTED_APP_NAME if the project name is not 'hello_world'."
     echo "          Check ${BUILD_LOG_FILE} for build errors."
     exit 1
 fi
-if [ ! -f "${SAMPLE_PROJECT_DIR}/build/hello_world.elf" ]; then
-    echo "  [FATAL] Sample ELF hello_world.elf was not generated."
+if [ ! -f "${EXPECTED_ELF}" ]; then
+    echo "  [FATAL] Expected sample ELF was not generated: ${EXPECTED_ELF}"
+    echo "          Set ESP32_EXPECTED_APP_NAME or EXPECTED_APP_NAME if the project name is not 'hello_world'."
     echo "          Check ${BUILD_LOG_FILE} for build errors."
     exit 1
 fi
 
-echo "  [OK] Sample build artifacts were generated successfully."
+echo "  [OK] Sample build artifacts were generated successfully:"
+echo "       - ${EXPECTED_BIN}"
+echo "       - ${EXPECTED_ELF}"
 echo "  [INFO] Build log written to ${BUILD_LOG_FILE}."
 echo "==> [PASS] Sample ESP-IDF build verification completed."
