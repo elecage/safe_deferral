@@ -2,12 +2,14 @@
   "observation_id": "example-dashboard-doorlock-sensitive-001",
   "experiment_id": "visitor_response_eval_demo",
   "scenario_id": "visitor_possible_unlock_intent_001",
+  "run_id": "run-example-001",
   "timestamp_ms": 1710000000500,
   "doorbell_detected": true,
   "autonomous_unlock_blocked": true,
   "caregiver_escalation_state": "sent",
   "manual_approval_state": "pending",
   "ack_state": "not_dispatched",
-  "audit_completeness_state": "pending",
-  "note": "Dashboard observation is not policy truth and doorlock state is not context_schema.device_states."
+  "doorlock_state_observation": "locked",
+  "audit_completeness_state": "pending_final_ack",
+  "authority_note": "Dashboard observation is visibility only. Doorlock state here is not pure_context_payload.device_states and is not policy truth."
 }
