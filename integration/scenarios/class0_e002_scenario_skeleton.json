@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E002_BUTTON_TRIPLE_HIT",
   "title": "Class 0 E002 emergency button triple-hit scenario",
-  "description": "Deterministic scenario skeleton for a representative E002-aligned emergency path (bounded input triple-hit). This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative E002-aligned emergency path (bounded input triple-hit). This file is an integration asset and must remain aligned with frozen assets under common/. E002 may be reached directly from a triple-hit event or during Class 2 clarification if a triple-hit pattern occurs while the system is waiting for confirmation.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {
@@ -33,6 +33,11 @@
       "expected_fixture": "integration/tests/data/expected_routing_class0_e002_button_triple_hit.json"
     }
   ],
+  "class2_transition_reference": {
+    "may_be_reached_from_class2": true,
+    "required_condition": "A triple-hit bounded input pattern occurs during Class 2 clarification, or the user/caregiver confirms an emergency help candidate. The transition remains policy-driven and must not be triggered by LLM candidate text alone.",
+    "prohibited_shortcut": "LLM guidance or candidate prompt text must not independently trigger Class 0 emergency handling."
+  },
   "expected_outcomes": {
     "route_class": "CLASS_0",
     "routing_target": "CLASS_0",
@@ -47,6 +52,7 @@
     "Exact trigger semantics remain defined by the frozen policy table.",
     "This scenario is intended for emergency override path validation and later class-wise latency profiling.",
     "Class 0 emergency handling must not use the LLM as the primary decision path.",
+    "During Class 2 clarification, E002 can override the clarification wait only when the deterministic triple-hit pattern is observed or emergency help is confirmed.",
     "doorbell_detected is not emergency evidence and does not authorize doorlock control."
   ]
 }
