@@ -2,8 +2,9 @@
 """Verify scenario alignment with frozen policy/schema boundaries.
 
 Checks:
-- Class 0 scenario emergency family IDs are E001-E005 and exist in the policy table text.
+- Class 0 scenario emergency family IDs are E001-E005 and exist in the active policy table text.
 - Class 1 scenarios reference the frozen low-risk action catalog.
+- Class 2 scenarios follow the clarification/transition boundary introduced by policy v1.2.0.
 - Scenario expected outcomes keep unsafe autonomous actuation and doorlock autonomous execution disabled.
 - Referenced policy-router input fixtures include environmental_context.doorbell_detected.
 - Current fixture device_states do not include doorlock-like keys.
@@ -21,7 +22,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = ROOT / "integration" / "scenarios"
-POLICY_TABLE = ROOT / "common" / "policies" / "policy_table_v1_1_2_FROZEN.json"
+POLICY_TABLE = ROOT / "common" / "policies" / "policy_table_v1_2_0_FROZEN.json"
 LOW_RISK_CATALOG_REF = "common/policies/low_risk_actions_v1_1_0_FROZEN.json"
 DOORLOCK_KEYS = {
     "doorlock",
@@ -30,6 +31,11 @@ DOORLOCK_KEYS = {
     "front_door_lock",
     "front_doorlock",
     "lock_state",
+}
+CLASS2_ALLOWED_TRANSITIONS = {
+    "CLASS_1",
+    "CLASS_0",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
 }
 
 
@@ -48,14 +54,31 @@ def resolve_repo_path(value: str) -> Path:
     return (ROOT / value).resolve()
 
 
-def emergency_ids_from_policy_text() -> set[str]:
+def policy_text() -> str:
+    return POLICY_TABLE.read_text(encoding="utf-8")
+
+
+def emergency_ids_from_policy_text(text: str) -> set[str]:
     # Policy layout may evolve, so use a conservative text scan for canonical IDs.
-    text = POLICY_TABLE.read_text(encoding="utf-8")
     return {eid for eid in ("E001", "E002", "E003", "E004", "E005") if eid in text}
 
 
 def normalized_key(key: str) -> str:
     return key.strip().lower().replace("-", "_")
+
+
+def check_active_policy_baseline(text: str, errors: list[str]) -> None:
+    required_policy_markers = [
+        '"version": "1.2.0"',
+        '"class_2_clarification_transition"',
+        '"llm_decision_invocation_allowed": false',
+        '"candidate_generation_allowed": true',
+        '"confirmation_required_before_transition": true',
+        '"SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"',
+    ]
+    for marker in required_policy_markers:
+        if marker not in text:
+            errors.append(f"active policy table {POLICY_TABLE.relative_to(ROOT)} missing required Class 2 baseline marker: {marker}")
 
 
 def check_fixture_payload(path: Path, rel_scenario: Path, errors: list[str]) -> None:
@@ -115,9 +138,51 @@ def check_expected_fixture(path: Path, rel_scenario: Path, scenario_expected: di
             errors.append(f"{rel_scenario}: {path.relative_to(ROOT)} expected_llm_guidance_generation_allowed {expected_value!r} does not match scenario {scenario_value!r}")
 
 
+def check_class2_scenario(data: dict[str, Any], rel: Path, errors: list[str]) -> None:
+    expected = data.get("expected_outcomes", {})
+    clarification = data.get("clarification_interaction")
+    if not isinstance(clarification, dict):
+        errors.append(f"{rel}: class2 scenario must include clarification_interaction object")
+        return
+
+    if clarification.get("confirmation_required_before_transition") is not True:
+        errors.append(f"{rel}: class2 clarification_interaction.confirmation_required_before_transition must be true")
+
+    candidate_boundary = str(clarification.get("candidate_generation_boundary", ""))
+    if "no_final_decision" not in candidate_boundary or "no_actuation_authority" not in candidate_boundary:
+        errors.append(f"{rel}: class2 candidate_generation_boundary must prohibit final decision and actuation authority")
+
+    if expected.get("llm_decision_invocation_allowed") is not False:
+        errors.append(f"{rel}: class2 llm_decision_invocation_allowed must be false")
+    if expected.get("candidate_generation_authorizes_actuation") is not False:
+        errors.append(f"{rel}: class2 candidate_generation_authorizes_actuation must be false")
+    if expected.get("confirmation_required_before_transition") is not True:
+        errors.append(f"{rel}: class2 expected_outcomes.confirmation_required_before_transition must be true")
+
+    transitions = expected.get("allowed_transition_targets")
+    if not isinstance(transitions, list):
+        errors.append(f"{rel}: class2 expected_outcomes.allowed_transition_targets must be an array")
+    else:
+        missing = sorted(CLASS2_ALLOWED_TRANSITIONS - {str(item) for item in transitions})
+        if missing:
+            errors.append(f"{rel}: class2 allowed_transition_targets missing {missing}")
+
+    transition_outcomes = data.get("transition_outcomes")
+    if not isinstance(transition_outcomes, list) or not transition_outcomes:
+        errors.append(f"{rel}: class2 scenario must include non-empty transition_outcomes")
+    else:
+        outcome_targets = {str(item.get("transition_target")) for item in transition_outcomes if isinstance(item, dict)}
+        missing = sorted(CLASS2_ALLOWED_TRANSITIONS - outcome_targets)
+        if missing:
+            errors.append(f"{rel}: class2 transition_outcomes missing transition targets {missing}")
+
+
 def main() -> int:
     errors: list[str] = []
-    emergency_ids = emergency_ids_from_policy_text()
+    text = policy_text()
+    check_active_policy_baseline(text, errors)
+
+    emergency_ids = emergency_ids_from_policy_text(text)
     required_emergency_ids = {"E001", "E002", "E003", "E004", "E005"}
     missing_policy_ids = sorted(required_emergency_ids - emergency_ids)
     if missing_policy_ids:
@@ -161,9 +226,12 @@ def main() -> int:
             if expected.get("allowed_action_catalog_ref") != LOW_RISK_CATALOG_REF:
                 errors.append(f"{rel}: class1 must reference {LOW_RISK_CATALOG_REF}")
 
+        if category == "class2_insufficient_context":
+            check_class2_scenario(data, rel, errors)
+
         steps = data.get("steps", [])
         if isinstance(steps, list):
-            for idx, step in enumerate(steps, start=1):
+            for step in steps:
                 if not isinstance(step, dict):
                     continue
                 payload_ref = step.get("payload_fixture")
@@ -183,7 +251,7 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print(f"OK: verified policy/schema alignment for {len(files)} scenario manifest(s)")
+    print(f"OK: verified policy/schema alignment for {len(files)} scenario manifest(s) against {POLICY_TABLE.relative_to(ROOT)}")
     return 0
 
 
