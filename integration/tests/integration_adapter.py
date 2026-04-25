@@ -76,6 +76,9 @@ def _normalise_router_input(
       - trigger_event.timestamp_ms absent → now_ms when fresh_timestamps=True
         (keeps event age near 0), or 0 when fresh_timestamps=False (triggers
         staleness so fault-injection scenarios route to CLASS_2 as expected)
+      - environmental_context.doorbell_detected absent → defaults to false
+        (doorbell/visitor context is required by the current schema but must
+        not imply autonomous doorlock authorization)
 
     Missing device_states fields filled with safe defaults so emergency
     detection can still function based on the fields that ARE present.
@@ -112,6 +115,7 @@ def _normalise_router_input(
         occupancy_detected=bool(ec_raw.get("occupancy_detected", False)),
         smoke_detected=bool(ec_raw.get("smoke_detected", False)),
         gas_detected=bool(ec_raw.get("gas_detected", False)),
+        doorbell_detected=bool(ec_raw.get("doorbell_detected", False)),
     )
 
     # ── device_states ──────────────────────────────────────────────────────
