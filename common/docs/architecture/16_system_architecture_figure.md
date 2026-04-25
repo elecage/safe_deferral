@@ -18,14 +18,20 @@ The purpose of this document is to provide one stable reference for:
 - low-risk vs sensitive-actuation routing,
 - `doorbell_detected` visitor-response context,
 - payload-boundary interpretation,
+- MQTT topic / payload contract interpretation,
+- MQTT/payload governance dashboard and backend boundary,
 - and figure-caption guidance for the paper.
 
-This document does **not** override frozen policies or schemas. If any conflict exists, the following remain authoritative:
+This document does **not** override frozen policies or schemas. If any conflict exists, the following remain authoritative or controlling references according to their scope:
 
 - `common/policies/`
 - `common/schemas/`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/required_experiments.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
 
 ---
 
@@ -33,7 +39,36 @@ This document does **not** override frozen policies or schemas. If any conflict 
 
 ![Final paper architecture figure](./figures/system_layout_final_macmini_only_lshape.svg)
 
-This figure should be treated as the current final paper-oriented system architecture figure.
+This figure should be treated as the current active Mac-mini-centered operational architecture figure.
+
+However, the current SVG does not yet fully draw every Raspberry Pi support-layer connection, MQTT/payload governance flow, dashboard observation flow, experiment progress/result topic flow, or registry-management interface.
+
+Those elements are documented in this file and in `common/docs/architecture/15_interface_matrix.md`, and should be reflected in a future figure revision.
+
+### Current figure status
+
+The current SVG figure is the active operational figure for the present paper-writing and architecture-discussion stage.
+
+It is strongest for explaining:
+
+- ESP32 bounded physical nodes,
+- Mac mini operational control loop,
+- local LLM-assisted interpretation,
+- deterministic policy/validation,
+- safe deferral,
+- caregiver-mediated sensitive-actuation handling,
+- ACK and audit closure.
+
+It is not yet a complete visual representation of:
+
+- all Raspberry Pi support-layer MQTT connections,
+- MQTT/payload governance backend flow,
+- governance dashboard UI flow,
+- publisher/subscriber role management,
+- payload example management,
+- topic registry CRUD/review workflow.
+
+These items are intentionally captured in the document explanation first and should be added visually in a later figure revision.
 
 It emphasizes the operational closed loop across:
 
@@ -58,9 +93,9 @@ The figure should be read as four major regions.
 
 | Region | Role | Authority boundary |
 |---|---|---|
-| ESP32 device layer | Bounded physical input, sensing, emergency/event detection, actuator/warning interfaces | No high-level reasoning authority; no autonomous sensitive-actuation authority |
-| Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, caregiver escalation, ACK, audit | Primary operational authority under frozen policy/schema constraints |
-| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication | Experiment/support visibility; not policy, validator, caregiver approval, or execution authority |
+| ESP32 device layer | Bounded physical input, sensing, emergency/event detection, doorbell / visitor-arrival context sensing, actuator/warning interfaces | No high-level reasoning authority; no autonomous sensitive-actuation authority |
+| Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, caregiver escalation, ACK, audit, topic registry loading, and payload validation support | Primary operational authority under frozen policy/schema constraints; registry/payload helpers support consistency but do not create authority |
+| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, or execution authority |
 | Optional measurement node | Out-of-band timing and latency capture | Measurement-only; not operational control plane |
 
 ---
@@ -127,6 +162,8 @@ The Mac mini region includes:
 - local LLM reasoning,
 - Policy Router,
 - Deterministic Validator,
+- MQTT topic registry loader / contract checker,
+- payload validation helper,
 - context-integrity-based safe deferral stage,
 - caregiver escalation,
 - caregiver approval handling,
@@ -134,6 +171,16 @@ The Mac mini region includes:
 - approved low-risk dispatch interface,
 - ACK handling,
 - local audit logging.
+
+The topic registry loader and payload validation helper support:
+
+- registry-based topic lookup where practical,
+- publisher/subscriber contract checking,
+- schema/payload boundary consistency,
+- `doorbell_detected` required-field checks,
+- and prevention of doorlock state drift into current pure-context `device_states`.
+
+These helpers support communication consistency and schema/payload boundary checks; they do not replace policy/schema authority and do not create actuator authority.
 
 The Mac mini may expose operational telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard. This exposure does not make the RPi dashboard a policy authority.
 
@@ -156,17 +203,37 @@ It may include:
 - progress/status publication,
 - result summaries,
 - CSV/graph export,
-- evaluation artifact generation.
+- evaluation artifact generation,
+- MQTT/payload governance backend,
+- governance dashboard UI,
+- topic/payload contract validation,
+- payload example manager,
+- publisher/subscriber role manager.
 
 The RPi dashboard is a support-side visibility and experiment-operations console.
 
-It is **not**:
+The MQTT/payload governance backend and governance dashboard UI may be documented as part of the Raspberry Pi support-side toolchain even if their visual links are not yet drawn in the current SVG figure.
+
+They may support:
+
+- topic registry browsing,
+- draft topic creation/edit/delete workflows,
+- publisher/subscriber role review,
+- payload family and schema/example linkage,
+- payload example validation,
+- proposed change reports,
+- live or replayed topic traffic inspection,
+- doorbell/doorlock boundary warnings.
+
+They are **not**:
 
 - policy authority,
 - validator authority,
 - caregiver approval authority,
 - primary operational hub,
-- direct sensitive-actuation authority.
+- direct sensitive-actuation authority,
+- direct doorlock dispatch authority,
+- canonical schema/policy editing authority.
 
 The RPi dashboard and orchestration layers may visualize visitor-response or doorlock-sensitive experiment state, including:
 
@@ -215,6 +282,15 @@ Input may originate from:
 - emergency sensors/events,
 - doorbell / visitor-arrival context,
 - simulated RPi scenario input during experiments.
+
+MQTT-facing interfaces should remain aligned with:
+
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/docs/architecture/15_interface_matrix.md`
+
+The currently documented MQTT-facing interfaces include context input, emergency events, LLM candidate action, validator output, safe deferral request, Class 2 escalation, caregiver confirmation, actuation command, actuation ACK, audit log, simulation context, fault injection, dashboard observation, experiment progress, and experiment result topics.
 
 The normalized operational input must preserve the payload boundaries defined in:
 
@@ -330,6 +406,29 @@ Audit closure may include:
 
 Audit records are evidence and traceability artifacts. They do not redefine policy truth.
 
+### Step 9. MQTT/payload governance support path
+
+The MQTT/payload governance support path is separate from the operational closed loop.
+
+It may include:
+
+- Governance Dashboard UI,
+- MQTT/payload governance backend,
+- topic registry loader / contract checker,
+- payload example manager / validator,
+- publisher/subscriber role manager,
+- draft registry change reports,
+- review/commit workflow.
+
+This path may inspect, validate, and propose communication-contract changes. It must not:
+
+- publish actuator commands,
+- modify canonical policies/schemas directly,
+- create doorlock execution authority,
+- spoof caregiver approval,
+- bypass deterministic validation,
+- or treat dashboard observation as policy truth.
+
 ---
 
 ## 9. Payload interpretation in the figure
@@ -346,26 +445,52 @@ The architecture figure should be read with the following payload boundaries.
 | manual approval state | Caregiver/manual confirmation path, experiment artifact, audit | Pure context payload |
 | ACK state | Actuator result, audit, dashboard observation, experiment artifact | Pure context payload |
 | dashboard observation state | RPi support-side visibility | Policy truth or validator authority |
+| MQTT topic registry | `common/mqtt/`, governance backend, validation reports, review/commit workflow | Policy/schema authority or actuator authorization |
+| payload examples/templates | `common/payloads/`, payload validation helper, governance backend, test/scenario scaffolds | Policy truth or schema authority |
+| governance draft changes | Governance backend, validation report, review/commit workflow | Live runtime control or doorlock execution authority |
 
 Detailed payload rules are defined in:
 
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
+Detailed interface and topic coverage are defined in:
+
+- `common/docs/architecture/15_interface_matrix.md`
+
 ---
 
-## 10. Figure caption draft
+## 10. Figure elements not yet fully drawn
+
+The current SVG does not yet fully draw:
+
+- Raspberry Pi support-layer MQTT connections,
+- dashboard observation topic flows,
+- experiment progress/result topic flows,
+- MQTT/payload governance backend,
+- governance dashboard UI,
+- publisher/subscriber role manager,
+- payload example manager,
+- topic registry CRUD/review workflow.
+
+These should be added in a future figure revision.
+
+Until the SVG is revised, the explanatory text in this document and the MQTT-aware interface matrix in `common/docs/architecture/15_interface_matrix.md` should be used to interpret the full support-layer and governance-layer design.
+
+---
+
+## 11. Figure caption draft
 
 Suggested paper caption:
 
-> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, and actuator/warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, context-integrity-based safe deferral, caregiver-mediated escalation, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result publication, and evaluation artifact generation, without becoming policy or execution authority.
+> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and actuator/warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, payload-boundary validation support, context-integrity-based safe deferral, caregiver-mediated escalation, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, and publisher/subscriber role review, without becoming policy or execution authority.
 
 Shorter caption:
 
-> Overall system architecture showing bounded physical input, local LLM-assisted interpretation, deterministic policy validation, safe deferral, caregiver-mediated sensitive actuation, local audit closure, and Raspberry Pi-based experiment monitoring.
+> Overall system architecture showing bounded physical input, local LLM-assisted interpretation, deterministic policy validation, safe deferral, caregiver-mediated sensitive actuation, local audit closure, and Raspberry Pi-based experiment monitoring with non-authoritative MQTT/payload governance support.
 
 ---
 
-## 11. Paper interpretation notes
+## 12. Paper interpretation notes
 
 This figure supports the paper’s main claims because it shows:
 
@@ -377,10 +502,13 @@ This figure supports the paper’s main claims because it shows:
 6. ACK and audit closure are part of the closed loop.
 7. RPi dashboard/simulation is an experiment-support layer, not operational authority.
 8. Payload boundaries are necessary to prevent state and authority drift.
+9. MQTT/payload governance is separated from operational authority.
+10. Topic/payload registry edits cannot create doorlock execution authority.
+11. Some RPi/governance connections are documented but not yet drawn in the current SVG and should be added in a future figure revision.
 
 ---
 
-## 12. Superseded / historical notes
+## 13. Superseded / historical notes
 
 This document consolidates the architecture-figure interpretation that was previously spread across multiple architecture files in the 16~24 range.
 
@@ -390,13 +518,14 @@ The most important prior document was:
 
 If older architecture-figure notes conflict with this document, prefer this consolidated document together with:
 
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/required_experiments.md`
 - `common/docs/runtime/SESSION_HANDOFF.md`
 
 ---
 
-## 13. Summary
+## 14. Summary
 
 The final architecture figure should be read as a closed-loop, policy-first, edge-local assistive control architecture.
 
@@ -410,4 +539,5 @@ The key interpretation is:
 - Doorbell context supports visitor-response interpretation but does not authorize doorlock control.
 - Doorlock-sensitive execution remains caregiver-mediated or manually governed.
 - RPi provides experiment/dashboard/simulation/fault-injection support without becoming authority.
+- MQTT/payload governance tooling may inspect, validate, and propose communication-contract changes without becoming operational authority.
 - ACK and audit closure complete the safety argument.
