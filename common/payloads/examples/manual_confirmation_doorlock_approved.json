@@ -1,0 +1,10 @@
+{
+  "confirmation_id": "example-manual-confirmation-doorlock-001",
+  "audit_correlation_id": "example-doorlock-sensitive-001",
+  "decision": "approved",
+  "approved_by_role": "caregiver",
+  "approved_action": "door_unlock",
+  "target_device": "front_door_lock",
+  "timestamp_ms": 1710000000400,
+  "authority_note": "This example belongs to a separately governed manual confirmation path. It is not autonomous Class 1 validator approval."
+}
