@@ -2,275 +2,237 @@
 
 ## Mac mini Build Sequence
 
-This document defines the recommended build and bring-up sequence for the Mac mini operational hub in the safe deferral system.
+This document defines the recommended build and bring-up sequence for the Mac mini operational hub in the `safe_deferral` system.
 
-It is intended to be used as a reference for:
-- system setup
-- implementation planning
-- repository organization
-- deployment sequencing
-- MQTT/topic/payload reference deployment
-- registry-aware hub-side implementation
-- vibe-coding prompts and agent guidance
+The Mac mini is the **safety-critical operational edge hub**. It is responsible for local service runtime, policy/schema validation support, local LLM runtime, MQTT broker operation, audit DB preparation, outbound notification support, and deployed runtime copies of repository-governed reference assets.
 
-This document assumes that the Mac mini is the **canonical operational hub** of the system and that shared frozen assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
+Raspberry Pi 5 remains the experiment/dashboard/simulation/fault-injection and non-authoritative MQTT/payload governance support host. It must not replace Mac mini policy authority, validator authority, caregiver approval authority, actuator authority, or doorlock execution authority.
 
 This document should be read together with:
+
+- `README.md`
+- `CLAUDE.md`
+- `mac_mini/docs/README.md`
 - `common/docs/architecture/01_installation_target_classification.md`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/required_experiments.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
 
 ---
 
-## Phase 0. Pre-build Freeze
+## Current runtime layout
 
-Before installing or implementing anything, freeze the core shared artifacts and shared communication/payload references in the repository.
+The current Mac mini scripts use the following runtime layout:
 
-### Required frozen authority assets
-1. Routing policy table
-2. Low-risk action policy
-3. Fault injection rules
-4. Input/output JSON schemas
-5. Class 2 notification payload schema
-6. Canonical terminology
-7. Environment variable templates
-8. Verification and installation script set
+```text
+~/smarthome_workspace/
+├── .env
+├── .venv-mac/
+├── requirements-mac-lock.txt
+├── logs/
+└── docker/
+    ├── .env
+    ├── docker-compose.yml
+    └── volumes/
+        ├── homeassistant/config/
+        ├── mosquitto/config/
+        ├── mosquitto/data/
+        ├── mosquitto/log/
+        ├── ollama/data/
+        ├── app/config/
+        │   ├── policies/
+        │   ├── schemas/
+        │   ├── mqtt/
+        │   └── payloads/
+        └── sqlite/db/audit_log.db
+```
 
-### Required shared communication / payload references
-1. MQTT topic registry
-2. Publisher/subscriber matrix
-3. Topic-to-payload contract references
-4. Payload examples/templates
-5. MQTT-aware interface matrix
-6. Active system architecture figure interpretation
-7. Payload-boundary and registry interpretation
+Important runtime paths:
 
-### Repository locations
-- `common/policies/`
-- `common/schemas/`
-- `common/mqtt/`
-- `common/payloads/`
-- `common/docs/`
-- `common/terminology/`
+- Home Assistant config: `~/smarthome_workspace/docker/volumes/homeassistant/config`
+- SQLite audit DB: `~/smarthome_workspace/docker/volumes/sqlite/db/audit_log.db`
+- Policy runtime assets: `~/smarthome_workspace/docker/volumes/app/config/policies`
+- Schema runtime assets: `~/smarthome_workspace/docker/volumes/app/config/schemas`
+- MQTT runtime references: `~/smarthome_workspace/docker/volumes/app/config/mqtt`
+- Payload runtime references: `~/smarthome_workspace/docker/volumes/app/config/payloads`
 
-### Representative frozen authority assets
+Inside the application container, the compose template exposes:
+
+- `POLICY_DIR=/app/config/policies`
+- `SCHEMA_DIR=/app/config/schemas`
+- `MQTT_REGISTRY_DIR=/app/config/mqtt`
+- `PAYLOAD_EXAMPLES_DIR=/app/config/payloads`
+- `SQLITE_PATH=/app/db/audit_log.db`
+
+Host-side scripts use host paths in `~/smarthome_workspace/`. Container-side services use container paths.
+
+---
+
+## Phase 0. Pre-build freeze
+
+Before installation or implementation, freeze and review the shared repository assets.
+
+### Authoritative policy/schema assets
+
 - `common/policies/policy_table_v1_1_2_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
+- `common/policies/output_profile_v1_1_0.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
+- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
-- `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 
-### Representative shared reference assets
+### Communication and payload reference assets
+
+- `common/mqtt/README.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
-- `common/docs/architecture/15_interface_matrix.md`
-- `common/docs/architecture/16_system_architecture_figure.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
 
-### Optional or version-sensitive companion assets
-- output profile assets, if used in the current implementation baseline
-- host-local configuration templates
-- installation/configuration/verification script bundles
-
-### Freeze principle
-All hub-side implementation must be derived from the frozen shared asset set.  
-The Mac mini must consume deployed runtime copies of these assets rather than inventing local policy truth.
-
-`common/mqtt/` and `common/payloads/` are shared reference layers, not policy/schema authority. They may guide runtime topic lookup, payload validation, dashboard tooling, experiment fixtures, and governance checks, but they do not override frozen policies or schemas.
+`common/mqtt/` and `common/payloads/` are communication/reference layers. They support registry-aware topic lookup, payload validation, governance checking, dashboard tooling, and Package G verification. They do not create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority.
 
 ---
 
-## Phase 1. Base System Preparation
+## Phase 1. Host and workspace preparation
 
-Prepare the Mac mini as the primary operational hub.
+Run from repository root:
 
-1. Update macOS
-2. Install developer tools
-3. Create project workspace directories
-4. Clone and prepare the Git repository
-5. Prepare runtime environment templates and deployment targets
-6. Prepare MQTT topic registry deployment/reference path
-7. Prepare payload examples/templates deployment/reference path
-8. Prepare runtime mount, copy, symlink, or path assumptions for registry/payload references
+```bash
+bash mac_mini/scripts/install/00_install_homebrew.sh
+bash mac_mini/scripts/install/00_preflight.sh
+bash mac_mini/scripts/install/10_install_homebrew_deps.sh
+bash mac_mini/scripts/install/20_install_docker_runtime_mac.sh
+bash mac_mini/scripts/install/21_prepare_compose_stack_mac.sh
+bash mac_mini/scripts/install/30_setup_python_venv_mac.sh
+```
 
-### Repository locations
-- `mac_mini/scripts/install/`
-- `mac_mini/scripts/configure/`
-- `mac_mini/runtime/`
+Current install-script requirements:
 
-### Representative tasks
-- prepare workspace
-- prepare `.env` structure
-- prepare runtime directories
-- prepare container/runtime templates
-- prepare policy deployment targets
-- prepare registry/payload reference targets
-- prepare read-only or reviewed deployment strategy for shared reference assets
-
-### Phase principle
-This phase prepares the host boundary, directory layout, and deployment surfaces, but does not yet establish policy truth locally.
-
-Registry/payload paths prepared during this phase are references to repository-managed assets or deployed copies. They must not become independent local communication or policy truth.
+- `00_install_homebrew.sh` must not be run as root and warns if the user may lack macOS admin privileges.
+- `20_install_docker_runtime_mac.sh` requires Homebrew before Docker Desktop installation/checks.
+- `21_prepare_compose_stack_mac.sh` prepares `policies`, `schemas`, `mqtt`, `payloads`, and SQLite volume directories.
+- `30_setup_python_venv_mac.sh` uses Homebrew-managed Python 3.11+ and `${BASH_SOURCE[0]}` for path resolution.
 
 ---
 
-## Phase 2. System Service Installation
+## Phase 2. Core service configuration
 
-Install the core Mac mini runtime services.
+Run the configure scripts in this order:
 
-1. Home Assistant
-2. Mosquitto MQTT Broker
-3. Ollama
-4. Pull Llama 3.1 model
-5. SQLite initialization
-6. Optional local TTS runtime
+```bash
+bash mac_mini/scripts/configure/70_write_env_files.sh
+bash mac_mini/scripts/configure/50_deploy_policy_files.sh
+bash mac_mini/scripts/configure/40_configure_sqlite.sh
+bash mac_mini/scripts/configure/20_configure_mosquitto.sh
+bash mac_mini/scripts/configure/10_configure_home_assistant.sh
+bash mac_mini/scripts/configure/30_configure_ollama.sh
+bash mac_mini/scripts/configure/60_configure_notifications.sh
+```
 
-### Operational principle
-All core operational services are hosted on the Mac mini.
+Current configure-script behavior:
 
-Mosquitto configuration should later align listener, namespace, authentication, and topic ACL assumptions with:
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `70_write_env_files.sh` writes host runtime `.env` and compose `.env`, including `POLICY_DIR`, `SCHEMA_DIR`, `MQTT_REGISTRY_DIR`, `PAYLOAD_EXAMPLES_DIR`, and `SQLITE_PATH`.
+- `50_deploy_policy_files.sh` deploys policies, schemas, MQTT references, and payload references into `~/smarthome_workspace/docker/volumes/app/config/` and marks them read-only.
+- `40_configure_sqlite.sh` initializes the audit DB at `~/smarthome_workspace/docker/volumes/sqlite/db/audit_log.db`, enables WAL, and creates required audit tables.
+- `20_configure_mosquitto.sh` writes Mosquitto config under `docker/volumes/mosquitto/config`.
+- `10_configure_home_assistant.sh` writes Home Assistant config under `docker/volumes/homeassistant/config` and preserves existing user config.
+- `30_configure_ollama.sh` verifies the host-side Ollama API at `127.0.0.1:11434` and prepares the baseline model.
+- `60_configure_notifications.sh` uses Telegram credentials when available and otherwise falls back to mock notification logging.
 
-Dashboard/governance topics must not be granted operational control authority through broker configuration or ACL shortcuts.
+Mosquitto default generated config uses:
 
-### Repository locations
-- `mac_mini/scripts/install/`
-- `mac_mini/scripts/configure/`
-- `mac_mini/runtime/`
+```conf
+listener 1883 0.0.0.0
+allow_anonymous true
+```
 
-### Expected service boundary
-The Mac mini hosts the operational service plane.  
-Raspberry Pi 5 and timing nodes must not replace this hub role.
-
----
-
-## Phase 3. Python Runtime Preparation
-
-Prepare the Python execution environment for hub-side applications.
-
-1. Create Python virtual environment
-2. Install base dependencies
-3. Install runtime libraries
-4. Verify package availability
-5. Freeze dependency versions if needed
-
-### Representative dependencies
-- FastAPI
-- Pydantic
-- paho-mqtt
-- python-telegram-bot
-- pytest
-- uvicorn
-- jsonschema
-- MQTT/topic registry helper dependencies
-- payload validation helper dependencies
-- optional registry/report export dependencies
-
-### Repository locations
-- `mac_mini/scripts/install/`
-- `mac_mini/code/`
-
-### Phase principle
-The Python runtime must be reproducible and sufficient for:
-- hub-side control logic
-- policy/schema validation
-- outbound notification integration
-- audit logging integration
-- registry-based topic lookup
-- payload-boundary validation
-- topic/payload contract checking
-- local verification tasks
+This is for controlled LAN lab setup only. Production or shared-network deployments should use `password_file` and ACL rules aligned with `common/mqtt/` publisher/subscriber contracts.
 
 ---
 
-## Phase 4. Configuration Deployment
+## Phase 3. Container startup
 
-Deploy configuration assets and runtime settings onto the Mac mini.
+Start the compose stack:
 
-1. Apply Home Assistant configuration
-2. Apply Mosquitto configuration
-3. Configure Ollama model availability
-4. Deploy frozen policy and schema files
-5. Deploy or reference MQTT topic registry files
-6. Deploy or reference payload examples/templates when needed
-7. Configure Telegram or mock notification settings
-8. Configure logging paths and SQLite DB schema
-9. Write runtime `.env` files including registry/payload path variables
-10. Align Mosquitto topic namespace / ACL assumptions with registry and publisher/subscriber matrix
+```bash
+cd ~/smarthome_workspace/docker
+docker compose up -d
+docker compose ps
+cd -
+```
 
-### Repository locations
-- source of truth: `common/`
-- deployment scripts: `mac_mini/scripts/configure/`
+The compose template currently includes:
 
-### Deployment principle
-The Git repository stores the frozen shared assets and shared communication/payload references.  
-The Mac mini receives deployed runtime copies or path references for execution and validation support.
+- `mosquitto`
+- `homeassistant`
+- `ollama`
+- `edge_controller_app`
 
-### Configuration separation principle
-- frozen policy/schema/terminology assets come from `common/`
-- MQTT registry and payload examples/templates come from `common/mqtt/` and `common/payloads/` as reference layers
-- host-local secrets, runtime `.env`, and machine-specific files are deployment-local configuration
-- deployment-local configuration must not be treated as canonical policy truth
-- registry/payload deployment or reference paths must not redefine policy/schema authority
+Inside the compose network, the app service should use:
 
----
+- `MQTT_HOST=mosquitto`
+- `OLLAMA_HOST=http://ollama:11434`
 
-## Phase 5. Service Verification
+Host-side configure/verify scripts continue to use:
 
-Verify each service and runtime dependency independently before application development proceeds.
+- `MQTT_HOST=127.0.0.1`
+- `OLLAMA_HOST=http://127.0.0.1:11434`
 
-1. Home Assistant starts correctly
-2. Mosquitto publish/subscribe works
-3. Ollama returns model output
-4. SQLite read/write works
-5. Notification channel works
-6. Environment variables and runtime assets are valid
-7. Base service health checks pass
-8. Deployed frozen assets exist and match the expected canonical version set
-9. Policy table, low-risk action catalog, validator schema, and fault rules are mutually readable and version-consistent
-10. Deployment-local configuration is present without overriding canonical frozen asset semantics
-11. MQTT topic registry is readable
-12. Publisher/subscriber matrix is consistent with the topic registry
-13. Topic-to-payload contracts resolve
-14. Schema-governed payload examples validate where applicable
-15. Dashboard/governance topics remain non-authoritative
-16. Registry/payload reference paths do not silently redefine policy/schema authority
+This distinction is intentional.
 
-### Repository locations
-- `mac_mini/scripts/verify/`
-
-### Verification principle
-Each service should pass independently before integration begins.
-
-MQTT/payload verification checks communication-contract and payload-boundary readiness. They do not convert reference assets into policy authority.
-
-### Recommended verification outputs
-- service health summary
-- asset deployment summary
-- configuration validation summary
-- version alignment summary
-- topic registry validation summary
-- publisher/subscriber matrix validation summary
-- payload example validation summary
+`edge_controller_app` currently remains optional in service verification until `mac_mini/code/Dockerfile` and the operational app runtime are finalized.
 
 ---
 
-## Phase 6. Application Development
+## Phase 4. Verification
 
-Develop the hub-side applications in dependency order.
+Run individual checks:
+
+```bash
+bash mac_mini/scripts/verify/10_verify_docker_services.sh
+bash mac_mini/scripts/verify/20_verify_mqtt_pubsub.sh
+bash mac_mini/scripts/verify/30_verify_ollama_inference.sh
+bash mac_mini/scripts/verify/40_verify_sqlite.sh
+bash mac_mini/scripts/verify/50_verify_env_and_assets.sh
+bash mac_mini/scripts/verify/60_verify_notifications.sh
+```
+
+Or run the aggregate wrapper:
+
+```bash
+bash mac_mini/scripts/verify/80_verify_services.sh
+```
+
+Current verification expectations:
+
+- Docker required core services: `homeassistant`, `mosquitto`, `ollama`.
+- Docker optional app service: `edge_controller_app`.
+- MQTT verify topic: `safe_deferral/verify/mqtt_pubsub`.
+- SQLite DB path: `~/smarthome_workspace/docker/volumes/sqlite/db/audit_log.db`.
+- Runtime env must include `MQTT_REGISTRY_DIR` and `PAYLOAD_EXAMPLES_DIR`.
+- Runtime asset verification includes policies, schemas, MQTT docs, payload examples, and templates.
+- Topic registry `example_payload` references are checked for existence.
+- Schema-governed payload examples are validated with `jsonschema`.
+- Context examples must include `environmental_context.doorbell_detected`.
+- Context examples must not include `doorlock`, `front_door_lock`, or `door_lock_state` in `pure_context_payload.device_states`.
+
+These checks provide the current Mac mini-side minimum for Package G readiness. They do not create operational authority.
+
+---
+
+## Phase 5. Application development
+
+Develop the hub-side applications in dependency order:
 
 1. Policy Router
 2. Deterministic Validator
@@ -282,173 +244,59 @@ Develop the hub-side applications in dependency order.
 8. Payload Validation Helper
 9. Hub-side integration tests
 
-### Canonical terminology
-The correct term is:
+Development constraints:
 
-**context-integrity-based safe deferral stage**
-
-The previous label **iCR-based safe deferral stage** is deprecated.
-
-### Repository locations
-- `mac_mini/code/`
-
-### Development principle
-Hub-side application development must remain bounded by:
-- canonical policy table
-- canonical low-risk action catalog
-- canonical schemas
-- canonical escalation semantics
-- registry-aware topic lookup where practical
-- payload-boundary validation where practical
-- MQTT/payload contract references where practical
-
-Hub-side apps should not hardcode MQTT topic strings or payload contracts where registry lookup is practical.
-
-Hub-side context models and adapters must include `environmental_context.doorbell_detected` as a required field. Non-visitor scenarios should default it to `false`; visitor-response scenarios may set it to `true`.
-
-The LLM must not become an autonomous execution authority.  
-The deterministic validator remains the approval authority before any hub-side actuation dispatch.
-
-`doorbell_detected=true` may support visitor-response interpretation, but it must not authorize autonomous doorlock control. Doorlock-related sensitive actuation must remain outside the Class 1 validator executable payload and route to Class 2 escalation or a separately governed manual confirmation path unless future frozen policy/schema revisions explicitly change this boundary.
-
-Registry loader and payload validation helper components support communication consistency and payload-boundary checks. They do not create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority.
+- Current autonomous Class 1 remains limited to the lighting catalog.
+- `doorbell_detected` is required visitor-response context, not unlock authorization.
+- Doorlock is sensitive actuation and is not current autonomous Class 1.
+- Doorlock state must not be inserted into current `pure_context_payload.device_states`.
+- LLM candidate output is not execution authority.
+- Validator-approved executable payload remains constrained to the low-risk catalog.
+- MQTT/payload references support communication consistency; they do not create execution authority.
 
 ---
 
-## Phase 7. Integration Testing with Physical Nodes
+## Phase 6. Physical-node and integration validation
 
-Connect and validate operational flows with real or semi-real physical nodes.
-
-### Current canonical physical-node validation targets
-1. Connect ESP32 button node
-2. Connect ESP32 lighting control node
-3. Connect representative environmental sensing node used in the current canonical validation baseline
-4. Connect ESP32 doorbell / visitor-arrival context node where visitor-response or doorlock-sensitive validation is included
-5. Validate end-to-end Class 0 / Class 1 / Class 2 behavior
-6. Validate safe deferral behavior under incomplete or conflicting context
-7. Validate bounded physical input/output behavior without bypassing policy control
-
-### Optional experimental physical-node targets
-- ESP32 gas sensor node
-- ESP32 fire detection sensor node
-- ESP32 fall-detection interface node
-
-### Planned extension targets
-- ESP32 doorlock or warning interface node beyond the current canonical low-risk action scope; doorlock must remain caregiver-mediated or manually governed unless future frozen policy/schema revisions explicitly promote it
-
-### Canonical emergency alignment
-Physical-node validation should remain consistent with the canonical emergency trigger family defined by policy:
-
-- `E001`: temperature threshold crossing
-- `E002`: emergency triple-hit input
-- `E003`: smoke detected
-- `E004`: gas detected
-- `E005`: fall detected
-
-`doorbell_detected` is not a current emergency trigger. It is visitor-response context and must not be interpreted as Class 0 emergency evidence or doorlock execution authority.
-
-### MQTT/payload alignment
-Physical-node integration should remain aligned with:
+Physical-node and integration work should remain aligned with:
 
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/required_experiments.md`
 
-ESP32 firmware and test harnesses should avoid silently inventing topic strings or payload contracts that conflict with the registry and payload-boundary documents.
-
-### Phase intent
-This phase corresponds to the **physical-node validation layer** of the project.  
-It is intended to verify that real bounded input and output paths behave correctly under the operational hub architecture.
-
-### Repository locations
-- `integration/tests/`
-- `integration/scenarios/`
-- `esp32/code/`
-- `esp32/firmware/`
-- `esp32/docs/`
+ESP32 firmware and integration tests should avoid silently inventing topic strings or payload contracts that conflict with the registry and payload-boundary documents.
 
 ---
 
-## Phase 8. Evaluation Extension with Virtual Nodes and Timing Infrastructure
+## Phase 7. Evaluation extension
 
-Extend the operational hub with Raspberry Pi-based simulation, fault injection, experiment dashboard, MQTT/payload governance support, and experiment orchestration tooling.
+Raspberry Pi 5 can extend evaluation through:
 
-1. Connect Raspberry Pi 5 as simulation, dashboard, orchestration, and evaluation node
-2. Deploy multi-node virtual sensor/state runtime
-3. Deploy virtual `doorbell_detected` visitor-response context generation when required for visitor-response or doorlock-sensitive experiments
-4. Deploy virtual emergency sensors
-5. Deploy fault injector harness
-6. Deploy the Raspberry Pi 5 experiment and monitoring dashboard for scenario selection, node readiness, progress visualization, result summaries, and CSV/graph export
-7. Deploy MQTT/payload governance backend service
-8. Deploy governance dashboard UI
-9. Deploy topic/payload contract validation utilities
-10. Deploy payload example validator
-11. Deploy publisher/subscriber role review utilities
-12. Run stale / missing / conflict / fail-safe experiments
-13. Run visitor-response and doorlock-sensitive evaluation scenarios using `doorbell_detected`, autonomous-unlock-blocked checks, caregiver escalation state, manual approval state, ACK state, and audit completeness
-14. Run closed-loop automated verification
-15. Prepare optional STM32 timing node or equivalent dedicated timing node
-16. Run out-of-band class-wise latency measurement
-17. Run scalable routing, safety, latency, and fault-handling experiments
+- simulation runtime,
+- scenario orchestration,
+- fault injection,
+- experiment dashboard,
+- closed-loop evaluation,
+- progress/result publication,
+- non-authoritative MQTT/payload governance support.
 
-### Phase intent
-This phase corresponds to the **virtual-node evaluation and experimental validation layer** of the project.  
-It is intended to support repeatable large-scale experiments that would be impractical with only physical ESP32 nodes.
-
-### Role separation
-- **Mac mini**: operational hub
-- **ESP32**: bounded physical node layer
-- **Raspberry Pi 5**: experiment dashboard, multi-node simulation, fault injection, scenario orchestration, replay, closed-loop evaluation, progress/status publication, result artifact generation, and non-authoritative MQTT/payload governance support
-- **STM32 timing node or equivalent**: optional out-of-band latency measurement infrastructure
-
-### Repository locations
-- `rpi/scripts/install/`
-- `rpi/scripts/configure/`
-- `rpi/scripts/verify/`
-- `rpi/code/`
-- `integration/scenarios/`
-- `integration/tests/`
-- `common/mqtt/`
-- `common/payloads/`
-
-### Evaluation principle
-The Raspberry Pi 5 extends evaluation capacity, but it does not redefine canonical operational policy.  
-The operational hub remains the Mac mini.
-
-The Raspberry Pi 5 dashboard and orchestration layers may visualize visitor-response or doorlock-sensitive experiment state, but they must not bypass policy routing, deterministic validation, caregiver approval, ACK verification, or audit logging.
-
-The Raspberry Pi 5 governance backend and governance dashboard may inspect, validate, draft, and report MQTT/payload changes, but they must not directly edit canonical policy/schema authority, publish actuator commands, spoof caregiver approval, or create doorlock execution authority.
+The Raspberry Pi 5 dashboard and governance backend may inspect, validate, draft, and report MQTT/payload changes. They must not directly edit canonical policy/schema authority, publish actuator commands, spoof caregiver approval, or create doorlock execution authority.
 
 ---
 
-## Architectural Summary
-
-- The **Mac mini** is the primary operational hub.
-- The **ESP32** is the embedded physical node layer for bounded input, sensing, visitor-response context generation, and actuator/warning interfacing within the applicable scope.
-- The **Raspberry Pi 5** is the scalable simulation, experiment dashboard, scenario orchestration, fault injection, replay, result artifact generation, and non-authoritative MQTT/payload governance support node.
-- **STM32 timing nodes or equivalent dedicated measurement nodes** may be used for out-of-band class-wise latency measurement.
-- Shared frozen authority assets are maintained under **`common/policies/`**, **`common/schemas/`**, and **`common/terminology/`**.
-- Shared MQTT contracts are maintained under **`common/mqtt/`**.
-- Shared payload examples/templates are maintained under **`common/payloads/`**.
-- Hub-side setup, configuration, verification, and future code are maintained under **`mac_mini/`**.
-- Embedded device firmware and device-specific implementation assets are maintained under **`esp32/`**.
-- Simulation-side setup, configuration, verification, dashboard, governance support, and future code are maintained under **`rpi/`**.
-- End-to-end validation, topic/payload validation, and experiment scenarios are maintained under **`integration/`**.
-
----
-
-## Final Bring-up Principle
+## Final bring-up principle
 
 The Mac mini build sequence should preserve the following order of truth:
 
-1. freeze canonical shared authority assets and shared communication/payload references
-2. prepare host runtime
-3. install core services
-4. deploy canonical runtime copies and registry/payload references
-5. verify services and asset alignment
-6. verify MQTT/payload contract alignment
-7. develop bounded hub-side applications
-8. validate physical-node integration
-9. extend evaluation through virtual-node, dashboard, governance, orchestration, and timing infrastructure
+1. freeze canonical shared authority assets and communication/payload references,
+2. prepare host runtime,
+3. install core services,
+4. deploy runtime copies and registry/payload references,
+5. verify services and asset alignment,
+6. verify MQTT/payload contract alignment,
+7. develop bounded hub-side applications,
+8. validate physical-node integration,
+9. extend evaluation through virtual-node, dashboard, governance, orchestration, and timing infrastructure.
 
 At no point should deployment-local convenience override the canonical frozen policy/schema baseline or convert MQTT/payload reference assets into operational authority.
