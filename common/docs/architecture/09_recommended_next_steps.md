@@ -16,12 +16,15 @@ It is intended to guide:
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
-Current communication and payload references:
+Current interface, communication, and payload references:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -50,6 +53,8 @@ Before implementation proceeds further, confirm that the shared frozen assets an
 
 ### Priority architecture / prompt targets
 - `common/docs/architecture/12_prompts.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
@@ -62,10 +67,11 @@ Before implementation proceeds further, confirm that the shared frozen assets an
 - `common/policies/` and `common/schemas/` are policy and validation authority.
 - `common/mqtt/` defines communication-contract references.
 - `common/payloads/` provides payload examples/templates.
+- `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference.
 - MQTT contracts and payload examples must not override canonical policies or schemas.
 
 ### Goal
-Ensure the shared frozen assets, communication/payload references, and implementation-generation prompt set form a stable baseline before additional code generation proceeds.
+Ensure the shared frozen assets, communication/payload references, MQTT-aware interface matrix, and implementation-generation prompt set form a stable baseline before additional code generation proceeds.
 
 ---
 
@@ -83,10 +89,12 @@ The architecture reference documents under `common/docs/architecture/` should be
 - task breakdown
 - additional required work
 - recommended next steps
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
-### Current active figure/payload references
+### Current active interface/figure/payload references
+- `common/docs/architecture/15_interface_matrix.md` is the current MQTT-aware interface contract reference.
 - `common/docs/architecture/16_system_architecture_figure.md` is the current active system architecture figure interpretation document.
 - `common/docs/architecture/17_payload_contract_and_registry.md` is the current active payload boundary and registry interpretation document.
 
@@ -99,7 +107,7 @@ Historical figure-layout notes have been archived under:
 - `common/docs/archive/system_layout_figure_notes/`
 
 ### Goal
-Provide a stable and internally aligned reference set for implementation planning, repository maintenance, communication-contract governance, payload-boundary enforcement, and vibe-coding prompts.
+Provide a stable and internally aligned reference set for implementation planning, repository maintenance, communication-contract governance, payload-boundary enforcement, MQTT-aware interface checking, and vibe-coding prompts.
 
 ---
 
@@ -132,7 +140,7 @@ The repository structure should now be maintained as a staged, device-aware layo
 - `requirements-rpi.txt`
 
 ### Goal
-Ensure shared assets, MQTT contracts, payload examples/templates, Mac mini scripts/code, Raspberry Pi dashboard/simulation code, ESP32 scripts/code/firmware, and integration assets remain clearly separated and reproducible.
+Ensure shared assets, MQTT contracts, payload examples/templates, Mac mini scripts/code, Raspberry Pi dashboard/simulation/governance code, ESP32 scripts/code/firmware, and integration assets remain clearly separated and reproducible.
 
 ---
 
@@ -164,6 +172,10 @@ The staged script workflow should remain the primary bring-up path for each laye
 - `common/payloads/examples/`
 - `common/payloads/templates/`
 - future registry/payload validation scripts under `mac_mini/scripts/verify/`, `rpi/scripts/verify/`, or `integration/tests/`
+- future governance backend service checks under `rpi/scripts/verify/` or `integration/tests/`
+- future governance dashboard UI checks under `rpi/scripts/verify/` or `integration/tests/`
+- future topic drift checks under `mac_mini/scripts/verify/`, `rpi/scripts/verify/`, or `integration/tests/`
+- future payload example validation checks under `rpi/scripts/verify/` or `integration/tests/`
 
 ### Goal
 Ensure implementation continues only on top of a reproducible staged bring-up path and a reviewable topic/payload contract baseline.
@@ -178,7 +190,7 @@ The host-side Python runtime foundation should remain aligned with the maintaine
 - keep Mac mini Python virtual environment and `requirements-mac.txt` aligned
 - keep Raspberry Pi Python virtual environment and `requirements-rpi.txt` aligned
 - verify runtime package availability after dependency changes
-- include registry loading, JSON schema validation, MQTT testing, dashboard runtime, and result export dependencies when those components are implemented
+- include registry loading, JSON schema validation, MQTT testing, dashboard runtime, governance backend service, governance dashboard UI, validation report export, and result export dependencies when those components are implemented
 - avoid undocumented drift between dependency manifests and install scripts
 
 ### Goal
@@ -279,11 +291,15 @@ Move from ESP32 development-environment readiness to actual bounded node impleme
 
 ## 9. Keep the Raspberry Pi Evaluation Path Bounded and Reproducible
 
-The Raspberry Pi path should remain focused on dashboard-supported simulation, fault injection, orchestration, replay, progress/result publication, and closed-loop evaluation.
+The Raspberry Pi path should remain focused on dashboard-supported simulation, fault injection, orchestration, replay, progress/result publication, governance support, and closed-loop evaluation.
 
 ### Immediate targets
 - experiment and monitoring dashboard
-- MQTT/payload governance inspector or dashboard
+- MQTT/payload governance backend service
+- governance dashboard UI as presentation layer
+- topic/payload contract validation utility
+- payload example manager / validator
+- publisher/subscriber role manager
 - multi-node virtual sensor/state runtime
 - virtual `doorbell_detected` visitor-response context runtime
 - virtual emergency sensor runtime
@@ -303,6 +319,10 @@ The Raspberry Pi path should remain focused on dashboard-supported simulation, f
 - Raspberry Pi must not replace Mac mini policy routing, deterministic validation, caregiver approval, or actuation dispatch authority.
 - Simulation and fault traffic should enter through the same MQTT input plane used by operational inputs.
 - Dashboard observation payloads are visibility artifacts, not policy truth.
+- Governance dashboard UI must remain separated from the governance backend service.
+- Governance dashboard UI must not directly edit registry files or directly publish operational control topics.
+- Governance backend must not directly modify canonical policies/schemas.
+- Governance tooling must not publish actuator or doorlock commands.
 - `doorbell_detected=true` supports visitor-response interpretation but does not authorize autonomous doorlock control.
 
 ### Goal
@@ -325,24 +345,35 @@ Before broad runtime app, dashboard app, or experiment-tool implementation proce
 - validate payload examples against schemas where applicable
 - verify required `environmental_context.doorbell_detected` in valid context examples
 - verify doorlock state is not accepted inside current `pure_context_payload.device_states`
-- keep governance dashboard or inspector non-authoritative
+- verify governance backend/UI separation
+- verify governance dashboard UI cannot directly edit registry files
+- verify governance backend cannot directly modify canonical policies/schemas
+- verify governance tooling cannot publish actuator or doorlock commands
+- verify topic/payload hardcoding drift checks where implemented
+- keep governance dashboard UI and governance backend non-authoritative
 
 ### App implementation rule
 Apps should not hardcode MQTT topic strings, schema paths, or payload contracts where registry/configuration lookup is practical.
 
-### Dashboard rule
-A future MQTT/payload governance dashboard may inspect, validate, visualize, and report on topic/payload coverage.
-It must not:
-- modify canonical policies or schemas,
+### Governance backend/UI rule
+A future MQTT/payload governance backend may inspect, validate, draft, export, and report on topic/payload coverage.
+
+The governance dashboard UI is a presentation and interaction layer that should call the backend service for create/update/delete/validation/export operations.
+
+The governance backend and dashboard UI must not:
+- directly modify canonical policies or schemas,
+- directly edit registry files through the UI,
 - override Policy Router decisions,
 - override Deterministic Validator decisions,
 - spoof caregiver approval outside controlled test mode,
 - publish unrestricted actuation commands,
+- publish actuator or doorlock commands,
 - dispatch doorlock commands,
+- convert proposed registry changes into live operational authority without review,
 - or treat dashboard observation as policy truth.
 
 ### Goal
-Reduce downstream implementation churn by making topic and payload changes registry-driven rather than hardcoded across apps.
+Reduce downstream implementation churn by making topic and payload changes registry-driven rather than hardcoded across apps, while keeping governance tooling separate from operational authority.
 
 ---
 
@@ -373,11 +404,15 @@ Do not begin broad implementation expansion unless:
 - core services pass independent verification
 - root-level dependency manifests remain aligned with maintained runtime assumptions
 - MQTT topic registry and payload references are available for registry-based app implementation
+- `common/docs/architecture/15_interface_matrix.md` alignment passes
 - apps do not hardcode topic/payload contracts where registry lookup is practical
+- topic/payload hardcoding drift checks pass where implemented
+- governance backend/UI separation is verified
+- governance tooling cannot create operational authority
 - dashboard/governance tools remain non-authoritative
 - `doorbell_detected` is treated as required visitor-response context, not emergency evidence or doorlock authorization
 - doorlock state is not inserted into current `pure_context_payload.device_states`
 - ESP32 bring-up is stable enough to support prompt-driven code generation
-- Raspberry Pi evaluation assumptions remain bounded to dashboard/simulation/fault/evaluation tasks
+- Raspberry Pi evaluation assumptions remain bounded to dashboard/simulation/fault/evaluation/governance-support tasks
 - measurement infrastructure assumptions are documented when out-of-band class-wise latency evaluation is part of the target experiment package
 - deployment-local runtime files and synchronized copies are prevented from overriding canonical frozen policy truth
