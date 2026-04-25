@@ -71,12 +71,41 @@ def resolve_path(repo_root: Path, rel_or_abs: str) -> Path:
     return path if path.is_absolute() else (repo_root / path).resolve()
 
 
+def _normalise_for_compare(value: Any) -> Any:
+    if isinstance(value, list):
+        return sorted(value) if all(isinstance(item, str) for item in value) else value
+    return value
+
+
 def compare_values(observed: dict[str, Any], expected: dict[str, Any]) -> ComparisonResult:
     field_mapping = {
         "expected_route_class": "route_class",
         "expected_routing_target": "routing_target",
         "expected_llm_invocation_allowed": "llm_invocation_allowed",
+        "expected_llm_decision_invocation_allowed": "llm_decision_invocation_allowed",
+        "expected_llm_guidance_generation_allowed": "llm_guidance_generation_allowed",
         "expected_safe_outcome": "safe_outcome",
+        "expected_safe_outcome_family": "safe_outcome_family",
+        "expected_class2_role": "class2_role",
+        "expected_candidate_generation_allowed": "candidate_generation_allowed",
+        "expected_candidate_generation_authorizes_actuation": "candidate_generation_authorizes_actuation",
+        "expected_confirmation_required_before_transition": "confirmation_required_before_transition",
+        "expected_allowed_transition_targets": "allowed_transition_targets",
+        "expected_payload_family": "payload_family",
+        "expected_candidate_count_max": "candidate_count_max",
+        "expected_transition_family": "transition_family",
+        "expected_source_route_class": "source_route_class",
+        "expected_transition_target": "transition_target",
+        "expected_required_confirmation": "required_confirmation",
+        "expected_required_confirmation_or_evidence": "required_confirmation_or_evidence",
+        "expected_selected_candidate_id": "selected_candidate_id",
+        "expected_validator_required_before_dispatch": "validator_required_before_dispatch",
+        "expected_single_admissible_action_required": "single_admissible_action_required",
+        "expected_timeout_or_no_response": "timeout_or_no_response",
+        "expected_confirmation_received": "confirmation_received",
+        "expected_no_intent_assumption": "no_intent_assumption",
+        "expected_unsafe_autonomous_actuation_allowed": "unsafe_autonomous_actuation_allowed",
+        "doorlock_autonomous_execution_allowed": "doorlock_autonomous_execution_allowed",
         "canonical_emergency_family": "canonical_emergency_family",
     }
 
@@ -89,7 +118,7 @@ def compare_values(observed: dict[str, Any], expected: dict[str, Any]) -> Compar
         compared_fields.append(expected_key)
         observed_value = observed.get(observed_key)
         expected_value = expected.get(expected_key)
-        if observed_value != expected_value:
+        if _normalise_for_compare(observed_value) != _normalise_for_compare(expected_value):
             mismatches.append(
                 {
                     "expected_field": expected_key,
