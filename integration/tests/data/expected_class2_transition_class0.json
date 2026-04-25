@@ -1,0 +1,30 @@
+{
+  "expected_transition_family": "CLASS2_TO_CLASS0",
+  "expected_source_route_class": "CLASS_2",
+  "expected_transition_target": "CLASS_0",
+  "expected_required_confirmation_or_evidence": true,
+  "expected_selected_candidate_id": "C3_EMERGENCY_HELP",
+  "expected_allowed_class0_evidence_sources": [
+    "user_or_caregiver_emergency_confirmation",
+    "triple_hit",
+    "deterministic_E001_E005_emergency_evidence"
+  ],
+  "expected_llm_decision_invocation_allowed": false,
+  "expected_llm_guidance_generation_allowed": "policy_constrained_only",
+  "expected_llm_emergency_trigger_authority": false,
+  "expected_candidate_generation_authorizes_actuation": false,
+  "expected_unsafe_autonomous_actuation_allowed": false,
+  "doorlock_autonomous_execution_allowed": false,
+  "expected_audit_fields": [
+    "clarification_id",
+    "selected_candidate_id",
+    "selection_source",
+    "transition_target",
+    "emergency_confirmation_or_evidence",
+    "final_emergency_route_outcome"
+  ],
+  "notes": [
+    "Class 2-to-Class 0 transition requires emergency confirmation, triple-hit, or deterministic E001-E005 emergency evidence.",
+    "LLM candidate prompt text alone must not trigger Class 0."
+  ]
+}
