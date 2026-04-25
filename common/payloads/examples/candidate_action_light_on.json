@@ -1,8 +1,5 @@
 {
-  "candidate_id": "example-candidate-light-on-001",
-  "action": "light_on",
-  "target_device": "living_room_light",
-  "parameters": {},
-  "confidence": 0.82,
-  "rationale": "Bounded low-risk lighting action candidate for living room context."
+  "rationale_summary": "Bounded low-risk lighting action candidate for living room context.",
+  "proposed_action": "light_on",
+  "target_device": "living_room_light"
 }
