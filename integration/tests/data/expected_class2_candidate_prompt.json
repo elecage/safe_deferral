@@ -1,0 +1,53 @@
+{
+  "expected_payload_family": "CLASS2_CLARIFICATION_INTERACTION",
+  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "expected_class2_role": "clarification_transition_state",
+  "expected_unresolved_reason": "insufficient_context",
+  "expected_candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
+  "expected_candidate_count_max": 4,
+  "expected_candidate_choices": [
+    {
+      "candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "C2_CAREGIVER_HELP",
+      "candidate_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "C3_EMERGENCY_HELP",
+      "candidate_transition_target": "CLASS_0",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "C4_CANCEL_OR_WAIT",
+      "candidate_transition_target": "SAFE_DEFERRAL",
+      "requires_confirmation": true
+    }
+  ],
+  "expected_presentation_channels": [
+    "tts",
+    "display",
+    "accessible_feedback"
+  ],
+  "expected_llm_boundary": {
+    "candidate_generation_only": true,
+    "final_decision_allowed": false,
+    "actuation_authority_allowed": false,
+    "emergency_trigger_authority_allowed": false
+  },
+  "expected_candidate_generation_authorizes_actuation": false,
+  "expected_audit_fields": [
+    "clarification_id",
+    "unresolved_reason",
+    "candidate_choices",
+    "presentation_channel",
+    "llm_boundary"
+  ],
+  "notes": [
+    "This expected fixture describes the bounded candidate prompt produced during Class 2 clarification.",
+    "Candidate choices are guidance only and must not be interpreted as validator output, actuator command, emergency trigger, or doorlock authorization."
+  ]
+}
