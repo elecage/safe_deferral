@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "class_2_notification_payload_schema_v1_1_0",
+  "description": "Authoritative schema for caregiver escalation and Class 2 clarification notification payloads emitted when the system enters or remains in a Class 2 clarification/escalation path. This schema governs outbound Class 2 notification contracts and should not be overridden by companion output-profile assets. For doorlock-sensitive or other sensitive actuation cases, this payload may describe escalation and a governed manual confirmation path, but it must not itself authorize actuation or bypass validator, caregiver approval, ACK, or audit boundaries. Version 1.1.0 extends v1.0.0 for Class 2 clarification/transition semantics and C206/C207 trigger IDs.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "event_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Short summary of the triggering event or clarification state."
+    },
+    "context_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800,
+      "description": "Short summary of the relevant environmental, user-input, device-state, and unresolved-context information."
+    },
+    "unresolved_reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Human-readable reason why autonomous handling was not completed or why clarification/caregiver confirmation is required."
+    },
+    "manual_confirmation_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Instruction or route by which a caregiver can review, confirm, deny, or intervene. This field may describe a governed manual confirmation path, but does not by itself authorize autonomous low-risk execution or sensitive actuation. For sensitive actuation such as doorlock control, this field describes a review route only and does not create execution authority."
+    },
+    "audit_correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Correlation ID linking the escalation or clarification payload to audit logs and upstream events."
+    },
+    "timestamp_ms": {
+      "type": "integer",
+      "description": "Emission timestamp in epoch milliseconds."
+    },
+    "notification_channel": {
+      "type": "string",
+      "enum": [
+        "telegram",
+        "local_dashboard",
+        "sms",
+        "tts",
+        "display",
+        "other"
+      ],
+      "description": "Outbound channel used to deliver the escalation or clarification notification payload."
+    },
+    "source_layer": {
+      "type": "string",
+      "enum": [
+        "policy_router",
+        "validator",
+        "context_integrity_safe_deferral_handler",
+        "class2_clarification_manager",
+        "dispatcher",
+        "system"
+      ],
+      "description": "System layer that initiated the Class 2 escalation or clarification notification."
+    },
+    "exception_trigger_id": {
+      "type": "string",
+      "enum": [
+        "C201",
+        "C202",
+        "C203",
+        "C204",
+        "C205",
+        "C206",
+        "C207"
+      ],
+      "description": "Canonical Class 2 trigger identifier. C206 and C207 support Class 2 clarification/transition semantics introduced in policy v1.2.0."
+    }
+  },
+  "required": [
+    "event_summary",
+    "context_summary",
+    "unresolved_reason",
+    "manual_confirmation_path"
+  ]
+}
