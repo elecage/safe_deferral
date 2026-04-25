@@ -5,10 +5,11 @@ Checks:
 - Class 0 scenario emergency family IDs are E001-E005 and exist in the active policy table text.
 - Class 1 scenarios reference the frozen low-risk action catalog.
 - Class 2 scenarios follow the clarification/transition boundary introduced by policy v1.2.0.
+- Active Class 2 notification and clarification interaction schemas exist and are referenced by policy text.
 - Scenario expected outcomes keep unsafe autonomous actuation and doorlock autonomous execution disabled.
 - Referenced policy-router input fixtures include environmental_context.doorbell_detected.
 - Current fixture device_states do not include doorlock-like keys.
-- Expected fixtures align with coarse and split LLM invocation semantics.
+- Expected fixtures align with coarse and split LLM invocation semantics where the field exists.
 
 This script validates scenario assets. It does not redefine frozen policy or schema truth.
 """
@@ -24,6 +25,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = ROOT / "integration" / "scenarios"
 POLICY_TABLE = ROOT / "common" / "policies" / "policy_table_v1_2_0_FROZEN.json"
 LOW_RISK_CATALOG_REF = "common/policies/low_risk_actions_v1_1_0_FROZEN.json"
+CLASS2_NOTIFICATION_SCHEMA_REF = "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json"
+CLASS2_INTERACTION_SCHEMA_REF = "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json"
 DOORLOCK_KEYS = {
     "doorlock",
     "door_lock",
@@ -75,10 +78,22 @@ def check_active_policy_baseline(text: str, errors: list[str]) -> None:
         '"candidate_generation_allowed": true',
         '"confirmation_required_before_transition": true',
         '"SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"',
+        CLASS2_NOTIFICATION_SCHEMA_REF,
+        CLASS2_INTERACTION_SCHEMA_REF,
     ]
     for marker in required_policy_markers:
         if marker not in text:
             errors.append(f"active policy table {POLICY_TABLE.relative_to(ROOT)} missing required Class 2 baseline marker: {marker}")
+
+    for ref in (CLASS2_NOTIFICATION_SCHEMA_REF, CLASS2_INTERACTION_SCHEMA_REF):
+        schema_path = ROOT / ref
+        if not schema_path.exists():
+            errors.append(f"active policy references missing schema asset: {ref}")
+        else:
+            try:
+                load_json(schema_path)
+            except ValueError as exc:
+                errors.append(str(exc))
 
 
 def check_fixture_payload(path: Path, rel_scenario: Path, errors: list[str]) -> None:
@@ -120,18 +135,18 @@ def check_expected_fixture(path: Path, rel_scenario: Path, scenario_expected: di
         errors.append(f"{rel_scenario}: {path.relative_to(ROOT)} expected fixture must be an object")
         return
 
-    if expected.get("expected_unsafe_autonomous_actuation_allowed") is not False:
+    if "expected_unsafe_autonomous_actuation_allowed" in expected and expected.get("expected_unsafe_autonomous_actuation_allowed") is not False:
         errors.append(f"{rel_scenario}: {path.relative_to(ROOT)} expected_unsafe_autonomous_actuation_allowed must be false")
-    if expected.get("doorlock_autonomous_execution_allowed") is not False:
+    if "doorlock_autonomous_execution_allowed" in expected and expected.get("doorlock_autonomous_execution_allowed") is not False:
         errors.append(f"{rel_scenario}: {path.relative_to(ROOT)} doorlock_autonomous_execution_allowed must be false")
 
-    if "llm_decision_invocation_allowed" in scenario_expected:
+    if "llm_decision_invocation_allowed" in scenario_expected and "expected_llm_decision_invocation_allowed" in expected:
         scenario_value = scenario_expected.get("llm_decision_invocation_allowed")
         expected_value = expected.get("expected_llm_decision_invocation_allowed")
         if expected_value != scenario_value:
             errors.append(f"{rel_scenario}: {path.relative_to(ROOT)} expected_llm_decision_invocation_allowed {expected_value!r} does not match scenario {scenario_value!r}")
 
-    if "llm_guidance_generation_allowed" in scenario_expected:
+    if "llm_guidance_generation_allowed" in scenario_expected and "expected_llm_guidance_generation_allowed" in expected:
         scenario_value = scenario_expected.get("llm_guidance_generation_allowed")
         expected_value = expected.get("expected_llm_guidance_generation_allowed")
         if expected_value != scenario_value:
@@ -175,6 +190,23 @@ def check_class2_scenario(data: dict[str, Any], rel: Path, errors: list[str]) ->
         missing = sorted(CLASS2_ALLOWED_TRANSITIONS - outcome_targets)
         if missing:
             errors.append(f"{rel}: class2 transition_outcomes missing transition targets {missing}")
+
+
+def check_fault_scenario(data: dict[str, Any], rel: Path, errors: list[str]) -> None:
+    category = data.get("category")
+    expected = data.get("expected_outcomes", {})
+    if category == "fault_conflict":
+        handling = data.get("fault_handling", {})
+        if not isinstance(handling, dict) or handling.get("unsafe_arbitrary_candidate_selection_allowed") is not False:
+            errors.append(f"{rel}: conflict fault must prohibit unsafe arbitrary candidate selection")
+        if "ARBITRARY_CANDIDATE_SELECTION" not in expected.get("prohibited_outcomes", []):
+            errors.append(f"{rel}: conflict fault must list ARBITRARY_CANDIDATE_SELECTION in prohibited_outcomes")
+    if category == "fault_missing_state":
+        handling = data.get("fault_handling", {})
+        if not isinstance(handling, dict) or handling.get("fabricating_missing_state_allowed") is not False:
+            errors.append(f"{rel}: missing-state fault must prohibit fabricating missing state")
+        if "FABRICATED_STATE_ASSUMPTION" not in expected.get("prohibited_outcomes", []):
+            errors.append(f"{rel}: missing-state fault must list FABRICATED_STATE_ASSUMPTION in prohibited_outcomes")
 
 
 def main() -> int:
@@ -228,6 +260,8 @@ def main() -> int:
 
         if category == "class2_insufficient_context":
             check_class2_scenario(data, rel, errors)
+        if isinstance(category, str) and category.startswith("fault_"):
+            check_fault_scenario(data, rel, errors)
 
         steps = data.get("steps", [])
         if isinstance(steps, list):
