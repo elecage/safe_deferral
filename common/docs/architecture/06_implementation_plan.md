@@ -5,17 +5,30 @@
 ## Project Goal
 Build a policy-first, safety-oriented edge smart-home prototype with the Mac mini as the primary operational hub, while restricting LLM use to bounded intent interpretation, explanation support, and low-risk candidate generation under deterministic policy and validator control.
 
+This document should be read together with:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+
 ## Non-Goals
 - No autonomous door unlocking
 - No free-form LLM actuation
 - No user-study implementation in this phase
 - No cloud-dependent inference in the core architecture
 - No hardcoded MQTT topic or payload-contract drift in runtime apps where registry-based loading is practical
-- No dashboard or governance tool acting as policy, validator, caregiver approval, or actuator authority
+- No dashboard or governance tool acting as policy, validator, caregiver approval, audit, actuator, or doorlock authority
+- No governance dashboard UI directly editing registry files
+- No governance backend directly modifying canonical policies or schemas
+- No governance tooling publishing actuator or doorlock commands
 
 ## Architecture Scope
 - The Mac mini hosts all core operational runtime services
-- Raspberry Pi 5 is used as the experiment-side dashboard, multi-node simulation, virtual sensing, replay, fault-injection, scenario orchestration, progress/result publication, and closed-loop evaluation node
+- Raspberry Pi 5 is used as the experiment-side dashboard, multi-node simulation, virtual sensing, replay, fault-injection, scenario orchestration, progress/result publication, closed-loop evaluation node, and non-authoritative MQTT/payload governance support host
+- Raspberry Pi 5 may host MQTT/payload governance backend service, governance dashboard UI, topic/payload validation utilities, payload example validation, and publisher/subscriber role review when implemented
 - ESP32 devices are used as embedded physical nodes for bounded button input, sensing, doorbell / visitor-arrival context generation, or actuator/warning interfacing within the applicable scope
 - ESP32 development itself is prepared through a cross-platform host-side install / configure / verify workflow before real node firmware is generated
 - Optional STM32 timing nodes or equivalent dedicated measurement nodes may be used for out-of-band class-wise latency evaluation
@@ -40,6 +53,7 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `common/schemas/` defines validation authority
 - `common/mqtt/` defines MQTT topic, publisher/subscriber, and topic-payload communication contracts
 - `common/payloads/` provides payload examples/templates for implementation, testing, simulation, and dashboard tooling
+- `common/docs/architecture/15_interface_matrix.md` provides the MQTT-aware interface contract reference
 - `common/mqtt/` and `common/payloads/` must not override canonical policies or schemas
 
 ### Root-level dependency manifests
@@ -53,7 +67,7 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `mac_mini/runtime/`
 - `mac_mini/code/`
 
-### Raspberry Pi simulation / dashboard / evaluation assets
+### Raspberry Pi simulation / dashboard / governance / evaluation assets
 - `rpi/scripts/install/`
 - `rpi/scripts/configure/`
 - `rpi/scripts/verify/`
@@ -77,6 +91,8 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 - `mac_mini/runtime/` and other deployed runtime locations contain synchronized runtime copies and host-local execution assets
 - deployment-local runtime files must not be treated as canonical policy truth
 - runtime apps should consume topic and payload references from `common/mqtt/` and `common/payloads/` rather than silently redefining them
+- governance dashboard UI must remain separated from the governance backend service
+- governance backend/UI artifacts are draft, validation, inspection, or report artifacts unless reviewed and committed through the repository workflow
 
 ---
 
@@ -100,25 +116,28 @@ Build a policy-first, safety-oriented edge smart-home prototype with the Mac min
 13. Scenario Orchestrator
 14. Replay Runtime
 15. Experiment and Monitoring Dashboard
-16. MQTT / Payload Governance Inspector or Dashboard
-17. Closed-loop Audit Evaluation Harness
-18. Verification Utilities
-19. Artifact Sync Utility
-20. Time Sync Check Utility
-21. Topic / Payload Contract Validation Utility
-22. Progress / Result Publication Utility
+16. MQTT / Payload Governance Backend Service
+17. Governance Dashboard UI
+18. Topic / Payload Contract Validation Utility
+19. Payload Example Manager / Validator
+20. Publisher / Subscriber Role Manager
+21. Closed-loop Audit Evaluation Harness
+22. Verification Utilities
+23. Artifact Sync Utility
+24. Time Sync Check Utility
+25. Progress / Result Publication Utility
 
 ### ESP32 bring-up and embedded modules when used
-23. Cross-platform ESP-IDF install / configure / verify scaffolding
-24. Minimal template project for sample-build validation
-25. Button Node Firmware
-26. Environmental / Safety Sensor Node Firmware
-27. Doorbell / Visitor-Arrival Context Node Firmware
-28. Actuator / Warning Interface Firmware
+26. Cross-platform ESP-IDF install / configure / verify scaffolding
+27. Minimal template project for sample-build validation
+28. Button Node Firmware
+29. Environmental / Safety Sensor Node Firmware
+30. Doorbell / Visitor-Arrival Context Node Firmware
+31. Actuator / Warning Interface Firmware
 
 ### Optional timing and measurement support when used
-29. Out-of-band Timing Measurement Support
-30. Timing Capture and Latency Evaluation Support
+32. Out-of-band Timing Measurement Support
+33. Timing Capture and Latency Evaluation Support
 
 ---
 
@@ -176,7 +195,11 @@ Its role is limited to experiment-side and evaluation-side support, including:
 - scenario orchestration
 - progress/status publication
 - result artifact generation/export
-- MQTT/payload governance inspection when implemented
+- MQTT/payload governance backend service when implemented
+- governance dashboard UI when implemented
+- topic/payload contract validation when implemented
+- payload example validation when implemented
+- publisher/subscriber role review when implemented
 - closed-loop verification against audit outcomes
 - artifact synchronization and time-sync checking as evaluation support functions
 
@@ -190,10 +213,14 @@ Accordingly, Raspberry Pi 5 must not host or replace the Mac mini hub-side opera
 - validator approval authority
 - caregiver approval authority
 - direct actuator dispatch authority
+- doorlock dispatch authority
+- direct registry-file editing through dashboard UI
+- canonical policy/schema editing authority
+- governance backend publishing actuator or doorlock commands
 
 All simulation and fault traffic generated by Raspberry Pi 5 should enter the system through the **same MQTT input plane** used by the bounded physical node layer, rather than bypassing the Policy Router directly.
 
-Dashboard and governance-inspector traffic is allowed for visibility, validation, and experiment operation, but it must remain non-authoritative.
+Dashboard and governance traffic is allowed for visibility, validation, draft editing, and experiment operation, but it must remain non-authoritative.
 
 Closed-loop verification should be performed by:
 1. publishing normal, emergency, visitor-response, or fault-injected test payloads,
@@ -219,6 +246,7 @@ Freeze the shared reference assets before implementation begins.
 - prompt set for implementation generation where applicable
 - MQTT topic registry and publisher/subscriber matrix draft
 - topic-payload contract references
+- MQTT-aware interface matrix
 - payload examples/templates for implementation, testing, simulation, and dashboard tooling
 
 #### Representative frozen / reference files
@@ -236,6 +264,8 @@ Freeze the shared reference assets before implementation begins.
 - `common/payloads/README.md`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 - `common/docs/architecture/12_prompts.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 
@@ -383,8 +413,13 @@ Prepare the Raspberry Pi-based evaluation and experiment environment.
 - maintain `requirements-rpi.txt` as the current baseline experiment-side Python dependency manifest
 - configure Raspberry Pi time synchronization against the Mac mini reference host or agreed LAN time reference
 - implement experiment and monitoring dashboard
-- implement dashboard-side topic/payload inspection if needed
+- implement MQTT/payload governance backend service
+- implement governance dashboard UI as a presentation layer
+- configure governance backend API endpoint for UI use
+- verify governance dashboard UI cannot directly edit registry files or publish operational control topics
 - implement topic/payload contract validation checks
+- implement payload example manager / validator
+- implement publisher/subscriber role review
 - implement multi-node virtual sensor/state runtime
 - implement virtual `doorbell_detected` visitor-response context generation
 - implement virtual emergency sensors
@@ -475,13 +510,19 @@ The requirement is a measurable, recorded, and verifiable target bound.
 ##### J. MQTT / Payload contract consistency
 - topic registry is readable and structurally valid
 - publisher/subscriber matrix remains consistent with the topic registry
+- MQTT-facing behavior remains aligned with `common/docs/architecture/15_interface_matrix.md`
 - topic-to-payload contract references resolve
 - schema-governed payload examples validate against the referenced schema
 - runtime or dashboard apps do not hardcode topic strings where registry lookup is practical
+- topic/payload hardcoding drift checks pass where implemented
 
-##### K. Dashboard non-authority boundary
+##### K. Dashboard and governance non-authority boundary
 - experiment dashboard displays status and result information without acting as policy authority
 - MQTT/payload governance dashboard or inspector validates and visualizes contracts without overriding policy, validator, caregiver approval, or dispatch decisions
+- governance dashboard UI remains separated from the governance backend service
+- governance dashboard UI cannot directly edit registry files or publish operational control topics
+- governance backend does not modify canonical policies/schemas directly
+- governance tooling cannot publish actuator or doorlock commands
 - dashboard observation payloads are not treated as policy truth
 
 ##### L. Doorbell / doorlock-sensitive scenario correctness
@@ -492,7 +533,7 @@ The requirement is a measurable, recorded, and verifiable target bound.
 - doorlock-sensitive outcomes route to Class 2 escalation or governed manual confirmation with ACK and audit
 
 #### Completion criterion
-The system supports reproducible multi-node simulation, fault-injection experiments, dashboard-supported monitoring, closed-loop safe-outcome verification, topic/payload contract validation, and out-of-band latency evaluation when measurement infrastructure is used.
+The system supports reproducible multi-node simulation, fault-injection experiments, dashboard-supported monitoring, closed-loop safe-outcome verification, topic/payload contract validation, governance backend/UI separation, publisher/subscriber role review, payload example validation, and out-of-band latency evaluation when measurement infrastructure is used.
 
 The Raspberry Pi evaluation path is considered accepted only when all of the following are satisfied:
 1. MQTT connectivity PASS
@@ -504,7 +545,7 @@ The Raspberry Pi evaluation path is considered accepted only when all of the fol
 7. closed-loop verification PASS
 8. canonical asset consistency PASS
 9. MQTT / payload contract consistency PASS
-10. dashboard non-authority boundary PASS
+10. dashboard and governance non-authority boundary PASS
 11. doorbell / doorlock-sensitive scenario correctness PASS
 
 ---
@@ -520,7 +561,7 @@ The LLM is only used for bounded interpretation, explanation support, or candida
 
 ### C. Device-role separation
 - Mac mini = operational hub
-- Raspberry Pi 5 = experiment dashboard, multi-node simulation, fault injection, scenario replay, progress/result publication, and closed-loop evaluation node
+- Raspberry Pi 5 = experiment dashboard, multi-node simulation, fault injection, scenario replay, progress/result publication, non-authoritative MQTT/payload governance support, and closed-loop evaluation node
 - ESP32 = bounded physical node layer plus cross-platform bring-up workflow for node development
 - STM32 timing node or equivalent = optional out-of-band latency measurement infrastructure
 
@@ -528,7 +569,7 @@ The LLM is only used for bounded interpretation, explanation support, or candida
 All meaningful routing and validation outcomes should be observable through logs, notifications, or audit channels.
 
 ### E. Repository-structured implementation
-Code, scripts, frozen assets, embedded firmware, integration scenarios, MQTT contracts, payload examples/templates, and measurement assets should be placed according to the repository structure rather than mixed into a single flat project layout.
+Code, scripts, frozen assets, embedded firmware, integration scenarios, MQTT contracts, payload examples/templates, governance artifacts, and measurement assets should be placed according to the repository structure rather than mixed into a single flat project layout.
 
 ### F. Closed-loop evaluation discipline
 Experiment-side execution should not bypass the operational decision path.  
@@ -542,6 +583,8 @@ Runtime apps, dashboard apps, and experiment tools should load topic names, publ
 
 ### I. Keep dashboard and governance tooling non-authoritative
 The experiment dashboard and MQTT/payload governance dashboard may inspect, validate, and visualize state, but must not override policy routing, validator decisions, caregiver approval, or actuation dispatch.
+
+The governance dashboard UI is a presentation and interaction layer. The MQTT/payload governance backend is the draft/validate/export service. Neither may create operational authority, bypass policy/schema constraints, or convert proposed registry changes into live control authority.
 
 ### J. Preserve payload boundaries
 `doorbell_detected` belongs in `environmental_context`; doorlock state, manual approval state, and ACK state do not belong in current `pure_context_payload.device_states`.
@@ -560,4 +603,6 @@ The final prototype should demonstrate that:
 - the Raspberry Pi-based evaluation environment can reproduce multi-node fault-handling behavior in a controlled and auditable way
 - Raspberry Pi-based experiment traffic can be verified through closed-loop audit observation rather than bypassed control paths
 - the experiment/dashboard environment can validate MQTT topic contracts and payload examples without becoming policy authority
+- governance backend/UI separation can be demonstrated and verified
+- governance tooling cannot create policy, schema, validator, caregiver approval, actuator, or doorlock execution authority
 - optional timing infrastructure can support trustworthy out-of-band class-wise latency measurement
