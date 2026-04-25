@@ -2,6 +2,10 @@
   "expected_route_class": "CLASS_2",
   "expected_routing_target": "CLASS_2",
   "expected_llm_invocation_allowed": false,
+  "expected_llm_decision_invocation_allowed": false,
+  "expected_llm_guidance_generation_allowed": "policy_constrained_only",
   "expected_safe_outcome": "caregiver_or_high_safety_escalation_path",
-  "notes": "Expected outcome fixture for an insufficient-context or otherwise conservative escalation case."
+  "expected_unsafe_autonomous_actuation_allowed": false,
+  "doorlock_autonomous_execution_allowed": false,
+  "notes": "Expected outcome fixture for an insufficient-context or otherwise conservative escalation case. LLM decision invocation is not expected, but policy-constrained user-facing guidance may be allowed."
 }
