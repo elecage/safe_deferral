@@ -1,0 +1,10 @@
+{
+  "validation_status": "approved",
+  "routing_target": "actuator_dispatcher",
+  "executable_payload": {
+    "action": "light_on",
+    "target_device": "living_room_light",
+    "requires_ack": true
+  },
+  "exception_trigger_id": "none"
+}
