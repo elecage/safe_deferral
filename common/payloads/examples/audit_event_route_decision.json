@@ -1,0 +1,10 @@
+{
+  "audit_event_id": "example-audit-route-001",
+  "audit_correlation_id": "example-non-visitor-001",
+  "event_group": "routing",
+  "event_type": "policy_router_decision",
+  "summary": "Policy Router accepted schema-valid non-visitor context input.",
+  "route_class": "CLASS_1",
+  "timestamp_ms": 1710000000600,
+  "authority_note": "Audit records are evidence and traceability artifacts, not policy truth."
+}
