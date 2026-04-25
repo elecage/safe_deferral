@@ -1,0 +1,32 @@
+{
+  "expected_transition_family": "CLASS2_TO_CLASS1",
+  "expected_source_route_class": "CLASS_2",
+  "expected_transition_target": "CLASS_1",
+  "expected_required_confirmation": true,
+  "expected_selected_candidate_id": "C1_LIGHTING_ASSISTANCE",
+  "expected_selection_sources_allowed": [
+    "bounded_input_node",
+    "voice_input",
+    "caregiver_confirmation"
+  ],
+  "expected_low_risk_catalog_ref": "common/policies/low_risk_actions_v1_1_0_FROZEN.json",
+  "expected_validator_required_before_dispatch": true,
+  "expected_single_admissible_action_required": true,
+  "expected_llm_decision_invocation_allowed": false,
+  "expected_llm_guidance_generation_allowed": "policy_constrained_only",
+  "expected_candidate_generation_authorizes_actuation": false,
+  "expected_unsafe_autonomous_actuation_allowed": false,
+  "doorlock_autonomous_execution_allowed": false,
+  "expected_audit_fields": [
+    "clarification_id",
+    "selected_candidate_id",
+    "selection_source",
+    "transition_target",
+    "validator_result",
+    "final_execution_or_non_execution_outcome"
+  ],
+  "notes": [
+    "Class 2-to-Class 1 transition requires confirmation and deterministic validation against the low-risk catalog.",
+    "The selected candidate does not itself authorize actuator dispatch."
+  ]
+}
