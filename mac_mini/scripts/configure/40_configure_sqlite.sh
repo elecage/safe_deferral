@@ -10,7 +10,7 @@ echo "==> [40_configure_sqlite] Initializing SQLite DB and WAL mode..."
 umask 077
 
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
-DB_DIR="${WORKSPACE_DIR}/db"
+DB_DIR="${WORKSPACE_DIR}/docker/volumes/sqlite/db"
 DB_FILE="${DB_DIR}/audit_log.db"
 
 if ! command -v sqlite3 >/dev/null 2>&1; then
@@ -106,5 +106,6 @@ EOF
 echo "  [INFO] Applying single-writer-oriented permission hardening..."
 chmod 600 "${DB_FILE}"
 echo "  [OK] Database directory (700) and file (600) permissions secured."
+echo "  [INFO] SQLite host path is aligned with Docker Compose mount: ${DB_FILE} -> /app/db/audit_log.db"
 
 echo "==> [PASS] SQLite configuration applied."
