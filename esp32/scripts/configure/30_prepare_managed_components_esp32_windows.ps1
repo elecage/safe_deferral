@@ -21,7 +21,14 @@ $ManagedComponentsCacheDir = Join-Path $TargetWorkspace 'managed_components_cach
 $ComponentPlaceholderFile = Join-Path $SampleProjectDir 'idf_component.yml'
 
 New-Item -ItemType Directory -Force -Path $ManagedComponentsCacheDir | Out-Null
-New-Item -ItemType Directory -Force -Path $SampleProjectDir | Out-Null
+
+if (-not (Test-Path $SampleProjectDir)) {
+    throw "Sample project directory not found: $SampleProjectDir. Please run 40_prepare_sample_project_esp32_windows.ps1 before this script."
+}
+
+if ((-not (Test-Path (Join-Path $SampleProjectDir 'CMakeLists.txt'))) -or (-not (Test-Path (Join-Path $SampleProjectDir 'main')))) {
+    throw "Sample project does not look like a prepared ESP-IDF project: $SampleProjectDir. Please run 40_prepare_sample_project_esp32_windows.ps1 before this script."
+}
 
 if (-not (Test-Path $ComponentPlaceholderFile)) {
 @"
@@ -34,4 +41,5 @@ dependencies:
 }
 
 Write-Host "  [OK] Managed component cache directory prepared at $ManagedComponentsCacheDir."
+Write-Host '  [INFO] This script is intended to run after 40_prepare_sample_project_esp32_windows.ps1.'
 Write-Host '==> [PASS] Managed component workspace preparation completed for Windows.'
