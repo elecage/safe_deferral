@@ -1,0 +1,334 @@
+{
+  "version": "1.2.0",
+  "description": "Deterministic Routing Policy and Safety Constraints for Edge Smart Home with Class 2 clarification/transition semantics",
+  "supersedes": "common/policies/policy_table_v1_1_2_FROZEN.json",
+  "semantic_change_summary": [
+    "Class 2 is no longer interpreted only as terminal caregiver escalation.",
+    "Class 2 is a clarification/transition state for insufficient context, unresolved ambiguity, stale policy-relevant state, missing critical state, actuation failure, or caregiver-required sensitive paths.",
+    "The LLM may generate bounded candidate choices and user-facing guidance, but it must not make final class decisions, authorize actuation, or trigger emergency handling by itself.",
+    "Class 2 may transition to Class 1, Class 0, or Safe Deferral / Caregiver Confirmation only after user/caregiver confirmation or deterministic evidence."
+  ],
+  "global_constraints": {
+    "freshness_threshold_ms": 3000,
+    "default_context_integrity_safe_deferral_timeout_ms": 15000,
+    "actuation_ack_timeout_ms": 5000,
+    "max_context_integrity_safe_deferral_attempts": 2,
+    "class2_clarification_timeout_ms": 15000,
+    "class2_max_clarification_attempts": 2,
+    "class2_max_candidate_options": 4
+  },
+  "routing_policies": {
+    "class_0_emergency": {
+      "description": "Life-critical emergencies requiring immediate deterministic override. Class 0 may be reached directly from emergency evidence or after Class 2 clarification if the user/caregiver confirms emergency help or deterministic emergency evidence arrives.",
+      "triggers": [
+        {
+          "id": "E001",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "threshold_crossing",
+          "minimal_triggering_predicate": {
+            "sensor": "temperature",
+            "operator": ">=",
+            "value": 50.0
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
+        },
+        {
+          "id": "E002",
+          "source_type": "button",
+          "severity": "high",
+          "type": "pattern_event",
+          "minimal_triggering_predicate": {
+            "event": "triple_hit"
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 10000
+        },
+        {
+          "id": "E003",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "state_trigger",
+          "minimal_triggering_predicate": {
+            "sensor": "smoke_detected",
+            "operator": "==",
+            "value": true
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
+        },
+        {
+          "id": "E004",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "state_trigger",
+          "minimal_triggering_predicate": {
+            "sensor": "gas_detected",
+            "operator": "==",
+            "value": true
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000
+        },
+        {
+          "id": "E005",
+          "source_type": "sensor",
+          "severity": "high",
+          "type": "event_trigger",
+          "minimal_triggering_predicate": {
+            "event_type": "sensor",
+            "event_code": "fall_detected"
+          },
+          "local_action_immediate": true,
+          "external_dispatch_grace_period_ms": 5000,
+          "interpretation_note": "This emergency is triggered by trigger_event semantics rather than by a dedicated environmental_context field."
+        }
+      ],
+      "class2_transition_inputs": [
+        {
+          "id": "T0_USER_CONFIRMED_EMERGENCY",
+          "source_type": "user_or_caregiver_confirmation",
+          "minimal_triggering_predicate": {
+            "selected_candidate_transition_target": "CLASS_0",
+            "confirmed": true
+          }
+        },
+        {
+          "id": "T0_PATTERN_EMERGENCY",
+          "source_type": "button",
+          "minimal_triggering_predicate": {
+            "event": "triple_hit"
+          }
+        },
+        {
+          "id": "T0_DETERMINISTIC_EMERGENCY_EVIDENCE",
+          "source_type": "sensor_or_policy_router",
+          "minimal_triggering_predicate": {
+            "evidence_family": "E001_E005"
+          }
+        }
+      ],
+      "actions": [
+        "activate_siren",
+        "turn_on_all_lights",
+        "dispatch_emergency_alert"
+      ],
+      "llm_boundary": {
+        "llm_decision_invocation_allowed": false,
+        "llm_emergency_trigger_authority": false,
+        "emergency_guidance_generation_allowed_after_policy_route": true
+      }
+    },
+    "class_1_low_risk": {
+      "description": "Bounded low-risk assistance handled by local LLM candidate generation and Deterministic Validator. Class 1 may be reached directly or after Class 2 clarification if the user/caregiver confirms a low-risk assistance candidate and deterministic validation resolves exactly one admissible action.",
+      "allowed_actions_taxonomy": [
+        {
+          "action": "light_on",
+          "risk_level": "low",
+          "requires_ack": true,
+          "allowed_targets": [
+            "living_room_light",
+            "bedroom_light"
+          ]
+        },
+        {
+          "action": "light_off",
+          "risk_level": "low",
+          "requires_ack": true,
+          "allowed_targets": [
+            "living_room_light",
+            "bedroom_light"
+          ]
+        }
+      ],
+      "constraints": {
+        "require_single_admissible_action": true,
+        "fallback_on_conflict": "safe_deferral_or_class_2_clarification",
+        "fallback_on_missing_schema": "safe_deferral_or_class_2_clarification",
+        "fallback_on_staleness": "class_2_clarification_or_safe_deferral",
+        "require_confirmation_when_reached_from_class2": true,
+        "require_validator_approval_before_execution": true
+      },
+      "clarification": {
+        "mode": "button_based_context_integrity_safe_deferral_or_class2_clarification",
+        "max_candidate_options": 4,
+        "timeout_ms": 15000,
+        "max_attempts": 2,
+        "action_on_success": "execute_validated_action",
+        "action_on_timeout": "safe_deferral_or_caregiver_confirmation"
+      },
+      "class2_transition_inputs": [
+        {
+          "id": "T1_USER_CONFIRMED_LOW_RISK_ASSISTANCE",
+          "source_type": "user_or_caregiver_confirmation",
+          "minimal_triggering_predicate": {
+            "selected_candidate_transition_target": "CLASS_1",
+            "confirmed": true,
+            "candidate_in_low_risk_catalog": true
+          }
+        }
+      ],
+      "interpretation_notes": {
+        "authoritative_action_source": "common/policies/low_risk_actions_v1_1_0_FROZEN.json",
+        "single_admissible_action_rule": "Autonomous execution is permitted only when deterministic validation resolves exactly one admissible low-risk action.",
+        "ambiguity_rule": "If multiple admissible candidates remain or target confidence is insufficient, the system must prefer safe_deferral or Class 2 clarification rather than autonomous actuation.",
+        "staleness_rule": "Freshness violations in policy-relevant state must not be silently tolerated in the low-risk path.",
+        "class2_transition_rule": "A Class 2-to-Class 1 transition is allowed only after user/caregiver confirmation and deterministic validation against the low-risk catalog."
+      }
+    },
+    "class_2_clarification_transition": {
+      "description": "Clarification and transition state for unresolved ambiguity, insufficient context, stale policy-relevant state, missing critical context, actuation failure, or caregiver-required sensitive paths. This state may produce bounded candidate choices and route to Class 1, Class 0, or Safe Deferral / Caregiver Confirmation after confirmation or deterministic evidence.",
+      "legacy_alias": "class_2_escalation",
+      "triggers": [
+        {
+          "id": "C201",
+          "event": "context_integrity_safe_deferral_timeout",
+          "source_layer": "context_integrity_safe_deferral_handler",
+          "requires_notification": true,
+          "initial_class2_state": "safe_deferral_or_caregiver_confirmation"
+        },
+        {
+          "id": "C202",
+          "event": "missing_policy_input",
+          "source_layer": "policy_router",
+          "requires_notification": true,
+          "initial_class2_state": "clarification_candidate_generation_allowed"
+        },
+        {
+          "id": "C203",
+          "event": "unresolved_context_conflict",
+          "source_layer": "validator",
+          "requires_notification": true,
+          "initial_class2_state": "clarification_candidate_generation_allowed"
+        },
+        {
+          "id": "C204",
+          "event": "sensor_staleness_detected",
+          "source_layer": "policy_router",
+          "requires_notification": true,
+          "initial_class2_state": "state_recheck_or_caregiver_confirmation"
+        },
+        {
+          "id": "C205",
+          "event": "actuation_ack_timeout",
+          "source_layer": "validator",
+          "requires_notification": true,
+          "initial_class2_state": "safe_deferral_or_caregiver_confirmation"
+        },
+        {
+          "id": "C206",
+          "event": "insufficient_context_for_intent_resolution",
+          "source_layer": "policy_router_or_class2_clarification_manager",
+          "requires_notification": false,
+          "initial_class2_state": "clarification_candidate_generation_allowed"
+        },
+        {
+          "id": "C207",
+          "event": "user_selection_timeout_or_no_response",
+          "source_layer": "class2_clarification_manager",
+          "requires_notification": true,
+          "initial_class2_state": "safe_deferral_or_caregiver_confirmation"
+        }
+      ],
+      "clarification_interaction": {
+        "manager": "class2_clarification_manager",
+        "candidate_generation_actor": "llm_guidance_layer_or_input_context_mapper",
+        "candidate_generation_allowed": true,
+        "candidate_generation_boundary": "bounded_guidance_only_no_final_decision_no_actuation_authority",
+        "max_candidate_options": 4,
+        "confirmation_required_before_transition": true,
+        "allowed_selection_sources": [
+          "bounded_input_node",
+          "voice_input",
+          "caregiver_confirmation",
+          "deterministic_emergency_evidence",
+          "timeout_or_no_response"
+        ],
+        "timeout_ms": 15000,
+        "max_attempts": 2,
+        "timeout_behavior": "safe_deferral_or_caregiver_confirmation"
+      },
+      "allowed_transition_targets": [
+        {
+          "target": "CLASS_1",
+          "condition": "User or caregiver confirms a bounded low-risk assistance candidate and Deterministic Validator approves exactly one admissible action from the low-risk catalog.",
+          "requires_validator": true,
+          "requires_confirmation": true
+        },
+        {
+          "target": "CLASS_0",
+          "condition": "User/caregiver confirms emergency help, an emergency-pattern input such as triple-hit occurs, or deterministic E001-E005 emergency evidence arrives.",
+          "requires_validator": false,
+          "requires_policy_emergency_evidence_or_confirmation": true
+        },
+        {
+          "target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+          "condition": "No response, ambiguous response, persistent insufficient context, unresolved conflict, stale critical state, missing critical state, or actuation failure remains unresolved.",
+          "requires_validator": false,
+          "requires_confirmation": false
+        }
+      ],
+      "llm_boundary": {
+        "llm_guidance_generation_allowed": "policy_constrained_only",
+        "llm_decision_invocation_allowed": false,
+        "llm_actuation_authority": false,
+        "llm_emergency_trigger_authority": false,
+        "llm_sensitive_actuation_approval_authority": false,
+        "candidate_text_is_not_validator_output": true,
+        "candidate_text_is_not_actuation_command": true
+      },
+      "payload_contract": {
+        "notification_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+        "recommended_future_interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+        "required_core_fields": [
+          "event_summary",
+          "context_summary",
+          "unresolved_reason",
+          "manual_confirmation_path"
+        ],
+        "recommended_clarification_fields": [
+          "clarification_id",
+          "candidate_choices",
+          "presentation_channel",
+          "selection_result",
+          "transition_target",
+          "timeout_result"
+        ],
+        "schema_governed_fields": [
+          "audit_correlation_id",
+          "timestamp_ms",
+          "notification_channel",
+          "source_layer",
+          "exception_trigger_id"
+        ]
+      },
+      "audit_requirements": [
+        "initial_ambiguous_input",
+        "unresolved_reason",
+        "candidate_choices_generated",
+        "presentation_channel",
+        "selected_candidate_or_timeout",
+        "transition_target",
+        "validator_result_if_class1",
+        "emergency_evidence_if_class0",
+        "safe_deferral_or_caregiver_confirmation_result",
+        "final_execution_or_non_execution_outcome"
+      ]
+    }
+  },
+  "implementation_notes": {
+    "authoritative_low_risk_action_catalog": "low_risk_actions_v1_1_0_FROZEN.json",
+    "class_2_notification_payload_schema": "class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+    "recommended_class2_interaction_schema": "clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "terminology_note": "Canonical terminology should use Class 2 clarification/transition state and class2_clarification_manager for insufficient-context interaction, while preserving context-integrity-based safe deferral terminology for the lower-level deferral handler.",
+    "note": "The routing policy may retain a summarized allowed_actions_taxonomy for local readability, but the dedicated low-risk action catalog remains the authoritative action list.",
+    "safe_execution_note": "Validated execution must remain ACK-confirmed and bounded to the low-risk catalog.",
+    "class2_semantic_note": "Class 2 is a clarification/transition state. It may end in Class 1, Class 0, or Safe Deferral / Caregiver Confirmation depending on confirmation or deterministic evidence.",
+    "llm_boundary_note": "The LLM may generate bounded candidate choices and guidance, but it cannot make final class decisions, authorize actuation, trigger emergency handling, approve sensitive actuation, or bypass Policy Router / Deterministic Validator.",
+    "sensitive_actuation_note": "Sensitive actuation requests, including doorlock control, are not part of the Class 1 autonomous low-risk action scope in this policy version. Such requests must not be approved as low-risk executable payloads and must be handled through Class 2 clarification/escalation or a separately governed manual confirmation path.",
+    "doorbell_context_note": "Doorbell or visitor-arrival detection may be used as policy-relevant context for visitor-response interpretation, but it does not authorize autonomous doorlock control. Doorlock-related sensitive actuation must remain routed to Class 2 clarification/escalation or a separately governed manual confirmation path.",
+    "mqtt_payload_governance_note": "MQTT topic entries, topic-payload mappings, interface-matrix alignment reports, topic-drift reports, and payload validation reports are governance/verification artifacts and must not be interpreted as policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.",
+    "reviewer_note": "This policy table defines routing and safety interpretation, while detailed action admissibility remains jointly constrained by the low-risk action catalog and validator schema."
+  }
+}
