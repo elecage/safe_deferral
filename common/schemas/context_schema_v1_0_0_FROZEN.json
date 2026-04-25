@@ -66,7 +66,8 @@
                 "enum": [
                   "threshold_exceeded",
                   "state_changed",
-                  "fall_detected"
+                  "fall_detected",
+                  "doorbell_detected"
                 ]
               }
             }
@@ -113,6 +114,10 @@
         },
         "gas_detected": {
           "type": "boolean"
+        },
+        "doorbell_detected": {
+          "type": "boolean",
+          "description": "True if a recent doorbell or visitor-arrival event has been detected. This is policy-relevant context for visitor-response interpretation and does not authorize autonomous doorlock control."
         }
       },
       "required": [
@@ -120,7 +125,8 @@
         "illuminance",
         "occupancy_detected",
         "smoke_detected",
-        "gas_detected"
+        "gas_detected",
+        "doorbell_detected"
       ]
     },
     "device_states": {
