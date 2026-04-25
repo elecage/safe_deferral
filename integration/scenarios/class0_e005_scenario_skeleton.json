@@ -1,25 +1,29 @@
 {
   "scenario_id": "SCN_CLASS0_E005_FALL",
   "title": "Class 0 E005 fall emergency scenario",
-  "description": "Deterministic scenario skeleton for a representative E005-aligned fall-detected emergency path.",
+  "description": "Deterministic scenario skeleton for a representative E005-aligned fall-detected emergency path. This file is an integration asset and must remain aligned with frozen assets under common/.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {
     "protocol": "mqtt",
-    "ingress_topic": "smarthome/context/raw",
-    "audit_topic": "smarthome/audit/validator_output"
+    "ingress_topic": "safe_deferral/emergency/event",
+    "normalized_policy_input_topic": "safe_deferral/context/input",
+    "bridge_mode": "controlled_runtime_or_experiment_bridge",
+    "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
     "requires_mac_mini_runtime": true,
     "requires_rpi_evaluation_runtime": true,
     "requires_synced_phase0_assets": true,
-    "requires_time_sync_healthy": true
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true
   },
   "steps": [
     {
       "step_id": 1,
-      "action": "publish_context_payload",
-      "description": "Publish a fall-detected emergency style payload through the operational ingress plane.",
+      "action": "publish_emergency_event_payload",
+      "description": "Publish an E005 fall-detected emergency payload through the registry-aligned emergency ingress plane or a controlled bridge that produces policy-router-compatible input.",
       "payload_fixture": "integration/tests/data/sample_policy_router_input_class0_e005_fall.json"
     },
     {
@@ -33,11 +37,16 @@
     "route_class": "CLASS_0",
     "routing_target": "CLASS_0",
     "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
     "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false,
     "canonical_emergency_family": "E005"
   },
   "notes": [
     "Dedicated E005 fall-detected payload fixture now available in sample_policy_router_input_class0_e005_fall.json.",
-    "This scenario validates fall-detected event trigger semantics and is aligned with the required experiments document's canonical emergency family coverage."
+    "This scenario validates fall-detected event trigger semantics and is aligned with the required experiments document's canonical emergency family coverage.",
+    "Class 0 emergency handling must not use the LLM as the primary decision path.",
+    "doorbell_detected is not emergency evidence and does not authorize doorlock control."
   ]
 }
