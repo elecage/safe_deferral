@@ -1,10 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "clarification_interaction_schema_v1_0_0",
-  "description": "Schema for Class 2 clarification interaction artifacts: bounded candidate choices, presentation channel, user/caregiver selection, timeout/no-response result, and transition target. This schema does not define pure context input, validator approval, actuation command, doorlock authorization, or emergency trigger authority.",
+  "description": "Schema for Class 2 clarification interaction artifacts: bounded candidate choices, presentation channel, user/caregiver selection, timeout/no-response result, and transition target. This schema does not define pure context input, validator approval, actuation command, doorlock authorization, or emergency trigger authority. Optional fixture metadata fields are allowed for integration-test artifacts but do not create operational authority.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "payload_family": {
+      "type": "string",
+      "enum": [
+        "CLASS2_CLARIFICATION_INTERACTION",
+        "CLASS2_USER_SELECTION",
+        "CLASS2_TIMEOUT_OR_NO_RESPONSE"
+      ],
+      "description": "Optional fixture/runtime metadata describing the clarification interaction payload family. This field is not policy authority."
+    },
+    "schema_ref": {
+      "type": "string",
+      "const": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+      "description": "Optional fixture metadata pointing to this schema."
+    },
     "clarification_id": {
       "type": "string",
       "minLength": 1,
@@ -34,7 +48,7 @@
         "llm_guidance_layer",
         "system"
       ],
-      "description": "Layer that created or updated this clarification interaction artifact."
+      "description": "System layer that created or updated this clarification interaction artifact."
     },
     "unresolved_reason": {
       "type": "string",
@@ -200,6 +214,20 @@
     "timestamp_ms": {
       "type": "integer",
       "description": "Creation or update timestamp in epoch milliseconds."
+    },
+    "notes": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "description": "Optional fixture or implementation note. Notes are not operational authority."
     }
   },
   "required": [
