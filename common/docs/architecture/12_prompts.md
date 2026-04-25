@@ -10,6 +10,34 @@ Use the following files:
 - `common/docs/architecture/12_prompts_nodes_and_evaluation.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 
+## Current prompt references
+
+All prompt files should remain aligned with:
+
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+
+## Repository-wide prompt boundary
+
+All generated artifacts must preserve:
+
+- Mac mini as the operational hub,
+- Raspberry Pi as dashboard, simulation, orchestration, replay, fault-injection, result-export, and non-authoritative MQTT/payload governance support,
+- ESP32 as the bounded physical node layer,
+- optional timing/measurement infrastructure as evaluation-only support,
+- `common/policies/` and `common/schemas/` as policy/schema authority,
+- `common/mqtt/` and `common/payloads/` as shared communication/payload reference layers,
+- `common/docs/architecture/15_interface_matrix.md` as the MQTT-aware interface contract reference,
+- governance dashboard UI as a presentation and interaction layer,
+- governance backend service as the draft/create/update/delete/validate/export service,
+- and the rule that governance tooling must not create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority.
+
 ## File roles
 
 ### `12_prompts_core_system.md`
@@ -44,6 +72,8 @@ Use this file for MQTT topic and payload governance tasks such as:
 - payload example manager and validator
 - MQTT/payload governance dashboard UI
 - topic/payload validation reports
+- topic/payload hardcoding drift detection
+- interface-matrix alignment validation
 
 The governance dashboard UI must remain a presentation and interaction layer. Actual topic/payload create, update, delete, validation, and export operations should be handled by a separate governance backend/service.
 
