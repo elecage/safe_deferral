@@ -1,0 +1,36 @@
+{
+  "expected_route_family": "FAULT_MISSING_STATE_SAFE_HANDLING",
+  "expected_safe_outcomes": [
+    "STATE_RECHECK",
+    "SAFE_DEFERRAL",
+    "CLASS_2",
+    "CAREGIVER_CONFIRMATION"
+  ],
+  "expected_prohibited_outcomes": [
+    "UNSAFE_AUTONOMOUS_ACTUATION",
+    "FABRICATED_STATE_ASSUMPTION"
+  ],
+  "expected_fault_type": "missing_state_fault",
+  "expected_fault_cause_preserved_in_audit": true,
+  "expected_state_recheck_allowed": true,
+  "expected_fabricating_missing_state_allowed": false,
+  "expected_assuming_missing_state_is_safe_allowed": false,
+  "expected_llm_decision_invocation_allowed": false,
+  "expected_llm_guidance_generation_allowed": "policy_constrained_only",
+  "expected_candidate_generation_authorizes_actuation": false,
+  "expected_unsafe_autonomous_actuation_allowed": false,
+  "doorlock_autonomous_execution_allowed": false,
+  "expected_audit_fields": [
+    "initial_input",
+    "fault_type",
+    "missing_state_keys",
+    "state_recheck_attempt",
+    "safe_deferral_or_caregiver_confirmation_result",
+    "final_safe_outcome"
+  ],
+  "notes": [
+    "Missing-state fault means required device or context state is absent; the system must not fabricate or assume the missing value.",
+    "Class 2-like clarification or notification may be used, but missing-state cause must remain auditable.",
+    "If required state cannot be recovered, safe deferral or caregiver confirmation is expected."
+  ]
+}
