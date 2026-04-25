@@ -27,6 +27,14 @@ Authoritative policy/schema truth remains in:
 - `common/policies/`
 - `common/schemas/`
 
+Current active routing policy baseline:
+
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
+
+Historical routing policy baseline superseded by v1.2.0:
+
+- `common/policies/policy_table_v1_1_2_FROZEN.json`
+
 This document should be read together with:
 
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
@@ -53,6 +61,7 @@ Examples:
 - environmental context payload
 - device state payload
 - LLM candidate action payload
+- Class 2 clarification interaction payload
 - validator output payload
 - Class 2 notification payload
 - manual confirmation payload
@@ -69,7 +78,7 @@ Examples:
 
 These payloads must not be mixed casually.
 
-Recent alignment work introduced `environmental_context.doorbell_detected` as a required visitor-response context field and clarified that doorlock state is not currently part of `context_schema.device_states`. This exposed the need for a single registry that explains where each payload belongs.
+Recent alignment work introduced `environmental_context.doorbell_detected` as a required visitor-response context field and clarified that doorlock state is not currently part of `context_schema.device_states`. Class 2 alignment work further clarified that clarification candidate choices, user selections, timeout results, and transition outcomes are interaction payloads rather than pure context payloads. This exposed the need for a single registry that explains where each payload belongs.
 
 ---
 
@@ -101,6 +110,7 @@ Examples:
 
 - low-risk action admissibility
 - routing policy interpretation
+- Class 2 clarification / transition interpretation
 - emergency trigger profile
 - fault injection profile
 - output/channel guidance
@@ -114,6 +124,7 @@ They may not yet have formal frozen schemas. They must remain clearly separated 
 Examples:
 
 - scenario fixture metadata
+- Class 2 clarification candidate/selection/transition metadata before formal schema introduction
 - experiment annotation
 - dashboard observation state
 - mock caregiver approval state
@@ -140,6 +151,8 @@ These payloads must not redefine policy truth, silently expand autonomous actuat
 | Environmental Context | ESP32 sensors, RPi simulation, Mac mini context aggregation | Policy Router / bounded LLM path | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Includes temperature, illuminance, occupancy, smoke, gas, and `doorbell_detected` |
 | Device States | Context aggregator, RPi simulation | Policy Router / validator context | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Current fields: `living_room_light`, `bedroom_light`, `living_room_blind`, `tv_main`. Doorlock state is not included |
 | Low-risk Action Catalog | Frozen policy asset | Validator / implementation | `low_risk_actions_v1_1_0_FROZEN.json` | Policy-governed | Authoritative autonomous Class 1 action scope |
+| Routing Policy Table | Frozen policy asset | Policy Router / scenario verifier / implementation | `policy_table_v1_2_0_FROZEN.json` | Policy-governed | Active baseline with Class 2 clarification/transition semantics. Supersedes `policy_table_v1_1_2_FROZEN.json` |
+| Class 2 Clarification Interaction | Class 2 Clarification Manager, scenario fixtures, future runtime interaction layer | TTS/Display, Policy Router, Audit, Caregiver confirmation path | `policy_table_v1_2_0_FROZEN.json`; future `clarification_interaction_schema_v1_0_0_FROZEN.json` recommended | Policy-governed / experiment artifact until schema formalization | Candidate choices, presentation channel, selection result, timeout result, transition target. Not pure context and not actuation authority |
 | LLM Candidate Action | Local LLM bounded assistance path | Deterministic Validator | `candidate_action_schema_v1_0_0_FROZEN.json` | Schema-governed | Current autonomous action candidates must remain within schema and low-risk catalog |
 | Validator Output | Deterministic Validator | Dispatcher / safe deferral / escalation path | `validator_output_schema_v1_1_0_FROZEN.json` | Schema-governed | Approved executable payload must remain bounded to current low-risk scope |
 | Class 2 Notification Payload | Escalation service | Caregiver notification channel | `class_2_notification_payload_schema_v1_0_0_FROZEN.json` | Schema-governed | Includes summary, unresolved reason, and manual confirmation path |
@@ -183,6 +196,7 @@ Important rules:
 4. It must not contain ACK state.
 5. It must not contain out-of-schema device states.
 6. It is the only current context envelope intended to ground LLM-relevant physical/context interpretation.
+7. It must not contain Class 2 clarification candidate choices, user selections, timeout results, or transition outcomes.
 
 ## 5.2 `routing_metadata`
 
@@ -199,6 +213,7 @@ Rules:
 1. It is operational routing metadata.
 2. It should not be directly mixed into LLM prompt context.
 3. It may be used for safety fallback, staleness handling, audit correlation, and reproducibility.
+4. It must not be used to store LLM-generated clarification candidate text.
 
 ## 5.3 `environmental_context`
 
@@ -237,7 +252,47 @@ Rules:
 
 ---
 
-## 6. MQTT topic and payload contract rules
+## 6. Class 2 clarification interaction payload boundary
+
+Class 2 clarification data belongs to an interaction/control payload family.
+
+It may include:
+
+- `clarification_id`
+- `unresolved_reason`
+- `candidate_choices`
+- `presentation_channel`
+- `selection_result`
+- `transition_target`
+- `timeout_result`
+
+It must not be treated as:
+
+- pure context,
+- validator approval,
+- actuation command,
+- doorlock authorization,
+- emergency trigger by itself,
+- dashboard/governance authority.
+
+Recommended future schema:
+
+```text
+common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+```
+
+Until that schema is introduced, Class 2 clarification data should remain governed by:
+
+```text
+common/policies/policy_table_v1_2_0_FROZEN.json
+integration/scenarios/scenario_manifest_schema.json
+integration/scenarios/verify_scenario_policy_schema_alignment.py
+integration/scenarios/verify_scenario_manifest.py
+```
+
+---
+
+## 7. MQTT topic and payload contract rules
 
 MQTT topic registry entries define communication contracts, not policy authority.
 
@@ -259,12 +314,13 @@ Rules:
 5. Doorlock-related topic entries must explicitly preserve manual-confirmation, ACK, audit, and dashboard-observation boundaries.
 6. Doorlock-related topic entries must not imply autonomous Class 1 door-unlock authority unless future frozen policy/schema revisions explicitly promote that behavior.
 7. Governance validation artifacts may report topic/payload issues, but they do not authorize operational execution.
+8. Class 2 clarification may use existing deferral, context input, caregiver confirmation, escalation, and audit topics unless future runtime implementation requires dedicated clarification topics.
 
 ---
 
-## 7. Doorbell and doorlock payload rules
+## 8. Doorbell and doorlock payload rules
 
-## 7.1 Doorbell context
+## 8.1 Doorbell context
 
 Doorbell or visitor-arrival context must be represented as:
 
@@ -300,7 +356,7 @@ Do not invent unrelated fields such as:
 
 unless a future schema revision explicitly introduces them.
 
-## 7.2 Doorlock state
+## 8.2 Doorlock state
 
 Doorlock state must not currently be placed inside:
 
@@ -337,7 +393,7 @@ Example experiment-side representation:
 
 This is an experiment annotation, not part of the current pure context schema.
 
-## 7.3 Door unlock intent
+## 8.3 Door unlock intent
 
 Door unlock intent may appear as an **intended interpretation label** in visitor-response evaluation.
 
@@ -365,9 +421,9 @@ unless future frozen policy/schema revisions explicitly authorize it.
 
 ---
 
-## 8. Manual confirmation, ACK, and audit payload rules
+## 9. Manual confirmation, ACK, and audit payload rules
 
-## 8.1 Manual confirmation
+## 9.1 Manual confirmation
 
 Manual confirmation payloads/states are not currently part of `pure_context_payload`.
 
@@ -383,7 +439,7 @@ They may be represented in:
 
 Manual confirmation must not be confused with autonomous Class 1 validator approval.
 
-## 8.2 ACK state
+## 9.2 ACK state
 
 ACK state is closed-loop execution evidence.
 
@@ -398,7 +454,7 @@ It belongs to:
 
 ACK state must not be inserted into `pure_context_payload` as ordinary environmental or device context unless a future schema explicitly defines such behavior.
 
-## 8.3 Audit payloads
+## 9.3 Audit payloads
 
 Audit payloads are runtime records.
 
@@ -406,6 +462,10 @@ They may include summaries of:
 
 - routing decisions,
 - LLM candidate outputs,
+- Class 2 clarification candidate choices,
+- Class 2 presentation channel,
+- Class 2 selection or timeout result,
+- Class 2 transition outcome,
 - validator outputs,
 - safe deferral decisions,
 - Class 2 escalation,
@@ -418,9 +478,9 @@ Audit records are evidence and traceability artifacts. They are not policy autho
 
 ---
 
-## 9. Scenario fixture and dashboard payload rules
+## 10. Scenario fixture and dashboard payload rules
 
-## 9.1 Scenario fixtures
+## 10.1 Scenario fixtures
 
 Scenario fixtures may contain schema-governed payload fragments, experiment annotations, expected outcomes, and result metadata.
 
@@ -433,8 +493,9 @@ Rules:
 5. Do not put doorlock state into `pure_context_payload.device_states`.
 6. Put doorlock/approval/ACK state in experiment annotation or mock state sections.
 7. Scenario fixtures are evaluation assets, not policy truth.
+8. Class 2 clarification fixtures should separate initial context input, candidate prompt expectation, user/caregiver selection, transition result, timeout result, and audit expectation where practical.
 
-## 9.2 Dashboard observation payloads
+## 10.2 Dashboard observation payloads
 
 Dashboard observation payloads may show:
 
@@ -448,6 +509,8 @@ Dashboard observation payloads may show:
 - manual approval state,
 - ACK state,
 - audit completeness,
+- Class 2 clarification pending state,
+- Class 2 candidate/selection summary,
 - result summary.
 
 Rules:
@@ -459,7 +522,7 @@ Rules:
 
 ---
 
-## 10. Governance payload and report rules
+## 11. Governance payload and report rules
 
 Governance payloads and reports support MQTT/payload inspection, validation, draft editing, review, and regression prevention.
 
@@ -480,7 +543,7 @@ Rules:
 
 ---
 
-## 11. Current formal schema coverage
+## 12. Current formal schema coverage
 
 Current formal schemas:
 
@@ -492,13 +555,18 @@ Current formal schemas:
 
 Current policy/rules assets:
 
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/policies/output_profile_v1_1_0.json`
 
+Historical policy/rules assets:
+
+- `common/policies/policy_table_v1_1_2_FROZEN.json` — superseded by `policy_table_v1_2_0_FROZEN.json` for Class 2 clarification/transition semantics.
+
 Candidate future schemas:
 
+- `clarification_interaction_schema_v1_0_0_FROZEN.json`
 - `manual_confirmation_payload_schema_v1_0_0.json`
 - `actuation_ack_payload_schema_v1_0_0.json`
 - `audit_event_schema_v1_0_0.json`
@@ -515,7 +583,7 @@ These future schemas should not be introduced casually. They should be added onl
 
 ---
 
-## 12. Payload validation recommendations
+## 13. Payload validation recommendations
 
 Implementations should apply validation at the correct layer.
 
@@ -528,6 +596,7 @@ Validate:
 - candidate actions,
 - validator output,
 - Class 2 notification payload,
+- Class 2 clarification interaction payload once a formal schema is introduced,
 - topic-to-payload contract resolution where runtime topics are used,
 - interface-matrix alignment where applicable.
 
@@ -539,6 +608,7 @@ Validate:
 
 - generated scenario payloads,
 - virtual sensor payloads,
+- Class 2 candidate/selection/transition fixtures,
 - fault injection payloads,
 - dashboard observation contracts when formalized,
 - result export contracts when formalized,
@@ -564,6 +634,7 @@ Integration fixtures should be checked for:
 - absence of doorlock state in current `device_states`,
 - no Class 1 `door_unlock` candidate,
 - no validator executable payload for doorlock,
+- correct Class 2 clarification/transition expectations,
 - correct Class 2/manual confirmation expectation for sensitive outcomes,
 - topic/payload contract consistency,
 - interface-matrix alignment,
@@ -572,7 +643,7 @@ Integration fixtures should be checked for:
 
 ---
 
-## 13. Non-negotiable payload rules
+## 14. Non-negotiable payload rules
 
 1. `routing_metadata` is not LLM context.
 2. `pure_context_payload` must conform to `context_schema_v1_0_0_FROZEN.json`.
@@ -585,17 +656,18 @@ Integration fixtures should be checked for:
 9. Dashboard observation state is not policy truth.
 10. Scenario fixture metadata is not policy truth.
 11. Class 1 executable payload must stay within the frozen low-risk catalog and validator schema.
-12. Sensitive actuation must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.
-13. If a future payload needs to become authoritative, add or revise the relevant schema/policy and update experiments, prompts, README, CLAUDE, and handoff addenda together.
-14. MQTT topic entries are communication contracts, not policy authority.
-15. Topic-to-payload mappings must remain aligned with `common/docs/architecture/15_interface_matrix.md` and `common/mqtt/`.
-16. Governance change reports, interface-matrix alignment reports, topic-drift reports, and payload validation reports are evidence artifacts, not operational authorization mechanisms.
-17. Governance dashboard UI must not directly edit registry files or publish operational control topics.
-18. Governance backend must not modify canonical policies/schemas, publish actuator/doorlock commands, spoof caregiver approval, override Policy Router or Deterministic Validator decisions, or convert proposed changes into live authority without review.
+12. Sensitive actuation must route through Class 2 clarification/escalation or separately governed manual confirmation with ACK and audit.
+13. Class 2 candidate choices, user selections, timeout results, and transition outcomes are not pure context and not execution authority.
+14. If a future payload needs to become authoritative, add or revise the relevant schema/policy and update experiments, prompts, README, CLAUDE, and handoff addenda together.
+15. MQTT topic entries are communication contracts, not policy authority.
+16. Topic-to-payload mappings must remain aligned with `common/docs/architecture/15_interface_matrix.md` and `common/mqtt/`.
+17. Governance change reports, interface-matrix alignment reports, topic-drift reports, and payload validation reports are evidence artifacts, not operational authorization mechanisms.
+18. Governance dashboard UI must not directly edit registry files or publish operational control topics.
+19. Governance backend must not modify canonical policies/schemas, publish actuator/doorlock commands, spoof caregiver approval, override Policy Router or Deterministic Validator decisions, or convert proposed changes into live authority without review.
 
 ---
 
-## 14. Downstream documents to keep aligned
+## 15. Downstream documents to keep aligned
 
 After this registry is introduced or updated, keep the following downstream assets aligned with the payload boundaries defined here:
 
@@ -617,4 +689,4 @@ After this registry is introduced or updated, keep the following downstream asse
 16. `CLAUDE.md`
 17. `common/docs/runtime/SESSION_HANDOFF.md`
 
-The review goal is to ensure that every document uses the payload boundaries, MQTT topic-payload contract rules, and governance report boundaries defined here consistently.
+The review goal is to ensure that every document uses the payload boundaries, MQTT topic-payload contract rules, Class 2 clarification/transition semantics, and governance report boundaries defined here consistently.
