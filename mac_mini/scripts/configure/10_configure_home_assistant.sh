@@ -7,12 +7,12 @@ set -euo pipefail
 
 echo "==> [10_configure_home_assistant] Configuring Home Assistant..."
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
 
-HA_CONFIG_DIR="${WORKSPACE_DIR}/docker/homeassistant/config"
-TEMPLATE_FILE="${PROJECT_ROOT}/templates/configuration.yaml.template"
+HA_CONFIG_DIR="${WORKSPACE_DIR}/docker/volumes/homeassistant/config"
+TEMPLATE_FILE="${PROJECT_ROOT}/mac_mini/scripts/templates/configuration.yaml.template"
 TARGET_FILE="${HA_CONFIG_DIR}/configuration.yaml"
 
 echo "  [INFO] Ensuring target configuration directory exists at ${HA_CONFIG_DIR}..."
@@ -22,9 +22,10 @@ mkdir -p "${HA_CONFIG_DIR}"
 if [ ! -f "${TARGET_FILE}" ]; then
     if [ -f "${TEMPLATE_FILE}" ]; then
         cp "${TEMPLATE_FILE}" "${TARGET_FILE}"
-        echo "  [OK] configuration.yaml deployed to target runtime path."
+        echo "  [OK] configuration.yaml deployed to target compose volume path."
     else
         echo "  [WARNING] Template not found at ${TEMPLATE_FILE}. Skipping injection."
+        echo "  [INFO] Home Assistant will create default configuration on first container start."
     fi
 else
     echo "  [INFO] configuration.yaml already exists. Skipping overwrite to preserve user settings."
