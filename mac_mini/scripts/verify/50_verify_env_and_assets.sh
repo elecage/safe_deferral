@@ -13,6 +13,12 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "  [FATAL] 'python3' command is not available."
+    echo "          Please ensure Python is installed and the Mac venv has been prepared."
+    exit 1
+fi
+
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
 ENV_FILE="${WORKSPACE_DIR}/.env"
 
@@ -203,6 +209,101 @@ if [ "${MISSING_REFERENCED_EXAMPLES}" -ne 0 ]; then
     echo "  [FATAL] Topic registry example-payload reference check failed."
     exit 1
 fi
+
+echo "  [INFO] Validating schema-governed payload examples..."
+python3 - "${SCHEMA_DIR}" "${PAYLOAD_EXAMPLES_DIR}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+try:
+    import jsonschema
+except Exception as exc:  # pragma: no cover - shell-facing diagnostic
+    print("  [FATAL] Python package 'jsonschema' is not available.")
+    print("          Run mac_mini/scripts/install/30_setup_python_venv_mac.sh or install requirements-mac.txt.")
+    print(f"          Import error: {exc}")
+    sys.exit(1)
+
+schema_dir = Path(sys.argv[1])
+payload_dir = Path(sys.argv[2])
+
+checks = [
+    (
+        "policy_router_input_schema_v1_1_1_FROZEN.json",
+        "examples/policy_router_input_non_visitor.json",
+        "policy_router_input_non_visitor",
+    ),
+    (
+        "policy_router_input_schema_v1_1_1_FROZEN.json",
+        "examples/policy_router_input_visitor_doorbell.json",
+        "policy_router_input_visitor_doorbell",
+    ),
+    (
+        "policy_router_input_schema_v1_1_1_FROZEN.json",
+        "examples/policy_router_input_emergency_temperature.json",
+        "policy_router_input_emergency_temperature",
+    ),
+    (
+        "candidate_action_schema_v1_0_0_FROZEN.json",
+        "examples/candidate_action_light_on.json",
+        "candidate_action_light_on",
+    ),
+    (
+        "validator_output_schema_v1_1_0_FROZEN.json",
+        "examples/validator_output_execute_approved_light.json",
+        "validator_output_execute_approved_light",
+    ),
+    (
+        "class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+        "examples/class_2_notification_doorlock_sensitive.json",
+        "class_2_notification_doorlock_sensitive",
+    ),
+]
+
+for schema_name, payload_rel, label in checks:
+    schema_path = schema_dir / schema_name
+    payload_path = payload_dir / payload_rel
+    with schema_path.open("r", encoding="utf-8") as f:
+        schema = json.load(f)
+    with payload_path.open("r", encoding="utf-8") as f:
+        instance = json.load(f)
+    try:
+        jsonschema.Draft7Validator(schema).validate(instance)
+    except jsonschema.ValidationError as exc:
+        print(f"  [FATAL] Schema validation failed for {label}: {exc.message}")
+        print(f"          schema={schema_path}")
+        print(f"          payload={payload_path}")
+        sys.exit(1)
+    print(f"  [OK] Schema validation passed: {label}")
+
+for payload_rel in [
+    "examples/policy_router_input_non_visitor.json",
+    "examples/policy_router_input_visitor_doorbell.json",
+    "examples/policy_router_input_emergency_temperature.json",
+    "templates/scenario_fixture_template.json",
+]:
+    payload_path = payload_dir / payload_rel
+    with payload_path.open("r", encoding="utf-8") as f:
+        instance = json.load(f)
+
+    if "input_payload" in instance:
+        context = instance["input_payload"].get("pure_context_payload", {})
+    else:
+        context = instance.get("pure_context_payload", {})
+
+    env_context = context.get("environmental_context", {})
+    if "doorbell_detected" not in env_context:
+        print(f"  [FATAL] Missing environmental_context.doorbell_detected in {payload_rel}")
+        sys.exit(1)
+
+    device_states = context.get("device_states", {})
+    forbidden = {"doorlock", "front_door_lock", "door_lock_state"}.intersection(device_states.keys())
+    if forbidden:
+        print(f"  [FATAL] Forbidden doorlock state fields in pure_context_payload.device_states for {payload_rel}: {sorted(forbidden)}")
+        sys.exit(1)
+
+    print(f"  [OK] Context boundary check passed: {payload_rel}")
+PY
 
 echo "  [OK] All required runtime policy, schema, MQTT, and payload reference assets are present and valid."
 echo "==> [PASS] Environment and runtime assets verification successful."
