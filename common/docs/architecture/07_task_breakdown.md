@@ -13,12 +13,15 @@ It is intended to support:
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
 
-Current communication and payload references:
+Current interface, communication, and payload references:
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
 
 ---
 
@@ -45,10 +48,12 @@ Current communication and payload references:
 - [ ] `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - [ ] `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - [ ] `common/payloads/README.md`
+- [ ] `common/docs/architecture/12_prompts.md`
+- [ ] `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- [ ] `common/docs/architecture/15_interface_matrix.md`
 - [ ] `common/docs/architecture/16_system_architecture_figure.md`
 - [ ] `common/docs/architecture/17_payload_contract_and_registry.md`
 - [ ] `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
-- [ ] `common/docs/architecture/12_prompts.md`
 
 ### Optional or version-sensitive companion assets
 - [ ] output profile assets
@@ -59,6 +64,7 @@ Current communication and payload references:
 - `common/policies/` and `common/schemas/` remain the policy and validation authority.
 - `common/mqtt/` defines communication-contract references.
 - `common/payloads/` provides payload examples/templates.
+- `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference.
 - MQTT contracts and payload examples must not override canonical policies or schemas.
 
 ---
@@ -79,6 +85,8 @@ Current communication and payload references:
 - [ ] Finalize MQTT topic registry draft
 - [ ] Finalize publisher/subscriber matrix draft
 - [ ] Finalize topic-to-payload contract references
+- [ ] Finalize MQTT-aware interface matrix
+- [ ] Ensure topic registry, publisher/subscriber matrix, topic-payload contracts, and interface matrix remain aligned
 - [ ] Finalize shared payload examples/templates
 - [ ] Finalize optional or version-sensitive companion asset constraints where used
 - [ ] Mark `common/mqtt/` and `common/payloads/` as reference layers, not policy/schema authority
@@ -212,7 +220,7 @@ Current communication and payload references:
 
 ---
 
-## T9. Implement Raspberry Pi Simulation, Dashboard, and Evaluation Layer
+## T9. Implement Raspberry Pi Simulation, Dashboard, Governance, and Evaluation Layer
 
 - [ ] Create virtual context nodes
 - [ ] Create virtual `doorbell_detected` visitor-response context runtime
@@ -221,7 +229,16 @@ Current communication and payload references:
 - [ ] Create policy-driven deterministic fault cases
 - [ ] Create randomized stress injection
 - [ ] Create experiment and monitoring dashboard
-- [ ] Create MQTT/payload governance inspector or dashboard
+- [ ] Create MQTT/payload governance backend service
+- [ ] Create governance dashboard UI as a presentation layer
+- [ ] Create topic/payload contract validation utility
+- [ ] Create payload example manager / validator
+- [ ] Create publisher/subscriber role manager
+- [ ] Configure governance backend API endpoint for UI use
+- [ ] Verify governance dashboard UI cannot directly edit registry files
+- [ ] Verify governance dashboard UI cannot directly publish operational control topics
+- [ ] Verify governance backend cannot directly modify canonical policies/schemas
+- [ ] Verify governance tooling cannot publish actuator or doorlock commands
 - [ ] Implement progress/status publication
 - [ ] Implement result artifact export
 - [ ] Prepare repeatable large-scale evaluation scenarios
@@ -338,7 +355,7 @@ Current communication and payload references:
 
 ---
 
-## T13. Verify MQTT Connectivity, Contract Consistency, and Isolation
+## T13. Verify MQTT Connectivity, Contract Consistency, Drift, and Isolation
 
 - [ ] Ensure Mosquitto is LAN-reachable for Raspberry Pi 5
 - [ ] Ensure Mosquitto is LAN-reachable for ESP32 embedded clients when used
@@ -347,8 +364,11 @@ Current communication and payload references:
 - [ ] Verify MQTT topic registry readability
 - [ ] Verify publisher/subscriber matrix consistency
 - [ ] Verify topic-to-payload contract references
+- [ ] Verify MQTT-facing behavior remains aligned with `common/docs/architecture/15_interface_matrix.md`
 - [ ] Verify payload examples validate against schemas where applicable
 - [ ] Verify runtime apps do not hardcode topic strings where registry lookup is practical
+- [ ] Verify topic/payload hardcoding drift checks pass where implemented
+- [ ] Verify governance dashboard UI and governance backend service remain separated
 - [ ] Verify dashboard/governance topics are non-authoritative
 
 ### Repository focus
@@ -373,11 +393,17 @@ Current communication and payload references:
 - [ ] Verify closed-loop audit behavior under injected faults
 - [ ] Verify canonical policy/fault/schema consistency tests pass
 - [ ] Verify MQTT/payload contract consistency
+- [ ] Verify MQTT-facing behavior remains aligned with `common/docs/architecture/15_interface_matrix.md`
+- [ ] Verify topic/payload hardcoding drift checks pass where implemented
 - [ ] Verify `doorbell_detected` required field in valid context payloads
 - [ ] Verify `doorbell_detected` is not an emergency trigger
 - [ ] Verify `doorbell_detected` does not authorize autonomous doorlock control
 - [ ] Verify doorlock state is absent from current `pure_context_payload.device_states`
 - [ ] Verify dashboard/governance inspector is non-authoritative
+- [ ] Verify governance dashboard UI cannot directly edit registry files
+- [ ] Verify governance backend does not directly modify policies/schemas
+- [ ] Verify governance tooling cannot publish actuator or doorlock commands
+- [ ] Verify governance backend/UI separation
 - [ ] Verify synchronized runtime copies remain version-consistent with the canonical frozen baseline
 - [ ] Verify ESP-IDF CLI and sample build readiness on supported ESP32 host environments
 - [ ] Verify ESP32-linked bounded physical input/output behavior through integration tests when used
@@ -399,8 +425,9 @@ Current communication and payload references:
 - [ ] Shared frozen assets in `common/` must remain the single source of truth according to authority level
 - [ ] `common/policies/` and `common/schemas/` remain policy and validation authority
 - [ ] `common/mqtt/` and `common/payloads/` are reference layers, not policy authority
+- [ ] `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - [ ] Mac mini remains the operational hub
-- [ ] Raspberry Pi 5 remains the dashboard, multi-node simulation, fault-injection, replay, and evaluation node
+- [ ] Raspberry Pi 5 remains the dashboard, multi-node simulation, fault-injection, replay, non-authoritative MQTT/payload governance support, and evaluation node
 - [ ] ESP32 remains the embedded physical node layer for bounded input, sensing, visitor-response context generation, or actuator/warning interfacing within the applicable scope
 - [ ] ESP32 bring-up must be reproducible across supported host environments before real node firmware generation proceeds
 - [ ] Optional timing infrastructure remains evaluation-only and separate from the operational decision path
@@ -410,4 +437,7 @@ Current communication and payload references:
 - [ ] Runtime apps, dashboard apps, and experiment tools should not hardcode MQTT topic strings or payload contracts where registry lookup is practical
 - [ ] Payload boundaries must follow `common/docs/architecture/17_payload_contract_and_registry.md`
 - [ ] Dashboard and governance tools must remain non-authoritative
+- [ ] Governance dashboard UI is a presentation and interaction layer
+- [ ] MQTT/payload governance backend is a draft/validate/export service
+- [ ] Neither governance UI nor governance backend may create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority
 - [ ] Deployment-local runtime files and synchronized copies must not override canonical frozen policy truth
