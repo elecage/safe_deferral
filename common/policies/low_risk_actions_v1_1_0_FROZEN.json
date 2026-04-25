@@ -9,7 +9,7 @@
   ],
   "policy_notes": {
     "authoritative_scope_note": "This file is the authoritative low-risk action source for policy routing summaries, deterministic validation, and bounded caregiver confirmation support.",
-    "caregiver_confirmation_boundary": "Caregiver confirmation support must not authorize actions outside this catalog.",
+    "caregiver_confirmation_boundary": "Caregiver confirmation support for Class 1 low-risk assistance must not authorize actions outside this catalog. Sensitive actuation approval, if implemented, must be governed by a separate explicit policy and manual confirmation path.",
     "context_schema_alignment_note": "Allowed target devices should remain aligned with the current device_states schema used by the operational context contract."
   },
   "allowed_actions_taxonomy": [
