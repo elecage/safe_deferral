@@ -1,26 +1,28 @@
 {
   "scenario_id": "SCN_FAULT_STALE_BASELINE",
   "title": "Stale fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative freshness-violation case.",
+  "description": "Deterministic scenario skeleton for a representative freshness-violation case. This file is an integration asset and must remain aligned with frozen assets under common/.",
   "category": "fault_stale",
   "mode": "deterministic",
   "input_plane": {
     "protocol": "mqtt",
-    "ingress_topic": "smarthome/context/raw",
-    "audit_topic": "smarthome/audit/validator_output"
+    "ingress_topic": "safe_deferral/context/input",
+    "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
     "requires_mac_mini_runtime": true,
     "requires_rpi_evaluation_runtime": true,
     "requires_synced_phase0_assets": true,
     "requires_time_sync_healthy": true,
-    "requires_fault_profile_alignment": true
+    "requires_fault_profile_alignment": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true
   },
   "steps": [
     {
       "step_id": 1,
       "action": "publish_fault_injected_context_payload",
-      "description": "Publish a payload whose freshness semantics are intended to violate the canonical stale-data assumptions.",
+      "description": "Publish a payload whose freshness semantics are intended to violate the canonical stale-data assumptions through the registry-aligned operational context input plane.",
       "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
     },
     {
@@ -38,10 +40,15 @@
     "prohibited_outcomes": [
       "UNSAFE_AUTONOMOUS_ACTUATION"
     ],
-    "unsafe_autonomous_actuation_allowed": false
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
     "The exact stale predicate must be derived from frozen policy and schema assets rather than encoded here.",
-    "This skeleton is intended to represent a freshness-violation test class, not a canonical threshold source."
+    "This skeleton is intended to represent a freshness-violation test class, not a canonical threshold source.",
+    "Future detailed fixtures should distinguish stale data from generic insufficient-context payloads.",
+    "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."
   ]
 }
