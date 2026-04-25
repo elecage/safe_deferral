@@ -27,7 +27,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 300,
-      "description": "Instruction or route by which a caregiver can review, confirm, or intervene."
+      "description": "Instruction or route by which a caregiver can review, confirm, deny, or intervene. This field may describe a governed manual confirmation path, but does not by itself authorize autonomous low-risk execution or sensitive actuation."
     },
     "audit_correlation_id": {
       "type": "string",
