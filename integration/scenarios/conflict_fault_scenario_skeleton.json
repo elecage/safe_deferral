@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_FAULT_CONFLICT_BASELINE",
   "title": "Conflict fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative context-conflict case where multiple bounded candidates may remain simultaneously admissible. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative context-conflict case where multiple bounded candidates may remain simultaneously admissible. This file is an integration asset and must remain aligned with frozen assets under common/. Conflict fault is distinct from insufficient context: information exists, but multiple candidates remain plausible and must not be selected arbitrarily.",
   "category": "fault_conflict",
   "mode": "deterministic",
   "input_plane": {
@@ -16,7 +16,10 @@
     "requires_time_sync_healthy": true,
     "requires_fault_profile_alignment": true,
     "requires_mqtt_registry_alignment": true,
-    "requires_policy_schema_alignment": true
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true
   },
   "steps": [
     {
@@ -27,28 +30,72 @@
     },
     {
       "step_id": 2,
+      "action": "detect_candidate_conflict",
+      "description": "Detect that more than one bounded candidate remains plausible. The system must not choose one candidate arbitrarily or dispatch an actuator command before confirmation."
+    },
+    {
+      "step_id": 3,
+      "action": "present_conflict_candidates_or_safe_deferral",
+      "description": "Present bounded conflict-resolution candidates to the user/caregiver when appropriate, or move to safe deferral / caregiver confirmation if the conflict cannot be resolved safely.",
+      "candidate_choices": [
+        {
+          "candidate_id": "CF1_LIVING_ROOM_LIGHT",
+          "user_prompt": "거실 조명을 켤까요?",
+          "candidate_transition_target": "CLASS_1",
+          "requires_user_or_caregiver_confirmation": true
+        },
+        {
+          "candidate_id": "CF2_BEDROOM_LIGHT",
+          "user_prompt": "침실 조명을 켤까요?",
+          "candidate_transition_target": "CLASS_1",
+          "requires_user_or_caregiver_confirmation": true
+        },
+        {
+          "candidate_id": "CF3_CANCEL_OR_WAIT",
+          "user_prompt": "취소하고 대기할까요?",
+          "candidate_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+          "requires_user_or_caregiver_confirmation": true
+        }
+      ]
+    },
+    {
+      "step_id": 4,
       "action": "observe_audit_stream",
-      "description": "Observe the verification-safe audit stream and capture the conservative conflict-handling outcome.",
-      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+      "description": "Observe the verification-safe audit stream and capture the conservative conflict-handling outcome, including the conflict cause, candidate set, confirmation requirement, and final safe outcome.",
+      "expected_fixture": "integration/tests/data/expected_fault_conflict_safe_deferral.json"
     }
   ],
+  "fault_handling": {
+    "fault_type": "conflict_fault",
+    "class2_like_flow_allowed": true,
+    "fault_cause_must_remain_auditable": true,
+    "conflict_resolution_requires_confirmation": true,
+    "unsafe_arbitrary_candidate_selection_allowed": false
+  },
   "expected_outcomes": {
     "allowed_safe_outcomes": [
       "SAFE_DEFERRAL",
-      "CLASS_2"
+      "CLASS_2",
+      "CAREGIVER_CONFIRMATION"
     ],
     "prohibited_outcomes": [
-      "UNSAFE_AUTONOMOUS_ACTUATION"
+      "UNSAFE_AUTONOMOUS_ACTUATION",
+      "ARBITRARY_CANDIDATE_SELECTION"
     ],
     "llm_decision_invocation_allowed": false,
     "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
     "The exact conflict predicate must be derived dynamically from frozen policy and validator constraints rather than hardcoded here.",
-    "This skeleton is intended to exercise conservative resolution under ambiguity.",
+    "This skeleton is intended to exercise conservative resolution under ambiguity while preserving the conflict fault cause in audit records.",
     "This scenario now uses a conflict-specific fixture instead of a generic Class 1 fixture.",
+    "Conflict fault is distinct from Class 2 insufficient context: the issue is not simply absence of information but simultaneous plausibility of multiple candidates.",
+    "Class 2-like clarification may be used to resolve the conflict, but candidate prompt text must not be treated as validator output or actuator authority.",
+    "If the conflict cannot be resolved with user/caregiver confirmation, the safe outcome is safe deferral or caregiver confirmation.",
     "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog when conflict is resolved safely."
   ]
 }
