@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 50_verify_env_and_assets.sh
-# Purpose: Verify essential environment variables and deployed canonical runtime assets
+# Purpose: Verify essential environment variables and deployed runtime assets
 # ==============================================================================
 set -euo pipefail
 
@@ -35,6 +35,8 @@ REQUIRED_VARS=(
     "SQLITE_PATH"
     "POLICY_DIR"
     "SCHEMA_DIR"
+    "MQTT_REGISTRY_DIR"
+    "PAYLOAD_EXAMPLES_DIR"
 )
 
 MISSING_VARS=0
@@ -53,19 +55,20 @@ echo "  [OK] All essential environment variables are properly set."
 
 POLICY_DIR="${POLICY_DIR:-${WORKSPACE_DIR}/docker/volumes/app/config/policies}"
 SCHEMA_DIR="${SCHEMA_DIR:-${WORKSPACE_DIR}/docker/volumes/app/config/schemas}"
+MQTT_REGISTRY_DIR="${MQTT_REGISTRY_DIR:-${WORKSPACE_DIR}/docker/volumes/app/config/mqtt}"
+PAYLOAD_EXAMPLES_DIR="${PAYLOAD_EXAMPLES_DIR:-${WORKSPACE_DIR}/docker/volumes/app/config/payloads}"
 
 echo "  [INFO] Policy runtime directory: ${POLICY_DIR}"
 echo "  [INFO] Schema runtime directory: ${SCHEMA_DIR}"
+echo "  [INFO] MQTT reference runtime directory: ${MQTT_REGISTRY_DIR}"
+echo "  [INFO] Payload reference runtime directory: ${PAYLOAD_EXAMPLES_DIR}"
 
-if [ ! -d "${POLICY_DIR}" ]; then
-    echo "  [FATAL] Policy directory not found at ${POLICY_DIR}."
-    exit 1
-fi
-
-if [ ! -d "${SCHEMA_DIR}" ]; then
-    echo "  [FATAL] Schema directory not found at ${SCHEMA_DIR}."
-    exit 1
-fi
+for runtime_dir in "${POLICY_DIR}" "${SCHEMA_DIR}" "${MQTT_REGISTRY_DIR}" "${PAYLOAD_EXAMPLES_DIR}"; do
+    if [ ! -d "${runtime_dir}" ]; then
+        echo "  [FATAL] Runtime directory not found: ${runtime_dir}"
+        exit 1
+    fi
+done
 
 echo "  [INFO] Checking deployed runtime policy assets..."
 REQUIRED_POLICY_ASSETS=(
@@ -84,6 +87,8 @@ for asset in "${REQUIRED_POLICY_ASSETS[@]}"; do
     elif ! jq empty "${target_file}" >/dev/null 2>&1; then
         echo "  [FATAL] Invalid JSON format detected in policy asset: ${asset}"
         MISSING_POLICY_ASSETS=1
+    else
+        echo "  [OK] Policy asset present and valid: ${asset}"
     fi
 done
 
@@ -105,14 +110,99 @@ for asset in "${REQUIRED_SCHEMA_ASSETS[@]}"; do
     elif ! jq empty "${target_file}" >/dev/null 2>&1; then
         echo "  [FATAL] Invalid JSON format detected in schema asset: ${asset}"
         MISSING_SCHEMA_ASSETS=1
+    else
+        echo "  [OK] Schema asset present and valid: ${asset}"
     fi
 done
 
-if [ "${MISSING_POLICY_ASSETS}" -ne 0 ] || [ "${MISSING_SCHEMA_ASSETS}" -ne 0 ]; then
-    echo "  [FATAL] One or more canonical runtime assets are missing or corrupted."
+echo "  [INFO] Checking deployed MQTT reference assets..."
+REQUIRED_MQTT_ASSETS=(
+    "README.md"
+    "topic_registry_v1_0_0.json"
+    "publisher_subscriber_matrix_v1_0_0.md"
+    "topic_payload_contracts_v1_0_0.md"
+)
+
+MISSING_MQTT_ASSETS=0
+for asset in "${REQUIRED_MQTT_ASSETS[@]}"; do
+    target_file="${MQTT_REGISTRY_DIR}/${asset}"
+    if [ ! -f "${target_file}" ]; then
+        echo "  [FATAL] MQTT reference asset missing: ${asset}"
+        MISSING_MQTT_ASSETS=1
+    elif [[ "${asset}" == *.json ]] && ! jq empty "${target_file}" >/dev/null 2>&1; then
+        echo "  [FATAL] Invalid JSON format detected in MQTT reference asset: ${asset}"
+        MISSING_MQTT_ASSETS=1
+    else
+        echo "  [OK] MQTT reference asset present: ${asset}"
+    fi
+done
+
+echo "  [INFO] Checking deployed payload reference assets..."
+REQUIRED_PAYLOAD_ASSETS=(
+    "README.md"
+    "examples/policy_router_input_non_visitor.json"
+    "examples/policy_router_input_visitor_doorbell.json"
+    "examples/policy_router_input_emergency_temperature.json"
+    "examples/candidate_action_light_on.json"
+    "examples/validator_output_execute_approved_light.json"
+    "examples/class_2_notification_doorlock_sensitive.json"
+    "templates/scenario_fixture_template.json"
+)
+
+MISSING_PAYLOAD_ASSETS=0
+for asset in "${REQUIRED_PAYLOAD_ASSETS[@]}"; do
+    target_file="${PAYLOAD_EXAMPLES_DIR}/${asset}"
+    if [ ! -f "${target_file}" ]; then
+        echo "  [FATAL] Payload reference asset missing: ${asset}"
+        MISSING_PAYLOAD_ASSETS=1
+    elif [[ "${asset}" == *.json ]] && ! jq empty "${target_file}" >/dev/null 2>&1; then
+        echo "  [FATAL] Invalid JSON format detected in payload reference asset: ${asset}"
+        MISSING_PAYLOAD_ASSETS=1
+    else
+        echo "  [OK] Payload reference asset present: ${asset}"
+    fi
+done
+
+if [ "${MISSING_POLICY_ASSETS}" -ne 0 ] || \
+   [ "${MISSING_SCHEMA_ASSETS}" -ne 0 ] || \
+   [ "${MISSING_MQTT_ASSETS}" -ne 0 ] || \
+   [ "${MISSING_PAYLOAD_ASSETS}" -ne 0 ]; then
+    echo "  [FATAL] One or more runtime assets are missing or corrupted."
     echo "          Please ensure the deployment script completed successfully."
     exit 1
 fi
 
-echo "  [OK] All required runtime policy and schema assets are present and valid."
+TOPIC_REGISTRY_FILE="${MQTT_REGISTRY_DIR}/topic_registry_v1_0_0.json"
+echo "  [INFO] Checking topic registry referenced example payload files..."
+
+MISSING_REFERENCED_EXAMPLES=0
+while IFS= read -r example_path; do
+    [ -z "${example_path}" ] && continue
+
+    case "${example_path}" in
+        common/payloads/*)
+            relative_payload_path="${example_path#common/payloads/}"
+            runtime_example_file="${PAYLOAD_EXAMPLES_DIR}/${relative_payload_path}"
+            ;;
+        *)
+            echo "  [WARN] Example path does not use common/payloads prefix: ${example_path}"
+            continue
+            ;;
+    esac
+
+    if [ ! -f "${runtime_example_file}" ]; then
+        echo "  [FATAL] Topic registry references missing payload example: ${example_path}"
+        echo "          Expected runtime file: ${runtime_example_file}"
+        MISSING_REFERENCED_EXAMPLES=1
+    else
+        echo "  [OK] Topic registry referenced example exists: ${example_path}"
+    fi
+done < <(jq -r '.topics[] | select(.example_payload != null) | .example_payload' "${TOPIC_REGISTRY_FILE}")
+
+if [ "${MISSING_REFERENCED_EXAMPLES}" -ne 0 ]; then
+    echo "  [FATAL] Topic registry example-payload reference check failed."
+    exit 1
+fi
+
+echo "  [OK] All required runtime policy, schema, MQTT, and payload reference assets are present and valid."
 echo "==> [PASS] Environment and runtime assets verification successful."
