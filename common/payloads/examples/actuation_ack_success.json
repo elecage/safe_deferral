@@ -1,0 +1,10 @@
+{
+  "ack_id": "example-ack-success-001",
+  "command_id": "example-actuation-light-on-001",
+  "target_device": "living_room_light",
+  "ack_status": "success",
+  "observed_state": "on",
+  "timestamp_ms": 1710000000500,
+  "audit_correlation_id": "example-light-on-001",
+  "authority_note": "ACK is closed-loop evidence and is not pure context input."
+}
