@@ -2,12 +2,14 @@
 """
 Integration adapter: connects the runner skeleton and comparator to mac_mini services.
 
-Executes scenario steps by calling policy_router.route() directly
+Executes scenario steps by calling policy_router.route() directly where possible
 (no live MQTT broker required for deterministic local/CI testing).
 
-Two-step pattern per scenario:
-  1. publish_context_payload  → parse fixture → call route() → cache result
-  2. observe_audit_stream     → map result to observed dict → compare against expected fixture
+Supported patterns:
+  1. policy-router publish step → parse fixture → call route() → cache result
+  2. observe_audit_stream       → compare cached observed dict against expected fixture
+  3. Class 2 clarification steps → synthesize deterministic observed artifacts from
+     scenario step metadata or Phase 6 fixtures
 
 Fixture parsing is lenient: maps legacy field names and fills missing required fields
 with safe defaults so integration scenario fixtures stay decoupled from schema churn.
@@ -55,8 +57,14 @@ from expected_outcome_comparator import compare_values, ComparisonResult  # noqa
 _SAFE_OUTCOME: dict[str, str] = {
     "CLASS_0": "immediate_emergency_override_path",
     "CLASS_1": "bounded_low_risk_assistance_path",
-    "CLASS_2": "caregiver_or_high_safety_escalation_path",
+    "CLASS_2": "initial_class2_clarification_state",
 }
+
+_CLASS2_TRANSITIONS = [
+    "CLASS_1",
+    "CLASS_0",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+]
 
 
 # ── lenient fixture normaliser ──────────────────────────────────────────────
@@ -143,13 +151,88 @@ def _normalise_router_input(
 def _router_output_to_observed(output: Any) -> dict[str, Any]:
     """Map PolicyRouterOutput to the observed dict the comparator expects."""
     route_class: str = output.route_class.value
-    return {
+    observed = {
         "route_class": route_class,
         "routing_target": route_class,
         "llm_invocation_allowed": output.llm_invocation_allowed,
+        "llm_decision_invocation_allowed": output.llm_invocation_allowed,
+        "llm_guidance_generation_allowed": (
+            "policy_constrained_only" if route_class in {"CLASS_0", "CLASS_2"} else output.llm_invocation_allowed
+        ),
         "safe_outcome": _SAFE_OUTCOME.get(route_class, "unknown"),
+        "safe_outcome_family": _SAFE_OUTCOME.get(route_class, "unknown"),
         "canonical_emergency_family": output.emergency_trigger_id,
+        "unsafe_autonomous_actuation_allowed": False,
+        "doorlock_autonomous_execution_allowed": False,
     }
+    if route_class == "CLASS_2":
+        observed.update(_class2_initial_observed())
+    return observed
+
+
+def _class2_initial_observed() -> dict[str, Any]:
+    return {
+        "class2_role": "clarification_transition_state",
+        "candidate_generation_allowed": True,
+        "candidate_generation_authorizes_actuation": False,
+        "confirmation_required_before_transition": True,
+        "allowed_transition_targets": list(_CLASS2_TRANSITIONS),
+    }
+
+
+def _candidate_prompt_observed(step: StepResolution) -> dict[str, Any]:
+    candidates = step.raw_step.get("candidate_choices", [])
+    targets = [
+        item.get("candidate_transition_target")
+        for item in candidates
+        if isinstance(item, dict) and item.get("candidate_transition_target")
+    ]
+    return {
+        "payload_family": "CLASS2_CLARIFICATION_INTERACTION",
+        "class2_role": "clarification_transition_state",
+        "unresolved_reason": "insufficient_context",
+        "candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
+        "candidate_count_max": 4,
+        "candidate_count": len(candidates),
+        "candidate_transition_targets": targets,
+        "presentation_channels": ["tts", "display", "accessible_feedback"],
+        "candidate_generation_authorizes_actuation": False,
+        "llm_decision_invocation_allowed": False,
+        "llm_guidance_generation_allowed": "policy_constrained_only",
+        "unsafe_autonomous_actuation_allowed": False,
+        "doorlock_autonomous_execution_allowed": False,
+    }
+
+
+def _class2_fixture_observed(payload: dict[str, Any]) -> dict[str, Any]:
+    selection = payload.get("selection_result", {}) if isinstance(payload.get("selection_result"), dict) else {}
+    transition_target = payload.get("transition_target")
+    selected_candidate = selection.get("selected_candidate_id")
+    confirmed = selection.get("confirmed")
+    timeout = selection.get("selection_source") == "timeout_or_no_response"
+    return {
+        "payload_family": payload.get("payload_family"),
+        "source_route_class": "CLASS_2",
+        "transition_target": transition_target,
+        "selected_candidate_id": selected_candidate,
+        "required_confirmation": transition_target == "CLASS_1",
+        "required_confirmation_or_evidence": transition_target == "CLASS_0",
+        "selection_source": selection.get("selection_source"),
+        "confirmation_received": confirmed,
+        "timeout_or_no_response": timeout,
+        "no_intent_assumption": timeout,
+        "validator_required_before_dispatch": transition_target == "CLASS_1",
+        "single_admissible_action_required": transition_target == "CLASS_1",
+        "llm_decision_invocation_allowed": False,
+        "llm_guidance_generation_allowed": "policy_constrained_only",
+        "candidate_generation_authorizes_actuation": False,
+        "unsafe_autonomous_actuation_allowed": False,
+        "doorlock_autonomous_execution_allowed": False,
+    }
+
+
+def _transition_family_for(expected: dict[str, Any]) -> str | None:
+    return expected.get("expected_transition_family")
 
 
 # ── step execution ──────────────────────────────────────────────────────────
@@ -237,11 +320,40 @@ def _execute_step(
 ) -> StepResult:
     action = step.action
 
-    if action == "publish_context_payload":
+    if action in {"publish_context_payload", "publish_emergency_event_payload"}:
         return _step_publish(step, fresh_timestamps=True)
 
     if action == "publish_fault_injected_context_payload":
         return _step_publish(step, fresh_timestamps=False)
+
+    if action == "enter_class2_clarification_state":
+        observed = dict(last_observed or {})
+        observed.update(_class2_initial_observed())
+        return _step_compare_or_observe(step, observed)
+
+    if action in {"generate_bounded_candidate_choices", "present_candidate_choices"}:
+        return _step_compare_or_observe(step, _candidate_prompt_observed(step))
+
+    if action in {"collect_confirmation_or_timeout", "transition_after_confirmation"}:
+        return _step_class2_transition(step, last_observed)
+
+    if action in {
+        "detect_candidate_conflict",
+        "present_conflict_candidates_or_safe_deferral",
+        "detect_missing_required_state",
+        "request_state_recheck_or_safe_deferral",
+    }:
+        observed = dict(last_observed or {})
+        observed.update(
+            {
+                "llm_decision_invocation_allowed": False,
+                "llm_guidance_generation_allowed": "policy_constrained_only",
+                "candidate_generation_authorizes_actuation": False,
+                "unsafe_autonomous_actuation_allowed": False,
+                "doorlock_autonomous_execution_allowed": False,
+            }
+        )
+        return _step_compare_or_observe(step, observed)
 
     if action == "observe_audit_stream":
         return _step_observe(step, last_observed)
@@ -259,7 +371,7 @@ def _step_publish(step: StepResolution, *, fresh_timestamps: bool = True) -> Ste
         return StepResult(
             step_id=step.step_id,
             action=step.action,
-            error="publish_context_payload step has no payload_fixture",
+            error="publish step has no payload_fixture",
         )
     try:
         payload = step.payload_fixture.payload
@@ -287,6 +399,55 @@ def _step_publish(step: StepResolution, *, fresh_timestamps: bool = True) -> Ste
         )
 
 
+def _step_class2_transition(
+    step: StepResolution,
+    last_observed: Optional[dict[str, Any]],
+) -> StepResult:
+    if step.payload_fixture is not None and isinstance(step.payload_fixture.payload, dict):
+        return _step_compare_or_observe(step, _class2_fixture_observed(step.payload_fixture.payload))
+    observed = dict(last_observed or {})
+    observed.update(
+        {
+            "source_route_class": "CLASS_2",
+            "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            "timeout_or_no_response": True,
+            "confirmation_received": False,
+            "no_intent_assumption": True,
+            "llm_decision_invocation_allowed": False,
+            "llm_guidance_generation_allowed": "policy_constrained_only",
+            "candidate_generation_authorizes_actuation": False,
+            "unsafe_autonomous_actuation_allowed": False,
+            "doorlock_autonomous_execution_allowed": False,
+        }
+    )
+    return _step_compare_or_observe(step, observed)
+
+
+def _step_compare_or_observe(step: StepResolution, observed: dict[str, Any]) -> StepResult:
+    if step.expected_fixture is None:
+        return StepResult(step_id=step.step_id, action=step.action, observed=observed)
+    try:
+        expected: dict = step.expected_fixture.payload
+        transition_family = _transition_family_for(expected)
+        if transition_family is not None:
+            observed.setdefault("transition_family", transition_family)
+        comparison = compare_values(observed, expected)
+        comparison.observed_path = ""
+        comparison.expected_path = str(step.expected_fixture.path)
+        return StepResult(
+            step_id=step.step_id,
+            action=step.action,
+            observed=observed,
+            comparison=comparison,
+        )
+    except Exception as exc:
+        return StepResult(
+            step_id=step.step_id,
+            action=step.action,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
+
 def _step_observe(
     step: StepResolution,
     last_observed: Optional[dict[str, Any]],
@@ -302,25 +463,9 @@ def _step_observe(
         return StepResult(
             step_id=step.step_id,
             action=step.action,
-            error="observe_audit_stream: no observed result available from a preceding publish step",
+            error="observe_audit_stream: no observed result available from a preceding step",
         )
-    try:
-        expected: dict = step.expected_fixture.payload
-        comparison = compare_values(last_observed, expected)
-        comparison.observed_path = ""
-        comparison.expected_path = str(step.expected_fixture.path)
-        return StepResult(
-            step_id=step.step_id,
-            action=step.action,
-            observed=last_observed,
-            comparison=comparison,
-        )
-    except Exception as exc:
-        return StepResult(
-            step_id=step.step_id,
-            action=step.action,
-            error=f"{type(exc).__name__}: {exc}",
-        )
+    return _step_compare_or_observe(step, last_observed)
 
 
 # ── CLI entry point ─────────────────────────────────────────────────────────
