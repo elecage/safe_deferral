@@ -18,14 +18,15 @@ If older wording in the legacy master handoff conflicts with newer dated addenda
 
 For current architecture, policy/schema, dashboard, experiment, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, and architecture-document-structure work, read in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
-2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
-3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
-4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
-5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
-6. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
-7. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
-8. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_MQTT_PAYLOAD_ALIGNMENT_UPDATE.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MQTT_PAYLOAD_GOVERNANCE_AND_ARCH_DOC_ALIGNMENT_UPDATE.md`
+3. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_ARCHITECTURE_DOC_CONSOLIDATION_AND_PAYLOAD_REGISTRY_UPDATE.md`
+4. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOORBELL_VISITOR_CONTEXT_UPDATE.md`
+5. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_DOC_ALIGNMENT_UPDATE.md`
+6. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_POLICY_SCHEMA_ALIGNMENT_UPDATE.md`
+7. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_DASHBOARD_TEST_APP_AND_ORCHESTRATION_UPDATE.md`
+8. `common/docs/runtime/SESSION_HANDOFF_2026-04-24_PROMPT_REFACTOR_AND_EVAL_UPDATE.md`
+9. `common/docs/runtime/SESSION_HANDOFF_2026-04-25_MASTER_LEGACY_HANDOFF.md`
 
 Use the legacy handoff as historical context and operational history, not as the final authority when it conflicts with newer addenda.
 
