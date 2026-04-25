@@ -1,0 +1,75 @@
+# publisher_subscriber_matrix_v1_0_0.md
+
+## MQTT Publisher / Subscriber Matrix
+
+Status: **DRAFT**
+
+This document summarizes the initial MQTT publisher/subscriber relationships for the `safe_deferral` project.
+
+The machine-readable source is:
+
+- `common/mqtt/topic_registry_v1_0_0.json`
+
+This matrix is for review, implementation planning, and debugging.
+It does not override policy or schema assets.
+
+---
+
+## Matrix
+
+| Topic | Publishers | Subscribers | Payload family | Authority level | Notes |
+|---|---|---|---|---|---|
+| `safe_deferral/context/input` | `mac_mini.context_aggregator`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input` | operational input | Must include `environmental_context.doorbell_detected` |
+| `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | emergency operational input | Must align with E001~E005; doorbell is not emergency |
+| `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | model candidate, not authority | Door unlock is disallowed as current Class 1 candidate |
+| `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional RPi dashboard bridge | `validator_output` | validator decision | Executable payload must stay within low-risk catalog |
+| `safe_deferral/deferral/request` | validator, safe deferral handler | safe deferral handler, audit observer, optional RPi dashboard bridge | `safe_deferral_event` | bounded deferral control | Future schema recommended |
+| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | caregiver escalation | Manual confirmation path is not autonomous execution authority |
+| `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test app mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | governed manual path | Future schema recommended |
+| `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | dispatch after approval | Doorlock requires governed manual confirmation path |
+| `safe_deferral/actuation/ack` | ESP32 actuator node, controlled RPi mock actuator | Mac mini ACK handler, audit observer, dashboard bridge | `actuation_ack_payload` | closed-loop evidence | ACK is not pure context input |
+| `safe_deferral/audit/log` | Mac mini operational services | Mac mini audit logging service | `audit_event_payload` | evidence / traceability | Audit service should be single DB writer |
+| `safe_deferral/sim/context` | RPi simulation runtime | controlled input bridge, RPi orchestrator, RPi dashboard | `policy_router_input_or_context_fixture` | experiment input | Experiment mode only |
+| `safe_deferral/fault/injection` | RPi fault injector, RPi orchestrator | RPi simulation runtime, fault injector, optional controlled input bridge | `fault_injection_payload` | experiment fault control | Must derive constraints from frozen assets |
+| `safe_deferral/dashboard/observation` | RPi orchestrator, dashboard backend, optional Mac mini telemetry bridge | RPi dashboard frontend, optional test app | `dashboard_observation_payload` | visibility, not policy | Retained observation status allowed |
+| `safe_deferral/experiment/progress` | RPi orchestrator, integration test runner | RPi dashboard frontend, result exporter | `experiment_progress_payload` | experiment status | Future schema recommended |
+| `safe_deferral/experiment/result` | RPi orchestrator, integration test runner, result exporter | RPi dashboard frontend, optional paper analysis tools | `result_export_payload` | experiment artifact | Trace to scenario/run IDs |
+
+---
+
+## Review checklist
+
+Before implementing a topic, confirm:
+
+1. Is the publisher allowed for this topic?
+2. Is the subscriber allowed for this topic?
+3. Is the payload family correct?
+4. Does the payload have a formal schema?
+5. If schema-governed, does it validate against `common/schemas/`?
+6. Does the topic accidentally give authority to dashboard/test/simulation components?
+7. Does the topic accidentally allow doorlock control through Class 1?
+8. Does the topic preserve audit/ACK expectations?
+
+---
+
+## Dashboard / web-app implication
+
+A future MQTT/payload dashboard may render this matrix as a live governance view.
+
+Recommended dashboard capabilities:
+
+- show topic contract rows,
+- show allowed publishers/subscribers,
+- validate example payloads,
+- flag unauthorized topic traffic,
+- flag payload/schema drift,
+- show retained dashboard observation state,
+- export communication coverage reports.
+
+Forbidden dashboard behavior:
+
+- direct policy modification,
+- direct validator override,
+- direct doorlock command dispatch,
+- direct caregiver approval spoofing outside controlled test mode,
+- treating observation payloads as policy truth.
