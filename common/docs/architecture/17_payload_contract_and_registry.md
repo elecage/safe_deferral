@@ -10,8 +10,13 @@ The goal is to prevent drift between:
 
 - policy/schema assets,
 - runtime payloads,
+- MQTT topic-payload contracts,
+- publisher/subscriber role assumptions,
 - scenario fixtures,
 - dashboard/test-app payloads,
+- governance validation reports,
+- interface-matrix alignment checks,
+- topic/payload hardcoding drift reports,
 - audit artifacts,
 - and paper experiment descriptions.
 
@@ -21,6 +26,18 @@ Authoritative policy/schema truth remains in:
 
 - `common/policies/`
 - `common/schemas/`
+
+This document should be read together with:
+
+- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/14_system_components_outline_v2.md`
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
 
 ---
 
@@ -45,6 +62,10 @@ Examples:
 - scenario fixture payload
 - dashboard observation payload
 - experiment annotation payload
+- governance change report
+- interface-matrix alignment report
+- topic-drift report
+- payload validation report
 
 These payloads must not be mixed casually.
 
@@ -84,9 +105,9 @@ Examples:
 - fault injection profile
 - output/channel guidance
 
-## 3.3 Experiment/runtime artifact payloads
+## 3.3 Experiment/runtime/governance artifact payloads
 
-These payloads are used for evaluation, dashboard visibility, auditability, or test orchestration.
+These payloads are used for evaluation, dashboard visibility, auditability, test orchestration, governance reporting, or review workflows.
 
 They may not yet have formal frozen schemas. They must remain clearly separated from canonical policy/schema truth.
 
@@ -99,8 +120,12 @@ Examples:
 - mock ACK state
 - audit summary artifact
 - result export payload
+- governance change report
+- interface-matrix alignment report
+- topic-drift report
+- payload validation report
 
-These payloads must not redefine policy truth or silently expand autonomous actuation authority.
+These payloads must not redefine policy truth, silently expand autonomous actuation authority, or become operational authorization mechanisms.
 
 ---
 
@@ -127,6 +152,10 @@ These payloads must not redefine policy truth or silently expand autonomous actu
 | Audit Event Payload | Mac mini services | Audit Logging Service | Current DB/audit service contract; future schema recommended | Runtime artifact | Single-writer audit path; not policy authority |
 | Dashboard Observation Payload | RPi dashboard / Mac mini telemetry bridge | Human/operator dashboard | Future dashboard contract recommended | Experiment/runtime artifact | Visibility only; not policy/validator/caregiver authority |
 | Result Export Payload | RPi orchestration / dashboard | Paper/evaluation analysis | Future result schema recommended | Experiment artifact | CSV/JSON summaries must trace back to canonical scenario IDs and fault IDs |
+| Governance Change Report | MQTT/payload governance backend | Maintainer / review workflow | `15_interface_matrix.md` + `common/mqtt/` + `common/payloads/` | Governance artifact | Proposed changes only; not live operational authority |
+| Interface-Matrix Alignment Report | Governance backend / verification script | Dashboard / maintainer / CI | `15_interface_matrix.md` | Governance/verification artifact | Evidence only; not operational authorization |
+| Topic-Drift Report | Governance backend / verification script | Dashboard / maintainer / CI | `common/mqtt/` + implementation scan rules | Governance/verification artifact | Detects hardcoding drift; not policy authority |
+| Payload Validation Report | Payload validator / governance backend | Dashboard / maintainer / CI | `common/schemas/` + `common/payloads/` | Governance/verification artifact | Validation evidence; not schema authority |
 
 ---
 
@@ -208,9 +237,34 @@ Rules:
 
 ---
 
-## 6. Doorbell and doorlock payload rules
+## 6. MQTT topic and payload contract rules
 
-## 6.1 Doorbell context
+MQTT topic registry entries define communication contracts, not policy authority.
+
+Topic-to-payload mappings must remain aligned with:
+
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/docs/architecture/15_interface_matrix.md`
+
+A topic entry may reference a payload family, schema path, and example payload, but this does not make the topic a policy or execution authority.
+
+Rules:
+
+1. MQTT topics are communication contracts.
+2. Publisher/subscriber roles define allowed communication roles, not policy authority.
+3. Topic-to-payload mappings must not silently expand the schema-governed payload boundary.
+4. Runtime apps, dashboard apps, governance tooling, and experiment tools should avoid hardcoded topic or payload-contract drift where registry/configuration lookup is practical.
+5. Doorlock-related topic entries must explicitly preserve manual-confirmation, ACK, audit, and dashboard-observation boundaries.
+6. Doorlock-related topic entries must not imply autonomous Class 1 door-unlock authority unless future frozen policy/schema revisions explicitly promote that behavior.
+7. Governance validation artifacts may report topic/payload issues, but they do not authorize operational execution.
+
+---
+
+## 7. Doorbell and doorlock payload rules
+
+## 7.1 Doorbell context
 
 Doorbell or visitor-arrival context must be represented as:
 
@@ -246,7 +300,7 @@ Do not invent unrelated fields such as:
 
 unless a future schema revision explicitly introduces them.
 
-## 6.2 Doorlock state
+## 7.2 Doorlock state
 
 Doorlock state must not currently be placed inside:
 
@@ -283,7 +337,7 @@ Example experiment-side representation:
 
 This is an experiment annotation, not part of the current pure context schema.
 
-## 6.3 Door unlock intent
+## 7.3 Door unlock intent
 
 Door unlock intent may appear as an **intended interpretation label** in visitor-response evaluation.
 
@@ -311,9 +365,9 @@ unless future frozen policy/schema revisions explicitly authorize it.
 
 ---
 
-## 7. Manual confirmation, ACK, and audit payload rules
+## 8. Manual confirmation, ACK, and audit payload rules
 
-## 7.1 Manual confirmation
+## 8.1 Manual confirmation
 
 Manual confirmation payloads/states are not currently part of `pure_context_payload`.
 
@@ -329,7 +383,7 @@ They may be represented in:
 
 Manual confirmation must not be confused with autonomous Class 1 validator approval.
 
-## 7.2 ACK state
+## 8.2 ACK state
 
 ACK state is closed-loop execution evidence.
 
@@ -344,7 +398,7 @@ It belongs to:
 
 ACK state must not be inserted into `pure_context_payload` as ordinary environmental or device context unless a future schema explicitly defines such behavior.
 
-## 7.3 Audit payloads
+## 8.3 Audit payloads
 
 Audit payloads are runtime records.
 
@@ -364,9 +418,9 @@ Audit records are evidence and traceability artifacts. They are not policy autho
 
 ---
 
-## 8. Scenario fixture and dashboard payload rules
+## 9. Scenario fixture and dashboard payload rules
 
-## 8.1 Scenario fixtures
+## 9.1 Scenario fixtures
 
 Scenario fixtures may contain schema-governed payload fragments, experiment annotations, expected outcomes, and result metadata.
 
@@ -380,7 +434,7 @@ Rules:
 6. Put doorlock/approval/ACK state in experiment annotation or mock state sections.
 7. Scenario fixtures are evaluation assets, not policy truth.
 
-## 8.2 Dashboard observation payloads
+## 9.2 Dashboard observation payloads
 
 Dashboard observation payloads may show:
 
@@ -405,7 +459,28 @@ Rules:
 
 ---
 
-## 9. Current formal schema coverage
+## 10. Governance payload and report rules
+
+Governance payloads and reports support MQTT/payload inspection, validation, draft editing, review, and regression prevention.
+
+Rules:
+
+1. Governance dashboard UI may display topic registry state, payload validation results, publisher/subscriber role assignments, proposed-change states, interface-matrix alignment results, topic-drift warnings, and doorbell/doorlock boundary warnings.
+2. Governance dashboard UI must call the governance backend for create/update/delete/validation/export operations.
+3. Governance dashboard UI must not directly edit registry files.
+4. Governance dashboard UI must not publish operational control topics.
+5. Governance dashboard UI must not expose unrestricted actuator consoles or direct doorlock command controls.
+6. Governance backend may generate reports, draft changes, validation summaries, and proposed-change exports.
+7. Governance backend must not directly modify canonical policies/schemas.
+8. Governance backend must not publish actuator or doorlock commands.
+9. Governance backend must not spoof caregiver approval.
+10. Governance backend must not override the Policy Router or Deterministic Validator.
+11. Governance backend must not convert draft/proposed changes into live authority without review.
+12. Governance change reports, interface-matrix alignment reports, topic-drift reports, and payload validation reports are evidence artifacts, not operational authorization mechanisms.
+
+---
+
+## 11. Current formal schema coverage
 
 Current formal schemas:
 
@@ -431,12 +506,16 @@ Candidate future schemas:
 - `experiment_annotation_schema_v1_0_0.json`
 - `scenario_fixture_schema_v1_0_0.json`
 - `result_export_schema_v1_0_0.json`
+- `governance_change_report_schema_v1_0_0.json`
+- `interface_matrix_alignment_report_schema_v1_0_0.json`
+- `topic_drift_report_schema_v1_0_0.json`
+- `payload_validation_report_schema_v1_0_0.json`
 
 These future schemas should not be introduced casually. They should be added only when implementation or evaluation requires a stable machine-readable contract.
 
 ---
 
-## 10. Payload validation recommendations
+## 12. Payload validation recommendations
 
 Implementations should apply validation at the correct layer.
 
@@ -448,7 +527,9 @@ Validate:
 - pure context payload,
 - candidate actions,
 - validator output,
-- Class 2 notification payload.
+- Class 2 notification payload,
+- topic-to-payload contract resolution where runtime topics are used,
+- interface-matrix alignment where applicable.
 
 Do not let Mac mini runtime accept out-of-schema context by silently expanding `device_states`.
 
@@ -460,9 +541,14 @@ Validate:
 - virtual sensor payloads,
 - fault injection payloads,
 - dashboard observation contracts when formalized,
-- result export contracts when formalized.
+- result export contracts when formalized,
+- governance change reports,
+- interface-matrix alignment reports,
+- topic-drift reports,
+- payload validation reports,
+- governance backend/UI separation checks.
 
-RPi payload generation must follow current schemas and policies, but RPi does not become policy authority.
+RPi payload generation must follow current schemas, policies, MQTT contracts, and governance boundaries, but RPi does not become policy authority.
 
 ### ESP32
 
@@ -478,11 +564,15 @@ Integration fixtures should be checked for:
 - absence of doorlock state in current `device_states`,
 - no Class 1 `door_unlock` candidate,
 - no validator executable payload for doorlock,
-- correct Class 2/manual confirmation expectation for sensitive outcomes.
+- correct Class 2/manual confirmation expectation for sensitive outcomes,
+- topic/payload contract consistency,
+- interface-matrix alignment,
+- topic/payload hardcoding drift,
+- governance report artifacts do not create authority.
 
 ---
 
-## 11. Non-negotiable payload rules
+## 13. Non-negotiable payload rules
 
 1. `routing_metadata` is not LLM context.
 2. `pure_context_payload` must conform to `context_schema_v1_0_0_FROZEN.json`.
@@ -497,35 +587,34 @@ Integration fixtures should be checked for:
 11. Class 1 executable payload must stay within the frozen low-risk catalog and validator schema.
 12. Sensitive actuation must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.
 13. If a future payload needs to become authoritative, add or revise the relevant schema/policy and update experiments, prompts, README, CLAUDE, and handoff addenda together.
+14. MQTT topic entries are communication contracts, not policy authority.
+15. Topic-to-payload mappings must remain aligned with `common/docs/architecture/15_interface_matrix.md` and `common/mqtt/`.
+16. Governance change reports, interface-matrix alignment reports, topic-drift reports, and payload validation reports are evidence artifacts, not operational authorization mechanisms.
+17. Governance dashboard UI must not directly edit registry files or publish operational control topics.
+18. Governance backend must not modify canonical policies/schemas, publish actuator/doorlock commands, spoof caregiver approval, override Policy Router or Deterministic Validator decisions, or convert proposed changes into live authority without review.
 
 ---
 
-## 12. Recommended next review sequence
+## 14. Downstream documents to keep aligned
 
-After this registry is introduced, review existing documents in this order:
+After this registry is introduced or updated, keep the following downstream assets aligned with the payload boundaries defined here:
 
-1. `common/docs/architecture/03_deployment_structure.md`
-2. `common/docs/architecture/04_project_directory_structure.md`
-3. `common/docs/architecture/05_automation_strategy.md`
-4. `common/docs/architecture/06_implementation_plan.md`
-5. `common/docs/architecture/07_task_breakdown.md`
-6. `common/docs/architecture/08_additional_required_work.md`
-7. `common/docs/architecture/10_install_script_structure.md`
-8. `common/docs/architecture/11_configuration_script_structure.md`
-9. `common/docs/architecture/12_prompts.md`
-10. `common/docs/architecture/12_prompts_core_system.md`
-11. `common/docs/architecture/12_prompts_nodes_and_evaluation.md`
-12. `common/docs/required_experiments.md`
-13. `integration/README.md`
-14. `integration/scenarios/README.md`
-15. `integration/scenarios/scenario_manifest_rules.md`
-16. `integration/scenarios/scenario_review_guide.md`
-17. `integration/tests/README.md`
-18. `rpi/docs/README.md`
-19. `mac_mini/docs/README.md`
-20. `esp32/docs/README.md`
-21. `README.md`
-22. `CLAUDE.md`
-23. `common/docs/runtime/SESSION_HANDOFF.md`
+1. remaining architecture documents or addenda not yet reviewed after this version
+2. `common/docs/required_experiments.md`
+3. `common/mqtt/topic_registry_v1_0_0.json`
+4. `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+5. `common/mqtt/topic_payload_contracts_v1_0_0.md`
+6. `common/payloads/README.md`
+7. `integration/README.md`
+8. `integration/scenarios/README.md`
+9. `integration/scenarios/scenario_manifest_rules.md`
+10. `integration/scenarios/scenario_review_guide.md`
+11. `integration/tests/README.md`
+12. `rpi/docs/README.md`
+13. `mac_mini/docs/README.md`
+14. `esp32/docs/README.md`
+15. `README.md`
+16. `CLAUDE.md`
+17. `common/docs/runtime/SESSION_HANDOFF.md`
 
-The review goal is to ensure that every document uses the payload boundaries defined here consistently.
+The review goal is to ensure that every document uses the payload boundaries, MQTT topic-payload contract rules, and governance report boundaries defined here consistently.
