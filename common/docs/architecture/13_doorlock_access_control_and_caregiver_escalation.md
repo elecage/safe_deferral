@@ -17,6 +17,17 @@ This document is an architecture and safety-interpretation document.
 It does **not by itself** redefine the canonical frozen policy or schema baseline.  
 Any canonical change to low-risk actuation scope must still be explicitly reflected in the frozen policy/schema assets.
 
+This document should be read together with:
+
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/docs/architecture/16_system_architecture_figure.md`
+- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/payloads/README.md`
+
 ---
 
 ## 2. Background
@@ -85,6 +96,14 @@ The LLM must not be the final authority for:
 MQTT/payload governance tooling may describe, validate, and propose communication contracts for doorlock-related implementation or experiments.
 
 However, creating or editing a doorlock-related topic, payload example, publisher role, subscriber role, or dashboard panel does **not** create doorlock execution authority.
+
+The governance dashboard UI must remain a presentation and interaction layer.
+
+The MQTT/payload governance backend may support draft, create, update, delete, validate, export, and report operations, but only as governance artifacts.
+
+The UI must not directly edit registry files or publish operational control topics.
+
+The backend must not directly modify canonical policies/schemas, publish actuator commands, publish doorlock commands, spoof caregiver approval, or convert draft/proposed changes into live operational authority without review.
 
 In particular, MQTT/payload governance tooling must not:
 
@@ -193,6 +212,15 @@ Such topics must be marked as sensitive, governed, caregiver-mediated, manual-co
 
 They must not be labeled or treated as ordinary autonomous Class 1 low-risk actuation topics under the current baseline.
 
+Doorlock-related MQTT topics must remain aligned with:
+
+- `common/docs/architecture/15_interface_matrix.md`
+- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+
+Any topic that could be interpreted as doorlock dispatch, manual confirmation, ACK, audit, or dashboard observation must explicitly preserve its authority boundary.
+
 ---
 
 ## 6. Recommended Closed-Loop Handling Pipeline
@@ -275,12 +303,16 @@ The following should be logged locally through the single-writer audit path:
 - device ACK result,
 - final actuation or non-actuation result.
 
-## Step 6. Governance dashboard visibility without authority
-If an MQTT/payload governance dashboard is implemented, it may display doorlock-sensitive topic contracts, payload validation results, publisher/subscriber roles, and boundary warnings.
+## Step 6. Governance backend/UI visibility without authority
+If an MQTT/payload governance dashboard is implemented, it may display doorlock-sensitive topic contracts, payload validation results, publisher/subscriber roles, proposed changes, and boundary warnings.
 
-The dashboard UI should remain a presentation and interaction layer only.
+The governance dashboard UI should remain a presentation and interaction layer only.
 
 Topic/payload create, update, delete, validation, and export operations should be handled by a separate governance backend service.
+
+The governance dashboard UI must call the governance backend service for create/update/delete/validation/export operations.
+
+Doorlock-sensitive governance panels may display topic contracts, payload validation results, publisher/subscriber roles, proposed changes, and boundary warnings, but must not expose direct doorlock command controls.
 
 Neither the dashboard UI nor the governance backend may bypass policy, validator, caregiver approval, ACK verification, or audit logging.
 
@@ -368,6 +400,14 @@ A topic registry entry may describe:
 
 It must not by itself create an autonomous low-risk Class 1 door unlock path.
 
+Doorlock-related registry entries should be included in:
+
+- interface-matrix alignment checks,
+- topic/payload hardcoding drift checks,
+- publisher/subscriber role validation,
+- payload example validation,
+- governance backend/UI separation checks.
+
 ### 9.6 Required experiments
 This interpretation implies that doorlock-related tests should focus on:
 - doorbell-context-aware visitor-response interpretation,
@@ -413,6 +453,11 @@ That review should confirm:
 - which subscriber roles may consume,
 - what schema or payload family governs it,
 - whether ACK and audit requirements are explicit,
+- whether the topic aligns with `common/docs/architecture/15_interface_matrix.md`,
+- whether governance UI/backend separation is preserved,
+- whether the topic could be published by dashboard, governance, or test-app roles,
+- whether topic drift checks could detect unauthorized hardcoded use,
+- whether payload examples clearly distinguish manual approval, ACK, audit, dashboard observation, and pure context,
 - and whether the topic could be misread as autonomous Class 1 authority.
 
 ---
@@ -427,7 +472,10 @@ Prompt files and coding instructions should reflect the following rules:
 - treat doorlock as a sensitive actuation domain,
 - allow representative doorlock-node implementation,
 - but preserve the distinction between implementation-facing interface support and authorized autonomous actuation scope,
-- ensure that MQTT/payload governance tooling can describe and validate doorlock-related communication contracts but cannot create doorlock execution authority.
+- ensure that MQTT/payload governance tooling can describe and validate doorlock-related communication contracts but cannot create doorlock execution authority,
+- ensure that prompt-generated code loads MQTT topics, payload families, schema paths, and publisher/subscriber rules from registry/configuration where practical,
+- ensure that dashboard/test-app/governance prompts do not generate direct doorlock command buttons or unrestricted actuator consoles,
+- ensure that mock caregiver approval or ACK injection is clearly marked as test/evaluation artifact, not production authority.
 
 This is especially relevant to:
 - architecture prompts,
@@ -469,6 +517,17 @@ Goal:
 ### 12.6 MQTT/payload governance boundary validation
 Goal:
 - verify that doorlock-related topic or payload registry edits do not create autonomous Class 1 execution authority.
+
+### 12.7 Interface-matrix and topic-drift validation
+Goal:
+- verify that doorlock-related MQTT behavior remains aligned with `common/docs/architecture/15_interface_matrix.md`,
+- verify that unauthorized hardcoded doorlock topics or payload contracts are detected.
+
+### 12.8 Governance backend/UI separation validation
+Goal:
+- verify that governance UI cannot directly edit registry files,
+- verify that governance backend cannot modify canonical policies/schemas,
+- verify that governance tooling cannot publish actuator or doorlock commands.
 
 ---
 
