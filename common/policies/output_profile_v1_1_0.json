@@ -41,7 +41,7 @@
       "candidate_options",
       "related_device_state"
     ],
-    "caregiver_confirmation_note": "Caregiver confirmation support remains bounded by the canonical low-risk action policy and must not authorize actions outside the approved low-risk action catalog.",
+    "caregiver_confirmation_note": "Class 1 caregiver confirmation support remains bounded by the canonical low-risk action catalog. Caregiver-mediated approval for sensitive actions, if implemented, belongs to a separate governed manual confirmation path and must not be treated as autonomous low-risk execution.",
     "companion_asset_note": "This output profile describes preferred output behavior and channel use, but the payload contract itself remains governed by the canonical Class 2 notification schema.",
     "purpose": "Caregiver alerts, bounded escalation payload delivery, and limited approval-path support"
   },
