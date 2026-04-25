@@ -1,0 +1,678 @@
+{
+  "registry_version": "1.1.0",
+  "status": "DRAFT",
+  "supersedes": "common/mqtt/topic_registry_v1_0_0.json",
+  "description": "MQTT topic registry for safe_deferral with machine-readable publisher/subscriber role metadata. Topic names are implementation-facing draft contracts and must be reviewed before freezing.",
+  "authority_note": "This registry defines communication contracts, publisher/subscriber roles, and topic metadata. It does not define policy authority, schema authority, validator authority, or actuation authority. Policies and schemas under common/policies and common/schemas remain authoritative.",
+  "role_metadata_note": "Version 1.1.0 adds publisher/subscriber role classification so governance tooling can distinguish field-side operational publishers, Mac mini runtime services, controlled experiment publishers, optional observers, and dashboard/governance visibility roles.",
+  "global_rules": [
+    "All schema-governed payloads must validate against the referenced schema.",
+    "All referenced example_payload files should exist under common/payloads/examples/ when specified.",
+    "Topics are communication contracts, not execution authority.",
+    "Publisher/subscriber role metadata is used for governance and verification, not policy authority.",
+    "Dashboard topics are visibility artifacts and must not become policy authority.",
+    "Audit topics are evidence artifacts and must not become policy authority.",
+    "RPi simulation and fault topics are allowed only in controlled experiment or simulation mode.",
+    "doorbell_detected is visitor-response context only and must not authorize emergency handling or autonomous doorlock control.",
+    "Doorlock-sensitive outcomes must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.",
+    "LLM candidate/guidance topics never authorize actuation.",
+    "Governance dashboard UI must not publish operational control topics, expose unrestricted actuator consoles, or expose direct doorlock command controls.",
+    "Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert draft/proposed changes into live authority without review.",
+    "FAULT_CONTRACT_DRIFT_01 is a governance/verification fault profile and must not be treated as an operational control path."
+  ],
+  "role_classes": {
+    "field_operational_publisher": "Physical or embedded field-side node that publishes operational input/evidence.",
+    "mac_mini_runtime_publisher": "Mac mini runtime service that publishes operational runtime outputs or internal integration events.",
+    "mac_mini_controlled_bridge_publisher": "Mac mini bridge publisher used only when explicitly configured for normalized controlled re-publication.",
+    "controlled_experiment_publisher": "RPi or test harness publisher allowed only in controlled simulation/evaluation mode.",
+    "runtime_subscriber": "Operational runtime service that consumes the topic.",
+    "actuator_subscriber": "Physical or governed actuator-side subscriber.",
+    "observer_subscriber": "Audit, dashboard, telemetry, or governance observer that must not create control authority.",
+    "dashboard_visibility_subscriber": "Dashboard-facing subscriber used for visibility only.",
+    "analysis_subscriber": "Offline analysis or paper-result consumer."
+  },
+  "topics": [
+    {
+      "topic": "safe_deferral/context/input",
+      "description": "Normalized policy-router input wrapper carrying pure context payload and routing metadata.",
+      "publishers": [
+        "esp32.bounded_input_node",
+        "esp32.context_node",
+        "esp32.doorbell_visitor_context_node",
+        "mac_mini.context_aggregator_controlled_bridge",
+        "rpi.simulation_runtime_controlled_mode"
+      ],
+      "publisher_roles": {
+        "field_operational_publisher": [
+          "esp32.bounded_input_node",
+          "esp32.context_node",
+          "esp32.doorbell_visitor_context_node"
+        ],
+        "mac_mini_controlled_bridge_publisher": [
+          "mac_mini.context_aggregator_controlled_bridge"
+        ],
+        "controlled_experiment_publisher": [
+          "rpi.simulation_runtime_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.mqtt_ingestion_state_intake",
+        "mac_mini.policy_router",
+        "mac_mini.audit_logging_service_observer_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.mqtt_ingestion_state_intake",
+          "mac_mini.policy_router"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional"
+        ]
+      },
+      "payload_family": "policy_router_input",
+      "schema": "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+      "example_payload": "common/payloads/examples/policy_router_input_non_visitor.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "operational_input_or_controlled_experiment_input",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Payload must include pure_context_payload.environmental_context.doorbell_detected.",
+        "Field-side publishers are operational input sources only and do not create policy authority.",
+        "Mac mini controlled bridge publisher must not fabricate context or bypass policy routing.",
+        "RPi publisher is allowed only in controlled experiment/simulation mode."
+      ]
+    },
+    {
+      "topic": "safe_deferral/emergency/event",
+      "description": "Policy-declared emergency event input aligned with E001-E005.",
+      "publishers": [
+        "esp32.emergency_node",
+        "rpi.virtual_emergency_sensor_controlled_mode"
+      ],
+      "publisher_roles": {
+        "field_operational_publisher": [
+          "esp32.emergency_node"
+        ],
+        "controlled_experiment_publisher": [
+          "rpi.virtual_emergency_sensor_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.mqtt_ingestion_state_intake",
+        "mac_mini.policy_router",
+        "mac_mini.audit_logging_service_observer_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.mqtt_ingestion_state_intake",
+          "mac_mini.policy_router"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional"
+        ]
+      },
+      "payload_family": "policy_router_input_or_emergency_context",
+      "schema": "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+      "example_payload": "common/payloads/examples/policy_router_input_emergency_temperature.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "operational_input_emergency_or_controlled_experiment_input",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Emergency semantics must remain aligned with E001-E005.",
+        "doorbell_detected is not an emergency trigger.",
+        "LLM candidate text alone must not publish or authorize this topic."
+      ]
+    },
+    {
+      "topic": "safe_deferral/llm/candidate_action",
+      "description": "Bounded LLM candidate action output for Class 1 flow.",
+      "publishers": [
+        "mac_mini.local_llm_adapter"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.local_llm_adapter"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.deterministic_validator",
+        "mac_mini.audit_logging_service_observer_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.deterministic_validator"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional"
+        ]
+      },
+      "payload_family": "candidate_action",
+      "schema": "common/schemas/candidate_action_schema_v1_0_0_FROZEN.json",
+      "example_payload": "common/payloads/examples/candidate_action_light_on.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "model_candidate_not_authority",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "LLM candidate action is not execution authority.",
+        "door_unlock must not appear as current Class 1 candidate action."
+      ]
+    },
+    {
+      "topic": "safe_deferral/validator/output",
+      "description": "Deterministic validator decision output.",
+      "publishers": [
+        "mac_mini.deterministic_validator"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.deterministic_validator"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.dispatcher_or_deferral_handler",
+        "mac_mini.audit_logging_service_observer_optional",
+        "rpi.dashboard_telemetry_bridge_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.dispatcher_or_deferral_handler"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional",
+          "rpi.dashboard_telemetry_bridge_optional"
+        ]
+      },
+      "payload_family": "validator_output",
+      "schema": "common/schemas/validator_output_schema_v1_1_0_FROZEN.json",
+      "example_payload": "common/payloads/examples/validator_output_execute_approved_light.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "validator_decision",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Approved executable payload must remain within frozen low-risk catalog.",
+        "Doorlock executable payload is not allowed under current Class 1 baseline."
+      ]
+    },
+    {
+      "topic": "safe_deferral/deferral/request",
+      "description": "Safe deferral event or bounded clarification request.",
+      "publishers": [
+        "mac_mini.deterministic_validator",
+        "mac_mini.context_integrity_safe_deferral_handler",
+        "mac_mini.class2_clarification_manager"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.deterministic_validator",
+          "mac_mini.context_integrity_safe_deferral_handler",
+          "mac_mini.class2_clarification_manager"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.context_integrity_safe_deferral_handler",
+        "mac_mini.class2_clarification_manager",
+        "mac_mini.audit_logging_service_observer_optional",
+        "rpi.dashboard_telemetry_bridge_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.context_integrity_safe_deferral_handler",
+          "mac_mini.class2_clarification_manager"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional",
+          "rpi.dashboard_telemetry_bridge_optional"
+        ]
+      },
+      "payload_family": "safe_deferral_event",
+      "schema": null,
+      "example_payload": "common/payloads/examples/safe_deferral_request_two_options.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "bounded_deferral_or_clarification_control",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Future schema recommended if this contract stabilizes.",
+        "Clarification must remain bounded, not free-form.",
+        "Deferral request is not actuation authority."
+      ]
+    },
+    {
+      "topic": "safe_deferral/escalation/class2",
+      "description": "Class 2 caregiver escalation or clarification notification payload.",
+      "publishers": [
+        "mac_mini.policy_router",
+        "mac_mini.context_integrity_safe_deferral_handler",
+        "mac_mini.deterministic_validator",
+        "mac_mini.class2_clarification_manager"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.policy_router",
+          "mac_mini.context_integrity_safe_deferral_handler",
+          "mac_mini.deterministic_validator",
+          "mac_mini.class2_clarification_manager"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.outbound_notification_interface",
+        "mac_mini.audit_logging_service_observer_optional",
+        "rpi.dashboard_telemetry_bridge_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.outbound_notification_interface"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional",
+          "rpi.dashboard_telemetry_bridge_optional"
+        ]
+      },
+      "payload_family": "class_2_notification_payload",
+      "schema": "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
+      "example_payload": "common/payloads/examples/class_2_notification_doorlock_sensitive.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "class2_clarification_or_caregiver_escalation_notification",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "manual_confirmation_path is not autonomous execution authority.",
+        "Doorlock-sensitive outcomes should use escalation/manual confirmation path.",
+        "Class 2 notification is not terminal failure by itself."
+      ]
+    },
+    {
+      "topic": "safe_deferral/caregiver/confirmation",
+      "description": "Caregiver confirmation decision for separately governed manual path.",
+      "publishers": [
+        "mac_mini.caregiver_confirmation_backend",
+        "rpi.test_app_mock_controlled_mode"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.caregiver_confirmation_backend"
+        ],
+        "controlled_experiment_publisher": [
+          "rpi.test_app_mock_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.caregiver_confirmation_backend",
+        "mac_mini.dispatcher_manual_path",
+        "mac_mini.audit_logging_service_observer_optional",
+        "rpi.dashboard_telemetry_bridge_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.caregiver_confirmation_backend",
+          "mac_mini.dispatcher_manual_path"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional",
+          "rpi.dashboard_telemetry_bridge_optional"
+        ]
+      },
+      "payload_family": "manual_confirmation_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/manual_confirmation_doorlock_approved.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "manual_confirmation_governed_path",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Future schema recommended.",
+        "Manual confirmation must not be confused with autonomous Class 1 validator approval.",
+        "Controlled RPi mock publisher is evaluation-only."
+      ]
+    },
+    {
+      "topic": "safe_deferral/actuation/command",
+      "description": "Approved actuation command after validator approval or governed manual confirmation.",
+      "publishers": [
+        "mac_mini.dispatcher_low_risk_path",
+        "mac_mini.dispatcher_manual_path"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.dispatcher_low_risk_path",
+          "mac_mini.dispatcher_manual_path"
+        ]
+      },
+      "subscribers": [
+        "esp32.lighting_control_node",
+        "esp32.warning_or_doorlock_interface_node_if_governed",
+        "mac_mini.audit_logging_service_observer_optional"
+      ],
+      "subscriber_roles": {
+        "actuator_subscriber": [
+          "esp32.lighting_control_node",
+          "esp32.warning_or_doorlock_interface_node_if_governed"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional"
+        ]
+      },
+      "payload_family": "actuation_command_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/actuation_command_light_on.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "dispatch_command_after_approval",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Future schema recommended.",
+        "Doorlock commands require governed manual confirmation path under current interpretation.",
+        "Dashboard/governance/test UI must not publish this topic directly."
+      ]
+    },
+    {
+      "topic": "safe_deferral/actuation/ack",
+      "description": "Closed-loop actuation acknowledgement from physical or mock actuator interface.",
+      "publishers": [
+        "esp32.actuator_node",
+        "rpi.mock_actuator_controlled_mode"
+      ],
+      "publisher_roles": {
+        "field_operational_publisher": [
+          "esp32.actuator_node"
+        ],
+        "controlled_experiment_publisher": [
+          "rpi.mock_actuator_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.dispatcher_or_ack_handler",
+        "mac_mini.audit_logging_service_observer_optional",
+        "rpi.dashboard_telemetry_bridge_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.dispatcher_or_ack_handler"
+        ],
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional",
+          "rpi.dashboard_telemetry_bridge_optional"
+        ]
+      },
+      "payload_family": "actuation_ack_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/actuation_ack_success.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "closed_loop_evidence",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "ACK is closed-loop evidence, not pure context input.",
+        "Future schema recommended."
+      ]
+    },
+    {
+      "topic": "safe_deferral/audit/log",
+      "description": "Audit event stream consumed by the single-writer audit service.",
+      "publishers": [
+        "mac_mini.policy_router",
+        "mac_mini.local_llm_adapter",
+        "mac_mini.deterministic_validator",
+        "mac_mini.context_integrity_safe_deferral_handler",
+        "mac_mini.class2_clarification_manager",
+        "mac_mini.outbound_notification_interface",
+        "mac_mini.caregiver_confirmation_backend",
+        "mac_mini.dispatcher_or_ack_handler"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.policy_router",
+          "mac_mini.local_llm_adapter",
+          "mac_mini.deterministic_validator",
+          "mac_mini.context_integrity_safe_deferral_handler",
+          "mac_mini.class2_clarification_manager",
+          "mac_mini.outbound_notification_interface",
+          "mac_mini.caregiver_confirmation_backend",
+          "mac_mini.dispatcher_or_ack_handler"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.audit_logging_service"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.audit_logging_service"
+        ]
+      },
+      "payload_family": "audit_event_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/audit_event_route_decision.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "evidence_traceability_not_policy",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": false,
+      "notes": [
+        "Audit service should remain the only DB writer.",
+        "Future schema recommended."
+      ]
+    },
+    {
+      "topic": "safe_deferral/sim/context",
+      "description": "RPi simulation context/event publication for controlled experiments.",
+      "publishers": [
+        "rpi.simulation_runtime_controlled_mode"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.simulation_runtime_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.policy_router_via_controlled_input_bridge",
+        "rpi.scenario_orchestrator",
+        "rpi.dashboard"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "mac_mini.policy_router_via_controlled_input_bridge",
+          "rpi.scenario_orchestrator"
+        ],
+        "dashboard_visibility_subscriber": [
+          "rpi.dashboard"
+        ]
+      },
+      "payload_family": "policy_router_input_or_context_fixture",
+      "schema": "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+      "example_payload": "common/payloads/examples/policy_router_input_visitor_doorbell.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "experiment_input_controlled_mode",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Must be gated so simulation traffic does not masquerade as uncontrolled operational input.",
+        "Payload must include environmental_context.doorbell_detected."
+      ]
+    },
+    {
+      "topic": "safe_deferral/fault/injection",
+      "description": "Fault injection command/profile event for controlled experiments.",
+      "publishers": [
+        "rpi.fault_injector_harness",
+        "rpi.scenario_orchestrator"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.fault_injector_harness",
+          "rpi.scenario_orchestrator"
+        ]
+      },
+      "subscribers": [
+        "rpi.simulation_runtime",
+        "rpi.fault_injector_harness",
+        "mac_mini.policy_router_via_controlled_input_bridge_optional"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "rpi.simulation_runtime",
+          "rpi.fault_injector_harness",
+          "mac_mini.policy_router_via_controlled_input_bridge_optional"
+        ]
+      },
+      "payload_family": "fault_injection_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/fault_injection_missing_doorbell_context.json",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "experiment_fault_controlled_mode",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Fault generation must derive constraints from frozen policy/schema/rules assets.",
+        "Future schema recommended if fault command payload stabilizes.",
+        "FAULT_CONTRACT_DRIFT_01 is governance/verification only and must not create runtime authority."
+      ]
+    },
+    {
+      "topic": "safe_deferral/dashboard/observation",
+      "description": "Dashboard observation state for experiment monitoring and status visualization.",
+      "publishers": [
+        "rpi.scenario_orchestrator",
+        "rpi.dashboard_backend",
+        "mac_mini.telemetry_bridge_optional"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.scenario_orchestrator",
+          "rpi.dashboard_backend"
+        ],
+        "mac_mini_runtime_publisher": [
+          "mac_mini.telemetry_bridge_optional"
+        ]
+      },
+      "subscribers": [
+        "rpi.dashboard_frontend",
+        "rpi.test_app_optional"
+      ],
+      "subscriber_roles": {
+        "dashboard_visibility_subscriber": [
+          "rpi.dashboard_frontend",
+          "rpi.test_app_optional"
+        ]
+      },
+      "payload_family": "dashboard_observation_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/dashboard_observation_doorlock_sensitive.json",
+      "qos": 0,
+      "retain": true,
+      "authority_level": "visibility_not_policy",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": false,
+      "notes": [
+        "Dashboard observation is not policy truth.",
+        "Doorlock state shown here is observation/experiment state, not context_schema.device_states."
+      ]
+    },
+    {
+      "topic": "safe_deferral/experiment/progress",
+      "description": "Experiment progress, run state, and status publication.",
+      "publishers": [
+        "rpi.scenario_orchestrator",
+        "rpi.integration_test_runner"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.scenario_orchestrator",
+          "rpi.integration_test_runner"
+        ]
+      },
+      "subscribers": [
+        "rpi.dashboard_frontend",
+        "rpi.result_exporter"
+      ],
+      "subscriber_roles": {
+        "dashboard_visibility_subscriber": [
+          "rpi.dashboard_frontend"
+        ],
+        "analysis_subscriber": [
+          "rpi.result_exporter"
+        ]
+      },
+      "payload_family": "experiment_progress_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/experiment_progress_running.json",
+      "qos": 0,
+      "retain": true,
+      "authority_level": "experiment_status",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": false,
+      "notes": [
+        "Future schema recommended if dashboard/result export depends on this contract."
+      ]
+    },
+    {
+      "topic": "safe_deferral/experiment/result",
+      "description": "Experiment result summary and export event.",
+      "publishers": [
+        "rpi.scenario_orchestrator",
+        "rpi.integration_test_runner",
+        "rpi.result_exporter"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.scenario_orchestrator",
+          "rpi.integration_test_runner",
+          "rpi.result_exporter"
+        ]
+      },
+      "subscribers": [
+        "rpi.dashboard_frontend",
+        "paper_analysis_tools_optional"
+      ],
+      "subscriber_roles": {
+        "dashboard_visibility_subscriber": [
+          "rpi.dashboard_frontend"
+        ],
+        "analysis_subscriber": [
+          "paper_analysis_tools_optional"
+        ]
+      },
+      "payload_family": "result_export_payload",
+      "schema": null,
+      "example_payload": "common/payloads/examples/result_export_summary.json",
+      "qos": 1,
+      "retain": true,
+      "authority_level": "experiment_artifact",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": false,
+      "notes": [
+        "Results must trace to scenario IDs, run IDs, and expected outcomes.",
+        "Future schema recommended."
+      ]
+    }
+  ]
+}
