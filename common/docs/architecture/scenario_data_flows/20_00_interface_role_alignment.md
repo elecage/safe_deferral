@@ -13,6 +13,7 @@ It links scenario-level data-flow steps to:
 ```text
 15_interface_matrix.md interface IDs
 publisher_subscriber_matrix_v1_0_0.md publisher/subscriber roles
+topic_registry_v1_1_0.json machine-readable role metadata
 MQTT topic contracts
 payload families
 authority boundaries
@@ -30,9 +31,18 @@ This document aligns with:
 common/docs/architecture/15_interface_matrix.md
 common/docs/architecture/20_scenario_data_flow_matrix.md
 common/mqtt/publisher_subscriber_matrix_v1_0_0.md
+common/mqtt/topic_registry_v1_1_0.json
 common/mqtt/topic_registry_v1_0_0.json
 common/mqtt/topic_payload_contracts_v1_0_0.md
 common/docs/architecture/17_payload_contract_and_registry.md
+```
+
+Interpretation:
+
+```text
+- topic_registry_v1_1_0.json is the machine-readable registry for publisher/subscriber role metadata.
+- topic_registry_v1_0_0.json remains the historical topic/payload baseline.
+- publisher_subscriber_matrix_v1_0_0.md remains the human-readable role matrix.
 ```
 
 Key interpretation from `15_interface_matrix.md`:
@@ -92,14 +102,16 @@ Key interpretation from `15_interface_matrix.md`:
 
 ## 4. MQTT publisher/subscriber role alignment
 
+The human-readable roles below are mirrored in `common/mqtt/topic_registry_v1_1_0.json` using `publisher_roles` and `subscriber_roles`.
+
 | Topic | Allowed publisher roles | Allowed subscriber roles | Payload family | Scenario usage |
 |---|---|---|---|---|
 | `safe_deferral/context/input` | `esp32.bounded_input_node`, `esp32.context_node`, `esp32.doorbell_visitor_context_node`, `mac_mini.context_aggregator_controlled_bridge`, `rpi.simulation_runtime_controlled_mode` | `mac_mini.mqtt_ingestion_state_intake`, `mac_mini.policy_router`, optional audit observer | `policy_router_input` | Baseline, Class 1, Class 2, stale, conflict, missing-state |
-| `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | E001-E005, Class 2-to-Class 0 |
+| `safe_deferral/emergency/event` | `esp32.emergency_node`, `rpi.virtual_emergency_sensor_controlled_mode` | `mac_mini.mqtt_ingestion_state_intake`, `mac_mini.policy_router`, optional audit observer | `policy_router_input_or_emergency_context` | E001-E005, Class 2-to-Class 0 |
 | `safe_deferral/llm/candidate_action` | `mac_mini.local_llm_adapter` | `mac_mini.deterministic_validator`, optional audit observer | `candidate_action` | Class 1 candidate validation, conflict resolution |
 | `safe_deferral/validator/output` | `mac_mini.deterministic_validator` | dispatcher/deferral handler, audit observer, optional dashboard bridge | `validator_output` | Class 1, Class 2-to-Class 1, conflict resolved to Class 1 |
-| `safe_deferral/deferral/request` | validator, safe deferral handler | safe deferral handler, audit observer, optional dashboard bridge | `safe_deferral_event` | Class 2 entry, stale, conflict, missing-state |
-| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | Class 2 unresolved, caregiver escalation, sensitive/unresolved emergency |
+| `safe_deferral/deferral/request` | validator, safe deferral handler, Class 2 clarification manager | safe deferral handler, Class 2 clarification manager, audit observer, optional dashboard bridge | `safe_deferral_event` | Class 2 entry, stale, conflict, missing-state |
+| `safe_deferral/escalation/class2` | policy router, validator, safe deferral handler, Class 2 clarification manager | outbound notification interface, audit observer, optional dashboard bridge | `class_2_notification_payload` | Class 2 unresolved, caregiver escalation, sensitive/unresolved emergency |
 | `safe_deferral/caregiver/confirmation` | caregiver confirmation backend, controlled RPi test app mock | caregiver confirmation backend, manual dispatcher path, audit observer, dashboard bridge | `manual_confirmation_payload` | Class 2 selection/confirmation, manual sensitive path |
 | `safe_deferral/actuation/command` | low-risk dispatcher, manual-path dispatcher | ESP32 lighting node, governed warning/doorlock interface node, audit observer | `actuation_command_payload` | Class 1 execution only after validation; doorlock only through governed manual path |
 | `safe_deferral/actuation/ack` | ESP32 actuator node, controlled RPi mock actuator | Mac mini ACK handler, audit observer, dashboard bridge | `actuation_ack_payload` | Class 1 execution closure, closed-loop evidence |
@@ -113,12 +125,12 @@ Key interpretation from `15_interface_matrix.md`:
 Note on `safe_deferral/context/input`:
 
 ```text
-publisher_subscriber_matrix_v1_0_0.md now explicitly lists field-side operational publishers for this topic:
+publisher_subscriber_matrix_v1_0_0.md and topic_registry_v1_1_0.json now explicitly list field-side operational publishers for this topic:
 - esp32.bounded_input_node
 - esp32.context_node
 - esp32.doorbell_visitor_context_node
 
-It also preserves controlled-mode/bridge publishers:
+They also preserve controlled-mode/bridge publishers:
 - mac_mini.context_aggregator_controlled_bridge
 - rpi.simulation_runtime_controlled_mode
 
@@ -171,7 +183,7 @@ This resolves the earlier publisher-role mismatch while preserving the distincti
 
 | Issue | Current interpretation | Recommended follow-up |
 |---|---|---|
-| `safe_deferral/context/input` publisher mismatch | Resolved in `publisher_subscriber_matrix_v1_0_0.md`: field-side publishers and controlled-mode publishers are now both explicitly represented | Keep this distinction in future registry/governance updates; do not collapse controlled-mode publishers into ordinary operational publishers |
+| `safe_deferral/context/input` publisher mismatch | Resolved in `publisher_subscriber_matrix_v1_0_0.md` and `topic_registry_v1_1_0.json`: field-side publishers and controlled-mode publishers are now both explicitly represented | Keep this distinction in future registry/governance updates; do not collapse controlled-mode publishers into ordinary operational publishers |
 | Class 2 candidate prompt topic | Existing topic registry can express Class 2 using deferral/escalation/context/caregiver/audit topics | Add dedicated `safe_deferral/clarification/*` topics only if runtime implementation requires separation |
 | Warning output topic | Emergency warning output may be local output or actuation-like command | Keep warning output governed; avoid treating emergency guidance as arbitrary actuator authority |
 | ACK schema | ACK payload family is described but future formal schema may still be needed | Add formal ACK schema if closed-loop execution testing expands |
@@ -184,9 +196,10 @@ This resolves the earlier publisher-role mismatch while preserving the distincti
 
 1. Interface IDs describe allowed communication paths, not control permission.
 2. Publisher/subscriber roles describe expected topic traffic, not policy authority.
-3. LLM guidance and candidate output never authorize actuation.
-4. Class 1 actuation requires policy routing, low-risk catalog membership, deterministic validator approval, dispatcher publication, ACK, and audit.
-5. Class 0 requires deterministic emergency evidence or user/caregiver emergency confirmation; LLM text alone cannot trigger Class 0.
-6. Class 2 candidate prompt, selection, timeout, and transition state must remain auditable.
-7. Doorbell/visitor context does not authorize emergency or doorlock action.
-8. Dashboard/governance/test artifacts must not publish operational control topics except through explicitly controlled test paths.
+3. Machine-readable publisher/subscriber role metadata is governance metadata, not control authority.
+4. LLM guidance and candidate output never authorize actuation.
+5. Class 1 actuation requires policy routing, low-risk catalog membership, deterministic validator approval, dispatcher publication, ACK, and audit.
+6. Class 0 requires deterministic emergency evidence or user/caregiver emergency confirmation; LLM text alone cannot trigger Class 0.
+7. Class 2 candidate prompt, selection, timeout, and transition state must remain auditable.
+8. Doorbell/visitor context does not authorize emergency or doorlock action.
+9. Dashboard/governance/test artifacts must not publish operational control topics except through explicitly controlled test paths.
