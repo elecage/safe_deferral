@@ -3,7 +3,7 @@
 ## Configuration Script Structure
 
 ## Goal
-Configure installed services, runtimes, embedded-node assumptions, MQTT topic/payload references, dashboard/governance tooling, and optional measurement support assumptions so that they are aligned with the current safe deferral architecture in a consistent and reproducible way.
+Configure installed services, runtimes, embedded-node assumptions, MQTT topic/payload references, dashboard/governance tooling, Class 2 clarification/transition verification assumptions, and optional measurement support assumptions so that they are aligned with the current safe deferral architecture in a consistent and reproducible way.
 
 This document does not replace the canonical frozen baseline.  
 Shared versioned assets under `common/` remain the source of truth for policy, schema, terminology, and related canonical references.
@@ -12,6 +12,8 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
@@ -33,11 +35,13 @@ Current interface, communication, and payload references:
 - Allow service restart behavior to branch according to the **deployment mode**.
 - Complete the shared frozen asset set before implementation-side configuration depends on it.
 - Runtime apps, dashboard apps, and experiment tools should load topic/payload references from registry paths when practical.
+- Class 2 clarification interactions must be governed by `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`.
+- Configuration may prepare Class 2 topic namespaces, schema paths, fixture paths, verifier paths, audit paths, and report paths, but it must not create actuation or final transition authority.
 - Treat ESP32 embedded nodes as bounded physical clients whose connection parameters, topic structure, device identity assumptions, and sample-build readiness must be configured consistently when they are used.
-- Treat Raspberry Pi 5 as an **evaluation-side dashboard, simulation, orchestration, replay, fault-injection, result-artifact, and non-authoritative MQTT/payload governance support node**, not as a target for hub-side operational runtime configuration.
+- Treat Raspberry Pi 5 as an **evaluation-side dashboard, simulation, orchestration, replay, fault-injection, result-artifact, Class 2 transition verification, and non-authoritative MQTT/payload governance support node**, not as a target for hub-side operational runtime configuration.
 - Treat Raspberry Pi dashboard/governance tooling as non-authoritative inspection, validation, draft/report, and UI support.
 - Keep governance dashboard UI separated from the MQTT/payload governance backend service.
-- Configuration may prepare governance paths, ports, modes, and service endpoints, but it must not create policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.
+- Configuration may prepare governance paths, ports, modes, and service endpoints, but it must not create policy, validator, caregiver approval, audit, actuator, Class 2 transition, or doorlock execution authority.
 - Treat optional timing/measurement support as an **evaluation-only alignment layer**, not part of the operational control path.
 
 ---
@@ -47,14 +51,15 @@ Current interface, communication, and payload references:
 The following assets should be finalized before configuration deployment depends on them.
 
 ### Required canonical frozen authority assets
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 
 ### Required communication / payload reference assets
 - `common/mqtt/topic_registry_v1_0_0.json`
@@ -70,6 +75,14 @@ The following assets should be finalized before configuration deployment depends
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
+
+### Required Class 2 clarification / transition assets
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- Class 2 clarification scenario fixtures under `integration/scenarios/` when implemented
+- Class 2 transition verifier fixtures under `integration/tests/` when implemented
+- Class 2-to-Class 1, Class 2-to-Class 0, and Class 2 timeout/safe-deferral scenario definitions when implemented
 
 ### Optional or version-sensitive companion assets
 - output profile assets
@@ -85,6 +98,7 @@ They are design and reference assets that must be fixed before reliable runtime 
 - `common/payloads/` provides payload examples/templates.
 - `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference.
 - MQTT contracts and payload examples must not override canonical policies or schemas.
+- Class 2 clarification payloads are interaction/control records, not pure context, validator output, actuation command, emergency trigger, or doorlock authorization.
 
 ---
 
@@ -96,18 +110,8 @@ safe_deferral/
 │   ├── policies/
 │   ├── schemas/
 │   ├── mqtt/
-│   │   ├── README.md
-│   │   ├── topic_registry_v1_0_0.json
-│   │   ├── publisher_subscriber_matrix_v1_0_0.md
-│   │   └── topic_payload_contracts_v1_0_0.md
 │   ├── payloads/
-│   │   ├── README.md
-│   │   ├── examples/
-│   │   └── templates/
 │   ├── docs/
-│   │   ├── architecture/
-│   │   ├── runtime/
-│   │   └── archive/
 │   └── terminology/
 ├── mac_mini/
 │   ├── scripts/
@@ -127,9 +131,6 @@ safe_deferral/
 ├── esp32/
 │   ├── scripts/
 │   │   ├── install/
-│   │   │   ├── mac/
-│   │   │   ├── linux/
-│   │   │   └── windows/
 │   │   ├── configure/
 │   │   └── verify/
 │   ├── code/
@@ -155,11 +156,13 @@ safe_deferral/
 - `common/payloads/` stores payload examples/templates for implementation, testing, simulation, and dashboard tooling
 - `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - `common/docs/architecture/17_payload_contract_and_registry.md` defines payload placement and authority boundaries
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md` defines the Class 2 clarification interpretation
+- `common/docs/architecture/20_scenario_data_flow_matrix.md` defines scenario-level Class 2 data-flow expectations
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md` defines implementation prompt guidance for governance tooling
 
 ### Deployment targets
 - `mac_mini/` contains hub-side configuration scripts and runtime deployment assets
-- `rpi/` contains dashboard, simulation, orchestration, replay, fault-injection, result-export, non-authoritative governance support, and synchronized runtime/reference assets
+- `rpi/` contains dashboard, simulation, orchestration, replay, fault-injection, result-export, Class 2 transition verification, non-authoritative governance support, and synchronized runtime/reference assets
 - `esp32/` contains embedded-node implementation assets plus cross-platform configure/verify scaffolding for bounded physical nodes
 - `integration/measurement/` contains optional timing and measurement support assets for out-of-band latency evaluation when that evaluation path is used
 
@@ -169,7 +172,7 @@ The Mac mini, Raspberry Pi, ESP32 development workflow, and optional measurement
 
 Deployment-local configuration such as `.env`, secrets, host paths, and machine-specific runtime files must not redefine canonical policy or schema truth.
 
-Deployment-local `.env` files may point to MQTT registry and payload reference paths, but they must not redefine the registry, payload boundary rules, or canonical policies/schemas.
+Deployment-local `.env` files may point to MQTT registry, payload reference, clarification schema, and Class 2 fixture/verifier paths, but they must not redefine the registry, payload boundary rules, clarification authority boundaries, or canonical policies/schemas.
 
 ---
 
@@ -215,8 +218,10 @@ Recommended responsibilities:
 - align configured topic namespace with `common/mqtt/topic_registry_v1_0_0.json`
 - prepare topic ACL assumptions from publisher/subscriber matrix where applicable
 - align topic ACL assumptions with `common/docs/architecture/15_interface_matrix.md`
+- prepare Class 2 clarification topic namespace assumptions for deferral request, caregiver confirmation, validator output, actuation ACK, and audit topics
 - ensure dashboard/governance topics cannot publish control authority unless explicitly allowed by the registry, interface matrix, and runtime mode
 - ensure governance backend/UI topics cannot publish actuator or doorlock commands
+- ensure clarification-related topics cannot be configured as actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval
 - inject configuration into the target runtime path
 - restart Mosquitto after applying settings
 
@@ -226,7 +231,7 @@ Recommended responsibilities:
 - Internet-originated inbound access must remain blocked by host or network firewall
 - Optional local username/password authentication and topic ACL may be applied
 - Listener settings and firewall policy should be treated as a single trust-boundary rule set
-- Topic ACLs should not accidentally grant dashboard/governance tooling policy, validator, caregiver approval, actuation, or doorlock authority
+- Topic ACLs should not accidentally grant dashboard/governance tooling policy, validator, caregiver approval, Class 2 transition, actuation, or doorlock authority
 
 #### LAN-only operational principle
 - Do not force localhost-only binding if Raspberry Pi 5 or ESP32 nodes must connect over the LAN
@@ -254,12 +259,14 @@ Recommended responsibilities:
 - verify initial tables
 - run initial write or initialization checks
 - enable WAL mode
+- prepare audit logging path support for Class 2 clarification candidates, selection results, timeout results, transition targets, and final safe outcomes when implemented
 
 #### SQLite concurrency principle
 - Do not allow multiple services to write directly to SQLite concurrently
 - SQLite should be written by a **single Audit Logging Service**
 - Other services should emit log events through MQTT topics or an internal async queue
 - The Audit Logging Service consumes those events and writes them sequentially
+- Class 2 clarification audit records are evidence and traceability records, not policy truth or authorization state
 
 ---
 
@@ -271,6 +278,7 @@ Recommended deployment targets:
 - optional output profile deployment when used
 - runtime copies or path references for MQTT topic registry when needed
 - runtime copies or path references for payload examples/templates when needed
+- runtime copies or path references for Class 2 clarification interaction schema when needed
 
 Representative authority deployment sources:
 - `common/policies/`
@@ -289,6 +297,7 @@ Representative deployed canonical assets:
 - policy router input schema
 - validator output schema
 - Class 2 notification payload schema
+- Class 2 clarification interaction schema
 
 Representative deployed reference assets:
 - topic registry
@@ -306,6 +315,8 @@ It must not create local policy truth that diverges from `common/`.
 
 If communication/payload references are deployed here, their reference-layer status must be preserved; they do not become policy/schema authority.
 
+If Class 2 clarification interaction schemas are deployed here, their interaction-payload status must be preserved; they do not become validator approval, actuation command, emergency trigger, or doorlock authorization schemas.
+
 ---
 
 ### `55_deploy_mqtt_payload_references.sh` future optional script
@@ -315,10 +326,12 @@ Recommended deployment targets:
 - runtime copies or symlinks for `common/payloads/`
 - registry path manifest for hub-side services
 - payload example/template path manifest for validation helpers and test tools
+- clarification schema path manifest when the schema is deployed separately from the main schema bundle
 
 Recommended responsibilities:
 - deploy or link MQTT registry assets into the target runtime path
 - deploy or link payload examples/templates into the target runtime path
+- deploy or link clarification interaction payload examples where they exist
 - avoid editing canonical registry or payload examples during deployment
 - leave structural consistency checks to the verify stage
 
@@ -329,7 +342,8 @@ Recommended responsibilities:
 Recommended responsibilities:
 - configure Telegram token and chat ID if available
 - configure mock fallback mode if Telegram is unavailable or intentionally disabled
-- align outbound escalation payload behavior with `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- align outbound escalation payload behavior with `class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- align Class 2 clarification interaction records with `clarification_interaction_schema_v1_0_0_FROZEN.json` when notification/clarification flows are connected
 - send or simulate a test notification
 - preserve fallback behavior for offline or development environments
 
@@ -345,6 +359,9 @@ Recommended environment variables include:
 - `MQTT_TOPIC_PAYLOAD_CONTRACTS_PATH`
 - `PAYLOAD_EXAMPLES_DIR`
 - `PAYLOAD_TEMPLATES_DIR`
+- `CLARIFICATION_INTERACTION_SCHEMA_PATH`
+- `CLASS2_CLARIFICATION_FIXTURE_DIR`
+- `CLASS2_TRANSITION_REPORT_DIR`
 - `TOPIC_NAMESPACE_PREFIX`
 - `DASHBOARD_OBSERVATION_TOPIC`
 - `EXPERIMENT_PROGRESS_TOPIC`
@@ -358,10 +375,13 @@ Recommended environment variables include:
 - `REGISTRY_VALIDATION_MODE`
 - `TOPIC_DRIFT_CHECK_MODE`
 - `PAYLOAD_VALIDATION_MODE`
+- `CLARIFICATION_PAYLOAD_VALIDATION_MODE`
+- `CLASS2_TRANSITION_VERIFY_MODE`
 - `VALIDATION_REPORT_DIR`
 - `OLLAMA_HOST`
 - `OLLAMA_MODEL`
 - `SQLITE_PATH`
+- `AUDIT_CLASS2_EVENT_TOPIC`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - safe deferral timeout and bounded timing variables
@@ -379,7 +399,7 @@ Topic strings and payload contract references should be loaded from registry/con
 
 Governance dashboard UI configuration must point to the governance backend service API and must not grant direct registry-file write access or operational control-topic publish authority.
 
-Topic drift check mode, payload validation mode, and validation report paths may be configured here, but the actual drift and contract checks belong to the verify stage.
+Topic drift check mode, payload validation mode, clarification payload validation mode, Class 2 transition verify mode, and validation report paths may be configured here, but the actual drift, contract, clarification-payload, and Class 2 transition checks belong to the verify or integration-test stage.
 
 ---
 
@@ -389,7 +409,7 @@ Topic drift check mode, payload validation mode, and validation report paths may
 - `rpi/scripts/configure/`
 
 ### Role Boundary
-Raspberry Pi 5 is a **dashboard, simulation, fault-injection, replay, orchestration, result-artifact, non-authoritative governance support, and evaluation node**.
+Raspberry Pi 5 is a **dashboard, simulation, fault-injection, replay, orchestration, result-artifact, Class 2 transition verification, non-authoritative governance support, and evaluation node**.
 
 It should be configured only for:
 - experiment and monitoring dashboard
@@ -397,6 +417,8 @@ It should be configured only for:
 - governance dashboard UI
 - topic/payload contract validation utility
 - payload example manager / validator
+- clarification interaction payload validator
+- Class 2 transition verifier
 - publisher/subscriber role manager
 - multi-node simulation runtime
 - virtual `doorbell_detected` visitor-response context generation
@@ -404,6 +426,7 @@ It should be configured only for:
 - fault injection
 - scenario orchestration
 - scenario replay
+- Class 2-to-Class 1 / Class 2-to-Class 0 / Class 2 timeout scenario replay
 - progress/status publication
 - result artifact export
 - topic/payload validation utilities
@@ -417,6 +440,7 @@ It should **not** be configured as a host for Mac mini operational hub services 
 - Policy Router
 - Deterministic Validator
 - Context-Integrity Safe Deferral Handler
+- Class 2 Clarification Manager
 - hub-side operational audit authority
 - validator authority
 - caregiver approval authority
@@ -425,6 +449,7 @@ It should **not** be configured as a host for Mac mini operational hub services 
 - direct registry-file editing through dashboard UI
 - canonical policy/schema editing authority
 - governance backend publishing actuator or doorlock commands
+- Class 2 transition authority
 
 Dashboard/governance tooling on Raspberry Pi must remain non-authoritative.
 
@@ -439,6 +464,7 @@ Dashboard/governance tooling on Raspberry Pi must remain non-authoritative.
 - `60_configure_dashboard_runtime_rpi.sh`
 - `70_configure_mqtt_payload_governance_rpi.sh`
 - `80_configure_result_export_rpi.sh`
+- `90_configure_class2_transition_verifier_rpi.sh`
 
 ---
 
@@ -456,11 +482,16 @@ Recommended responsibilities:
 - configure registry validation mode
 - configure topic drift check mode
 - configure payload validation mode
+- configure clarification interaction payload validation mode
+- configure Class 2 transition verifier mode
 - configure validation report directory
 - configure MQTT topic registry path
 - configure publisher/subscriber matrix path
 - configure topic-payload contracts path
 - configure payload examples/templates path
+- configure clarification interaction schema path
+- configure Class 2 clarification fixture path
+- configure Class 2 transition report path
 - configure schema/policy sync paths
 - configure time-sync target settings
 
@@ -471,10 +502,12 @@ Recommended responsibilities:
 Recommended responsibilities:
 - synchronize frozen policy assets from the authoritative shared repository state
 - synchronize frozen schema assets from the authoritative shared repository state
+- synchronize `clarification_interaction_schema_v1_0_0_FROZEN.json`
 - synchronize MQTT topic registry references when needed
 - synchronize publisher/subscriber matrix and topic-payload contract references when needed
 - synchronize payload examples/templates when needed
-- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- synchronize Class 2 clarification fixtures when implemented
+- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
 - verify required synchronized runtime assets exist
 
 ### Principle
@@ -502,7 +535,11 @@ Recommended responsibilities:
 - configure multi-node runtime assumptions
 - configure virtual `doorbell_detected` visitor-response context generation
 - configure visitor-response and doorlock-sensitive scenario paths
+- configure Class 2 clarification scenario paths
+- configure Class 2-to-Class 1, Class 2-to-Class 0, and Class 2 timeout/safe-deferral scenario paths
+- configure Class 2 clarification topic namespace assumptions
 - ensure `doorbell_detected=true` does not authorize autonomous doorlock control
+- ensure Class 2 clarification payloads are not treated as actuator authorization or emergency trigger evidence
 - verify required runtime variables for simulation are present
 - verify required Python runtime dependencies for simulation-side execution
 
@@ -517,7 +554,9 @@ Recommended responsibilities:
 - generate runtime configuration for fault execution and audit validation
 - keep fault-profile execution assumptions aligned with canonical emergency trigger family `E001`~`E005`
 - include missing `doorbell_detected` as a strict schema/context fault case where applicable
+- include Class 2 timeout/no-response as a safe-deferral or caregiver-confirmation case where applicable
 - ensure `doorbell_detected=true` is not treated as emergency evidence or unlock authorization
+- ensure LLM candidate text is not treated as deterministic emergency evidence
 
 ### `60_configure_dashboard_runtime_rpi.sh` future optional script
 
@@ -525,8 +564,9 @@ Recommended responsibilities:
 - configure experiment dashboard host, port, and runtime path
 - configure dashboard observation topic
 - configure dashboard read-only telemetry sources
+- configure Class 2 clarification/transition visibility panels when implemented
 - configure retained observation state behavior when used
-- ensure dashboard runtime cannot publish policy, validator, caregiver approval, or unrestricted actuation authority
+- ensure dashboard runtime cannot publish policy, validator, caregiver approval, Class 2 transition, or unrestricted actuation authority
 
 ### `70_configure_mqtt_payload_governance_rpi.sh` future optional script
 
@@ -535,8 +575,10 @@ Recommended responsibilities:
 - configure governance dashboard UI runtime
 - configure governance backend API base for UI use
 - configure registry path and payload examples/templates path
+- configure clarification interaction schema path
 - configure publisher/subscriber matrix and topic-payload contract paths
 - configure topic/payload validation report location
+- configure clarification payload validation report location
 - configure draft/proposed/committed separation
 - configure live topic traffic inspection mode when used
 - configure topic drift check mode where implemented
@@ -545,6 +587,7 @@ Recommended responsibilities:
 - ensure governance dashboard UI cannot directly publish operational control topics
 - ensure governance backend cannot directly modify canonical policies/schemas
 - ensure governance tooling cannot publish actuator or doorlock commands
+- ensure governance tooling cannot promote clarification payloads into validator approval, actuator authorization, emergency trigger authority, or doorlock authorization
 
 ### `80_configure_result_export_rpi.sh` future optional script
 
@@ -553,15 +596,36 @@ Recommended responsibilities:
 - configure CSV/JSON export settings
 - configure graph/report output paths where used
 - configure experiment run ID and scenario ID metadata assumptions
+- configure Class 2 transition report export paths where used
+
+### `90_configure_class2_transition_verifier_rpi.sh` future optional script
+
+Recommended responsibilities:
+- configure Class 2 transition verifier runtime paths
+- configure Class 2 clarification fixture directory
+- configure Class 2-to-Class 1, Class 2-to-Class 0, and Class 2 timeout/safe-deferral scenario selectors
+- configure expected audit evidence fields:
+  - clarification candidates
+  - presentation channel
+  - user/caregiver selection
+  - timeout/no-response result
+  - transition target
+  - Policy Router re-entry result
+  - validator result when Class 1 is reached
+  - emergency evidence when Class 0 is reached
+  - final safe outcome
+- configure report output paths for JSON/Markdown summaries
+- ensure verifier configuration cannot publish actuator or doorlock commands
+- ensure verifier configuration cannot spoof caregiver approval except in explicitly marked controlled test-mode fixtures
 
 ### Raspberry Pi Configuration Notes
 - Raspberry Pi configuration should stay bounded to the evaluation path.
 - It should prepare experiment-side execution only, not recreate the Mac mini hub runtime.
 - Shared frozen assets remain authoritative at the repository level, and Raspberry Pi consumes synchronized runtime copies only.
 - Communication/payload references remain reference assets and do not become policy authority on the Raspberry Pi.
-- Dashboard/governance tooling may inspect, validate, visualize, draft, export, and report, but must not override policy routing, validator decisions, caregiver approval, or dispatch.
+- Dashboard/governance tooling may inspect, validate, visualize, draft, export, and report, but must not override policy routing, validator decisions, caregiver approval, Class 2 transition decisions, or dispatch.
 - Governance dashboard UI must remain separated from the governance backend service.
-- Configuration may prepare topic drift and validation report settings, but actual drift, contract, and non-authority checks belong to the verify stage.
+- Configuration may prepare topic drift, clarification payload validation, Class 2 transition verification, and validation report settings, but actual drift, contract, clarification-payload, and non-authority checks belong to the verify/integration stage.
 - Canonical policy/schema/rules consistency verification and topic/payload contract verification belong to the **verify** stage, while configuration prepares the synchronized runtime copies and execution assumptions needed for those checks.
 
 ---
@@ -613,6 +677,7 @@ ESP32 nodes are bounded physical clients, but the repository now includes explic
 - environmental and safety sensor topic assumptions when physical sensing is used
 - doorbell / visitor-arrival context topic assumptions
 - `environmental_context.doorbell_detected` payload normalization assumptions
+- candidate-selection input assumptions for Class 2 clarification where bounded input nodes are used
 - actuator or warning interface topic assumptions when physical output is used
 - warning/doorlock interface non-authority boundary
 - Wi-Fi, reconnect, and fallback behavior assumptions
@@ -638,7 +703,8 @@ The current ESP32 configure/verify layer is primarily a **development-environmen
 It is not a replacement for later real node-firmware implementation under `esp32/code/` and `esp32/firmware/`.
 
 Doorbell / visitor-arrival context must not be emitted as emergency evidence or doorlock authorization.  
-Doorlock or warning interface nodes must not locally reinterpret doorlock as autonomous Class 1 authority.
+Doorlock or warning interface nodes must not locally reinterpret doorlock as autonomous Class 1 authority.  
+Bounded input nodes may provide Class 2 candidate-selection evidence, but must not locally decide final transitions or authorize actuation.
 
 ---
 
@@ -673,6 +739,7 @@ Examples:
 - containerized service environment: runtime bind mount or service-specific config path
 - native environment: local service configuration path
 - registry/payload reference paths: mounted, copied, symlinked, or externally configured according to deployment mode
+- clarification schema and Class 2 fixture paths: mounted, copied, symlinked, or externally configured according to deployment mode
 
 The configuration document or script should describe the deployment target clearly rather than hardcoding a single universal path.
 
@@ -697,8 +764,10 @@ The configuration logic should branch according to the deployment mode where nec
 Before device-specific configuration proceeds:
 - verify required frozen assets exist
 - verify synchronized or deployed copies will be sourced from the canonical baseline
+- verify `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` exists
 - verify MQTT topic registry and payload reference directories exist
-- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- verify Class 2 clarification fixture directories or planned locations exist when Class 2 transition evaluation is in scope
 - ensure configuration is not starting from an incomplete frozen/reference state
 
 ### Mac mini
@@ -726,11 +795,12 @@ bash rpi/scripts/configure/40_configure_simulation_runtime_rpi.sh
 bash rpi/scripts/configure/50_configure_fault_profiles_rpi.sh
 ```
 
-Optional future Raspberry Pi dashboard/governance/result configuration:
+Optional future Raspberry Pi dashboard/governance/result/Class 2 verifier configuration:
 ```bash
 bash rpi/scripts/configure/60_configure_dashboard_runtime_rpi.sh
 bash rpi/scripts/configure/70_configure_mqtt_payload_governance_rpi.sh
 bash rpi/scripts/configure/80_configure_result_export_rpi.sh
+bash rpi/scripts/configure/90_configure_class2_transition_verifier_rpi.sh
 ```
 
 ### ESP32 macOS / Linux
@@ -783,12 +853,13 @@ Typical workflow may include:
 - keep embedded-node configuration and sample-build alignment separate from full node-firmware implementation
 - keep timing/measurement configuration support documented separately from the operational control path when out-of-band evaluation is used
 - do not hardcode MQTT topic strings or payload contracts in generated runtime configs where registry lookup is practical
-- configuration scripts may write registry/payload paths but must not rewrite canonical policies/schemas
-- configuration scripts may write topic drift mode, payload validation mode, and validation report paths, but actual drift and contract checks belong to verification
+- configuration scripts may write registry/payload/schema/fixture paths but must not rewrite canonical policies/schemas
+- configuration scripts may write topic drift mode, payload validation mode, clarification payload validation mode, Class 2 transition verify mode, and validation report paths, but actual drift and contract checks belong to verification
 - Raspberry Pi dashboard/governance configuration must remain non-authoritative
 - governance dashboard UI must not directly edit registry files
 - governance backend must not directly modify canonical policies or schemas
 - governance tooling must not publish actuator or doorlock commands
+- governance or configuration tooling must not convert clarification payloads into authorization payloads
 - prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
 - prevent silent drift from the canonical policy/schema/rules baseline
 
@@ -797,14 +868,15 @@ Typical workflow may include:
 ## Architectural Summary
 
 - `common/policies/` and `common/schemas/` store canonical policy/schema authority
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` stores the current Class 2 clarification interaction schema
 - `common/mqtt/` and `common/payloads/` store communication/payload reference assets
 - `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - `mac_mini/scripts/configure/` configures the operational hub
-- `rpi/scripts/configure/` configures the dashboard, simulation, orchestration, replay, fault-injection, result-export, non-authoritative governance support, and evaluation node only
+- `rpi/scripts/configure/` configures the dashboard, simulation, orchestration, replay, fault-injection, result-export, Class 2 transition verification, non-authoritative governance support, and evaluation node only
 - Raspberry Pi does not replace the Mac mini hub runtime
 - Raspberry Pi governance support must preserve governance backend/UI separation and cannot create operational authority
-- `esp32/scripts/configure/` and `esp32/scripts/verify/` align the cross-platform ESP-IDF workspace and sample-build readiness for bounded node development, including doorbell / visitor-arrival context node assumptions where relevant
+- `esp32/scripts/configure/` and `esp32/scripts/verify/` align the cross-platform ESP-IDF workspace and sample-build readiness for bounded node development, including doorbell / visitor-arrival context node assumptions and bounded candidate-selection input assumptions where relevant
 - `esp32/code/` and `esp32/firmware/` remain the later target areas for real node-firmware implementation
 - `integration/measurement/` stores optional timing and measurement support alignment assets
 - configuration scripts and embedded/measurement configuration alignment deploy runtime-ready values and assumptions
-- runtime correctness, topic/payload consistency, topic drift checks, governance non-authority checks, and canonical asset consistency are confirmed later in the verify stage
+- runtime correctness, topic/payload consistency, topic drift checks, clarification interaction payload validation, Class 2 transition verification, governance non-authority checks, and canonical asset consistency are confirmed later in the verify/integration stage
