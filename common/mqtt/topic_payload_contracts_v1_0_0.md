@@ -6,7 +6,11 @@ Status: **DRAFT**
 
 This document explains the payload expectations for each MQTT topic family.
 
-Machine-readable topic registry:
+Current machine-readable topic registry:
+
+- `common/mqtt/topic_registry_v1_1_0.json`
+
+Historical topic registry baseline:
 
 - `common/mqtt/topic_registry_v1_0_0.json`
 
@@ -119,6 +123,7 @@ Rules:
 - Approved executable payload must stay within the frozen low-risk catalog.
 - Doorlock executable payload is not allowed in the current baseline.
 - Non-approved outcomes should route to safe deferral or Class 2 escalation as appropriate.
+- `class_2_escalation` remains a compatibility routing label for Class 2 clarification/escalation routing, not terminal escalation only.
 - `approved` outputs must route to `actuator_dispatcher` and include `executable_payload`.
 - `safe_deferral` and `rejected_escalation` outputs must not include executable payloads.
 
@@ -155,7 +160,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
 
 Example:
 
@@ -163,10 +168,37 @@ Example:
 
 Rules:
 
-- Used for caregiver escalation.
+- Used for Class 2 clarification notification, caregiver escalation notification, or unresolved-state notification.
+- Class 2 notification is not terminal failure by itself.
+- Class 2 may lead to Class 1, Class 0, Safe Deferral, or Caregiver Confirmation after confirmation, timeout/no-response, or deterministic evidence.
 - `manual_confirmation_path` describes a governed review/confirm/deny/intervene path.
 - `manual_confirmation_path` is not autonomous execution authority.
 - Doorlock-sensitive notifications may explain a manual confirmation route, but must not bypass validator, caregiver approval, ACK, or audit boundaries.
+
+### `safe_deferral/clarification/interaction`
+
+Expected payload family:
+
+- `clarification_interaction_payload`
+
+Schema:
+
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+
+Example:
+
+- none yet; future example recommended
+
+Rules:
+
+- Candidate choices are bounded guidance only.
+- User/caregiver selection is evidence for Policy Router re-entry, not validator bypass.
+- Timeout/no-response must not infer intent.
+- `transition_target` must not directly authorize actuation.
+- `CLASS_1` transition still requires Deterministic Validator approval.
+- `CLASS_0` transition requires deterministic emergency evidence or explicit emergency confirmation.
+- Doorlock authorization is not allowed through this payload.
+- This payload must not be confused with `class_2_notification_payload`, `validator_output`, `actuation_command_payload`, or `pure_context_payload`.
 
 ---
 
@@ -367,6 +399,7 @@ Rules:
 The following topic payload families are likely candidates for future schema formalization:
 
 - `safe_deferral_event`
+- `clarification_interaction_payload` examples and helper schemas if runtime/test needs require additional machine-readable contracts beyond `clarification_interaction_schema_v1_0_0_FROZEN.json`
 - `manual_confirmation_payload`
 - `actuation_command_payload`
 - `actuation_ack_payload`

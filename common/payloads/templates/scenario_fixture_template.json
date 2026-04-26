@@ -1,7 +1,9 @@
 {
   "scenario_id": "template_scenario_id",
-  "scenario_family": "visitor_response_or_low_risk_or_emergency_or_fault_or_governance",
+  "scenario_family": "visitor_response_or_low_risk_or_emergency_or_fault_or_governance_or_class2_transition",
   "description": "Describe the scenario intent and expected safe behavior.",
+  "topic_registry_ref": "common/mqtt/topic_registry_v1_1_0.json",
+  "payload_contract_ref": "common/mqtt/topic_payload_contracts_v1_0_0.md",
   "input_topic": "safe_deferral/context/input",
   "input_payload": {
     "source_node_id": "rpi.simulation_runtime_controlled_mode",
@@ -37,6 +39,23 @@
     "manual_approval_state": null,
     "ack_state": null,
     "note": "Experiment annotation is not part of pure_context_payload."
+  },
+  "class2_clarification_expectation": {
+    "enabled": false,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+    "requires_policy_router_reentry": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ],
+    "notes": []
   },
   "expected_outcome": {
     "route_class": "CLASS_1_OR_CLASS_2_OR_CLASS_0",
