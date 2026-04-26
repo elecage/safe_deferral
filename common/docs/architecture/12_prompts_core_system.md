@@ -61,6 +61,13 @@ Respect repository separation:
 - esp32/ = bounded physical node layer
 - integration/measurement/ = optional out-of-band timing and latency evaluation support
 
+Additional constraint for Class 2 clarification generation:
+- When generating runtime code, implement Class 2 clarification as a bounded interaction manager, not as a final caregiver escalation terminal state.
+- Class 2 Clarification Manager may request candidate choices from the LLM Guidance Layer, but it must not authorize actuation, determine final class transitions by itself, trigger emergency handling, or bypass the Deterministic Validator.
+- After user or caregiver confirmation, timeout, or additional deterministic evidence, Class 2 transition outcomes must re-enter the Policy Router.
+- Class 2 clarification records must remain aligned with `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`.
+- Candidate choices, selection results, timeout results, transition targets, and final safe outcomes must be audit logged when implemented.
+
 Additional constraint for doorlock-related generation:
 - Do not assume that door unlock is part of the currently authorized autonomous low-risk Class 1 actuation scope.
 - You may generate representative doorlock-node interface code, caregiver-mediated approval logic, ACK handling, and audit logging support.
