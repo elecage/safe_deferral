@@ -27,8 +27,8 @@ The current figure does not fully represent the active system structure:
 - Class 2 Clarification Manager is not visually separated enough from general
   safe deferral handling.
 - Mac mini read-only telemetry for RPi experiment tools is not explicit.
-- Actual physical nodes and experiment-only physical nodes are not clearly
-  distinguished.
+- Physical nodes are currently too easy to read as separate actual and
+  experiment-only authority groups.
 - RPi virtual fault injection should be shown as virtual/experiment support, not
   as a physical fault-injection node.
 
@@ -50,12 +50,11 @@ The revised figure should show these major areas:
 
 1. User
 2. Actual physical nodes
-3. Experiment-only physical nodes
-4. Mac mini operational hub
-5. Caregiver / Telegram notification path
-6. Raspberry Pi experiment support
-7. STM32 timing and measurement support
-8. Canonical assets / contracts as repository-governed references, if space
+3. Mac mini operational hub
+4. Caregiver / Telegram notification path
+5. Raspberry Pi experiment support
+6. STM32 timing and measurement support
+7. Canonical assets / contracts as repository-governed references, if space
    allows
 
 ## 4. Required Mac Mini Blocks
@@ -97,28 +96,27 @@ It may initiate experiments through controlled experiment/orchestration paths,
 but it must not appear to override Policy Router, Deterministic Validator,
 caregiver approval, audit, or operational dispatch.
 
-## 6. Required Physical Node Separation
+## 6. Required Physical Node Area
 
-Actual physical nodes should include:
+The physical-node area should include:
 
 - bounded button input node,
 - environmental context node,
 - doorbell / visitor context node,
 - lighting control node,
-- feedback output node,
-- device state reporter.
+- gas / smoke / fire nodes,
+- fall-detection node,
+- warning output node,
+- doorlock interface node.
 
-Experiment-only physical nodes should include:
+The figure should keep these in one physical-node container. It should avoid
+subgroup captions such as experiment-facing physical nodes, and it should not
+describe fault injection inside the physical-node area.
 
-- gas sensor experiment node,
-- smoke/fire experiment node,
-- fall-detection interface node,
-- warning output experiment node,
-- doorlock-sensitive interface experiment node.
-
-The figure should not include a physical fault-injection node in the active
-baseline. Fault injection should be shown under RPi virtual behavior / fault
-injection support.
+Device-state reporting and user feedback behavior may appear in interface,
+payload, or runtime documents, but they should not be introduced as separate
+physical-node blocks in this paper-oriented figure unless an explicit hardware
+node is later defined.
 
 ## 7. Required Caregiver And Telegram Path
 
@@ -206,6 +204,10 @@ Current output:
 Edit the SVG to update containers and blocks, but keep arrows minimal or
 temporarily removed. Validate text fit first.
 
+Current output:
+
+- `figure_revision/03_block_only_svg_update.md`
+
 ### Step 4. Operational arrow pass
 
 Add only the main operational path:
@@ -259,7 +261,7 @@ The revision is complete when:
 - RPi appears as non-authoritative experiment support,
 - STM32 appears as out-of-band measurement support,
 - Telegram appears as caregiver notification/confirmation transport only,
-- actual physical nodes and experiment-only physical nodes are distinguishable,
+- the physical-node area does not imply a separate experiment-only authority,
 - physical fault injection is not shown as an active required node,
 - all text fits inside blocks,
 - arrows do not cross unrelated blocks,

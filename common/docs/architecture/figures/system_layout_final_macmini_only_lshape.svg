@@ -1,201 +1,207 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg width="1650" height="1240" viewBox="0 0 1650 1240" xmlns="http://www.w3.org/2000/svg">
+<svg width="1800" height="1300" viewBox="0 0 1800 1300" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
-      .title { font: 700 28px Arial, sans-serif; fill: #1f2937; }
+      .title { font: 700 28px Arial, sans-serif; fill: #111827; }
       .subtitle { font: 400 15px Arial, sans-serif; fill: #4b5563; }
-      .hostfill { fill: #f8fafc; }
-      .hoststroke { fill: none; stroke: #0f172a; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-      .actor { fill: #ffffff; stroke: #475569; stroke-width: 2; rx: 18; ry: 18; }
-      .box { fill: #ffffff; stroke: #334155; stroke-width: 2; rx: 16; ry: 16; }
-      .safe { fill: #f0fdf4; stroke: #166534; stroke-width: 2; rx: 16; ry: 16; }
-      .critical { fill: #fff7ed; stroke: #9a3412; stroke-width: 2; rx: 16; ry: 16; }
-      .tts { fill: #faf5ff; stroke: #7c3aed; stroke-width: 2; rx: 16; ry: 16; }
-      .exp { fill: #eff6ff; stroke: #1d4ed8; stroke-width: 2; rx: 16; ry: 16; }
-      .section { font: 700 18px Arial, sans-serif; fill: #111827; }
-      .tiny { font: 400 12px Arial, sans-serif; fill: #4b5563; }
-      .label { font: 600 15px Arial, sans-serif; fill: #111827; }
-      .small { font: 400 13px Arial, sans-serif; fill: #374151; }
-      .arrow { stroke: #334155; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
-      .divider { stroke: #cbd5e1; stroke-width: 1.5; }
-      .emergency { stroke: #9a3412; }
-      .llm { stroke: #0f766e; }
-      .branch { stroke: #1d4ed8; }
-      .exec { stroke: #7c2d12; }
-      .ttsflow { stroke: #7c3aed; }
-      .ack { stroke: #0f766e; }
+      .area-title { font: 700 18px Arial, sans-serif; fill: #111827; }
+      .area-note { font: 400 12px Arial, sans-serif; fill: #475569; }
+      .label { font: 700 14px Arial, sans-serif; fill: #111827; }
+      .small { font: 400 12px Arial, sans-serif; fill: #334155; }
+      .tiny { font: 400 11px Arial, sans-serif; fill: #475569; }
+      .actor { fill: #ffffff; stroke: #475569; stroke-width: 2; rx: 14; ry: 14; }
+      .actual-area { fill: #f8fafc; stroke: #0f172a; stroke-width: 2.4; rx: 22; ry: 22; }
+      .actual-block { fill: #ffffff; stroke: #334155; stroke-width: 1.8; rx: 12; ry: 12; }
+      .experiment-area { fill: #f5f3ff; stroke: #6d28d9; stroke-width: 2.2; rx: 22; ry: 22; }
+      .experiment-block { fill: #ffffff; stroke: #7c3aed; stroke-width: 1.8; rx: 12; ry: 12; }
+      .mac-area { fill: #ecfeff; stroke: #155e75; stroke-width: 2.6; rx: 24; ry: 24; }
+      .mac-block { fill: #ffffff; stroke: #0e7490; stroke-width: 1.8; rx: 12; ry: 12; }
+      .safe-block { fill: #f0fdf4; stroke: #166534; stroke-width: 1.8; rx: 12; ry: 12; }
+      .critical-block { fill: #fff7ed; stroke: #9a3412; stroke-width: 1.8; rx: 12; ry: 12; }
+      .care-area { fill: #fff7ed; stroke: #9a3412; stroke-width: 2.2; rx: 22; ry: 22; }
+      .care-block { fill: #ffffff; stroke: #c2410c; stroke-width: 1.8; rx: 12; ry: 12; }
+      .rpi-area { fill: #eff6ff; stroke: #1d4ed8; stroke-width: 2.2; rx: 22; ry: 22; }
+      .rpi-block { fill: #ffffff; stroke: #2563eb; stroke-width: 1.8; rx: 12; ry: 12; }
+      .measure-area { fill: #f8fafc; stroke: #64748b; stroke-width: 2.2; stroke-dasharray: 8 6; rx: 22; ry: 22; }
+      .measure-block { fill: #ffffff; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 6 4; rx: 12; ry: 12; }
+      .asset-area { fill: #f9fafb; stroke: #6b7280; stroke-width: 1.8; rx: 16; ry: 16; }
+      .footer { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.6; rx: 10; ry: 10; }
     </style>
-    <marker id="arrowhead" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#334155"/></marker>
-    <marker id="arrowhead_em" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#9a3412"/></marker>
-    <marker id="arrowhead_llm" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#0f766e"/></marker>
-    <marker id="arrowhead_branch" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#1d4ed8"/></marker>
-    <marker id="arrowhead_exec" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#7c2d12"/></marker>
-    <marker id="arrowhead_tts" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#7c3aed"/></marker>
-    <marker id="arrowhead_ack" markerWidth="7" markerHeight="5" refX="6.2" refY="2.5" orient="auto"><polygon points="0 0, 7 2.5, 0 5" fill="#0f766e"/></marker>
   </defs>
 
-  <text x="825" y="42" text-anchor="middle" class="title">Privacy-Aware Edge Smart-Home Architecture with Safe Deferral</text>
-  <text x="825" y="68" text-anchor="middle" class="subtitle">Mac mini hosts local reasoning, deterministic validation, caregiver-mediated sensitive actuation, TTS, ACK handling, and audit logging; Raspberry Pi provides non-authoritative experiment and monitoring support.</text>
+  <text x="900" y="42" text-anchor="middle" class="title">Privacy-Aware Edge Smart-Home Architecture with Safe Deferral</text>
+  <text x="900" y="68" text-anchor="middle" class="subtitle">Block-only layout draft: Mac mini owns operational authority; Raspberry Pi and STM32 remain non-authoritative experiment and measurement support.</text>
 
-  <rect x="50" y="90" width="330" height="88" class="actor"/>
-  <text x="215" y="121" text-anchor="middle" class="section">User</text>
-  <text x="215" y="146" text-anchor="middle" class="small">bounded input and</text>
-  <text x="215" y="166" text-anchor="middle" class="small">voice-guided interaction</text>
+  <rect x="40" y="115" width="340" height="86" class="actor"/>
+  <text x="210" y="148" text-anchor="middle" class="area-title">User</text>
+  <text x="210" y="172" text-anchor="middle" class="small">bounded input, selection,</text>
+  <text x="210" y="190" text-anchor="middle" class="small">and accessible feedback</text>
 
-  <rect x="1210" y="90" width="310" height="88" class="actor"/>
-  <text x="1365" y="121" text-anchor="middle" class="section">Caregiver</text>
-  <text x="1365" y="146" text-anchor="middle" class="small">approval authority for</text>
-  <text x="1365" y="166" text-anchor="middle" class="small">sensitive actuation</text>
+  <rect x="40" y="230" width="340" height="875" class="actual-area"/>
+  <text x="210" y="260" text-anchor="middle" class="area-title">Actual Physical Nodes</text>
+  <text x="210" y="281" text-anchor="middle" class="area-note">bounded field-side nodes and interfaces</text>
 
-  <rect x="50" y="200" width="330" height="980" fill="#f8fafc" stroke="#0f172a" stroke-width="2.5" rx="24" ry="24"/>
-  <rect x="85" y="290" width="260" height="96" class="box"/>
-  <text x="215" y="322" text-anchor="middle" class="label">Bounded Input Node</text>
-  <text x="215" y="348" text-anchor="middle" class="small">button and</text>
-  <text x="215" y="368" text-anchor="middle" class="small">alternative input</text>
-  <rect x="85" y="470" width="260" height="110" class="box"/>
-  <text x="215" y="502" text-anchor="middle" class="label">Context Nodes</text>
-  <text x="215" y="528" text-anchor="middle" class="small">environment and</text>
-  <text x="215" y="548" text-anchor="middle" class="small">device-state sensing</text>
-  <rect x="85" y="650" width="260" height="126" class="critical"/>
-  <text x="215" y="682" text-anchor="middle" class="label">Emergency Nodes</text>
-  <text x="215" y="708" text-anchor="middle" class="small">gas, smoke, fall, and</text>
-  <text x="215" y="728" text-anchor="middle" class="small">threshold emergency</text>
-  <text x="215" y="748" text-anchor="middle" class="small">signals</text>
-  <rect x="85" y="840" width="260" height="96" class="critical"/>
-  <text x="215" y="872" text-anchor="middle" class="label">Actuator Interface Nodes</text>
-  <text x="215" y="898" text-anchor="middle" class="small">lighting and governed</text>
-  <text x="215" y="918" text-anchor="middle" class="small">sensitive-action interface</text>
-  <line x1="70" y1="1040" x2="360" y2="1040" class="divider"/>
-  <text x="215" y="1085" text-anchor="middle" class="section">ESP32 Device Layer</text>
-  <text x="215" y="1110" text-anchor="middle" class="tiny">field-side bounded input, sensing,</text>
-  <text x="215" y="1126" text-anchor="middle" class="tiny">emergency detection, and</text>
-  <text x="215" y="1142" text-anchor="middle" class="tiny">bounded actuator interfacing</text>
+  <rect x="70" y="315" width="280" height="64" class="actual-block"/>
+  <text x="210" y="342" text-anchor="middle" class="label">Bounded Button</text>
+  <text x="210" y="361" text-anchor="middle" class="label">Input Node</text>
 
-  <path class="hostfill" d="
-    M420,224
-    Q420,200 444,200
-    L1236,200
-    Q1260,200 1260,224
-    L1260,806
-    L1496,806
-    Q1520,806 1520,830
-    L1520,1156
-    Q1520,1180 1496,1180
-    L444,1180
-    Q420,1180 420,1156
-    Z"/>
-  <path class="hoststroke" d="
-    M444,200
-    L1236,200
-    Q1260,200 1260,224
-    L1260,806
-    L1496,806
-    Q1520,806 1520,830
-    L1520,1156
-    Q1520,1180 1496,1180
-    L444,1180
-    Q420,1180 420,1156
-    L420,224
-    Q420,200 444,200
-    Z"/>
+  <rect x="70" y="405" width="280" height="64" class="actual-block"/>
+  <text x="210" y="432" text-anchor="middle" class="label">Environmental</text>
+  <text x="210" y="451" text-anchor="middle" class="label">Context Node</text>
 
-  <rect x="1270" y="200" width="250" height="595" fill="#f8fafc" stroke="#0f172a" stroke-width="2.5" rx="24" ry="24"/>
-  <rect x="1290" y="290" width="210" height="130" class="exp"/>
-  <text x="1395" y="322" text-anchor="middle" class="label">Monitoring / Experiment</text>
-  <text x="1395" y="342" text-anchor="middle" class="label">Dashboard</text>
-  <text x="1395" y="368" text-anchor="middle" class="small">runtime status, event view,</text>
-  <text x="1395" y="388" text-anchor="middle" class="small">approval-status visibility only,</text>
-  <text x="1395" y="408" text-anchor="middle" class="small">and experiment monitoring</text>
-  <rect x="1290" y="455" width="210" height="110" class="exp"/>
-  <text x="1395" y="487" text-anchor="middle" class="label">Experiment Support</text>
-  <text x="1395" y="513" text-anchor="middle" class="small">scenario orchestration, replay,</text>
-  <text x="1395" y="533" text-anchor="middle" class="small">simulation, and fault injection</text>
-  <rect x="1290" y="595" width="210" height="98" class="exp"/>
-  <text x="1395" y="621" text-anchor="middle" class="label">Progress / Result /</text>
-  <text x="1395" y="641" text-anchor="middle" class="label">Governance Reports</text>
-  <text x="1395" y="663" text-anchor="middle" class="small">progress, summaries,</text>
-  <text x="1395" y="681" text-anchor="middle" class="small">validation reports, and artifacts</text>
-  <line x1="1282" y1="716" x2="1508" y2="716" class="divider"/>
-  <text x="1395" y="742" text-anchor="middle" class="section">Raspberry Pi 5</text>
-  <text x="1395" y="760" text-anchor="middle" class="tiny">non-authoritative monitoring,</text>
-  <text x="1395" y="776" text-anchor="middle" class="tiny">orchestration, governance checks,</text>
-  <text x="1395" y="792" text-anchor="middle" class="tiny">and result publication</text>
+  <rect x="70" y="495" width="280" height="64" class="actual-block"/>
+  <text x="210" y="522" text-anchor="middle" class="label">Doorbell / Visitor</text>
+  <text x="210" y="541" text-anchor="middle" class="label">Context Node</text>
 
-  <rect x="465" y="290" width="300" height="96" class="box"/>
-  <text x="615" y="322" text-anchor="middle" class="label">MQTT Ingestion / State Intake</text>
-  <text x="615" y="348" text-anchor="middle" class="small">receives field-side events and</text>
-  <text x="615" y="368" text-anchor="middle" class="small">registry-aware MQTT intake</text>
-  <rect x="465" y="470" width="300" height="110" class="box"/>
-  <text x="615" y="502" text-anchor="middle" class="label">Context and Runtime</text>
-  <text x="615" y="522" text-anchor="middle" class="label">State Aggregation</text>
-  <text x="615" y="548" text-anchor="middle" class="small">bounded input, context, and</text>
-  <text x="615" y="568" text-anchor="middle" class="small">runtime-state integration</text>
-  <rect x="465" y="650" width="300" height="126" class="box"/>
-  <text x="615" y="682" text-anchor="middle" class="label">Local LLM Reasoning Layer</text>
-  <text x="615" y="708" text-anchor="middle" class="small">intent recovery, explanation</text>
-  <text x="615" y="728" text-anchor="middle" class="small">generation, and clarification</text>
-  <text x="615" y="748" text-anchor="middle" class="small">prompt generation</text>
-  <rect x="465" y="840" width="300" height="96" class="tts"/>
-  <text x="615" y="872" text-anchor="middle" class="label">TTS Rendering / Voice Output</text>
-  <text x="615" y="898" text-anchor="middle" class="small">spoken guidance, status,</text>
-  <text x="615" y="918" text-anchor="middle" class="small">warning, and next-input prompts</text>
-  <rect x="915" y="290" width="300" height="96" class="box"/>
-  <text x="1065" y="322" text-anchor="middle" class="label">Policy Router +</text>
-  <text x="1065" y="342" text-anchor="middle" class="label">Deterministic Validator</text>
-  <text x="1065" y="364" text-anchor="middle" class="small">deterministic routing and</text>
-  <text x="1065" y="380" text-anchor="middle" class="small">final admissibility boundary</text>
-  <rect x="915" y="470" width="300" height="106" class="safe"/>
-  <text x="1065" y="502" text-anchor="middle" class="label">Approved Low-Risk</text>
-  <text x="1065" y="522" text-anchor="middle" class="label">Actuation Path</text>
-  <text x="1065" y="548" text-anchor="middle" class="small">Class 1 bounded execution</text>
-  <text x="1065" y="568" text-anchor="middle" class="small">currently lighting only</text>
-  <rect x="915" y="650" width="300" height="126" class="critical"/>
-  <text x="1065" y="682" text-anchor="middle" class="label">Safe Deferral and</text>
-  <text x="1065" y="702" text-anchor="middle" class="label">Clarification Management</text>
-  <text x="1065" y="728" text-anchor="middle" class="small">deferred state, unresolved</text>
-  <text x="1065" y="748" text-anchor="middle" class="small">reason, and clarification-needed</text>
-  <rect x="915" y="848" width="300" height="88" class="critical"/>
-  <text x="1065" y="880" text-anchor="middle" class="label">Caregiver Escalation</text>
-  <text x="1065" y="906" text-anchor="middle" class="small">manual confirmation path for</text>
-  <text x="1065" y="926" text-anchor="middle" class="small">sensitive actuation</text>
+  <rect x="70" y="585" width="280" height="64" class="safe-block"/>
+  <text x="210" y="612" text-anchor="middle" class="label">Lighting Control</text>
+  <text x="210" y="631" text-anchor="middle" class="label">Node</text>
 
-  <rect x="465" y="980" width="750" height="70" class="box"/>
-  <text x="840" y="1012" text-anchor="middle" class="label">Local ACK + Audit Logging</text>
-  <text x="840" y="1038" text-anchor="middle" class="small">shared lower layer for processed hub-side outcomes</text>
+  <rect x="70" y="675" width="280" height="64" class="experiment-block"/>
+  <text x="210" y="702" text-anchor="middle" class="label">Gas / Smoke / Fire</text>
+  <text x="210" y="721" text-anchor="middle" class="label">Nodes</text>
 
-  <rect x="1270" y="848" width="235" height="88" class="critical"/>
-  <text x="1387.5" y="880" text-anchor="middle" class="label">Caregiver Approval</text>
-  <text x="1387.5" y="906" text-anchor="middle" class="small">approval or denial for</text>
-  <text x="1387.5" y="926" text-anchor="middle" class="small">governed manual dispatch</text>
+  <rect x="70" y="765" width="280" height="64" class="experiment-block"/>
+  <text x="210" y="792" text-anchor="middle" class="label">Fall-Detection</text>
+  <text x="210" y="811" text-anchor="middle" class="label">Node</text>
 
-  <line x1="440" y1="1080" x2="1500" y2="1080" class="divider"/>
-  <text x="970" y="1115" text-anchor="middle" class="section">Mac mini Edge Hub</text>
-  <text x="970" y="1140" text-anchor="middle" class="tiny">local LLM reasoning, policy-constrained control, TTS rendering, caregiver approval handling, ACK handling, and local audit</text>
+  <rect x="70" y="855" width="280" height="64" class="experiment-block"/>
+  <text x="210" y="882" text-anchor="middle" class="label">Warning Output</text>
+  <text x="210" y="901" text-anchor="middle" class="label">Node</text>
 
-  <path d="M215 178 V290" class="arrow"/>
-  <path d="M345 322 H465" class="arrow"/>
-  <path d="M345 525 H375 V525 H395 V342 H465" class="arrow"/>
-  <path d="M345 708 H410 V354 H465" class="arrow emergency" marker-end="url(#arrowhead_em)"/>
-  <path d="M615 386 V470" class="arrow"/>
-  <path d="M765 318 H845 V318 H915" class="arrow emergency" marker-end="url(#arrowhead_em)"/>
-  <path d="M615 580 V650" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
-  <path d="M765 713 H790 V338 H915" class="arrow llm" marker-end="url(#arrowhead_llm)"/>
-  <path d="M1065 386 V470" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
-  <path d="M1215 338 H1235 V713 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
-  <path d="M1215 354 H1240 V877 H1215" class="arrow branch" marker-end="url(#arrowhead_branch)"/>
+  <rect x="70" y="945" width="280" height="64" class="critical-block"/>
+  <text x="210" y="972" text-anchor="middle" class="label">Doorlock</text>
+  <text x="210" y="991" text-anchor="middle" class="label">Interface Node</text>
 
-  <path d="M915 495 H820 V800 H400 V888 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
-  <path d="M1215 892 H1245 V892 H1270" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
-  <path d="M1270 908 H1248 V952 H400 V904 H345" class="arrow exec" marker-end="url(#arrowhead_exec)"/>
+  <rect x="430" y="115" width="780" height="650" class="mac-area"/>
+  <text x="820" y="146" text-anchor="middle" class="area-title">Mac mini Operational Hub</text>
+  <text x="820" y="167" text-anchor="middle" class="area-note">policy, validation, dispatch, caregiver handling, ACK, and audit</text>
 
-  <path d="M915 545 H850 V860 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
-  <path d="M915 687 H860 V888 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
-  <path d="M915 906 H780 V904 H765" class="arrow ttsflow" marker-end="url(#arrowhead_tts)"/>
+  <rect x="465" y="190" width="220" height="72" class="mac-block"/>
+  <text x="575" y="219" text-anchor="middle" class="label">MQTT / Context</text>
+  <text x="575" y="238" text-anchor="middle" class="label">Intake</text>
 
-  <path d="M215 936 V1015 H465" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
-  <path d="M1387.5 936 V1015 H1215" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
-  <path d="M915 729 H900 V980" class="arrow ack" marker-end="url(#arrowhead_ack)"/>
+  <rect x="465" y="285" width="220" height="72" class="mac-block"/>
+  <text x="575" y="314" text-anchor="middle" class="label">State</text>
+  <text x="575" y="333" text-anchor="middle" class="label">Aggregation</text>
 
-  <rect x="60" y="1195" width="1530" height="24" class="box"/>
-  <text x="825" y="1212" text-anchor="middle" class="tiny">Raspberry Pi support is non-authoritative; operational control, validation, caregiver-mediated execution, ACK handling, and audit remain on the Mac mini edge hub.</text>
+  <rect x="465" y="380" width="220" height="72" class="mac-block"/>
+  <text x="575" y="409" text-anchor="middle" class="label">Local LLM Adapter</text>
+  <text x="575" y="428" text-anchor="middle" class="small">Candidate guidance only</text>
+
+  <rect x="720" y="190" width="220" height="72" class="mac-block"/>
+  <text x="830" y="219" text-anchor="middle" class="label">Policy Router</text>
+  <text x="830" y="238" text-anchor="middle" class="small">Class 0 / 1 / 2</text>
+
+  <rect x="720" y="285" width="220" height="72" class="safe-block"/>
+  <text x="830" y="314" text-anchor="middle" class="label">Deterministic</text>
+  <text x="830" y="333" text-anchor="middle" class="label">Validator</text>
+
+  <rect x="720" y="380" width="220" height="86" class="critical-block"/>
+  <text x="830" y="410" text-anchor="middle" class="label">Class 2</text>
+  <text x="830" y="429" text-anchor="middle" class="label">Clarification</text>
+  <text x="830" y="447" text-anchor="middle" class="label">Manager</text>
+
+  <rect x="720" y="490" width="220" height="72" class="critical-block"/>
+  <text x="830" y="519" text-anchor="middle" class="label">Context-Integrity</text>
+  <text x="830" y="538" text-anchor="middle" class="label">Safe Deferral</text>
+
+  <rect x="975" y="190" width="200" height="72" class="safe-block"/>
+  <text x="1075" y="219" text-anchor="middle" class="label">Low-Risk</text>
+  <text x="1075" y="238" text-anchor="middle" class="label">Dispatcher</text>
+
+  <rect x="975" y="300" width="200" height="92" class="critical-block"/>
+  <text x="1075" y="329" text-anchor="middle" class="label">Caregiver</text>
+  <text x="1075" y="348" text-anchor="middle" class="label">Notification /</text>
+  <text x="1075" y="366" text-anchor="middle" class="label">Confirmation</text>
+
+  <rect x="975" y="430" width="200" height="72" class="mac-block"/>
+  <text x="1075" y="459" text-anchor="middle" class="label">Read-Only</text>
+  <text x="1075" y="478" text-anchor="middle" class="label">Telemetry Adapter</text>
+
+  <rect x="570" y="610" width="230" height="72" class="mac-block"/>
+  <text x="685" y="639" text-anchor="middle" class="label">ACK Handler</text>
+  <text x="685" y="658" text-anchor="middle" class="small">closed-loop evidence</text>
+
+  <rect x="835" y="610" width="230" height="72" class="mac-block"/>
+  <text x="950" y="639" text-anchor="middle" class="label">Audit Logging</text>
+  <text x="950" y="658" text-anchor="middle" class="small">single-writer service</text>
+
+  <text x="820" y="730" text-anchor="middle" class="tiny">LLM output, dashboards, MQTT topics, and payload examples do not create execution authority.</text>
+
+  <rect x="1260" y="115" width="470" height="300" class="care-area"/>
+  <text x="1495" y="146" text-anchor="middle" class="area-title">Caregiver / Telegram Path</text>
+  <text x="1495" y="167" text-anchor="middle" class="area-note">transport and manual confirmation evidence only</text>
+
+  <rect x="1300" y="205" width="180" height="62" class="care-block"/>
+  <text x="1390" y="231" text-anchor="middle" class="label">Telegram</text>
+  <text x="1390" y="249" text-anchor="middle" class="label">Bot API</text>
+
+  <rect x="1510" y="205" width="180" height="62" class="care-block"/>
+  <text x="1600" y="231" text-anchor="middle" class="label">Caregiver</text>
+  <text x="1600" y="249" text-anchor="middle" class="small">manual reviewer</text>
+
+  <rect x="1400" y="315" width="230" height="62" class="care-block"/>
+  <text x="1515" y="341" text-anchor="middle" class="label">Response /</text>
+  <text x="1515" y="359" text-anchor="middle" class="label">Confirmation Evidence</text>
+
+  <rect x="1260" y="455" width="470" height="520" class="rpi-area"/>
+  <text x="1495" y="486" text-anchor="middle" class="area-title">Raspberry Pi Experiment Support</text>
+  <text x="1495" y="507" text-anchor="middle" class="area-note">non-authoritative simulation, monitoring, governance, and results</text>
+
+  <rect x="1290" y="535" width="190" height="62" class="rpi-block"/>
+  <text x="1385" y="561" text-anchor="middle" class="label">Web Experiment</text>
+  <text x="1385" y="579" text-anchor="middle" class="label">Dashboard</text>
+
+  <rect x="1505" y="535" width="190" height="62" class="rpi-block"/>
+  <text x="1600" y="561" text-anchor="middle" class="label">Experiment</text>
+  <text x="1600" y="579" text-anchor="middle" class="label">Manager</text>
+
+  <rect x="1290" y="620" width="190" height="62" class="rpi-block"/>
+  <text x="1385" y="646" text-anchor="middle" class="label">Scenario</text>
+  <text x="1385" y="664" text-anchor="middle" class="label">Manager</text>
+
+  <rect x="1505" y="620" width="190" height="62" class="rpi-block"/>
+  <text x="1600" y="646" text-anchor="middle" class="label">Virtual Node</text>
+  <text x="1600" y="664" text-anchor="middle" class="label">Manager</text>
+
+  <rect x="1290" y="705" width="190" height="74" class="rpi-block"/>
+  <text x="1385" y="733" text-anchor="middle" class="label">Virtual Behavior /</text>
+  <text x="1385" y="751" text-anchor="middle" class="label">Fault Injection</text>
+
+  <rect x="1505" y="705" width="190" height="74" class="rpi-block"/>
+  <text x="1600" y="733" text-anchor="middle" class="label">MQTT / Interface</text>
+  <text x="1600" y="751" text-anchor="middle" class="label">Status Manager</text>
+
+  <rect x="1290" y="805" width="190" height="62" class="rpi-block"/>
+  <text x="1385" y="831" text-anchor="middle" class="label">Result Store /</text>
+  <text x="1385" y="849" text-anchor="middle" class="label">Analysis</text>
+
+  <rect x="1505" y="805" width="190" height="62" class="rpi-block"/>
+  <text x="1600" y="831" text-anchor="middle" class="label">MQTT / Payload</text>
+  <text x="1600" y="849" text-anchor="middle" class="label">Governance Support</text>
+
+  <text x="1495" y="925" text-anchor="middle" class="tiny">RPi tools may run experiments and observe telemetry,</text>
+  <text x="1495" y="941" text-anchor="middle" class="tiny">but must not override routing, validation, dispatch, or caregiver authority.</text>
+
+  <rect x="430" y="840" width="780" height="130" class="measure-area"/>
+  <text x="820" y="870" text-anchor="middle" class="area-title">STM32 Timing / Measurement Support</text>
+  <text x="820" y="891" text-anchor="middle" class="area-note">out-of-band latency evidence and export; not operational control</text>
+
+  <rect x="470" y="915" width="240" height="34" class="measure-block"/>
+  <text x="590" y="936" text-anchor="middle" class="label">STM32 Measurement Node</text>
+
+  <rect x="750" y="915" width="190" height="34" class="measure-block"/>
+  <text x="845" y="936" text-anchor="middle" class="label">Capture Channels</text>
+
+  <rect x="980" y="915" width="190" height="34" class="measure-block"/>
+  <text x="1075" y="936" text-anchor="middle" class="label">Measurement Export</text>
+
+  <rect x="430" y="1000" width="1300" height="105" class="asset-area"/>
+  <text x="1080" y="1032" text-anchor="middle" class="area-title">Canonical Assets / Contracts</text>
+  <text x="1080" y="1058" text-anchor="middle" class="small">policies, schemas, MQTT registry, payload contracts, scenario contracts, and required experiment definitions</text>
+  <text x="1080" y="1078" text-anchor="middle" class="tiny">repository-governed reference layer; not a live operational override channel</text>
+
+  <rect x="40" y="1245" width="1720" height="36" class="footer"/>
+  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 3 block-only layout: final arrows are intentionally omitted and will be added in separate operational, caregiver, RPi, and STM32 passes.</text>
 </svg>
