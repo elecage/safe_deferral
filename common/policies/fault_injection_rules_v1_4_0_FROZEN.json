@@ -2,18 +2,22 @@
   "version": "1.4.0",
   "description": "Meta-rules for dynamic fault injection and closed-loop safety assessment on Raspberry Pi 5",
   "asset_dependencies": [
-    "policy_table_v1_1_2_FROZEN.json",
+    "policy_table_v1_2_0_FROZEN.json",
     "context_schema_v1_0_0_FROZEN.json",
     "validator_output_schema_v1_1_0_FROZEN.json",
+    "clarification_interaction_schema_v1_0_0_FROZEN.json",
     "topic_registry_v1_0_0.json",
     "publisher_subscriber_matrix_v1_0_0.md",
     "topic_payload_contracts_v1_0_0.md",
     "15_interface_matrix.md",
     "17_payload_contract_and_registry.md"
   ],
-  "dependency_contract_note": "Dynamic references and selector-based profile generation in this file are part of the frozen dependency surface. If the referenced schema, policy, MQTT topic registry, publisher/subscriber matrix, topic-payload contract, interface matrix, or payload registry structure changes, this file must be reviewed for consistency rather than assumed to remain valid.",
+  "dependency_contract_note": "Dynamic references and selector-based profile generation in this file are part of the frozen dependency surface. If the referenced schema, policy, Class 2 clarification interaction schema, MQTT topic registry, publisher/subscriber matrix, topic-payload contract, interface matrix, or payload registry structure changes, this file must be reviewed for consistency rather than assumed to remain valid.",
   "dynamic_references": {
     "freshness_limit": "$.global_constraints.freshness_threshold_ms",
+    "class2_clarification_timeout": "$.global_constraints.class2_clarification_timeout_ms",
+    "class2_max_candidate_options": "$.global_constraints.class2_max_candidate_options",
+    "class2_interaction_schema": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
     "required_environmental_keys": "$.properties.environmental_context.required",
     "required_device_keys": "$.properties.device_states.required",
     "topic_registry_entries": "common/mqtt/topic_registry_v1_0_0.json",
@@ -22,6 +26,7 @@
     "interface_matrix": "common/docs/architecture/15_interface_matrix.md",
     "payload_registry": "common/docs/architecture/17_payload_contract_and_registry.md"
   },
+  "class2_clarification_boundary_note": "Class 2 clarification interaction payloads are evidence and transition records. They must not be treated as validator approval, actuation commands, emergency trigger authority, or doorlock authorization.",
   "deterministic_profiles": {
     "FAULT_STALENESS_01": {
       "fault_type": "sensor_staleness",
