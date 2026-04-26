@@ -183,6 +183,10 @@ No text should cross a block boundary or overlap other text or arrows.
 Create a table of current SVG blocks and compare them with the required blocks
 above. Mark each block as keep, rename, split, remove, or add.
 
+Current output:
+
+- `figure_revision/01_component_inventory.md`
+
 ### Step 2. Layout draft
 
 Draft the revised layout before editing detailed arrows:
@@ -192,6 +196,10 @@ Draft the revised layout before editing detailed arrows:
 - right: caregiver and Telegram path,
 - lower or side band: RPi experiment support,
 - bottom or detached side area: STM32 timing/measurement support.
+
+Current output:
+
+- `figure_revision/02_layout_draft.md`
 
 ### Step 3. Block-only SVG update
 
@@ -257,4 +265,3 @@ The revision is complete when:
 - arrows do not cross unrelated blocks,
 - same-direction arrows do not overlap as a single ambiguous lane,
 - and the rendered SVG is readable without consulting legacy documents.
-
