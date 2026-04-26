@@ -30,14 +30,15 @@ Do not invent schemas, thresholds, policy rules, timeout values, topic namespace
 Always read them from the provided frozen artifacts and aligned project documents first.
 
 The following required canonical frozen artifacts must be loaded into the agent knowledge base before implementation:
-- common/policies/policy_table_v1_1_2_FROZEN.json
+- common/policies/policy_table_v1_2_0_FROZEN.json
 - common/policies/low_risk_actions_v1_1_0_FROZEN.json
 - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
 - common/schemas/context_schema_v1_0_0_FROZEN.json
 - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
 - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
 - common/schemas/validator_output_schema_v1_1_0_FROZEN.json
-- common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+- common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+- common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 - common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md
 
 Optional or version-sensitive companion assets may also be loaded when needed:
@@ -234,11 +235,13 @@ Requirements:
 - Support Telegram Bot API first.
 - Support a mock fallback mode.
 - Input payload behavior must align with:
-  - common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+  - common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+- Class 2 clarification interaction records, when used, must align with:
+  - common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 - Provide a clean Python interface:
   - send_class0_alert(payload)
   - send_class2_escalation(payload)
-- Do not invent ad hoc payload fields that are not grounded in the canonical notification payload schema.
+- Do not invent ad hoc payload fields that are not grounded in the canonical notification or clarification payload schemas.
 - Include tests for payload validation and dry-run mode.
 ```
 
@@ -408,14 +411,15 @@ Requirements:
 - Synchronize runtime copies of the frozen shared assets needed for simulation and fault injection.
 - The authoritative source remains the shared frozen repository state, not Pi-local files.
 - Support synchronization of required canonical frozen assets such as:
-  - common/policies/policy_table_v1_1_2_FROZEN.json
+  - common/policies/policy_table_v1_2_0_FROZEN.json
   - common/policies/low_risk_actions_v1_1_0_FROZEN.json
   - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
   - common/schemas/context_schema_v1_0_0_FROZEN.json
   - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
   - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
   - common/schemas/validator_output_schema_v1_1_0_FROZEN.json
-  - common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+  - common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+  - common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 - Optional or version-sensitive companion assets may also be synchronized when needed, including output profile assets.
 - Verify checksum, version, or structural consistency after sync.
 - Keep synced runtime copies read-only for Pi-side runtime modules where appropriate.
