@@ -23,6 +23,7 @@ This prompt set is for:
 - interface-matrix alignment validation,
 - dashboard UI integration,
 - governance audit trail,
+- clarification interaction payload validation,
 - and non-authoritative inspection workflows.
 
 ## Required references
@@ -33,6 +34,8 @@ Before implementing any component from this prompt set, the agent must read:
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
@@ -41,7 +44,23 @@ Before implementing any component from this prompt set, the agent must read:
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+
+## Payload family separation
+
+Governance tooling must preserve the following payload-family separation:
+
+```text
+pure_context_payload
+≠ class_2_notification_payload
+≠ clarification_interaction_payload
+≠ validator_output_payload
+≠ actuation_command_payload
+≠ audit_payload
+```
+
+`clarification_interaction_payload` may contain candidate choices, selection result, timeout result, transition target, and final safe outcome. It must not contain actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval.
 
 ## Non-negotiable authority boundary
 
@@ -63,6 +82,8 @@ It must not:
 - publish actuator or doorlock commands,
 - spoof caregiver approval,
 - override Policy Router or Deterministic Validator decisions,
+- treat `clarification_interaction_payload` as validator approval or actuator authorization,
+- treat Class 2 candidate text as emergency trigger evidence,
 - or convert draft/proposed registry changes into live operational authority without review.
 
 The dashboard UI must remain a presentation and interaction layer only.  
@@ -110,9 +131,11 @@ Requirements:
 - Validate topic/payload hardcoding drift where implementation files are in scope.
 - Validate that dashboard/governance topics are marked non-authoritative.
 - Validate that RPi simulation/fault topics are marked experiment-only unless explicitly allowed otherwise.
+- Validate that Class 2 clarification or notification topics do not imply actuator authorization.
+- Validate that `clarification_interaction_payload` remains distinct from pure context, validator output, and actuation command payloads.
 - Validate that doorbell-related topics do not authorize autonomous doorlock control.
 - Produce a machine-readable validation report and a concise human-readable summary.
-- Include unit tests for valid registry, missing topic_id, missing publisher/subscriber lists, missing payload family, unresolved schema path, unresolved example payload path, interface-matrix mismatch, topic drift, and forbidden authority escalation.
+- Include unit tests for valid registry, missing topic_id, missing publisher/subscriber lists, missing payload family, unresolved schema path, unresolved example payload path, interface-matrix mismatch, topic drift, clarification payload authority escalation, and forbidden authority escalation.
 ```
 
 ---
@@ -151,6 +174,7 @@ Requirements:
   - link schema path to topic
   - link example payload path to topic
   - validate payload example against referenced schema
+  - validate clarification interaction payloads against common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
   - run interface-matrix alignment check
   - run topic/payload hardcoding drift check where implementation files are in scope
   - export proposed registry changes
@@ -166,6 +190,7 @@ Requirements:
 - The service must not publish actuator or doorlock commands.
 - The service must not spoof caregiver approval.
 - The service must not dispatch doorlock commands.
+- The service must not treat clarification candidate text as Policy Router output, validator approval, actuator authorization, or emergency evidence.
 - The service must not convert draft/proposed changes into live operational authority without review.
 - Store edit history or change proposals as governance artifacts, not as policy truth.
 - Include validation rules for:
@@ -175,9 +200,11 @@ Requirements:
   - valid payload family
   - schema path existence when required
   - example payload path existence when required
+  - clarification interaction schema conformance
   - interface-matrix alignment
   - topic/payload hardcoding drift where applicable
   - forbidden dashboard/control authority escalation
+  - forbidden clarification-to-actuation authority escalation
   - forbidden doorlock autonomous Class 1 topic semantics
 - Include unit tests and API tests.
 ```
@@ -218,6 +245,7 @@ Required UI capabilities:
 - authority level viewer/editor for draft entries
 - operational vs experiment-only flag viewer/editor for draft entries
 - validation result panel
+- clarification interaction payload validation result panel
 - interface-matrix alignment result panel
 - topic/payload drift warning panel where implemented
 - diff/proposed-change preview
@@ -225,12 +253,14 @@ Required UI capabilities:
 - live or replayed topic traffic viewer when available
 - unauthorized topic warning panel
 - missing required field warning panel
+- Class 2 clarification authority-boundary warning panel
 - doorbell/doorlock boundary warning panel
 
 Required safety warnings:
 - Highlight when a topic appears to grant dashboard/control authority.
 - Highlight when a topic appears to allow unrestricted actuation.
 - Highlight when a topic appears to allow doorlock control outside caregiver-mediated/manual-confirmation paths.
+- Highlight when a clarification interaction payload appears to contain actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval.
 - Highlight when a payload example omits `environmental_context.doorbell_detected` where context schema validity is required.
 - Highlight when doorlock state appears inside current `pure_context_payload.device_states`.
 
@@ -243,6 +273,7 @@ Forbidden UI behavior:
 - no canonical schema/policy editing
 - no direct registry-file editing
 - no direct operational control-topic publishing
+- no clarification-to-actuation promotion control
 
 Include tests or verification notes for:
 - topic list rendering
@@ -252,8 +283,10 @@ Include tests or verification notes for:
 - delete draft flow
 - publisher/subscriber role editing flow
 - payload validation result display
+- clarification interaction payload validation display
 - interface-matrix alignment display
 - topic/payload drift warning display where implemented
+- Class 2 clarification authority-boundary warning display
 - doorbell/doorlock boundary warning display
 - UI cannot directly edit registry files
 - UI cannot directly publish operational control topics
@@ -291,10 +324,13 @@ Requirements:
   - doorbell_detected is visitor-response context only
   - doorbell_detected is not emergency evidence
   - doorbell_detected is not doorlock authorization
+  - clarification_interaction_payload is separate from pure_context_payload and class_2_notification_payload
+  - clarification_interaction_payload may contain candidate choices, selection result, timeout result, transition_target, and final_safe_outcome
+  - clarification_interaction_payload must not contain actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval
   - doorlock state must not appear in current pure_context_payload.device_states
   - manual approval state must not appear in pure_context_payload
   - ACK state must not appear in pure_context_payload
-- Include tests for valid examples, missing doorbell_detected, doorlock-in-device-states, unresolved schema path, unresolved example path, and invalid payload family.
+- Include tests for valid examples, missing doorbell_detected, valid clarification interaction payload, invalid clarification interaction payload with actuator authority, doorlock-in-device-states, unresolved schema path, unresolved example path, and invalid payload family.
 ```
 
 ---
@@ -314,6 +350,7 @@ Requirements:
   - mac_mini.policy_router
   - mac_mini.deterministic_validator
   - mac_mini.local_llm_adapter
+  - mac_mini.class2_clarification_manager
   - mac_mini.audit_logging_service
   - mac_mini.dispatcher_low_risk_path
   - mac_mini.dispatcher_manual_path
@@ -333,5 +370,6 @@ Requirements:
 - Distinguish operational roles from experiment-only roles.
 - Distinguish dashboard/gov roles from policy/validator/dispatcher roles.
 - Prevent dashboard/gov roles from being assigned direct actuator or caregiver approval authority unless explicitly marked as controlled test-mode roles.
-- Include tests for valid roles, unknown roles, dashboard role assigned to forbidden authority, RPi simulation role assigned to operational-only topic, and ESP32 role assigned to policy authority.
+- Prevent Class 2 clarification publisher/subscriber roles from being assigned direct actuator, emergency trigger, validator approval, or doorlock unlock authority.
+- Include tests for valid roles, unknown roles, dashboard role assigned to forbidden authority, Class 2 clarification role assigned to forbidden authority, RPi simulation role assigned to operational-only topic, and ESP32 role assigned to policy authority.
 ```
