@@ -101,24 +101,24 @@ if [ ! -d "${PAYLOAD_DIR}" ]; then
 fi
 
 REQUIRED_POLICY_ASSETS=(
-    "policy_table_v1_1_2_FROZEN.json"
-    "fault_injection_rules_v1_4_0_FROZEN.json"
-    "low_risk_actions_v1_1_0_FROZEN.json"
-    "output_profile_v1_1_0.json"
+    "policy_table.json"
+    "fault_injection_rules.json"
+    "low_risk_actions.json"
+    "output_profile.json"
 )
 
 REQUIRED_SCHEMA_ASSETS=(
-    "context_schema_v1_0_0_FROZEN.json"
-    "candidate_action_schema_v1_0_0_FROZEN.json"
-    "policy_router_input_schema_v1_1_1_FROZEN.json"
-    "validator_output_schema_v1_1_0_FROZEN.json"
-    "class_2_notification_payload_schema_v1_0_0_FROZEN.json"
+    "context_schema.json"
+    "candidate_action_schema.json"
+    "policy_router_input_schema.json"
+    "validator_output_schema.json"
+    "class2_notification_payload_schema.json"
 )
 
 REQUIRED_MQTT_ASSETS=(
-    "topic_registry_v1_0_0.json"
-    "publisher_subscriber_matrix_v1_0_0.md"
-    "topic_payload_contracts_v1_0_0.md"
+    "topic_registry.json"
+    "publisher_subscriber_matrix.md"
+    "topic_payload_contracts.md"
 )
 
 MISSING_ASSETS=0
@@ -168,7 +168,7 @@ fi
 
 echo "  [OK] Policy/schema authority mirrors and MQTT/payload reference assets are present."
 
-CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema_v1_0_0_FROZEN.json"
+CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 echo "  [INFO] Verifying context schema alignment for doorbell context..."
 if ! jq -e '.. | objects | has("doorbell_detected")' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
     echo "  [FATAL] context schema does not contain doorbell_detected. Re-sync frozen schema assets."
@@ -203,7 +203,7 @@ echo "  [INFO] Measuring time sync offset and network RTT..."
 LOG_DIR="${WORKSPACE_DIR}/logs"
 mkdir -p "${LOG_DIR}"
 TIME_LOG_FILE="${LOG_DIR}/time_sync_verification.log"
-POLICY_FILE="${POLICY_DIR}/policy_table_v1_1_2_FROZEN.json"
+POLICY_FILE="${POLICY_DIR}/policy_table.json"
 
 FRESHNESS_LIMIT=$(jq -r '.global_constraints.freshness_threshold_ms // 100' "${POLICY_FILE}" 2>/dev/null || echo "100")
 echo "  [INFO] Target Freshness Threshold: ${FRESHNESS_LIMIT} ms (fallback applied if undefined)" | tee -a "${TIME_LOG_FILE}"

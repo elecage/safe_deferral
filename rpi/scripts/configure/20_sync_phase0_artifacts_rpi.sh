@@ -49,24 +49,24 @@ REMOTE_MQTT_DIR="${REMOTE_MQTT_DIR:-~/smarthome_workspace/docker/volumes/app/con
 REMOTE_PAYLOADS_DIR="${REMOTE_PAYLOADS_DIR:-~/smarthome_workspace/docker/volumes/app/config/payloads}"
 
 SCHEMA_FILES=(
-    "context_schema_v1_0_0_FROZEN.json"
-    "candidate_action_schema_v1_0_0_FROZEN.json"
-    "policy_router_input_schema_v1_1_1_FROZEN.json"
-    "validator_output_schema_v1_1_0_FROZEN.json"
-    "class_2_notification_payload_schema_v1_0_0_FROZEN.json"
+    "context_schema.json"
+    "candidate_action_schema.json"
+    "policy_router_input_schema.json"
+    "validator_output_schema.json"
+    "class2_notification_payload_schema.json"
 )
 
 POLICY_FILES=(
-    "policy_table_v1_1_2_FROZEN.json"
-    "fault_injection_rules_v1_4_0_FROZEN.json"
-    "low_risk_actions_v1_1_0_FROZEN.json"
-    "output_profile_v1_1_0.json"
+    "policy_table.json"
+    "fault_injection_rules.json"
+    "low_risk_actions.json"
+    "output_profile.json"
 )
 
 MQTT_FILES=(
-    "topic_registry_v1_0_0.json"
-    "publisher_subscriber_matrix_v1_0_0.md"
-    "topic_payload_contracts_v1_0_0.md"
+    "topic_registry.json"
+    "publisher_subscriber_matrix.md"
+    "topic_payload_contracts.md"
 )
 
 sync_dir() {
@@ -128,7 +128,7 @@ else
         jq empty "${POLICY_TARGET_DIR}/${file}" >/dev/null
     done
 
-    jq empty "${MQTT_TARGET_DIR}/topic_registry_v1_0_0.json" >/dev/null
+    jq empty "${MQTT_TARGET_DIR}/topic_registry.json" >/dev/null
     echo "  [OK] JSON syntax verified for policy, schema, and topic registry assets."
 fi
 

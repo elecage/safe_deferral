@@ -11,10 +11,10 @@ It should be read together with:
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/18_scenario_node_component_mapping.md`
-- `common/docs/runtime/SESSION_HANDOFF_2026-04-25_PHASE0_FROZEN_BASELINE_AUDIT.md`
+- `common/docs/runtime/SESSION_HANDOFF.md`
 - `common/docs/runtime/SESSION_HANDOFF_2026-04-25_SCENARIO_POLICY_SCHEMA_VERIFY_UPDATE_PLAN_V2.md`
 
-This document does not replace frozen policy/schema assets. It records the architecture interpretation that should guide the Phase 2 policy baseline update and subsequent schema/verifier/test updates.
+This document does not replace canonical policy/schema assets. It records the architecture interpretation that should guide the Phase 2 policy baseline update and subsequent schema/verifier/test updates.
 
 ---
 
@@ -132,7 +132,7 @@ clarification_interaction_payload
 Current clarification interaction schema:
 
 ```text
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 ```
 
 This schema governs Class 2 clarification interaction records and is distinct from `pure_context_payload` and `class_2_notification_payload`.
@@ -380,8 +380,8 @@ safe_deferral/audit/log
 The following should remain unchanged in Phase 1:
 
 ```text
-common/schemas/context_schema_v1_0_0_FROZEN.json
-common/mqtt/topic_registry_v1_0_0.json
+common/schemas/context_schema.json
+common/mqtt/topic_registry.json
 ```
 
 Reason:
@@ -402,7 +402,7 @@ clarification_interaction_payload
 It is governed by:
 
 ```text
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 ```
 
 This schema records clarification candidates, presentation channel, user/caregiver response, timeout result, transition target, and final safe outcome. It must remain separate from pure context payloads, notification payloads, validator outputs, actuation commands, and emergency triggers.

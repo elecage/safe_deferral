@@ -18,9 +18,9 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---
@@ -182,19 +182,19 @@ The project depends on shared assets stored in:
 - `common/terminology/`
 
 Representative canonical frozen assets include:
-- `policy_table_v1_1_2_FROZEN.json`
-- `low_risk_actions_v1_1_0_FROZEN.json`
-- `fault_injection_rules_v1_4_0_FROZEN.json`
-- `context_schema_v1_0_0_FROZEN.json`
-- `candidate_action_schema_v1_0_0_FROZEN.json`
-- `policy_router_input_schema_v1_1_1_FROZEN.json`
-- `validator_output_schema_v1_1_0_FROZEN.json`
-- `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `policy_table.json`
+- `low_risk_actions.json`
+- `fault_injection_rules.json`
+- `context_schema.json`
+- `candidate_action_schema.json`
+- `policy_router_input_schema.json`
+- `validator_output_schema.json`
+- `class2_notification_payload_schema.json`
 
 Representative communication and payload reference assets include:
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
@@ -406,7 +406,7 @@ Automation should support scenario publication through the same input plane used
 Automation should fail early if canonical policy/schema/rules assets are missing, unreadable, or version-inconsistent.
 
 ### K. Do not hardcode MQTT topics or payload contracts in apps
-Runtime apps, dashboard apps, experiment tools, and firmware adapters should load topic names, publisher/subscriber rules, payload families, schema paths, and example payload references from `common/mqtt/topic_registry_v1_0_0.json` whenever practical.
+Runtime apps, dashboard apps, experiment tools, and firmware adapters should load topic names, publisher/subscriber rules, payload families, schema paths, and example payload references from `common/mqtt/topic_registry.json` whenever practical.
 
 Code should prefer stable topic identifiers or registry lookups over direct hardcoded topic strings. This makes topic renaming, payload migration, and publisher/subscriber policy review easier.
 

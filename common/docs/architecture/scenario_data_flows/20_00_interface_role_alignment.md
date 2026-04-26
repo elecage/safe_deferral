@@ -12,8 +12,8 @@ It links scenario-level data-flow steps to:
 
 ```text
 15_interface_matrix.md interface IDs
-publisher_subscriber_matrix_v1_0_0.md publisher/subscriber roles
-topic_registry_v1_1_0.json machine-readable role metadata
+publisher_subscriber_matrix.md publisher/subscriber roles
+topic_registry.json machine-readable role metadata
 MQTT topic contracts
 payload families
 authority boundaries
@@ -30,19 +30,19 @@ This document aligns with:
 ```text
 common/docs/architecture/15_interface_matrix.md
 common/docs/architecture/20_scenario_data_flow_matrix.md
-common/mqtt/publisher_subscriber_matrix_v1_0_0.md
-common/mqtt/topic_registry_v1_1_0.json
-common/mqtt/topic_registry_v1_0_0.json
-common/mqtt/topic_payload_contracts_v1_0_0.md
+common/mqtt/publisher_subscriber_matrix.md
+common/mqtt/topic_registry.json
+common/mqtt/topic_registry.json
+common/mqtt/topic_payload_contracts.md
 common/docs/architecture/17_payload_contract_and_registry.md
 ```
 
 Interpretation:
 
 ```text
-- topic_registry_v1_1_0.json is the machine-readable registry for publisher/subscriber role metadata.
-- topic_registry_v1_0_0.json remains the historical topic/payload baseline.
-- publisher_subscriber_matrix_v1_0_0.md remains the human-readable role matrix.
+- topic_registry.json is the machine-readable registry for publisher/subscriber role metadata.
+- topic_registry.json remains the historical topic/payload baseline.
+- publisher_subscriber_matrix.md remains the human-readable role matrix.
 ```
 
 Key interpretation from `15_interface_matrix.md`:
@@ -102,7 +102,7 @@ Key interpretation from `15_interface_matrix.md`:
 
 ## 4. MQTT publisher/subscriber role alignment
 
-The human-readable roles below are mirrored in `common/mqtt/topic_registry_v1_1_0.json` using `publisher_roles` and `subscriber_roles`.
+The human-readable roles below are mirrored in `common/mqtt/topic_registry.json` using `publisher_roles` and `subscriber_roles`.
 
 | Topic | Allowed publisher roles | Allowed subscriber roles | Payload family | Scenario usage |
 |---|---|---|---|---|
@@ -125,7 +125,7 @@ The human-readable roles below are mirrored in `common/mqtt/topic_registry_v1_1_
 Note on `safe_deferral/context/input`:
 
 ```text
-publisher_subscriber_matrix_v1_0_0.md and topic_registry_v1_1_0.json now explicitly list field-side operational publishers for this topic:
+publisher_subscriber_matrix.md and topic_registry.json now explicitly list field-side operational publishers for this topic:
 - esp32.bounded_input_node
 - esp32.context_node
 - esp32.doorbell_visitor_context_node
@@ -183,7 +183,7 @@ This resolves the earlier publisher-role mismatch while preserving the distincti
 
 | Issue | Current interpretation | Recommended follow-up |
 |---|---|---|
-| `safe_deferral/context/input` publisher mismatch | Resolved in `publisher_subscriber_matrix_v1_0_0.md` and `topic_registry_v1_1_0.json`: field-side publishers and controlled-mode publishers are now both explicitly represented | Keep this distinction in future registry/governance updates; do not collapse controlled-mode publishers into ordinary operational publishers |
+| `safe_deferral/context/input` publisher mismatch | Resolved in `publisher_subscriber_matrix.md` and `topic_registry.json`: field-side publishers and controlled-mode publishers are now both explicitly represented | Keep this distinction in future registry/governance updates; do not collapse controlled-mode publishers into ordinary operational publishers |
 | Class 2 candidate prompt topic | Existing topic registry can express Class 2 using deferral/escalation/context/caregiver/audit topics | Add dedicated `safe_deferral/clarification/*` topics only if runtime implementation requires separation |
 | Warning output topic | Emergency warning output may be local output or actuation-like command | Keep warning output governed; avoid treating emergency guidance as arbitrary actuator authority |
 | ACK schema | ACK payload family is described but future formal schema may still be needed | Add formal ACK schema if closed-loop execution testing expands |

@@ -29,11 +29,11 @@ Authoritative policy/schema truth remains in:
 
 Current active routing policy baseline:
 
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
+- `common/policies/policy_table.json`
 
 Historical routing policy baseline superseded by v1.2.0:
 
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table.json`
 
 This document should be read together with:
 
@@ -42,14 +42,14 @@ This document should be read together with:
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 Historical MQTT registry baseline:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry.json`
 
 ---
 
@@ -143,20 +143,20 @@ These payloads must not redefine policy truth, silently expand autonomous actuat
 
 | Payload family | Typical location / producer | Consumer | Governing asset | Authority level | Notes |
 |---|---|---|---|---|---|
-| Policy Router Input | Mac mini input adapter, integration adapter, future MQTT intake | Policy Router | `policy_router_input_schema_v1_1_1_FROZEN.json` | Schema-governed | Wrapper containing `source_node_id`, `routing_metadata`, and `pure_context_payload` |
-| Routing Metadata | Mac mini input adapter | Policy Router only | `policy_router_input_schema_v1_1_1_FROZEN.json` | Schema-governed | Operational metadata. Must not be mixed directly into LLM prompt context |
-| Pure Context Payload | Mac mini input adapter, RPi simulation, ESP32-derived context aggregation | Policy Router / bounded LLM path | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Only payload section that may form LLM-relevant physical/context input |
-| Trigger Event | ESP32, RPi simulation, Mac mini adapter | Policy Router | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Includes event type/code/timestamp. Timestamp is for staleness and reproducibility |
-| Environmental Context | ESP32 sensors, RPi simulation, Mac mini context aggregation | Policy Router / bounded LLM path | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Includes temperature, illuminance, occupancy, smoke, gas, and `doorbell_detected` |
-| Device States | Context aggregator, RPi simulation | Policy Router / validator context | `context_schema_v1_0_0_FROZEN.json` | Schema-governed | Current fields: `living_room_light`, `bedroom_light`, `living_room_blind`, `tv_main`; doorlock state is not included |
-| Low-risk Action Catalog | Frozen policy asset | Validator / implementation | `low_risk_actions_v1_1_0_FROZEN.json` | Policy-governed | Authoritative autonomous Class 1 action scope |
-| Routing Policy Table | Frozen policy asset | Policy Router / scenario verifier / implementation | `policy_table_v1_2_0_FROZEN.json` | Policy-governed | Active baseline with Class 2 clarification/transition semantics |
-| Class 2 Clarification Interaction | Class 2 Clarification Manager, caregiver confirmation backend, scenario fixtures, `safe_deferral/clarification/interaction` | Audit, dashboard observer, Class 2 transition verifier, Policy Router re-entry path | `clarification_interaction_schema_v1_0_0_FROZEN.json` + `policy_table_v1_2_0_FROZEN.json` | Schema-governed + policy-governed | Candidate choices, presentation channel, selection result, timeout result, transition target, final safe outcome. Not pure context and not actuation authority |
-| LLM Candidate Action | Local LLM bounded assistance path | Deterministic Validator | `candidate_action_schema_v1_0_0_FROZEN.json` | Schema-governed | Current autonomous action candidates must remain within schema and low-risk catalog |
-| Validator Output | Deterministic Validator | Dispatcher / safe deferral / escalation path | `validator_output_schema_v1_1_0_FROZEN.json` | Schema-governed | Approved executable payload must remain bounded to current low-risk scope |
-| Class 2 Notification Payload | Escalation / clarification notification service | Caregiver notification channel, TTS/display notification, local dashboard | `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Schema-governed | Includes summary, unresolved reason, manual confirmation path, C201-C207 trigger IDs, and clarification-oriented source layers/channels |
-| Output Profile | Notification/output layer | Notification service / UI guidance | `output_profile_v1_1_0.json` | Companion policy asset | Output/channel guidance; does not override schemas or routing policy |
-| Fault Injection Profile | RPi fault injector | RPi orchestration / Mac mini policy path | `fault_injection_rules_v1_4_0_FROZEN.json` + policy/schema assets | Policy/rules-governed | Dynamic references must follow current policy/schema contracts |
+| Policy Router Input | Mac mini input adapter, integration adapter, future MQTT intake | Policy Router | `policy_router_input_schema.json` | Schema-governed | Wrapper containing `source_node_id`, `routing_metadata`, and `pure_context_payload` |
+| Routing Metadata | Mac mini input adapter | Policy Router only | `policy_router_input_schema.json` | Schema-governed | Operational metadata. Must not be mixed directly into LLM prompt context |
+| Pure Context Payload | Mac mini input adapter, RPi simulation, ESP32-derived context aggregation | Policy Router / bounded LLM path | `context_schema.json` | Schema-governed | Only payload section that may form LLM-relevant physical/context input |
+| Trigger Event | ESP32, RPi simulation, Mac mini adapter | Policy Router | `context_schema.json` | Schema-governed | Includes event type/code/timestamp. Timestamp is for staleness and reproducibility |
+| Environmental Context | ESP32 sensors, RPi simulation, Mac mini context aggregation | Policy Router / bounded LLM path | `context_schema.json` | Schema-governed | Includes temperature, illuminance, occupancy, smoke, gas, and `doorbell_detected` |
+| Device States | Context aggregator, RPi simulation | Policy Router / validator context | `context_schema.json` | Schema-governed | Current fields: `living_room_light`, `bedroom_light`, `living_room_blind`, `tv_main`; doorlock state is not included |
+| Low-risk Action Catalog | Frozen policy asset | Validator / implementation | `low_risk_actions.json` | Policy-governed | Authoritative autonomous Class 1 action scope |
+| Routing Policy Table | Frozen policy asset | Policy Router / scenario verifier / implementation | `policy_table.json` | Policy-governed | Active baseline with Class 2 clarification/transition semantics |
+| Class 2 Clarification Interaction | Class 2 Clarification Manager, caregiver confirmation backend, scenario fixtures, `safe_deferral/clarification/interaction` | Audit, dashboard observer, Class 2 transition verifier, Policy Router re-entry path | `clarification_interaction_schema.json` + `policy_table.json` | Schema-governed + policy-governed | Candidate choices, presentation channel, selection result, timeout result, transition target, final safe outcome. Not pure context and not actuation authority |
+| LLM Candidate Action | Local LLM bounded assistance path | Deterministic Validator | `candidate_action_schema.json` | Schema-governed | Current autonomous action candidates must remain within schema and low-risk catalog |
+| Validator Output | Deterministic Validator | Dispatcher / safe deferral / escalation path | `validator_output_schema.json` | Schema-governed | Approved executable payload must remain bounded to current low-risk scope |
+| Class 2 Notification Payload | Escalation / clarification notification service | Caregiver notification channel, TTS/display notification, local dashboard | `class2_notification_payload_schema.json` | Schema-governed | Includes summary, unresolved reason, manual confirmation path, C201-C207 trigger IDs, and clarification-oriented source layers/channels |
+| Output Profile | Notification/output layer | Notification service / UI guidance | `output_profile.json` | Companion policy asset | Output/channel guidance; does not override schemas or routing policy |
+| Fault Injection Profile | RPi fault injector | RPi orchestration / Mac mini policy path | `fault_injection_rules.json` + policy/schema assets | Policy/rules-governed | Dynamic references must follow current policy/schema contracts |
 | Scenario Fixture Payload | `integration/scenarios/`, `integration/tests/data/`, future RPi fixtures | Integration runner / orchestrator | This registry + relevant schemas + `common/payloads/templates/scenario_fixture_template.json` | Experiment artifact | May include `class2_clarification_expectation`; must conform to canonical schemas where embedding schema-governed payload sections |
 | Experiment Annotation Payload | Scenario packs, test results, dashboard/test-app | Evaluation tools | This registry / future schema | Experiment artifact | May carry doorlock state, approval state, ACK state outside `pure_context_payload.device_states` |
 | Manual Confirmation Payload / State | Caregiver confirmation backend, dashboard/test app mock | Caregiver flow / audit | Future schema recommended | Runtime / experiment artifact | Must not be treated as Class 1 autonomous executable authorization |
@@ -186,7 +186,7 @@ It contains:
 
 It is governed by:
 
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
+- `common/schemas/context_schema.json`
 
 Important rules:
 
@@ -278,7 +278,7 @@ It must not be treated as:
 Current schema:
 
 ```text
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 ```
 
 Dedicated MQTT topic when publication is used:
@@ -291,7 +291,7 @@ Topic contract:
 
 ```text
 payload_family: clarification_interaction_payload
-schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+schema: common/schemas/clarification_interaction_schema.json
 authority_level: class2_interaction_evidence_not_authority
 ```
 
@@ -313,10 +313,10 @@ doorlock authorization
 Class 2 clarification data is governed by:
 
 ```text
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
-common/policies/policy_table_v1_2_0_FROZEN.json
-common/mqtt/topic_registry_v1_1_0.json
-common/mqtt/topic_payload_contracts_v1_0_0.md
+common/schemas/clarification_interaction_schema.json
+common/policies/policy_table.json
+common/mqtt/topic_registry.json
+common/mqtt/topic_payload_contracts.md
 common/payloads/templates/scenario_fixture_template.json
 integration/scenarios/scenario_manifest_schema.json
 integration/scenarios/verify_scenario_policy_schema_alignment.py
@@ -331,14 +331,14 @@ MQTT topic registry entries define communication contracts, not policy authority
 
 Topic-to-payload mappings must remain aligned with:
 
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/docs/architecture/15_interface_matrix.md`
 
 Historical baseline:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry.json`
 
 A topic entry may reference a payload family, schema path, and example payload, but this does not make the topic a policy or execution authority.
 
@@ -527,7 +527,7 @@ Scenario fixtures may contain schema-governed payload fragments, experiment anno
 
 Rules:
 
-1. If a fixture contains `pure_context_payload`, that section must conform to `context_schema_v1_0_0_FROZEN.json`.
+1. If a fixture contains `pure_context_payload`, that section must conform to `context_schema.json`.
 2. Every valid `environmental_context` must include `doorbell_detected`.
 3. Non-visitor scenario fixtures should set `doorbell_detected=false`.
 4. Visitor-response fixtures may set `doorbell_detected=true`.
@@ -537,7 +537,7 @@ Rules:
 8. Class 2 clarification fixtures should separate initial context input, candidate prompt expectation, user/caregiver selection, transition result, timeout result, and audit expectation where practical.
 9. Scenario fixture templates may include `class2_clarification_expectation` for Class 2 transition tests.
 10. `class2_clarification_expectation.clarification_topic` should reference `safe_deferral/clarification/interaction`.
-11. `class2_clarification_expectation.clarification_schema_ref` should reference `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`.
+11. `class2_clarification_expectation.clarification_schema_ref` should reference `common/schemas/clarification_interaction_schema.json`.
 12. `class2_clarification_expectation` must remain outside `pure_context_payload`.
 13. `class2_clarification_expectation.clarification_payload_is_not_authorization` should remain true.
 14. `class2_clarification_expectation.timeout_must_not_infer_intent` should remain true.
@@ -594,53 +594,53 @@ Rules:
 
 Current formal schemas:
 
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
 
 Current policy/rules assets:
 
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/policies/output_profile_v1_1_0.json`
+- `common/policies/policy_table.json`
+- `common/policies/low_risk_actions.json`
+- `common/policies/fault_injection_rules.json`
+- `common/policies/output_profile.json`
 
 Current MQTT/interface assets:
 
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/templates/scenario_fixture_template.json`
 
 Historical policy/rules assets:
 
-- `common/policies/policy_table_v1_1_2_FROZEN.json` — superseded by `policy_table_v1_2_0_FROZEN.json` for Class 2 clarification/transition semantics.
+- `common/history/policies/policy_table.json` — superseded by `common/policies/policy_table.json` for Class 2 clarification/transition semantics.
 
 Historical schemas:
 
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json` — superseded by `class_2_notification_payload_schema_v1_1_0_FROZEN.json` for C206/C207 and clarification notification support.
+- `common/history/schemas/class2_notification_payload_schema.json` — superseded by `common/schemas/class2_notification_payload_schema.json` for C206/C207 and clarification notification support.
 
 Historical MQTT/interface assets:
 
-- `common/mqtt/topic_registry_v1_0_0.json` — superseded by `topic_registry_v1_1_0.json` as current machine-readable topic registry.
+- `common/history/mqtt/topic_registry.json` — superseded by `common/mqtt/topic_registry.json` as current machine-readable topic registry.
 
 Candidate future schemas:
 
-- `manual_confirmation_payload_schema_v1_0_0.json`
-- `actuation_command_payload_schema_v1_0_0.json`
-- `actuation_ack_payload_schema_v1_0_0.json`
-- `audit_event_schema_v1_0_0.json`
-- `dashboard_observation_payload_schema_v1_0_0.json`
-- `experiment_annotation_schema_v1_0_0.json`
-- `scenario_fixture_schema_v1_0_0.json`
-- `result_export_schema_v1_0_0.json`
-- `governance_change_report_schema_v1_0_0.json`
-- `interface_matrix_alignment_report_schema_v1_0_0.json`
-- `topic_drift_report_schema_v1_0_0.json`
-- `payload_validation_report_schema_v1_0_0.json`
+- `manual_confirmation_payload_schema.json`
+- `actuation_command_payload_schema.json`
+- `actuation_ack_payload_schema.json`
+- `audit_event_schema.json`
+- `dashboard_observation_payload_schema.json`
+- `experiment_annotation_schema.json`
+- `scenario_fixture_schema.json`
+- `result_export_schema.json`
+- `governance_change_report_schema.json`
+- `interface_matrix_alignment_report_schema.json`
+- `topic_drift_report_schema.json`
+- `payload_validation_report_schema.json`
 
 These future schemas should not be introduced casually. They should be added only when implementation or evaluation requires a stable machine-readable contract.
 
@@ -712,7 +712,7 @@ Integration fixtures should be checked for:
 ## 14. Non-negotiable payload rules
 
 1. `routing_metadata` is not LLM context.
-2. `pure_context_payload` must conform to `context_schema_v1_0_0_FROZEN.json`.
+2. `pure_context_payload` must conform to `context_schema.json`.
 3. `environmental_context.doorbell_detected` is required.
 4. `doorbell_detected` is visitor-response context, not doorlock authorization.
 5. `doorbell_detected` is not a current emergency trigger.
@@ -740,9 +740,9 @@ After this registry is introduced or updated, keep the following downstream asse
 
 1. remaining architecture documents or addenda not yet reviewed after this version
 2. `common/docs/required_experiments.md`
-3. `common/mqtt/topic_registry_v1_1_0.json`
-4. `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-5. `common/mqtt/topic_payload_contracts_v1_0_0.md`
+3. `common/mqtt/topic_registry.json`
+4. `common/mqtt/publisher_subscriber_matrix.md`
+5. `common/mqtt/topic_payload_contracts.md`
 6. `common/payloads/README.md`
 7. `common/payloads/templates/scenario_fixture_template.json`
 8. `integration/README.md`
@@ -759,6 +759,6 @@ After this registry is introduced or updated, keep the following downstream asse
 
 Historical baseline to keep only where explicitly needed:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry.json`
 
 The review goal is to ensure that every document uses the payload boundaries, MQTT topic-payload contract rules, Class 2 clarification/transition semantics, dedicated clarification interaction topic, scenario fixture expectation block, and governance report boundaries defined here consistently.

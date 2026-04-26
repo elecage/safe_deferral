@@ -15,7 +15,7 @@ This document should be interpreted together with:
 
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema.json`
 
 ---
 

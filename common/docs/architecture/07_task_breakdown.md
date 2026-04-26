@@ -18,9 +18,9 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---
@@ -36,18 +36,18 @@ Current interface, communication, and payload references:
 - [ ] Ensure frozen shared artifacts and communication/payload references are available as implementation reference inputs before code generation
 
 ### Representative canonical frozen and reference assets
-- [ ] `common/policies/policy_table_v1_2_0_FROZEN.json`
-- [ ] `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- [ ] `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- [ ] `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- [ ] `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- [ ] `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- [ ] `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- [ ] `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- [ ] `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
-- [ ] `common/mqtt/topic_registry_v1_0_0.json`
-- [ ] `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- [ ] `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- [ ] `common/policies/policy_table.json`
+- [ ] `common/policies/low_risk_actions.json`
+- [ ] `common/policies/fault_injection_rules.json`
+- [ ] `common/schemas/context_schema.json`
+- [ ] `common/schemas/candidate_action_schema.json`
+- [ ] `common/schemas/policy_router_input_schema.json`
+- [ ] `common/schemas/validator_output_schema.json`
+- [ ] `common/schemas/class2_notification_payload_schema.json`
+- [ ] `common/schemas/clarification_interaction_schema.json`
+- [ ] `common/mqtt/topic_registry.json`
+- [ ] `common/mqtt/publisher_subscriber_matrix.md`
+- [ ] `common/mqtt/topic_payload_contracts.md`
 - [ ] `common/payloads/README.md`
 - [ ] `common/docs/architecture/12_prompts.md`
 - [ ] `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
@@ -193,7 +193,7 @@ Current interface, communication, and payload references:
 - [ ] Define SQLite schema
 - [ ] Implement `Audit Logging Service` as the only DB writer
 - [ ] Subscribe to `audit/log/#` or equivalent async audit channel
-- [ ] Align audit topic assumptions with `common/mqtt/topic_registry_v1_0_0.json` when implemented
+- [ ] Align audit topic assumptions with `common/mqtt/topic_registry.json` when implemented
 - [ ] Log routing events
 - [ ] Log validator outcomes
 - [ ] Log deferrals, timeouts, and escalations
@@ -209,14 +209,14 @@ Current interface, communication, and payload references:
 
 ## T8. Implement External Notification and Confirmation
 
-- [ ] Implement Class 2 notification payload generation aligned with `class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- [ ] Implement Class 2 notification payload generation aligned with `class2_notification_payload_schema.json`
 - [ ] Validate outbound escalation payload completeness against the canonical schema
 - [ ] Implement Telegram / mock outbound alert sender
 - [ ] Implement caregiver confirmation endpoint
 - [ ] Restrict confirmation to governed, explicitly scoped actions
 - [ ] Do not treat caregiver confirmation as autonomous Class 1 validator approval
 - [ ] Ensure doorlock-sensitive manual confirmation path includes approval, ACK verification, and audit visibility when implemented
-- [ ] Keep Class 2 clarification interaction payloads aligned with `clarification_interaction_schema_v1_0_0_FROZEN.json` when clarification/transition handling is implemented
+- [ ] Keep Class 2 clarification interaction payloads aligned with `clarification_interaction_schema.json` when clarification/transition handling is implemented
 
 ### Repository focus
 - `mac_mini/code/`

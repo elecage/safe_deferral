@@ -574,7 +574,7 @@ Requirements:
   - emergency confirmation after initial ambiguity,
   - caregiver confirmation when unresolved or sensitive.
 - The flow must validate `clarification_interaction_payload` records against:
-  - common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+  - common/schemas/clarification_interaction_schema.json
 - The flow must verify all of the following branches:
 
   Class 2 → Class 1 transition test:

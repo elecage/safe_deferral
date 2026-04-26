@@ -86,11 +86,11 @@ MQTT topic entries, topic-payload mappings, payload validation reports, interfac
 
 The authoritative low-risk action source is:
 
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
+- `common/policies/low_risk_actions.json`
 
 The authoritative context schema source is:
 
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
+- `common/schemas/context_schema.json`
 
 ---
 
@@ -290,9 +290,9 @@ This repository is being initialized with:
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/required_experiments.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---

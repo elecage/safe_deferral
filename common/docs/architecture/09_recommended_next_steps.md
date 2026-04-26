@@ -21,9 +21,9 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---
@@ -33,21 +33,21 @@ Current interface, communication, and payload references:
 Before implementation proceeds further, confirm that the shared frozen assets and shared reference assets under `common/` are complete and treated according to their authority level.
 
 ### Priority authority targets
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/policies/policy_table.json`
+- `common/policies/low_risk_actions.json`
+- `common/policies/fault_injection_rules.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 
 ### Priority communication / payload reference targets
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
@@ -167,9 +167,9 @@ The staged script workflow should remain the primary bring-up path for each laye
 - reproducible measurement templates
 
 ### MQTT / payload governance readiness
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
 - future registry/payload validation scripts under `mac_mini/scripts/verify/`, `rpi/scripts/verify/`, or `integration/tests/`
@@ -336,7 +336,7 @@ Ensure the evaluation path supports scalable dashboard-assisted fault-injection 
 Before broad runtime app, dashboard app, or experiment-tool implementation proceeds, establish a stable enough MQTT/payload governance baseline.
 
 ### Immediate targets
-- ensure `common/mqtt/topic_registry_v1_0_0.json` exists and is readable
+- ensure `common/mqtt/topic_registry.json` exists and is readable
 - ensure publisher/subscriber matrix exists and is consistent enough for current implementation planning
 - ensure topic-to-payload contract references exist
 - ensure payload examples/templates exist under `common/payloads/`

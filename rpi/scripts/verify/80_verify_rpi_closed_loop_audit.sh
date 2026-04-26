@@ -38,7 +38,7 @@ echo "  [OK] RPi authority boundary flags verified."
 TARGET_HOST="${MQTT_HOST:-127.0.0.1}"
 TARGET_PORT="${MQTT_PORT:-1883}"
 POLICY_DIR="${POLICY_SYNC_PATH:-${WORKSPACE_DIR}/config/policies}"
-FAULT_RULES_FILE="${POLICY_DIR}/fault_injection_rules_v1_4_0_FROZEN.json"
+FAULT_RULES_FILE="${POLICY_DIR}/fault_injection_rules.json"
 
 if [ ! -f "${FAULT_RULES_FILE}" ]; then
     echo "  [FATAL] Fault injection rules not found at ${FAULT_RULES_FILE}."
@@ -219,6 +219,6 @@ elif [ "${IS_DEFAULT_SAFE}" = "true" ]; then
     echo "==> [PASS] Closed-loop safety audit verification successful."
 else
     echo "  [FATAL] Outcome '${ROUTING_RESULT}' is neither expected nor a recognized safe non-dispatch outcome."
-    echo "          Please review fault_injection_rules_v1_4_0_FROZEN.json and Mac mini audit naming."
+    echo "          Please review fault_injection_rules.json and Mac mini audit naming."
     exit 1
 fi

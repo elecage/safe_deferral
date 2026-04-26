@@ -137,8 +137,8 @@ STM32 Nucleo-H723ZG 기반 시간계측 노드는 **integration/measurement/ lay
     "smarthome/audit/validator_output"
   ],
   "required_assets": [
-    "policy_table_v1_1_2_FROZEN.json",
-    "fault_injection_rules_v1_4_0_FROZEN.json"
+    "policy_table.json",
+    "fault_injection_rules.json"
   ],
   "required_runtime_conditions": [
     "artifact_sync_complete",
@@ -365,8 +365,8 @@ measurement node:
 - `edge_controller_app`
 
 필수 자산:
-- `policy_table_v1_1_2_FROZEN.json`
-- `fault_injection_rules_v1_4_0_FROZEN.json`
+- `policy_table.json`
+- `fault_injection_rules.json`
 
 measurement node:
 - optional for precise timing evidence

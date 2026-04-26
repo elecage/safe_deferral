@@ -17,9 +17,9 @@ Current active structure references:
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 
 Some Raspberry Pi governance and MQTT/payload support connections are documented in `15_interface_matrix.md` and `16_system_architecture_figure.md` but are not yet fully drawn in the current SVG figure.
 
@@ -37,9 +37,9 @@ safe_deferral/
 │   ├── schemas/
 │   ├── mqtt/
 │   │   ├── README.md
-│   │   ├── topic_registry_v1_0_0.json
-│   │   ├── publisher_subscriber_matrix_v1_0_0.md
-│   │   └── topic_payload_contracts_v1_0_0.md
+│   │   ├── topic_registry.json
+│   │   ├── publisher_subscriber_matrix.md
+│   │   └── topic_payload_contracts.md
 │   ├── payloads/
 │   │   ├── README.md
 │   │   ├── examples/
@@ -97,9 +97,9 @@ Stores shared policy assets, including:
 - optional or version-sensitive companion policy assets
 
 Representative canonical files:
-- `policy_table_v1_1_2_FROZEN.json`
-- `low_risk_actions_v1_1_0_FROZEN.json`
-- `fault_injection_rules_v1_4_0_FROZEN.json`
+- `policy_table.json`
+- `low_risk_actions.json`
+- `fault_injection_rules.json`
 
 Optional or version-sensitive companion assets may include:
 - output profile assets
@@ -115,20 +115,20 @@ Stores shared schema assets, including:
 - escalation payload schema
 
 Representative canonical files:
-- `context_schema_v1_0_0_FROZEN.json`
-- `candidate_action_schema_v1_0_0_FROZEN.json`
-- `policy_router_input_schema_v1_1_1_FROZEN.json`
-- `validator_output_schema_v1_1_0_FROZEN.json`
-- `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `context_schema.json`
+- `candidate_action_schema.json`
+- `policy_router_input_schema.json`
+- `validator_output_schema.json`
+- `class2_notification_payload_schema.json`
 
 ### `common/mqtt/`
 Stores MQTT topic, publisher/subscriber, and topic-payload communication contracts.
 
 Representative files:
 - `README.md`
-- `topic_registry_v1_0_0.json`
-- `publisher_subscriber_matrix_v1_0_0.md`
-- `topic_payload_contracts_v1_0_0.md`
+- `topic_registry.json`
+- `publisher_subscriber_matrix.md`
+- `topic_payload_contracts.md`
 
 This directory manages:
 - topic namespace assumptions

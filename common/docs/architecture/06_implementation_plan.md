@@ -10,9 +10,9 @@ This document should be read together with:
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 
 ## Non-Goals
 - No autonomous door unlocking
@@ -257,18 +257,18 @@ Freeze the shared reference assets before implementation begins.
 - payload examples/templates for implementation, testing, simulation, and dashboard tooling
 
 #### Representative frozen / reference files
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/policies/policy_table.json`
+- `common/policies/low_risk_actions.json`
+- `common/policies/fault_injection_rules.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 - `common/docs/architecture/12_prompts.md`
@@ -594,7 +594,7 @@ Raspberry Pi-based simulation and fault injection must exercise the same input p
 Deployment-local configuration and runtime copies are necessary for execution, but they must not override the canonical frozen architecture baseline.
 
 ### I. Do not hardcode MQTT topics or payload contracts
-Runtime apps, dashboard apps, and experiment tools should load topic names, publisher/subscriber rules, payload families, schema paths, and example references from `common/mqtt/topic_registry_v1_0_0.json` whenever practical.
+Runtime apps, dashboard apps, and experiment tools should load topic names, publisher/subscriber rules, payload families, schema paths, and example references from `common/mqtt/topic_registry.json` whenever practical.
 
 ### J. Keep dashboard and governance tooling non-authoritative
 The experiment dashboard and MQTT/payload governance dashboard may inspect, validate, and visualize state, but must not override policy routing, validator decisions, caregiver approval, or actuation dispatch.

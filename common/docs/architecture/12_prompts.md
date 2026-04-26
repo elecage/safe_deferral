@@ -20,9 +20,9 @@ All prompt files should remain aligned with:
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ## Repository-wide prompt boundary

@@ -23,9 +23,9 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---
@@ -102,21 +102,21 @@ safe_deferral/
 The following shared assets should be prepared before implementation depends on them.
 
 ### Required canonical frozen authority assets
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/policies/policy_table.json`
+- `common/policies/low_risk_actions.json`
+- `common/policies/fault_injection_rules.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 
 ### Required communication / payload reference assets
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
@@ -130,7 +130,7 @@ The following shared assets should be prepared before implementation depends on 
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 
 ### Required Class 2 clarification / transition references
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema.json`
 - Class 2 clarification scenario fixtures under `integration/scenarios/` when implemented
 - Class 2 transition verifier fixtures under `integration/tests/` when implemented
 - Class 2-to-Class 1, Class 2-to-Class 0, and Class 2 timeout/safe-deferral scenario definitions when implemented
@@ -148,7 +148,7 @@ Canonical policy and schema truth remains under `common/policies/` and `common/s
 
 `common/docs/architecture/15_interface_matrix.md` is the MQTT-aware interface contract reference used to guide topic-facing installation, configuration, and later verification assumptions.
 
-`clarification_interaction_schema_v1_0_0_FROZEN.json` is the current Class 2 clarification interaction schema. Install scripts may verify that it is present and prepare dependencies for validating it, but they must not promote clarification payloads into validator approval, actuation authorization, emergency trigger authority, or doorlock authorization.
+`clarification_interaction_schema.json` is the current Class 2 clarification interaction schema. Install scripts may verify that it is present and prepare dependencies for validating it, but they must not promote clarification payloads into validator approval, actuation authorization, emergency trigger authority, or doorlock authorization.
 
 ---
 
@@ -179,7 +179,7 @@ Recommended responsibilities:
 - verify network connectivity
 - prepare workspace directories
 - verify that required frozen asset baseline is present before install-dependent implementation proceeds
-- verify that `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` exists
+- verify that `common/schemas/clarification_interaction_schema.json` exists
 - verify that `common/mqtt/`, `common/payloads/`, `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist when registry/payload-aware implementation is in scope
 - verify that install-time checks do not claim Class 2 transition or actuation correctness; those belong to configuration/verification/integration stages
 
@@ -220,7 +220,7 @@ Recommended responsibilities:
 - prepare volume mount paths
 - prepare runtime configuration directories
 - prepare mount/path assumptions for deployed or synchronized MQTT registry and payload reference files when needed
-- prepare runtime path assumptions for `clarification_interaction_schema_v1_0_0_FROZEN.json` and Class 2 audit output when implemented
+- prepare runtime path assumptions for `clarification_interaction_schema.json` and Class 2 audit output when implemented
 
 #### `30_setup_python_venv_mac.sh`
 Create the Mac mini Python virtual environment.
@@ -558,7 +558,7 @@ Related directories:
 Before device-specific installation proceeds:
 - verify required frozen assets exist
 - verify canonical baseline version set is present
-- verify `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` exists
+- verify `common/schemas/clarification_interaction_schema.json` exists
 - verify MQTT topic registry and payload reference directories exist
 - verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
 - verify Class 2 clarification fixture directories or planned locations exist when Class 2 transition evaluation is in scope
@@ -674,7 +674,7 @@ These should remain auxiliary utilities, not replace the device-specific install
 - ESP32 install scripts prepare the cross-platform ESP-IDF development environment for bounded physical node implementation, including future doorbell / visitor-arrival context node work
 - optional timing/measurement readiness prepares out-of-band latency evaluation support
 - shared frozen assets in `common/policies/` and `common/schemas/` define the policy/schema authority state
-- `clarification_interaction_schema_v1_0_0_FROZEN.json` defines the current Class 2 clarification interaction payload structure
+- `clarification_interaction_schema.json` defines the current Class 2 clarification interaction payload structure
 - shared MQTT contracts in `common/mqtt/` and payload examples/templates in `common/payloads/` define reference state for communication and payload governance
 - `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - install scripts and embedded build preparation establish the platform only

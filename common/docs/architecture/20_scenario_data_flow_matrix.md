@@ -35,15 +35,15 @@ common/docs/architecture/16_system_architecture_figure.md
 common/docs/architecture/17_payload_contract_and_registry.md
 common/docs/architecture/18_scenario_node_component_mapping.md
 common/docs/architecture/19_class2_clarification_architecture_alignment.md
-common/policies/policy_table_v1_2_0_FROZEN.json
-common/policies/low_risk_actions_v1_1_0_FROZEN.json
-common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
-common/schemas/context_schema_v1_0_0_FROZEN.json
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
-common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
-common/schemas/validator_output_schema_v1_1_0_FROZEN.json
-common/mqtt/topic_registry_v1_0_0.json
-common/mqtt/topic_payload_contracts_v1_0_0.md
+common/policies/policy_table.json
+common/policies/low_risk_actions.json
+common/schemas/policy_router_input_schema.json
+common/schemas/context_schema.json
+common/schemas/clarification_interaction_schema.json
+common/schemas/class2_notification_payload_schema.json
+common/schemas/validator_output_schema.json
+common/mqtt/topic_registry.json
+common/mqtt/topic_payload_contracts.md
 integration/scenarios/*.json
 integration/tests/data/*.json
 ```
@@ -156,14 +156,14 @@ Node and component names follow `18_scenario_node_component_mapping.md`.
 
 | Payload family | Governing asset | Notes |
 |---|---|---|
-| `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json` | Wrapper around source, routing metadata, and pure context payload |
-| `pure_context_payload` | `context_schema_v1_0_0_FROZEN.json` | Physical/context input only; not manual approval, ACK, or Class 2 interaction state |
-| `environmental_context` | `context_schema_v1_0_0_FROZEN.json` | Includes `doorbell_detected`; doorbell is visitor context, not emergency/door unlock authority |
-| `device_states` | `context_schema_v1_0_0_FROZEN.json` | Current schema excludes doorlock state |
-| `clarification_interaction` | `clarification_interaction_schema_v1_0_0_FROZEN.json` | Candidate choices, selection, timeout, transition target; not actuation authority |
-| `class_2_notification_payload` | `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Notification/escalation/clarification support |
-| `candidate_action` | `candidate_action_schema_v1_0_0_FROZEN.json` | LLM-proposed bounded action candidate; must be validated |
-| `validator_output` | `validator_output_schema_v1_1_0_FROZEN.json` | Final admissibility output for execution path |
+| `policy_router_input` | `policy_router_input_schema.json` | Wrapper around source, routing metadata, and pure context payload |
+| `pure_context_payload` | `context_schema.json` | Physical/context input only; not manual approval, ACK, or Class 2 interaction state |
+| `environmental_context` | `context_schema.json` | Includes `doorbell_detected`; doorbell is visitor context, not emergency/door unlock authority |
+| `device_states` | `context_schema.json` | Current schema excludes doorlock state |
+| `clarification_interaction` | `clarification_interaction_schema.json` | Candidate choices, selection, timeout, transition target; not actuation authority |
+| `class_2_notification_payload` | `class2_notification_payload_schema.json` | Notification/escalation/clarification support |
+| `candidate_action` | `candidate_action_schema.json` | LLM-proposed bounded action candidate; must be validated |
+| `validator_output` | `validator_output_schema.json` | Final admissibility output for execution path |
 | `actuation_command_payload` | Topic contract / dispatcher implementation | Must follow validator approval |
 | `actuation_ack_payload` | Future ACK schema / runtime contract | Closed-loop result evidence |
 | `audit_event_payload` | Audit runtime contract / future schema | Traceability only |
@@ -195,10 +195,10 @@ Node and component names follow `18_scenario_node_component_mapping.md`.
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Bounded Input Node / Context Node / Device State Reporter Node | MQTT Broker / Messaging Layer | `safe_deferral/context/input` | `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json`, `context_schema_v1_0_0_FROZEN.json` | Ordinary bounded input and environmental/device state | Input is delivered to Mac mini intake |
-| 2 | MQTT Ingestion / State Intake | Context and Runtime State Aggregation | internal | `pure_context_payload` | `context_schema_v1_0_0_FROZEN.json` | Trigger event, environmental context, device states | Runtime state is updated without creating actuation authority |
-| 3 | Context and Runtime State Aggregation | Policy Router | internal | `policy_router_input` | `policy_table_v1_2_0_FROZEN.json` | Normal non-emergency context | Route is selected according to policy |
-| 4 | Policy Router | Deterministic Validator | internal | route decision / candidate action | `low_risk_actions_v1_1_0_FROZEN.json`, `validator_output_schema_v1_1_0_FROZEN.json` | Candidate low-risk action if applicable | Validator decides admissibility |
+| 1 | Bounded Input Node / Context Node / Device State Reporter Node | MQTT Broker / Messaging Layer | `safe_deferral/context/input` | `policy_router_input` | `policy_router_input_schema.json`, `context_schema.json` | Ordinary bounded input and environmental/device state | Input is delivered to Mac mini intake |
+| 2 | MQTT Ingestion / State Intake | Context and Runtime State Aggregation | internal | `pure_context_payload` | `context_schema.json` | Trigger event, environmental context, device states | Runtime state is updated without creating actuation authority |
+| 3 | Context and Runtime State Aggregation | Policy Router | internal | `policy_router_input` | `policy_table.json` | Normal non-emergency context | Route is selected according to policy |
+| 4 | Policy Router | Deterministic Validator | internal | route decision / candidate action | `low_risk_actions.json`, `validator_output_schema.json` | Candidate low-risk action if applicable | Validator decides admissibility |
 | 5 | Deterministic Validator / Actuator Dispatcher | Lighting Actuator Node | `safe_deferral/actuation/command` | `actuation_command_payload` | Validator output + topic contract | Approved lighting command only | Command is dispatched only if validated |
 | 6 | Lighting Actuator Node | ACK Handling / Audit Log | `safe_deferral/actuation/ack`, `safe_deferral/audit/log` | `actuation_ack_payload`, `audit_event_payload` | ACK/audit runtime contract | Execution result | Closed-loop outcome is recorded |
 
@@ -208,11 +208,11 @@ Node and component names follow `18_scenario_node_component_mapping.md`.
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Bounded Input Node / Context Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json` | User input plus lighting-relevant context | Input enters bounded assistance path |
+| 1 | Bounded Input Node / Context Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | `policy_router_input` | `policy_router_input_schema.json` | User input plus lighting-relevant context | Input enters bounded assistance path |
 | 2 | Context and Runtime State Aggregation | Input Context Mapper / LLM Guidance Layer | internal | runtime context summary / candidate guidance | `14_system_components_outline_v2.md`, `17_payload_contract_and_registry.md` | Likely low-risk lighting intent | LLM may generate candidate/guidance only |
-| 3 | LLM Guidance Layer / Input Context Mapper | Policy Router | internal | `candidate_action` or mapped candidate intent | `candidate_action_schema_v1_0_0_FROZEN.json`, `policy_table_v1_2_0_FROZEN.json` | Candidate bounded assistance action | Candidate is not execution authority |
-| 4 | Policy Router | Deterministic Validator | internal / `safe_deferral/validator/output` | `validator_output` | `low_risk_actions_v1_1_0_FROZEN.json`, `validator_output_schema_v1_1_0_FROZEN.json` | Low-risk lighting candidate | Validator must approve exactly one admissible action |
-| 5 | Deterministic Validator | Actuator Dispatcher | internal | validated execution request | `validator_output_schema_v1_1_0_FROZEN.json` | Approved low-risk lighting action | Dispatcher may publish command |
+| 3 | LLM Guidance Layer / Input Context Mapper | Policy Router | internal | `candidate_action` or mapped candidate intent | `candidate_action_schema.json`, `policy_table.json` | Candidate bounded assistance action | Candidate is not execution authority |
+| 4 | Policy Router | Deterministic Validator | internal / `safe_deferral/validator/output` | `validator_output` | `low_risk_actions.json`, `validator_output_schema.json` | Low-risk lighting candidate | Validator must approve exactly one admissible action |
+| 5 | Deterministic Validator | Actuator Dispatcher | internal | validated execution request | `validator_output_schema.json` | Approved low-risk lighting action | Dispatcher may publish command |
 | 6 | Actuator Dispatcher | Lighting Actuator Node | `safe_deferral/actuation/command` | `actuation_command_payload` | Topic contract + validator result | Lighting on/off command | Execute lighting command only |
 | 7 | Lighting Actuator Node | ACK Handling / Audit Log / TTS Output | `safe_deferral/actuation/ack`, `safe_deferral/audit/log` | ACK + audit + guidance | ACK/audit runtime contract | Success/failure/timeout | User receives result; audit is closed |
 
@@ -224,9 +224,9 @@ Boundary: Class 1 autonomous execution is limited to the frozen low-risk catalog
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Temperature Sensor Node / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency evidence / `policy_router_input` after normalization | `policy_table_v1_2_0_FROZEN.json`, `context_schema_v1_0_0_FROZEN.json` | Abnormal high temperature evidence | Emergency evidence is delivered |
-| 2 | MQTT Ingestion / State Intake | Policy Router | internal or normalized `safe_deferral/context/input` | normalized policy-router input | `policy_router_input_schema_v1_1_1_FROZEN.json` | E001-like temperature evidence | Policy Router selects Class 0 |
-| 3 | Policy Router | Emergency handling / Caregiver Notification / Audit Log | internal + `safe_deferral/audit/log` | routing decision + audit event | `policy_table_v1_2_0_FROZEN.json` | `canonical_emergency_family = E001` | Emergency path proceeds without LLM final decision |
+| 1 | Temperature Sensor Node / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency evidence / `policy_router_input` after normalization | `policy_table.json`, `context_schema.json` | Abnormal high temperature evidence | Emergency evidence is delivered |
+| 2 | MQTT Ingestion / State Intake | Policy Router | internal or normalized `safe_deferral/context/input` | normalized policy-router input | `policy_router_input_schema.json` | E001-like temperature evidence | Policy Router selects Class 0 |
+| 3 | Policy Router | Emergency handling / Caregiver Notification / Audit Log | internal + `safe_deferral/audit/log` | routing decision + audit event | `policy_table.json` | `canonical_emergency_family = E001` | Emergency path proceeds without LLM final decision |
 | 4 | Emergency handling | Warning Output Node / TTS Output / Caregiver Interface | warning output / notification interface | warning / class 2 notification if needed | output profile + emergency policy | Emergency warning/notification | User/caregiver is alerted |
 | 5 | Emergency handling | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Emergency route and notification result | Trace is recorded |
 
@@ -236,10 +236,10 @@ Boundary: Class 1 autonomous execution is limited to the frozen low-risk catalog
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Bounded Input Node | Input Pattern Detector | local node firmware or internal | bounded input pattern | `policy_table_v1_2_0_FROZEN.json` | Repeated/triple-hit input pattern | Triple-hit evidence is detected |
+| 1 | Bounded Input Node | Input Pattern Detector | local node firmware or internal | bounded input pattern | `policy_table.json` | Repeated/triple-hit input pattern | Triple-hit evidence is detected |
 | 2 | Input Pattern Detector / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency event / policy-router input after normalization | topic registry + policy table | E002 triple-hit event | Emergency input is delivered |
-| 3 | MQTT Ingestion / State Intake | Policy Router | internal | normalized policy-router input | `policy_router_input_schema_v1_1_1_FROZEN.json` | E002 evidence | Route to Class 0 |
-| 4 | Policy Router | Caregiver Notification / Warning Output / TTS Output | internal / output interface | emergency notification/guidance | `policy_table_v1_2_0_FROZEN.json` | User-requested emergency help | Alert or emergency assistance path proceeds |
+| 3 | MQTT Ingestion / State Intake | Policy Router | internal | normalized policy-router input | `policy_router_input_schema.json` | E002 evidence | Route to Class 0 |
+| 4 | Policy Router | Caregiver Notification / Warning Output / TTS Output | internal / output interface | emergency notification/guidance | `policy_table.json` | User-requested emergency help | Alert or emergency assistance path proceeds |
 | 5 | Policy Router / Emergency handling | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | E002 classification and handling result | Trace is recorded |
 
 Class 2 relationship: if a triple-hit occurs during Class 2 clarification, it may provide deterministic emergency evidence for transition to Class 0. LLM candidate text alone must not trigger E002.
@@ -250,9 +250,9 @@ Class 2 relationship: if a triple-hit occurs during Class 2 clarification, it ma
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Smoke Sensor Node / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency evidence / normalized input | `context_schema_v1_0_0_FROZEN.json`, `policy_table_v1_2_0_FROZEN.json` | `environmental_context.smoke_detected=true` or equivalent E003 evidence | Smoke evidence is delivered |
-| 2 | MQTT Ingestion / State Intake | Policy Router | internal | `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json` | E003 smoke evidence | Route to Class 0 |
-| 3 | Policy Router | Emergency handling / Warning Output Node | internal / warning output | emergency route output | `policy_table_v1_2_0_FROZEN.json` | `canonical_emergency_family = E003` | Warning/notification path proceeds |
+| 1 | Smoke Sensor Node / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency evidence / normalized input | `context_schema.json`, `policy_table.json` | `environmental_context.smoke_detected=true` or equivalent E003 evidence | Smoke evidence is delivered |
+| 2 | MQTT Ingestion / State Intake | Policy Router | internal | `policy_router_input` | `policy_router_input_schema.json` | E003 smoke evidence | Route to Class 0 |
+| 3 | Policy Router | Emergency handling / Warning Output Node | internal / warning output | emergency route output | `policy_table.json` | `canonical_emergency_family = E003` | Warning/notification path proceeds |
 | 4 | Emergency handling | Caregiver Notification / TTS Output / Audit Log | notification + `safe_deferral/audit/log` | notification + audit event | output profile + audit contract | Smoke emergency warning and result | User/caregiver alerted and trace recorded |
 
 ---
@@ -261,9 +261,9 @@ Class 2 relationship: if a triple-hit occurs during Class 2 clarification, it ma
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Gas Sensor Node / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency evidence / normalized input | `context_schema_v1_0_0_FROZEN.json`, `policy_table_v1_2_0_FROZEN.json` | `environmental_context.gas_detected=true` or equivalent E004 evidence | Gas evidence is delivered |
-| 2 | MQTT Ingestion / State Intake | Policy Router | internal | `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json` | E004 gas evidence | Route to Class 0 |
-| 3 | Policy Router | Emergency handling / Warning Output Node | internal / warning output | emergency route output | `policy_table_v1_2_0_FROZEN.json` | `canonical_emergency_family = E004` | Warning/notification path proceeds |
+| 1 | Gas Sensor Node / Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency evidence / normalized input | `context_schema.json`, `policy_table.json` | `environmental_context.gas_detected=true` or equivalent E004 evidence | Gas evidence is delivered |
+| 2 | MQTT Ingestion / State Intake | Policy Router | internal | `policy_router_input` | `policy_router_input_schema.json` | E004 gas evidence | Route to Class 0 |
+| 3 | Policy Router | Emergency handling / Warning Output Node | internal / warning output | emergency route output | `policy_table.json` | `canonical_emergency_family = E004` | Warning/notification path proceeds |
 | 4 | Emergency handling | Caregiver Notification / TTS Output / Audit Log | notification + `safe_deferral/audit/log` | notification + audit event | output profile + audit contract | Gas emergency warning and result | User/caregiver alerted and trace recorded |
 
 ---
@@ -272,10 +272,10 @@ Class 2 relationship: if a triple-hit occurs during Class 2 clarification, it ma
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Fall Detection Node / Wearable Sensor Node / Motion Sensor Node / Vision/Depth Sensor Node | Emergency Node | local sensor interface | fall evidence | `policy_table_v1_2_0_FROZEN.json` | Fall or suspected-fall evidence | Fall evidence is generated |
+| 1 | Fall Detection Node / Wearable Sensor Node / Motion Sensor Node / Vision/Depth Sensor Node | Emergency Node | local sensor interface | fall evidence | `policy_table.json` | Fall or suspected-fall evidence | Fall evidence is generated |
 | 2 | Emergency Node | MQTT Broker / Messaging Layer | `safe_deferral/emergency/event` | emergency event / normalized input | topic registry + policy table | E005 fall event | Emergency event is delivered |
-| 3 | MQTT Ingestion / State Intake | Policy Router | internal | `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json` | E005 evidence | Route to Class 0 |
-| 4 | Policy Router | Caregiver Notification / TTS Output / Warning Output Node | internal / notification/output | emergency notification/guidance | `policy_table_v1_2_0_FROZEN.json`, output profile | Fall emergency warning or assistance request | User/caregiver alerted |
+| 3 | MQTT Ingestion / State Intake | Policy Router | internal | `policy_router_input` | `policy_router_input_schema.json` | E005 evidence | Route to Class 0 |
+| 4 | Policy Router | Caregiver Notification / TTS Output / Warning Output Node | internal / notification/output | emergency notification/guidance | `policy_table.json`, output profile | Fall emergency warning or assistance request | User/caregiver alerted |
 | 5 | Emergency handling | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | E005 route and handling result | Trace is recorded |
 
 Class 2 relationship: if fall/emergency confirmation or deterministic fall evidence arrives during Class 2 clarification, the system may transition to Class 0. LLM candidate text alone must not trigger E005.
@@ -290,17 +290,17 @@ Class 2 is a clarification/transition state, not a terminal failure by default.
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Bounded Input Node / Context Node / Device State Reporter Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | `policy_router_input` | `policy_router_input_schema_v1_1_1_FROZEN.json`, `context_schema_v1_0_0_FROZEN.json` | Ambiguous or insufficient context input | Input enters routing path |
-| 2 | Context and Runtime State Aggregation | Policy Router / Deterministic Validator | internal | routing input / unresolved reason | `policy_table_v1_2_0_FROZEN.json` | Insufficient context or ambiguous user intent | Direct execution is blocked |
-| 3 | Policy Router / Validator | Class 2 Clarification Manager | internal / `safe_deferral/deferral/request` | class 2 entry / deferral request | `policy_table_v1_2_0_FROZEN.json`, `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Class 2 clarification state | Candidate clarification may begin |
+| 1 | Bounded Input Node / Context Node / Device State Reporter Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | `policy_router_input` | `policy_router_input_schema.json`, `context_schema.json` | Ambiguous or insufficient context input | Input enters routing path |
+| 2 | Context and Runtime State Aggregation | Policy Router / Deterministic Validator | internal | routing input / unresolved reason | `policy_table.json` | Insufficient context or ambiguous user intent | Direct execution is blocked |
+| 3 | Policy Router / Validator | Class 2 Clarification Manager | internal / `safe_deferral/deferral/request` | class 2 entry / deferral request | `policy_table.json`, `class2_notification_payload_schema.json` | Class 2 clarification state | Candidate clarification may begin |
 | 4 | Class 2 Clarification Manager | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Initial ambiguous input and unresolved reason | Entry is recorded |
 
 ### 7.8.2 Candidate prompt generation
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Class 2 Clarification Manager | LLM Guidance Layer / Input Context Mapper | internal | clarification request | `clarification_interaction_schema_v1_0_0_FROZEN.json` | Request for bounded candidate choices | LLM may generate candidates only |
-| 2 | LLM Guidance Layer / Input Context Mapper | Class 2 Clarification Manager | internal | `clarification_interaction` | `clarification_interaction_schema_v1_0_0_FROZEN.json` | Candidate choices, transition targets, confirmation requirement | Candidate text is guidance, not authority |
+| 1 | Class 2 Clarification Manager | LLM Guidance Layer / Input Context Mapper | internal | clarification request | `clarification_interaction_schema.json` | Request for bounded candidate choices | LLM may generate candidates only |
+| 2 | LLM Guidance Layer / Input Context Mapper | Class 2 Clarification Manager | internal | `clarification_interaction` | `clarification_interaction_schema.json` | Candidate choices, transition targets, confirmation requirement | Candidate text is guidance, not authority |
 | 3 | Class 2 Clarification Manager | TTS/Voice Output Node / Display Output Node | output interface / `safe_deferral/deferral/request` where used | candidate prompt / user-facing guidance | output profile + clarification schema | Accessible prompt such as lighting, emergency help, caregiver, cancel/wait | User receives bounded choices |
 | 4 | Class 2 Clarification Manager | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Candidate choices and presentation channel | Candidate prompt is recorded |
 
@@ -308,9 +308,9 @@ Class 2 is a clarification/transition state, not a terminal failure by default.
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | User / Bounded Input Node / Voice Input Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | selection input / `clarification_interaction` | `clarification_interaction_schema_v1_0_0_FROZEN.json` | User confirms low-risk lighting candidate | Confirmation evidence is collected |
-| 2 | Class 2 Clarification Manager | Policy Router | internal | transition request | `policy_table_v1_2_0_FROZEN.json` | `transition_target=CLASS_1` | Re-enter policy routing |
-| 3 | Policy Router | Deterministic Validator | internal / `safe_deferral/validator/output` | `validator_output` | `low_risk_actions_v1_1_0_FROZEN.json`, `validator_output_schema_v1_1_0_FROZEN.json` | Confirmed low-risk lighting candidate | Validator must approve before dispatch |
+| 1 | User / Bounded Input Node / Voice Input Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | selection input / `clarification_interaction` | `clarification_interaction_schema.json` | User confirms low-risk lighting candidate | Confirmation evidence is collected |
+| 2 | Class 2 Clarification Manager | Policy Router | internal | transition request | `policy_table.json` | `transition_target=CLASS_1` | Re-enter policy routing |
+| 3 | Policy Router | Deterministic Validator | internal / `safe_deferral/validator/output` | `validator_output` | `low_risk_actions.json`, `validator_output_schema.json` | Confirmed low-risk lighting candidate | Validator must approve before dispatch |
 | 4 | Deterministic Validator / Actuator Dispatcher | Lighting Actuator Node | `safe_deferral/actuation/command` | `actuation_command_payload` | validator output + topic contract | Approved lighting command | Execute only if single admissible action |
 | 5 | Lighting Actuator Node | ACK Handling / Audit Log / TTS Output | `safe_deferral/actuation/ack`, `safe_deferral/audit/log` | ACK + audit + guidance | ACK/audit runtime contract | Execution result | User receives result and audit is closed |
 
@@ -318,8 +318,8 @@ Class 2 is a clarification/transition state, not a terminal failure by default.
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | User / Bounded Input Node / Caregiver / Emergency Node | MQTT Ingestion / State Intake | `safe_deferral/context/input`, `safe_deferral/emergency/event`, or `safe_deferral/caregiver/confirmation` | emergency confirmation / deterministic evidence | `policy_table_v1_2_0_FROZEN.json` | User/caregiver emergency confirmation, triple-hit, or E001-E005 evidence | Emergency evidence is collected |
-| 2 | Class 2 Clarification Manager / Policy Router | Policy Router | internal | transition request | `policy_table_v1_2_0_FROZEN.json` | `transition_target=CLASS_0` | Route to emergency path |
+| 1 | User / Bounded Input Node / Caregiver / Emergency Node | MQTT Ingestion / State Intake | `safe_deferral/context/input`, `safe_deferral/emergency/event`, or `safe_deferral/caregiver/confirmation` | emergency confirmation / deterministic evidence | `policy_table.json` | User/caregiver emergency confirmation, triple-hit, or E001-E005 evidence | Emergency evidence is collected |
+| 2 | Class 2 Clarification Manager / Policy Router | Policy Router | internal | transition request | `policy_table.json` | `transition_target=CLASS_0` | Route to emergency path |
 | 3 | Policy Router | Emergency handling / Caregiver Notification / Warning Output | internal / notification/output | emergency route output | emergency policy + output profile | Confirmed emergency or deterministic emergency evidence | Class 0 handling proceeds |
 | 4 | Emergency handling | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Emergency evidence, transition, notification result | Trace is recorded |
 
@@ -327,8 +327,8 @@ Class 2 is a clarification/transition state, not a terminal failure by default.
 
 | Step | Source node/component | Destination node/component | Interface / Topic | Payload family | Governing policy/schema | Data content | Expected handling |
 |---|---|---|---|---|---|---|---|
-| 1 | Class 2 Clarification Manager | Class 2 Clarification Manager | internal timer | timeout/no-response state | `clarification_interaction_schema_v1_0_0_FROZEN.json` | No user/caregiver response or ambiguous response | Do not assume intent |
-| 2 | Class 2 Clarification Manager | Safe Deferral / Caregiver Notification | `safe_deferral/deferral/request` or `safe_deferral/escalation/class2` | deferral / notification payload | `class_2_notification_payload_schema_v1_1_0_FROZEN.json`, policy table | `SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION` | No autonomous actuation |
+| 1 | Class 2 Clarification Manager | Class 2 Clarification Manager | internal timer | timeout/no-response state | `clarification_interaction_schema.json` | No user/caregiver response or ambiguous response | Do not assume intent |
+| 2 | Class 2 Clarification Manager | Safe Deferral / Caregiver Notification | `safe_deferral/deferral/request` or `safe_deferral/escalation/class2` | deferral / notification payload | `class2_notification_payload_schema.json`, policy table | `SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION` | No autonomous actuation |
 | 3 | Safe Deferral / Caregiver Notification | TTS/Voice Output Node / Display Output Node / Caregiver | output/notification interface | guidance / notification | output profile | Explain waiting, cancellation, or caregiver confirmation | User/caregiver is informed |
 | 4 | Class 2 Clarification Manager | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Timeout/no-response and final safe outcome | Trace is recorded |
 
@@ -340,7 +340,7 @@ Class 2 is a clarification/transition state, not a terminal failure by default.
 |---|---|---|---|---|---|---|---|
 | 1 | Raspberry Pi Scenario Orchestrator / Fault Injection | MQTT Ingestion / State Intake | `safe_deferral/context/input` | fault-injected `policy_router_input` | fault injection rules + context schema | Stale timestamp or old context state | Fault condition is delivered |
 | 2 | MQTT Ingestion / State Intake | Policy Router / Deterministic Validator | internal | policy-router input | policy table + staleness rules | Policy-relevant stale state | Stale state is not treated as fresh |
-| 3 | Policy Router / Validator | Safe Deferral / Class 2 Clarification Manager | internal / `safe_deferral/deferral/request` | deferral or Class 2 state | `policy_table_v1_2_0_FROZEN.json` | Staleness reason | Direct autonomous actuation is blocked |
+| 3 | Policy Router / Validator | Safe Deferral / Class 2 Clarification Manager | internal / `safe_deferral/deferral/request` | deferral or Class 2 state | `policy_table.json` | Staleness reason | Direct autonomous actuation is blocked |
 | 4 | Safe Deferral / Class 2 Manager | TTS/Display / Caregiver where needed | output / escalation interface | guidance / notification | class 2 notification schema where used | Recheck/wait/caregiver message | User or caregiver is informed |
 | 5 | Policy Router / Safe Deferral | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Stale fault cause and final outcome | Fault cause remains auditable |
 
@@ -352,7 +352,7 @@ Class 2 is a clarification/transition state, not a terminal failure by default.
 |---|---|---|---|---|---|---|---|
 | 1 | Bounded Input Node / Context Node / Occupancy Node / Device State Reporter Node | MQTT Ingestion / State Intake | `safe_deferral/context/input` | fault-injected `policy_router_input` | context schema + scenario fixture | Context with multiple plausible candidates | Input is delivered |
 | 2 | Context and Runtime State Aggregation | Input Context Mapper / Policy Router / Validator | internal | candidate set / route input | policy table + validator rules | Multiple simultaneously plausible candidates | Conflict is detected |
-| 3 | Policy Router / Validator | Class 2 Clarification Manager / LLM Guidance Layer | internal / `safe_deferral/deferral/request` | `clarification_interaction` | `clarification_interaction_schema_v1_0_0_FROZEN.json` | Bounded conflict-resolution candidates | Candidates may be presented; no arbitrary selection |
+| 3 | Policy Router / Validator | Class 2 Clarification Manager / LLM Guidance Layer | internal / `safe_deferral/deferral/request` | `clarification_interaction` | `clarification_interaction_schema.json` | Bounded conflict-resolution candidates | Candidates may be presented; no arbitrary selection |
 | 4 | Class 2 Clarification Manager | TTS/Voice Output Node / Display Output Node | output interface | candidate prompt | output profile + clarification schema | Options such as living room light / bedroom light / cancel | User is asked to confirm |
 | 5 | User / Bounded Input Node / Caregiver | Policy Router / Validator or Safe Deferral | `safe_deferral/context/input` or `safe_deferral/caregiver/confirmation` | selection / confirmation | policy table + validator schema | Selected candidate or unresolved conflict | Confirmed Class 1 candidate must be validated; unresolved conflict defers |
 | 6 | Class 2 Manager / Validator | Audit Log | `safe_deferral/audit/log` | `audit_event_payload` | audit runtime contract | Candidate set, confirmation requirement, final outcome | Conflict cause remains auditable |
@@ -382,17 +382,17 @@ Missing-state fault is distinct from Class 2 insufficient context: the issue is 
 
 | Scenario | Policy | Context/input schema | Class 2 schema | Validator schema | Key fixture family |
 |---|---|---|---|---|---|
-| Baseline | `policy_table_v1_2_0_FROZEN.json` | `policy_router_input_schema_v1_1_1_FROZEN.json`, `context_schema_v1_0_0_FROZEN.json` | Not primary | `validator_output_schema_v1_1_0_FROZEN.json` if execution occurs | baseline routing fixtures |
-| Class 1 | `policy_table_v1_2_0_FROZEN.json`, `low_risk_actions_v1_1_0_FROZEN.json` | input/context schemas | Not primary | `validator_output_schema_v1_1_0_FROZEN.json` | `expected_routing_class1.json` |
-| E001 | `policy_table_v1_2_0_FROZEN.json` | input/context schemas | Not primary | Emergency validation path | E001 emergency fixtures |
-| E002 | `policy_table_v1_2_0_FROZEN.json` | input/context schemas | Possible transition relation | Emergency validation path | E002 triple-hit fixtures |
-| E003 | `policy_table_v1_2_0_FROZEN.json` | input/context schemas | Not primary | Emergency validation path | E003 smoke fixtures |
-| E004 | `policy_table_v1_2_0_FROZEN.json` | input/context schemas | Not primary | Emergency validation path | E004 gas fixtures |
-| E005 | `policy_table_v1_2_0_FROZEN.json` | input/context schemas | Possible transition relation | Emergency validation path | E005 fall fixtures |
-| Class 2 | `policy_table_v1_2_0_FROZEN.json` | input/context schemas | `clarification_interaction_schema_v1_0_0_FROZEN.json`, `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Used after Class 1 transition | Class 2 candidate/selection/timeout fixtures |
-| Stale fault | `policy_table_v1_2_0_FROZEN.json`, fault rules | input/context schemas | May use Class 2-like handling | Validator blocks unsafe execution | stale fault fixture |
-| Conflict fault | `policy_table_v1_2_0_FROZEN.json`, fault rules | input/context schemas | `clarification_interaction_schema_v1_0_0_FROZEN.json` where candidates are presented | Validator required before Class 1 execution | conflict expected safe-deferral fixture |
-| Missing-state fault | `policy_table_v1_2_0_FROZEN.json`, fault rules | input/context schemas | May use Class 2-like handling | Validator blocks unsafe execution | missing-state expected safe-deferral fixture |
+| Baseline | `policy_table.json` | `policy_router_input_schema.json`, `context_schema.json` | Not primary | `validator_output_schema.json` if execution occurs | baseline routing fixtures |
+| Class 1 | `policy_table.json`, `low_risk_actions.json` | input/context schemas | Not primary | `validator_output_schema.json` | `expected_routing_class1.json` |
+| E001 | `policy_table.json` | input/context schemas | Not primary | Emergency validation path | E001 emergency fixtures |
+| E002 | `policy_table.json` | input/context schemas | Possible transition relation | Emergency validation path | E002 triple-hit fixtures |
+| E003 | `policy_table.json` | input/context schemas | Not primary | Emergency validation path | E003 smoke fixtures |
+| E004 | `policy_table.json` | input/context schemas | Not primary | Emergency validation path | E004 gas fixtures |
+| E005 | `policy_table.json` | input/context schemas | Possible transition relation | Emergency validation path | E005 fall fixtures |
+| Class 2 | `policy_table.json` | input/context schemas | `clarification_interaction_schema.json`, `class2_notification_payload_schema.json` | Used after Class 1 transition | Class 2 candidate/selection/timeout fixtures |
+| Stale fault | `policy_table.json`, fault rules | input/context schemas | May use Class 2-like handling | Validator blocks unsafe execution | stale fault fixture |
+| Conflict fault | `policy_table.json`, fault rules | input/context schemas | `clarification_interaction_schema.json` where candidates are presented | Validator required before Class 1 execution | conflict expected safe-deferral fixture |
+| Missing-state fault | `policy_table.json`, fault rules | input/context schemas | May use Class 2-like handling | Validator blocks unsafe execution | missing-state expected safe-deferral fixture |
 
 ## 8.2 Scenario-to-MQTT topic coverage
 

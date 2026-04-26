@@ -47,7 +47,7 @@
 doorlock을 authoritative autonomous low-risk scope처럼 다루려면, 먼저 frozen 정책/스키마/실험 문서와 정합성을 맞춰야 한다.
 
 ### 3. doorbell / visitor-response context 해석
-`doorbell_detected`는 현재 `context_schema_v1_0_0_FROZEN.json`의 `environmental_context`에 포함되는 required boolean field다.
+`doorbell_detected`는 현재 `context_schema.json`의 `environmental_context`에 포함되는 required boolean field다.
 
 해석 원칙:
 - 모든 valid context payload에는 `environmental_context.doorbell_detected`를 포함해야 한다.
@@ -83,9 +83,9 @@ Doorlock state, manual approval state, ACK state는 현재 schema에서는 다�
 MQTT/payload governance는 communication contract consistency를 관리하기 위한 비권한 support path다.
 
 해석 원칙:
-- `common/mqtt/topic_registry_v1_0_0.json`은 topic registry reference다.
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`는 publisher/subscriber role reference다.
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`는 topic-to-payload contract reference다.
+- `common/mqtt/topic_registry.json`은 topic registry reference다.
+- `common/mqtt/publisher_subscriber_matrix.md`는 publisher/subscriber role reference다.
+- `common/mqtt/topic_payload_contracts.md`는 topic-to-payload contract reference다.
 - `common/payloads/`는 payload example/template reference layer다.
 - `common/docs/architecture/15_interface_matrix.md`는 MQTT-aware interface contract reference다.
 - `common/docs/architecture/17_payload_contract_and_registry.md`는 payload boundary 기준 문서다.
@@ -300,9 +300,9 @@ Package G 구현/검증 시 최소한 다음 항목을 확인한다.
 
 ## 반드시 먼저 읽을 문서 순서
 
-1. `/common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-2. `/common/policies/policy_table_v1_1_2_FROZEN.json`
-3. `/common/schemas/context_schema_v1_0_0_FROZEN.json`
+1. `/common/policies/low_risk_actions.json`
+2. `/common/policies/policy_table.json`
+3. `/common/schemas/context_schema.json`
 4. `/common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 5. `/common/docs/architecture/15_interface_matrix.md`
 6. `/common/docs/architecture/16_system_architecture_figure.md`
@@ -320,9 +320,9 @@ Package G 구현/검증 시 최소한 다음 항목을 확인한다.
 - `/common/docs/architecture/12_prompts_nodes_and_evaluation.md`
 - `/common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `/common/docs/architecture/14_system_components_outline_v2.md`
-- `/common/mqtt/topic_registry_v1_0_0.json`
-- `/common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `/common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `/common/mqtt/topic_registry.json`
+- `/common/mqtt/publisher_subscriber_matrix.md`
+- `/common/mqtt/topic_payload_contracts.md`
 - `/common/payloads/README.md`
 - `/integration/scenarios/scenario_manifest_rules.md`
 - `/integration/scenarios/scenario_review_guide.md`
@@ -371,9 +371,9 @@ Package G 구현/검증 시 최소한 다음 항목을 확인한다.
 * `/common/docs/architecture/20_scenario_data_flow_matrix.md`
 
 ### MQTT / payload 문서
-* `/common/mqtt/topic_registry_v1_0_0.json`
-* `/common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-* `/common/mqtt/topic_payload_contracts_v1_0_0.md`
+* `/common/mqtt/topic_registry.json`
+* `/common/mqtt/publisher_subscriber_matrix.md`
+* `/common/mqtt/topic_payload_contracts.md`
 * `/common/payloads/README.md`
 
 ### superseded / historical note
@@ -457,17 +457,17 @@ Package G 구현/검증 시 최소한 다음 항목을 확인한다.
 * `/esp32/scripts/verify/40_verify_sample_build_esp32_windows.ps1`
 
 ### 스키마
-* `/common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-* `/common/schemas/context_schema_v1_0_0_FROZEN.json`
-* `/common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-* `/common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
-* `/common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+* `/common/schemas/policy_router_input_schema.json`
+* `/common/schemas/context_schema.json`
+* `/common/schemas/candidate_action_schema.json`
+* `/common/schemas/class2_notification_payload_schema.json`
+* `/common/schemas/validator_output_schema.json`
 
 ### 정책
-* `/common/policies/policy_table_v1_1_2_FROZEN.json`
-* `/common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-* `/common/policies/output_profile_v1_1_0.json`
-* `/common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
+* `/common/policies/policy_table.json`
+* `/common/policies/low_risk_actions.json`
+* `/common/policies/output_profile.json`
+* `/common/policies/fault_injection_rules.json`
 
 ---
 
@@ -527,9 +527,9 @@ Package G 구현/검증 시 최소한 다음 항목을 확인한다.
 
 1. `/common/docs/architecture/15_interface_matrix.md`
 2. `/common/docs/architecture/17_payload_contract_and_registry.md`
-3. `/common/mqtt/topic_registry_v1_0_0.json`
-4. `/common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-5. `/common/mqtt/topic_payload_contracts_v1_0_0.md`
+3. `/common/mqtt/topic_registry.json`
+4. `/common/mqtt/publisher_subscriber_matrix.md`
+5. `/common/mqtt/topic_payload_contracts.md`
 6. `/common/payloads/README.md`
 7. `/common/docs/architecture/12_prompts_mqtt_payload_governance.md` when governance tooling is in scope
 

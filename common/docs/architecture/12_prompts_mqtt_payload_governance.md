@@ -38,21 +38,21 @@ Before implementing any component from this prompt set, the agent must read:
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `common/payloads/templates/scenario_fixture_template.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
 
 Historical MQTT registry baseline:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry.json`
 
 ## Payload family separation
 
@@ -79,7 +79,7 @@ Expected contract:
 
 ```text
 payload_family: clarification_interaction_payload
-schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+schema: common/schemas/clarification_interaction_schema.json
 authority_level: class2_interaction_evidence_not_authority
 ```
 
@@ -125,8 +125,8 @@ Target repository areas:
 
 Requirements:
 - Load topic definitions from:
-  - common/mqtt/topic_registry_v1_1_0.json
-- Treat common/mqtt/topic_registry_v1_0_0.json as historical baseline only unless an explicit migration/compatibility test requires it.
+  - common/mqtt/topic_registry.json
+- Treat common/mqtt/topic_registry.json as historical baseline only unless an explicit migration/compatibility test requires it.
 - Do not hardcode MQTT topic strings where registry lookup is practical.
 - Expose lookup functions such as:
   - get_topic(topic_id)
@@ -159,14 +159,14 @@ Requirements:
 - Validate that MQTT-facing behavior remains aligned with:
   - common/docs/architecture/15_interface_matrix.md
   - common/docs/architecture/17_payload_contract_and_registry.md
-  - common/mqtt/publisher_subscriber_matrix_v1_0_0.md
-  - common/mqtt/topic_payload_contracts_v1_0_0.md
+  - common/mqtt/publisher_subscriber_matrix.md
+  - common/mqtt/topic_payload_contracts.md
 - Validate topic/payload hardcoding drift where implementation files are in scope.
 - Validate that dashboard/governance topics are marked non-authoritative.
 - Validate that RPi simulation/fault topics are marked experiment-only unless explicitly allowed otherwise.
 - Validate that Class 2 clarification or notification topics do not imply actuator authorization.
 - Validate that safe_deferral/clarification/interaction maps to clarification_interaction_payload.
-- Validate that safe_deferral/clarification/interaction uses common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json.
+- Validate that safe_deferral/clarification/interaction uses common/schemas/clarification_interaction_schema.json.
 - Validate that safe_deferral/clarification/interaction uses authority_level class2_interaction_evidence_not_authority.
 - Validate that safe_deferral/clarification/interaction does not become validator approval, actuation command, emergency trigger authority, or doorlock authorization.
 - Validate that `clarification_interaction_payload` remains distinct from pure context, validator output, and actuation command payloads.
@@ -211,7 +211,7 @@ Requirements:
   - link schema path to topic
   - link example payload path to topic
   - validate payload example against referenced schema
-  - validate clarification interaction payloads against common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+  - validate clarification interaction payloads against common/schemas/clarification_interaction_schema.json
   - validate safe_deferral/clarification/interaction topic contract
   - validate scenario fixture class2_clarification_expectation blocks when fixture templates are in scope
   - run interface-matrix alignment check
@@ -359,7 +359,7 @@ Requirements:
   - common/payloads/templates/
 - Validate scenario fixture templates that include class2_clarification_expectation.
 - Ensure class2_clarification_expectation.clarification_topic is safe_deferral/clarification/interaction.
-- Ensure class2_clarification_expectation.clarification_schema_ref is common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json.
+- Ensure class2_clarification_expectation.clarification_schema_ref is common/schemas/clarification_interaction_schema.json.
 - Ensure class2_clarification_expectation.clarification_payload_is_not_authorization is true.
 - Ensure class2_clarification_expectation.timeout_must_not_infer_intent is true.
 - Validate schema-governed examples against the corresponding schema files under common/schemas/.

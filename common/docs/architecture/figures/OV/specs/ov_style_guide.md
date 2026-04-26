@@ -183,7 +183,7 @@ Example:
 
 ```text
 Policy Router
-policy_table_v1_2_0
+policy_table
 ```
 
 Avoid long JSON schema filenames in the main apartment view. Put full filenames in the bottom strip or metadata.

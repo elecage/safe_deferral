@@ -15,9 +15,9 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---
@@ -35,7 +35,7 @@ Current interface, communication, and payload references:
 - Allow service restart behavior to branch according to the **deployment mode**.
 - Complete the shared frozen asset set before implementation-side configuration depends on it.
 - Runtime apps, dashboard apps, and experiment tools should load topic/payload references from registry paths when practical.
-- Class 2 clarification interactions must be governed by `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`.
+- Class 2 clarification interactions must be governed by `common/schemas/clarification_interaction_schema.json`.
 - Configuration may prepare Class 2 topic namespaces, schema paths, fixture paths, verifier paths, audit paths, and report paths, but it must not create actuation or final transition authority.
 - Treat ESP32 embedded nodes as bounded physical clients whose connection parameters, topic structure, device identity assumptions, and sample-build readiness must be configured consistently when they are used.
 - Treat Raspberry Pi 5 as an **evaluation-side dashboard, simulation, orchestration, replay, fault-injection, result-artifact, Class 2 transition verification, and non-authoritative MQTT/payload governance support node**, not as a target for hub-side operational runtime configuration.
@@ -51,20 +51,20 @@ Current interface, communication, and payload references:
 The following assets should be finalized before configuration deployment depends on them.
 
 ### Required canonical frozen authority assets
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/policies/policy_table.json`
+- `common/policies/low_risk_actions.json`
+- `common/policies/fault_injection_rules.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
 
 ### Required communication / payload reference assets
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `common/payloads/examples/`
 - `common/payloads/templates/`
@@ -79,7 +79,7 @@ The following assets should be finalized before configuration deployment depends
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 
 ### Required Class 2 clarification / transition assets
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema.json`
 - Class 2 clarification scenario fixtures under `integration/scenarios/` when implemented
 - Class 2 transition verifier fixtures under `integration/tests/` when implemented
 - Class 2-to-Class 1, Class 2-to-Class 0, and Class 2 timeout/safe-deferral scenario definitions when implemented
@@ -215,7 +215,7 @@ Recommended responsibilities:
 - apply listener configuration
 - apply authentication configuration if enabled
 - apply persistence and log path configuration
-- align configured topic namespace with `common/mqtt/topic_registry_v1_0_0.json`
+- align configured topic namespace with `common/mqtt/topic_registry.json`
 - prepare topic ACL assumptions from publisher/subscriber matrix where applicable
 - align topic ACL assumptions with `common/docs/architecture/15_interface_matrix.md`
 - prepare Class 2 clarification topic namespace assumptions for deferral request, caregiver confirmation, validator output, actuation ACK, and audit topics
@@ -342,8 +342,8 @@ Recommended responsibilities:
 Recommended responsibilities:
 - configure Telegram token and chat ID if available
 - configure mock fallback mode if Telegram is unavailable or intentionally disabled
-- align outbound escalation payload behavior with `class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- align Class 2 clarification interaction records with `clarification_interaction_schema_v1_0_0_FROZEN.json` when notification/clarification flows are connected
+- align outbound escalation payload behavior with `class2_notification_payload_schema.json`
+- align Class 2 clarification interaction records with `clarification_interaction_schema.json` when notification/clarification flows are connected
 - send or simulate a test notification
 - preserve fallback behavior for offline or development environments
 
@@ -502,7 +502,7 @@ Recommended responsibilities:
 Recommended responsibilities:
 - synchronize frozen policy assets from the authoritative shared repository state
 - synchronize frozen schema assets from the authoritative shared repository state
-- synchronize `clarification_interaction_schema_v1_0_0_FROZEN.json`
+- synchronize `clarification_interaction_schema.json`
 - synchronize MQTT topic registry references when needed
 - synchronize publisher/subscriber matrix and topic-payload contract references when needed
 - synchronize payload examples/templates when needed
@@ -764,7 +764,7 @@ The configuration logic should branch according to the deployment mode where nec
 Before device-specific configuration proceeds:
 - verify required frozen assets exist
 - verify synchronized or deployed copies will be sourced from the canonical baseline
-- verify `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` exists
+- verify `common/schemas/clarification_interaction_schema.json` exists
 - verify MQTT topic registry and payload reference directories exist
 - verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
 - verify Class 2 clarification fixture directories or planned locations exist when Class 2 transition evaluation is in scope
@@ -868,7 +868,7 @@ Typical workflow may include:
 ## Architectural Summary
 
 - `common/policies/` and `common/schemas/` store canonical policy/schema authority
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` stores the current Class 2 clarification interaction schema
+- `common/schemas/clarification_interaction_schema.json` stores the current Class 2 clarification interaction schema
 - `common/mqtt/` and `common/payloads/` store communication/payload reference assets
 - `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - `mac_mini/scripts/configure/` configures the operational hub

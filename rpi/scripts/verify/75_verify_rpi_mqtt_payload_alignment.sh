@@ -27,10 +27,10 @@ MQTT_DIR="${MQTT_REGISTRY_SYNC_PATH:-${WORKSPACE_DIR}/config/mqtt}"
 PAYLOAD_DIR="${PAYLOAD_EXAMPLES_SYNC_PATH:-${WORKSPACE_DIR}/config/payloads}"
 SCHEMA_DIR="${SCHEMA_SYNC_PATH:-${WORKSPACE_DIR}/config/schemas}"
 
-TOPIC_REGISTRY="${MQTT_DIR}/topic_registry_v1_0_0.json"
-PUBSUB_MATRIX="${MQTT_DIR}/publisher_subscriber_matrix_v1_0_0.md"
-TOPIC_CONTRACTS="${MQTT_DIR}/topic_payload_contracts_v1_0_0.md"
-CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema_v1_0_0_FROZEN.json"
+TOPIC_REGISTRY="${MQTT_DIR}/topic_registry.json"
+PUBSUB_MATRIX="${MQTT_DIR}/publisher_subscriber_matrix.md"
+TOPIC_CONTRACTS="${MQTT_DIR}/topic_payload_contracts.md"
+CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 
 FAILURES=0
 

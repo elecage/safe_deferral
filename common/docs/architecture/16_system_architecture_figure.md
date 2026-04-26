@@ -34,9 +34,9 @@ This document does **not** override frozen policies or schemas. If any conflict 
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/required_experiments.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 
 ---
@@ -359,9 +359,9 @@ Input may originate from:
 
 MQTT-facing interfaces should remain aligned with:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/docs/architecture/15_interface_matrix.md`
 
 For `safe_deferral/context/input`, the ordinary operational publishers are field-side bounded input/context nodes, with controlled RPi simulation publishers allowed only in gated experiment mode. Mac mini services primarily ingest and aggregate this input plane.
@@ -373,7 +373,7 @@ The normalized operational input must preserve the payload boundaries defined in
 In particular:
 
 - `routing_metadata` must not be mixed into LLM context,
-- `pure_context_payload` must conform to `context_schema_v1_0_0_FROZEN.json`,
+- `pure_context_payload` must conform to `context_schema.json`,
 - every valid `environmental_context` must include `doorbell_detected`,
 - doorlock state must not be inserted into current `device_states`.
 
@@ -461,7 +461,7 @@ Class 2 entry
 The clarification interaction payload is governed by:
 
 ```text
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 ```
 
 The Class 2 path must not:

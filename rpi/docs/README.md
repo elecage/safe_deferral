@@ -193,15 +193,15 @@ requirements-rpi.txt
 - `~/smarthome_workspace/docker/volumes/app/config/policies`
 
 현재 sync 대상 canonical assets:
-- `context_schema_v1_0_0_FROZEN.json`
-- `candidate_action_schema_v1_0_0_FROZEN.json`
-- `policy_router_input_schema_v1_1_1_FROZEN.json`
-- `validator_output_schema_v1_1_0_FROZEN.json`
-- `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
-- `policy_table_v1_1_2_FROZEN.json`
-- `fault_injection_rules_v1_4_0_FROZEN.json`
-- `low_risk_actions_v1_1_0_FROZEN.json`
-- `output_profile_v1_1_0.json`
+- `context_schema.json`
+- `candidate_action_schema.json`
+- `policy_router_input_schema.json`
+- `validator_output_schema.json`
+- `class2_notification_payload_schema.json`
+- `policy_table.json`
+- `fault_injection_rules.json`
+- `low_risk_actions.json`
+- `output_profile.json`
 
 역할:
 - experiment-side runtime이 current canonical asset set을 읽게 함
@@ -278,7 +278,7 @@ rsync -avz <MAC_MINI_USER>@<MAC_MINI_HOST>:~/smarthome_workspace/docker/volumes/
 
 ### `50_configure_fault_profiles_rpi.sh`
 목적:
-- current canonical `fault_injection_rules_v1_4_0_FROZEN.json` 검증
+- current canonical `fault_injection_rules.json` 검증
 - active deterministic profile 또는 randomized stress profile 선택
 - runner config 작성
 

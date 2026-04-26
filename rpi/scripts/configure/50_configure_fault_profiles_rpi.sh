@@ -36,8 +36,8 @@ echo "  [OK] RPi authority boundary flags verified."
 
 POLICY_DIR="${POLICY_SYNC_PATH:-${WORKSPACE_DIR}/config/policies}"
 SCHEMA_DIR="${SCHEMA_SYNC_PATH:-${WORKSPACE_DIR}/config/schemas}"
-FAULT_RULES_FILE="${POLICY_DIR}/fault_injection_rules_v1_4_0_FROZEN.json"
-CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema_v1_0_0_FROZEN.json"
+FAULT_RULES_FILE="${POLICY_DIR}/fault_injection_rules.json"
+CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 
 if [ ! -f "${FAULT_RULES_FILE}" ]; then
     echo "  [FATAL] Fault injection rules not found at ${FAULT_RULES_FILE}."
@@ -94,7 +94,7 @@ if ! jq -e '
     echo "            freshness_limit=$.global_constraints.freshness_threshold_ms"
     echo "            required_environmental_keys=$.properties.environmental_context.required"
     echo "            required_device_keys=$.properties.device_states.required"
-    echo "          Re-sync frozen policy/schema assets and review fault_injection_rules_v1_4_0_FROZEN.json."
+    echo "          Re-sync frozen policy/schema assets and review fault_injection_rules.json."
     exit 1
 fi
 

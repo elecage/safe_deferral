@@ -40,17 +40,17 @@ mkdir -p "${RUNTIME_TARGET_DIR}/mqtt"
 mkdir -p "${RUNTIME_TARGET_DIR}/payloads"
 
 # 1. Deploy policy assets explicitly so the frozen runtime surface remains reviewable.
-cp "${SOURCE_COMMON_DIR}/policies/policy_table_v1_1_2_FROZEN.json" "${RUNTIME_TARGET_DIR}/policies/"
-cp "${SOURCE_COMMON_DIR}/policies/low_risk_actions_v1_1_0_FROZEN.json" "${RUNTIME_TARGET_DIR}/policies/"
-cp "${SOURCE_COMMON_DIR}/policies/fault_injection_rules_v1_4_0_FROZEN.json" "${RUNTIME_TARGET_DIR}/policies/"
-cp "${SOURCE_COMMON_DIR}/policies/output_profile_v1_1_0.json" "${RUNTIME_TARGET_DIR}/policies/"
+cp "${SOURCE_COMMON_DIR}/policies/policy_table.json" "${RUNTIME_TARGET_DIR}/policies/"
+cp "${SOURCE_COMMON_DIR}/policies/low_risk_actions.json" "${RUNTIME_TARGET_DIR}/policies/"
+cp "${SOURCE_COMMON_DIR}/policies/fault_injection_rules.json" "${RUNTIME_TARGET_DIR}/policies/"
+cp "${SOURCE_COMMON_DIR}/policies/output_profile.json" "${RUNTIME_TARGET_DIR}/policies/"
 
 # 2. Deploy schema assets explicitly so the frozen validation surface remains reviewable.
-cp "${SOURCE_COMMON_DIR}/schemas/context_schema_v1_0_0_FROZEN.json" "${RUNTIME_TARGET_DIR}/schemas/"
-cp "${SOURCE_COMMON_DIR}/schemas/candidate_action_schema_v1_0_0_FROZEN.json" "${RUNTIME_TARGET_DIR}/schemas/"
-cp "${SOURCE_COMMON_DIR}/schemas/policy_router_input_schema_v1_1_1_FROZEN.json" "${RUNTIME_TARGET_DIR}/schemas/"
-cp "${SOURCE_COMMON_DIR}/schemas/validator_output_schema_v1_1_0_FROZEN.json" "${RUNTIME_TARGET_DIR}/schemas/"
-cp "${SOURCE_COMMON_DIR}/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json" "${RUNTIME_TARGET_DIR}/schemas/"
+cp "${SOURCE_COMMON_DIR}/schemas/context_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
+cp "${SOURCE_COMMON_DIR}/schemas/candidate_action_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
+cp "${SOURCE_COMMON_DIR}/schemas/policy_router_input_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
+cp "${SOURCE_COMMON_DIR}/schemas/validator_output_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
+cp "${SOURCE_COMMON_DIR}/schemas/class2_notification_payload_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
 
 # 3. Deploy MQTT/payload communication reference assets for runtime loading,
 #    Package G checks, and governance support. These are references, not authority.

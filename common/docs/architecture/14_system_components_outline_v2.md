@@ -27,14 +27,14 @@ This document is a system-architecture interpretation note and should be read to
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/payloads/README.md`
 - `CLAUDE.md`
 
 Historical MQTT registry baseline:
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry.json`
 
 ---
 
@@ -360,8 +360,8 @@ Important interpretation:
 The registry-consistency support layer for runtime and verification code.
 
 Role:
-- loads topic definitions from `common/mqtt/topic_registry_v1_1_0.json`,
-- treats `topic_registry_v1_0_0.json` as a historical baseline unless explicitly used for compatibility checks,
+- loads topic definitions from `common/mqtt/topic_registry.json`,
+- treats `topic_registry.json` as a historical baseline unless explicitly used for compatibility checks,
 - prevents topic string drift where registry lookup is practical,
 - checks alignment with `common/docs/architecture/15_interface_matrix.md`,
 - detects topic/payload hardcoding drift where implemented,
@@ -444,7 +444,7 @@ Topic contract:
 
 ```text
 payload_family: clarification_interaction_payload
-schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+schema: common/schemas/clarification_interaction_schema.json
 authority_level: class2_interaction_evidence_not_authority
 ```
 

@@ -19,9 +19,9 @@ This document should be read together with:
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
-- `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/publisher_subscriber_matrix.md`
+- `common/mqtt/topic_payload_contracts.md`
 
 Some Raspberry Pi governance and MQTT/payload support connections are documented in `16_system_architecture_figure.md` and `15_interface_matrix.md` but are not yet fully drawn in the current SVG figure.
 

@@ -78,10 +78,10 @@ done
 
 echo "  [INFO] Checking deployed runtime policy assets..."
 REQUIRED_POLICY_ASSETS=(
-    "policy_table_v1_1_2_FROZEN.json"
-    "low_risk_actions_v1_1_0_FROZEN.json"
-    "fault_injection_rules_v1_4_0_FROZEN.json"
-    "output_profile_v1_1_0.json"
+    "policy_table.json"
+    "low_risk_actions.json"
+    "fault_injection_rules.json"
+    "output_profile.json"
 )
 
 MISSING_POLICY_ASSETS=0
@@ -100,11 +100,11 @@ done
 
 echo "  [INFO] Checking deployed runtime schema assets..."
 REQUIRED_SCHEMA_ASSETS=(
-    "context_schema_v1_0_0_FROZEN.json"
-    "candidate_action_schema_v1_0_0_FROZEN.json"
-    "policy_router_input_schema_v1_1_1_FROZEN.json"
-    "validator_output_schema_v1_1_0_FROZEN.json"
-    "class_2_notification_payload_schema_v1_0_0_FROZEN.json"
+    "context_schema.json"
+    "candidate_action_schema.json"
+    "policy_router_input_schema.json"
+    "validator_output_schema.json"
+    "class2_notification_payload_schema.json"
 )
 
 MISSING_SCHEMA_ASSETS=0
@@ -124,9 +124,9 @@ done
 echo "  [INFO] Checking deployed MQTT reference assets..."
 REQUIRED_MQTT_ASSETS=(
     "README.md"
-    "topic_registry_v1_0_0.json"
-    "publisher_subscriber_matrix_v1_0_0.md"
-    "topic_payload_contracts_v1_0_0.md"
+    "topic_registry.json"
+    "publisher_subscriber_matrix.md"
+    "topic_payload_contracts.md"
 )
 
 MISSING_MQTT_ASSETS=0
@@ -178,7 +178,7 @@ if [ "${MISSING_POLICY_ASSETS}" -ne 0 ] || \
     exit 1
 fi
 
-TOPIC_REGISTRY_FILE="${MQTT_REGISTRY_DIR}/topic_registry_v1_0_0.json"
+TOPIC_REGISTRY_FILE="${MQTT_REGISTRY_DIR}/topic_registry.json"
 echo "  [INFO] Checking topic registry referenced example payload files..."
 
 MISSING_REFERENCED_EXAMPLES=0
@@ -229,32 +229,32 @@ payload_dir = Path(sys.argv[2])
 
 checks = [
     (
-        "policy_router_input_schema_v1_1_1_FROZEN.json",
+        "policy_router_input_schema.json",
         "examples/policy_router_input_non_visitor.json",
         "policy_router_input_non_visitor",
     ),
     (
-        "policy_router_input_schema_v1_1_1_FROZEN.json",
+        "policy_router_input_schema.json",
         "examples/policy_router_input_visitor_doorbell.json",
         "policy_router_input_visitor_doorbell",
     ),
     (
-        "policy_router_input_schema_v1_1_1_FROZEN.json",
+        "policy_router_input_schema.json",
         "examples/policy_router_input_emergency_temperature.json",
         "policy_router_input_emergency_temperature",
     ),
     (
-        "candidate_action_schema_v1_0_0_FROZEN.json",
+        "candidate_action_schema.json",
         "examples/candidate_action_light_on.json",
         "candidate_action_light_on",
     ),
     (
-        "validator_output_schema_v1_1_0_FROZEN.json",
+        "validator_output_schema.json",
         "examples/validator_output_execute_approved_light.json",
         "validator_output_execute_approved_light",
     ),
     (
-        "class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+        "class2_notification_payload_schema.json",
         "examples/class_2_notification_doorlock_sensitive.json",
         "class_2_notification_doorlock_sensitive",
     ),
