@@ -36,14 +36,15 @@ Current interface, communication, and payload references:
 - [ ] Ensure frozen shared artifacts and communication/payload references are available as implementation reference inputs before code generation
 
 ### Representative canonical frozen and reference assets
-- [ ] `common/policies/policy_table_v1_1_2_FROZEN.json`
+- [ ] `common/policies/policy_table_v1_2_0_FROZEN.json`
 - [ ] `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - [ ] `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - [ ] `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - [ ] `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - [ ] `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - [ ] `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- [ ] `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- [ ] `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- [ ] `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 - [ ] `common/mqtt/topic_registry_v1_0_0.json`
 - [ ] `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - [ ] `common/mqtt/topic_payload_contracts_v1_0_0.md`
@@ -81,6 +82,7 @@ Current interface, communication, and payload references:
   - [ ] candidate action
   - [ ] validator output
   - [ ] Class 2 notification payload
+  - [ ] Class 2 clarification interaction payload
 - [ ] Finalize `fault_injection_rules`
 - [ ] Finalize MQTT topic registry draft
 - [ ] Finalize publisher/subscriber matrix draft
@@ -207,13 +209,14 @@ Current interface, communication, and payload references:
 
 ## T8. Implement External Notification and Confirmation
 
-- [ ] Implement Class 2 notification payload generation aligned with `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- [ ] Implement Class 2 notification payload generation aligned with `class_2_notification_payload_schema_v1_1_0_FROZEN.json`
 - [ ] Validate outbound escalation payload completeness against the canonical schema
 - [ ] Implement Telegram / mock outbound alert sender
 - [ ] Implement caregiver confirmation endpoint
 - [ ] Restrict confirmation to governed, explicitly scoped actions
 - [ ] Do not treat caregiver confirmation as autonomous Class 1 validator approval
 - [ ] Ensure doorlock-sensitive manual confirmation path includes approval, ACK verification, and audit visibility when implemented
+- [ ] Keep Class 2 clarification interaction payloads aligned with `clarification_interaction_schema_v1_0_0_FROZEN.json` when clarification/transition handling is implemented
 
 ### Repository focus
 - `mac_mini/code/`
