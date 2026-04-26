@@ -4,9 +4,9 @@
 
 This document defines the recommended build and bring-up sequence for the Mac mini operational hub in the `safe_deferral` system.
 
-The Mac mini is the **safety-critical operational edge hub**. It is responsible for local service runtime, policy/schema validation support, local LLM runtime, MQTT broker operation, audit DB preparation, outbound notification support, and deployed runtime copies of repository-governed reference assets.
+The Mac mini is the **safety-critical operational edge hub**. It is responsible for local service runtime, policy/schema validation support, local LLM runtime, MQTT broker operation, Class 2 clarification management, audit DB preparation, outbound notification support, and deployed runtime copies of repository-governed reference assets.
 
-Raspberry Pi 5 remains the experiment/dashboard/simulation/fault-injection and non-authoritative MQTT/payload governance support host. It must not replace Mac mini policy authority, validator authority, caregiver approval authority, actuator authority, or doorlock execution authority.
+Raspberry Pi 5 remains the experiment/dashboard/simulation/fault-injection and non-authoritative MQTT/payload governance support host. It must not replace Mac mini policy authority, validator authority, Class 2 clarification management, caregiver approval authority, actuator authority, or doorlock execution authority.
 
 This document should be read together with:
 
@@ -79,7 +79,7 @@ Before installation or implementation, freeze and review the shared repository a
 
 ### Authoritative policy/schema assets
 
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/policies/output_profile_v1_1_0.json`
@@ -87,7 +87,8 @@ Before installation or implementation, freeze and review the shared repository a
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 
 ### Communication and payload reference assets
 
@@ -237,12 +238,25 @@ Develop the hub-side applications in dependency order:
 1. Policy Router
 2. Deterministic Validator
 3. Context-Integrity Safe Deferral Handler
-4. Audit Logging Service integration
-5. Outbound Notification Interface
-6. Caregiver Confirmation Backend
-7. MQTT Topic Registry Loader / Contract Checker
-8. Payload Validation Helper
-9. Hub-side integration tests
+4. Class 2 Clarification Manager
+5. Audit Logging Service integration
+6. Outbound Notification Interface
+7. Caregiver Confirmation Backend
+8. MQTT Topic Registry Loader / Contract Checker
+9. Payload Validation Helper
+10. Hub-side integration tests
+
+The Class 2 Clarification Manager manages bounded clarification interactions for ambiguous or insufficient-context cases. It may request candidate choices from the LLM Guidance Layer, but it must not authorize actuation, determine final class transitions by itself, trigger emergency handling, or bypass the Deterministic Validator. After user or caregiver confirmation, timeout, or additional deterministic evidence, it must re-enter the Policy Router so that the final route is determined by policy and validation logic. It must record clarification candidates, presentation channel, user/caregiver selection, timeout result, transition target, and final safe outcome in the local audit log.
+
+Recommended runtime control sequence:
+
+```text
+Policy Router / Validator
+→ Safe Deferral Handler
+→ Class 2 Clarification Manager
+→ Caregiver Confirmation Backend when unresolved or sensitive
+→ Audit Logger
+```
 
 Development constraints:
 
@@ -252,6 +266,7 @@ Development constraints:
 - Doorlock state must not be inserted into current `pure_context_payload.device_states`.
 - LLM candidate output is not execution authority.
 - Validator-approved executable payload remains constrained to the low-risk catalog.
+- Class 2 clarification output is not validator approval, actuator authorization, emergency trigger authority, or doorlock unlock approval.
 - MQTT/payload references support communication consistency; they do not create execution authority.
 
 ---
