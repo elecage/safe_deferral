@@ -15,6 +15,7 @@ The purpose of this document is to provide one stable reference for:
 - the paper-oriented system architecture figure,
 - the operational closed-loop interpretation,
 - Mac mini / Raspberry Pi 5 / ESP32 / measurement-node role separation,
+- Class 2 clarification and transition-loop interpretation,
 - low-risk vs sensitive-actuation routing,
 - `doorbell_detected` visitor-response context,
 - payload-boundary interpretation,
@@ -30,6 +31,8 @@ This document does **not** override frozen policies or schemas. If any conflict 
 - `common/docs/architecture/14_system_components_outline_v2.md`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/required_experiments.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
@@ -54,6 +57,7 @@ The current SVG now compactly represents:
 - Policy Router plus Deterministic Validator as the final admissibility boundary,
 - Class 1 low-risk execution as currently lighting only,
 - safe deferral and clarification management,
+- Class 2 clarification as a bounded transition loop,
 - caregiver escalation and approval for governed manual dispatch,
 - TTS guidance,
 - ACK and audit closure,
@@ -62,6 +66,7 @@ The current SVG now compactly represents:
 
 However, the current SVG remains a compact paper figure. It does not fully draw every detailed support-layer connection, including:
 
+- every Class 2 candidate-selection and re-routing arrow,
 - all Raspberry Pi support-layer MQTT connections,
 - complete MQTT/payload governance backend flow,
 - governance dashboard UI flow,
@@ -73,7 +78,7 @@ However, the current SVG remains a compact paper figure. It does not fully draw 
 - payload validation report flow,
 - governance backend/UI separation validation.
 
-Those detailed elements are documented in this file, in `common/docs/architecture/14_system_components_outline_v2.md`, and in `common/docs/architecture/15_interface_matrix.md`.
+Those detailed elements are documented in this file, in `common/docs/architecture/14_system_components_outline_v2.md`, `common/docs/architecture/15_interface_matrix.md`, `common/docs/architecture/18_scenario_node_component_mapping.md`, `common/docs/architecture/19_class2_clarification_architecture_alignment.md`, and `common/docs/architecture/20_scenario_data_flow_matrix.md`.
 
 ### Current figure status
 
@@ -86,11 +91,12 @@ It is strongest for explaining:
 - local LLM-assisted interpretation,
 - deterministic policy routing and validation,
 - safe deferral,
+- Class 2 clarification / transition handling,
 - caregiver-mediated sensitive-actuation handling through governed manual dispatch,
 - ACK and audit closure,
 - Raspberry Pi non-authoritative experiment and governance-report support.
 
-It intentionally uses compact labels rather than drawing all governance/backend implementation paths.
+It intentionally uses compact labels rather than drawing all governance/backend implementation paths or all Class 2 clarification return arrows.
 
 The Raspberry Pi 5 region is retained as a support-side monitoring, experiment, and governance-report layer, not as the primary operational control authority.
 
@@ -103,8 +109,8 @@ The figure should be read as four major regions.
 | Region | Role | Authority boundary |
 |---|---|---|
 | ESP32 device layer | Bounded physical input, sensing, emergency/event detection, doorbell / visitor-arrival context sensing, bounded actuator/warning interfaces | No high-level reasoning authority; no autonomous sensitive-actuation authority |
-| Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, caregiver escalation, governed manual dispatch handling, ACK, audit, topic registry loading, and payload validation support | Primary operational authority under frozen policy/schema constraints; registry/payload helpers support consistency but do not create authority |
-| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review, governance reports | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, execution, direct registry-file editing, canonical policy/schema editing, actuator command publishing, or doorlock command publishing authority |
+| Mac mini edge hub | Safety-critical operational hub for MQTT/state intake, local LLM, policy router, validator, safe deferral, Class 2 clarification manager, caregiver escalation, governed manual dispatch handling, ACK, audit, topic registry loading, and payload validation support | Primary operational authority under frozen policy/schema constraints; Class 2 clarification is not actuation authority; registry/payload helpers support consistency but do not create authority |
+| Raspberry Pi 5 support region | Experiment dashboard, simulation, replay, fault injection, scenario orchestration, progress/result publication, MQTT/payload governance backend/UI support, topic/payload validation, payload example inspection, publisher/subscriber role review, governance reports | Experiment/support visibility and governance inspection; not policy, validator, caregiver approval, execution, direct registry-file editing, canonical policy/schema editing, actuator command publishing, doorlock command publishing, or Class 2 transition authority |
 | Optional measurement node | Out-of-band timing and latency capture | Measurement-only; not operational control plane |
 
 ---
@@ -130,6 +136,7 @@ Important interpretation:
 3. ESP32 nodes must not locally replace policy routing, validator logic, or caregiver approval.
 4. ESP32 doorlock or warning interface nodes may exist for representative or caregiver-mediated evaluation, but must not reinterpret doorlock as autonomous Class 1 low-risk execution authority.
 5. The paper figure uses “lighting and governed sensitive-action interface” and “bounded actuator interfacing” to avoid implying ESP32-local doorlock authority.
+6. ESP32 bounded input or voice/selection input may provide confirmation evidence during Class 2 clarification, but this evidence must still re-enter Mac mini policy routing.
 
 ### Doorbell / visitor-arrival context
 
@@ -176,6 +183,7 @@ The Mac mini region includes:
 - MQTT topic registry loader / contract checker,
 - payload validation helper,
 - context-integrity-based safe deferral stage,
+- Class 2 Clarification Manager,
 - caregiver escalation,
 - caregiver approval handling,
 - governed manual dispatch handling for sensitive actions,
@@ -183,6 +191,32 @@ The Mac mini region includes:
 - approved low-risk dispatch interface,
 - ACK handling,
 - local audit logging.
+
+### 5.1 Class 2 clarification loop interpretation
+
+The compact figure should be read as supporting the following Class 2 loop, even if every arrow is not drawn in the SVG:
+
+```text
+Ambiguous / insufficient input
+→ Policy Router / Deterministic Validator blocks direct execution
+→ Safe Deferral and Clarification Management
+→ Class 2 Clarification Manager
+→ bounded candidate presentation through TTS/Display
+→ user/caregiver confirmation, timeout, or deterministic emergency evidence
+→ Policy Router re-entry
+→ Class 1, Class 0, Safe Deferral, or Caregiver Confirmation
+→ audit closure
+```
+
+Authority boundary:
+
+```text
+Class 2 Clarification Manager ≠ final class decision authority
+Class 2 Clarification Manager ≠ actuator authority
+LLM candidate text ≠ validator approval
+LLM candidate text ≠ emergency trigger
+Clarification selection ≠ validator bypass
+```
 
 The topic registry loader and payload validation helper support:
 
@@ -193,6 +227,7 @@ The topic registry loader and payload validation helper support:
 - topic/payload hardcoding drift detection where implemented,
 - schema/payload boundary consistency,
 - `doorbell_detected` required-field checks,
+- clarification interaction payload boundary checks,
 - and prevention of doorlock state drift into current pure-context `device_states`.
 
 These helpers support communication consistency, schema/payload boundary checks, and governance/verification evidence. They do not replace policy/schema authority, do not create actuator authority, and do not function as operational authorization mechanisms.
@@ -218,6 +253,7 @@ It may include:
 - virtual emergency event generation,
 - fault injection,
 - scenario orchestration,
+- Class 2 clarification transition evaluation,
 - progress/status publication,
 - result summaries,
 - validation reports,
@@ -245,12 +281,14 @@ They may support:
 - publisher/subscriber role review,
 - payload family and schema/example linkage,
 - payload example validation,
+- clarification interaction payload validation,
 - interface-matrix alignment validation,
 - topic/payload drift report generation,
 - payload validation report generation,
 - governance backend/UI separation validation,
 - proposed change reports,
 - live or replayed topic traffic inspection,
+- Class 2 clarification boundary warnings,
 - doorbell/doorlock boundary warnings.
 
 They are **not**:
@@ -265,11 +303,15 @@ They are **not**:
 - direct registry-file editing authority through the UI,
 - actuator or doorlock command publishing authority,
 - caregiver approval spoofing authority,
+- Class 2 transition authority,
 - a path for draft/proposed changes to become live operational authority without review.
 
-The RPi dashboard and orchestration layers may visualize visitor-response or doorlock-sensitive experiment state, including:
+The RPi dashboard and orchestration layers may visualize visitor-response, Class 2 clarification, or doorlock-sensitive experiment state, including:
 
 - `doorbell_detected` state,
+- clarification candidate state,
+- selected candidate / timeout state,
+- Policy Router re-entry result,
 - autonomous-unlock-blocked status,
 - caregiver escalation state,
 - manual approval state,
@@ -356,7 +398,7 @@ Current major outcomes:
 
 - Class 0 emergency override,
 - Class 1 bounded low-risk assistance,
-- Class 2 caregiver escalation.
+- Class 2 clarification / transition handling.
 
 The current canonical emergency family is:
 
@@ -401,6 +443,37 @@ If ambiguity, insufficient context, schema problems, policy conflict, or unresol
 
 rather than unsafe autonomous actuation.
 
+### Step 5A. Class 2 clarification and transition handling
+
+Class 2 is a bounded clarification and transition state.
+
+It may proceed through:
+
+```text
+Class 2 entry
+→ bounded candidate generation
+→ TTS/Display presentation
+→ user/caregiver selection, timeout, or deterministic evidence
+→ Policy Router re-entry
+→ Class 1 / Class 0 / Safe Deferral / Caregiver Confirmation
+```
+
+The clarification interaction payload is governed by:
+
+```text
+common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+```
+
+The Class 2 path must not:
+
+- infer intent from no response,
+- dispatch actuators directly,
+- treat candidate text as validator approval,
+- treat candidate text as emergency trigger evidence,
+- authorize doorlock unlock,
+- bypass Policy Router re-entry,
+- bypass Deterministic Validator for Class 1 execution.
+
 ### Step 6. Caregiver-mediated sensitive path
 
 Sensitive requests, including doorlock-related requests, must not be routed as ordinary Class 1 autonomous low-risk execution.
@@ -420,7 +493,7 @@ Doorlock-sensitive outcomes should proceed through:
 
 The figure’s TTS/user-feedback path should be interpreted as policy-constrained output.
 
-LLM-generated explanation or status text is not treated as directly speakable raw output. It should be constrained by policy routing, validator decisions, safe-deferral outcomes, and output profile guidance.
+LLM-generated explanation or status text is not treated as directly speakable raw output. It should be constrained by policy routing, validator decisions, safe-deferral outcomes, Class 2 clarification state, and output profile guidance.
 
 ### Step 8. ACK and audit closure
 
@@ -430,6 +503,10 @@ Audit closure may include:
 
 - route decision,
 - LLM interpretation/candidate summary,
+- clarification candidate choices,
+- user/caregiver selection result,
+- timeout/no-response result,
+- transition target,
 - validator decision,
 - safe deferral or escalation reason,
 - caregiver approval outcome when applicable,
@@ -453,6 +530,7 @@ It may include:
 - interface-matrix alignment reports,
 - topic-drift reports,
 - payload validation reports,
+- clarification interaction payload validation reports,
 - draft registry change reports,
 - proposed-change reports,
 - review/commit workflow.
@@ -465,9 +543,10 @@ This path may inspect, validate, and propose communication-contract changes. It 
 - create doorlock execution authority,
 - spoof caregiver approval,
 - bypass deterministic validation,
+- treat clarification payloads as authorization,
 - or treat dashboard observation as policy truth.
 
-Interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are governance/verification artifacts, not operational authorization mechanisms.
+Interface-matrix alignment reports, topic-drift reports, payload validation reports, clarification payload validation reports, and proposed-change reports are governance/verification artifacts, not operational authorization mechanisms.
 
 ---
 
@@ -478,9 +557,10 @@ The architecture figure should be read with the following payload boundaries.
 | Payload / state | Belongs where | Does not belong where |
 |---|---|---|
 | `routing_metadata` | Policy Router input wrapper, audit correlation, staleness handling | LLM prompt context |
-| `pure_context_payload` | LLM-relevant physical/context input | Dashboard-only state, manual approval state, ACK state |
+| `pure_context_payload` | LLM-relevant physical/context input | Dashboard-only state, manual approval state, ACK state, Class 2 clarification state |
 | `environmental_context.doorbell_detected` | Required visitor-response context | Doorlock authorization |
 | current `device_states` | `living_room_light`, `bedroom_light`, `living_room_blind`, `tv_main` | Doorlock state |
+| `clarification_interaction_payload` | Candidate choices, presentation channel, user/caregiver response, timeout result, transition target, final safe outcome | Pure context, validator approval, actuator command, emergency trigger, doorlock authorization |
 | doorlock state | Experiment annotation, dashboard observation, audit artifact, manual confirmation path, future schema | Current `pure_context_payload.device_states` |
 | manual approval state | Caregiver/manual confirmation path, experiment artifact, audit | Pure context payload |
 | ACK state | Actuator result, audit, dashboard observation, experiment artifact | Pure context payload |
@@ -509,12 +589,14 @@ The current SVG compactly represents:
 - Raspberry Pi progress/result/governance reports,
 - registry-aware MQTT intake,
 - Policy Router + Deterministic Validator grouping,
+- safe deferral and clarification management,
 - governed manual dispatch wording,
 - lighting-only current Class 1 execution,
 - bounded ESP32 actuator interfacing.
 
 The current SVG does not fully draw:
 
+- every Class 2 candidate-generation, selection, timeout, and Policy Router re-entry arrow,
 - all Raspberry Pi support-layer MQTT connections,
 - dashboard observation topic flows,
 - experiment progress/result topic flows,
@@ -528,7 +610,7 @@ The current SVG does not fully draw:
 - payload validation report flow,
 - governance backend/UI separation validation flow.
 
-Until a more detailed support/governance figure is created, the explanatory text in this document and the MQTT-aware interface matrix in `common/docs/architecture/15_interface_matrix.md` should be used to interpret the full support-layer and governance-layer design.
+Until a more detailed support/governance figure or Class 2 interaction figure is created, the explanatory text in this document and the MQTT-aware interface matrix in `common/docs/architecture/15_interface_matrix.md` should be used to interpret the full support-layer, governance-layer, and Class 2 clarification/transition design.
 
 ---
 
@@ -536,11 +618,11 @@ Until a more detailed support/governance figure is created, the explanatory text
 
 Suggested paper caption:
 
-> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and bounded actuator or warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, interface-matrix alignment, topic/payload drift detection, payload-boundary validation support, context-integrity-based safe deferral, caregiver-mediated escalation, governed manual dispatch for sensitive actions, ACK handling, and local audit logging. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result/governance report publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, publisher/subscriber role review, interface-matrix alignment, topic/payload drift reporting, and validation report generation, without becoming policy or execution authority.
+> System architecture of the proposed privacy-aware edge smart-home system. Field-side ESP32 nodes provide bounded input, sensing, emergency-event, doorbell/visitor-arrival context, and bounded actuator or warning interfaces. The Mac mini edge hub performs local context aggregation, LLM-assisted intent interpretation, deterministic policy routing, deterministic validation, registry-aware communication consistency checks, interface-matrix alignment, topic/payload drift detection, payload-boundary validation support, context-integrity-based safe deferral, Class 2 bounded clarification and transition handling, caregiver-mediated escalation, governed manual dispatch for sensitive actions, ACK handling, and local audit logging. Class 2 is interpreted as a bounded clarification loop in which ambiguous or insufficient-context inputs may lead to candidate presentation and user/caregiver confirmation before re-routing to Class 1, Class 0, Safe Deferral, or Caregiver Confirmation. The Raspberry Pi 5 region provides support-side experiment orchestration, monitoring, simulation, fault injection, progress/result/governance report publication, evaluation artifact generation, and non-authoritative MQTT/payload governance tooling for topic registry inspection, payload validation, publisher/subscriber role review, interface-matrix alignment, topic/payload drift reporting, and validation report generation, without becoming policy or execution authority.
 
 Shorter caption:
 
-> Overall system architecture showing bounded physical input, local LLM-assisted interpretation, deterministic policy validation, safe deferral, caregiver-mediated sensitive actuation through governed manual dispatch, local audit closure, and Raspberry Pi-based experiment monitoring with non-authoritative MQTT/payload governance-report support.
+> Overall system architecture showing bounded physical input, local LLM-assisted interpretation, deterministic policy validation, Class 2 bounded clarification, safe deferral, caregiver-mediated sensitive actuation through governed manual dispatch, local audit closure, and Raspberry Pi-based experiment monitoring with non-authoritative MQTT/payload governance-report support.
 
 ---
 
@@ -551,17 +633,19 @@ This figure supports the paper’s main claims because it shows:
 1. LLM assistance is present but not authoritative.
 2. Deterministic policy and validator stages remain central.
 3. Safe deferral is a first-class outcome rather than an error state.
-4. Sensitive actuation is separated from low-risk autonomous execution.
-5. Caregiver approval is modeled as a governed path.
-6. Governed manual dispatch is required for sensitive actions.
-7. ACK and audit closure are part of the closed loop.
-8. RPi dashboard/simulation/governance-report support is an experiment-support layer, not operational authority.
-9. Payload boundaries are necessary to prevent state and authority drift.
-10. MQTT/payload governance is separated from operational authority.
-11. Topic/payload registry edits cannot create doorlock execution authority.
-12. Some RPi/governance connections are compactly represented but not fully drawn in the current SVG.
-13. Interface-matrix alignment and topic/payload drift checks are governance/verification evidence, not execution authority.
-14. Governance dashboard UI and governance backend separation is part of the safety boundary.
+4. Class 2 clarification is a bounded transition loop, not autonomous actuation or terminal failure by default.
+5. Sensitive actuation is separated from low-risk autonomous execution.
+6. Caregiver approval is modeled as a governed path.
+7. Governed manual dispatch is required for sensitive actions.
+8. ACK and audit closure are part of the closed loop.
+9. RPi dashboard/simulation/governance-report support is an experiment-support layer, not operational authority.
+10. Payload boundaries are necessary to prevent state and authority drift.
+11. MQTT/payload governance is separated from operational authority.
+12. Topic/payload registry edits cannot create doorlock execution authority.
+13. Clarification payloads cannot create validator, actuator, emergency, or doorlock authority.
+14. Some RPi/governance/Class 2 connections are compactly represented but not fully drawn in the current SVG.
+15. Interface-matrix alignment and topic/payload drift checks are governance/verification evidence, not execution authority.
+16. Governance dashboard UI and governance backend separation is part of the safety boundary.
 
 ---
 
@@ -577,6 +661,8 @@ If older architecture-figure notes conflict with this document, prefer this cons
 
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/required_experiments.md`
 - `common/docs/runtime/SESSION_HANDOFF.md`
 
@@ -593,6 +679,7 @@ The key interpretation is:
 - The local LLM assists intent interpretation but does not authorize execution.
 - Deterministic policy and validation control admissibility.
 - Class 1 low-risk autonomous execution is currently lighting only.
+- Class 2 clarification is a bounded transition loop with Policy Router re-entry.
 - Safe deferral and caregiver escalation prevent unsafe autonomous action.
 - Doorbell context supports visitor-response interpretation but does not authorize doorlock control.
 - Doorlock-sensitive execution remains caregiver-mediated and governed by manual dispatch.

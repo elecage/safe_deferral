@@ -14,6 +14,7 @@ This revision reflects the following important corrections:
 - the local LLM does not only recover likely user intent,
 - it also generates runtime-aware user-facing guidance,
 - safe deferral may lead to a bounded clarification interaction rather than ending the interaction immediately,
+- Class 2 is interpreted as bounded clarification / transition handling rather than terminal caregiver escalation by default,
 - and MQTT/payload governance is treated as a separate non-authoritative development/evaluation support path rather than as operational control authority.
 
 This document is a system-architecture interpretation note and should be read together with:
@@ -23,6 +24,8 @@ This document is a system-architecture interpretation note and should be read to
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
@@ -43,11 +46,12 @@ Role:
 - and may provide bounded follow-up clarification input.
 
 ### 2.2 Caregiver
-The human approval authority for sensitive-actuation cases.
+The human approval authority for sensitive-actuation cases and unresolved Class 2 interactions.
 
 Role:
 - receives escalation notifications,
 - approves or denies sensitive action requests,
+- provides confirmation evidence where appropriate,
 - and acts as a human-in-the-loop control boundary.
 
 ### 2.3 ESP32 Device Layer
@@ -71,6 +75,7 @@ Role:
 - MQTT topic registry loading / contract checking for runtime consistency where used,
 - payload validation support where used,
 - safe deferral / clarification management,
+- Class 2 Clarification Manager,
 - caregiver escalation,
 - TTS output,
 - ACK handling,
@@ -85,6 +90,7 @@ Role:
 - replay,
 - simulation,
 - fault injection,
+- Class 2 clarification transition evaluation,
 - progress publication,
 - result artifact publication,
 - MQTT/payload governance backend support,
@@ -95,7 +101,7 @@ Role:
 Important interpretation:
 - Raspberry Pi 5 remains an experiment, dashboard, governance-inspection, and evaluation support layer.
 - It is not the primary operational hub.
-- It does not hold policy, validator, caregiver approval, or actuator authority.
+- It does not hold policy, validator, Class 2 transition, caregiver approval, or actuator authority.
 - It does not hold doorlock dispatch authority.
 - It does not directly edit canonical policy/schema assets.
 - It does not allow governance backend or dashboard UI to publish actuator or doorlock commands.
@@ -107,6 +113,7 @@ The governance backend is a non-authoritative service layer for topic and payloa
 Role:
 - manages draft topic/payload registry edits,
 - validates topic-payload contracts,
+- validates clarification interaction payload boundaries,
 - manages publisher/subscriber role assignments,
 - validates payload examples against referenced schemas,
 - runs interface-matrix alignment checks,
@@ -123,6 +130,7 @@ Important interpretation:
 - does not publish doorlock commands,
 - does not spoof caregiver approval,
 - does not override Policy Router or Deterministic Validator decisions,
+- does not treat clarification payloads as validator approval, actuator authorization, emergency trigger evidence, or doorlock authorization,
 - does not convert draft/proposed changes into live operational authority without review,
 - and does not create doorlock execution authority.
 
@@ -134,9 +142,11 @@ Role:
 - supports create/edit/delete draft interactions through the governance backend,
 - visualizes publisher/subscriber role assignments,
 - visualizes payload validation results,
+- visualizes clarification interaction payload validation results,
 - visualizes interface-matrix alignment results,
 - visualizes topic/payload drift warnings where implemented,
 - visualizes UI/backend contract failure states,
+- visualizes Class 2 clarification authority-boundary warnings,
 - visualizes doorbell/doorlock boundary warnings,
 - and displays proposed change reports.
 
@@ -148,6 +158,7 @@ Important interpretation:
 - does not publish operational control topics,
 - does not expose unrestricted actuator consoles,
 - does not expose direct doorlock command controls,
+- does not expose clarification-to-actuation promotion controls,
 - and does not dispatch doorlock or actuator commands.
 
 ---
@@ -160,11 +171,13 @@ Collects the user’s constrained input.
 Examples:
 - button input,
 - single-hit input,
-- bounded alternative input.
+- bounded alternative input,
+- candidate-selection input during Class 2 clarification.
 
 Role:
 - generates bounded input events,
 - receives clarification follow-up input from the user,
+- provides selection or confirmation evidence during Class 2 clarification,
 - does not autonomously interpret the meaning into actuation.
 
 ### 3.2 Context Nodes
@@ -197,12 +210,14 @@ Examples:
 - threshold-based emergency signals.
 
 Role:
-- generate emergency triggers.
+- generate emergency triggers,
+- provide deterministic emergency evidence that may support Class 2-to-Class 0 transition.
 
 Important interpretation:
 - emergency handling is policy-driven,
 - emergency signals are not routed through the local LLM as the primary decision path,
-- `doorbell_detected` is not an emergency trigger.
+- `doorbell_detected` is not an emergency trigger,
+- LLM candidate text alone must not trigger Class 0.
 
 ### 3.4 Actuator Interface Nodes
 The device-side actuation layer.
@@ -217,6 +232,7 @@ Role:
 - return ACK or state confirmation.
 
 Important interpretation:
+- lighting actuator nodes may execute current Class 1 low-risk commands only after deterministic approval,
 - doorlock interface nodes may exist as implementation-facing or experiment-facing components,
 - but doorlock must not be treated as autonomous Class 1 low-risk authority under the current baseline.
 - In compact paper figures, this layer should be described as bounded or governed sensitive-action interfacing rather than as autonomous doorlock execution.
@@ -263,7 +279,7 @@ Role:
 Important interpretation:
 - Context Nodes feed this layer.
 - Emergency Nodes may be reflected into runtime state, but the primary emergency decision path remains policy-driven.
-- Doorlock state, manual approval state, and ACK state should not be silently inserted into current pure-context `device_states`.
+- Doorlock state, manual approval state, ACK state, and Class 2 clarification interaction state should not be silently inserted into current pure-context `device_states`.
 
 ### 4.3 Local LLM Reasoning Layer
 A broader reasoning layer than intent recovery alone.
@@ -298,7 +314,10 @@ Examples:
 
 Important interpretation:
 - the LLM may hold a broad awareness of runtime state for explanation purposes,
-- but it does not hold final execution authority.
+- but it does not hold final execution authority,
+- does not determine final Class 2 transition targets by itself,
+- does not authorize actuation,
+- and does not trigger emergency handling by itself.
 
 ### 4.4 Policy Router
 Classifies and routes events according to policy.
@@ -306,14 +325,16 @@ Classifies and routes events according to policy.
 Examples:
 - Class 0 emergency,
 - Class 1 bounded low-risk assistance,
-- Class 2 escalation-related handling.
+- Class 2 clarification / transition handling.
 
 Role:
 - determines the primary control path,
-- separates emergency handling from ordinary assistive interaction.
+- separates emergency handling from ordinary assistive interaction,
+- receives Class 2 re-entry requests after confirmation, timeout, or deterministic evidence.
 
 Important interpretation:
-- emergency is handled through this policy-driven path.
+- emergency is handled through this policy-driven path,
+- Class 2 clarification selection must re-enter policy routing rather than bypassing it.
 
 ### 4.5 Deterministic Validator
 The final authority on admissibility of execution.
@@ -326,7 +347,8 @@ Role:
 
 Important interpretation:
 - actual execution authority resides here together with policy,
-- not inside the LLM.
+- not inside the LLM,
+- not inside the Class 2 Clarification Manager.
 - In compact paper figures, Policy Router and Deterministic Validator may be visually grouped only if deterministic validation remains clearly described as the final admissibility boundary.
 
 ### 4.6 MQTT Topic Registry Loader / Contract Checker
@@ -350,13 +372,15 @@ The payload-consistency support layer.
 Role:
 - validates schema-governed payloads,
 - checks required `environmental_context.doorbell_detected` in valid context examples,
+- validates Class 2 clarification interaction payloads where used,
 - flags missing or malformed payload fields,
 - flags or rejects doorlock state inside current `pure_context_payload.device_states`,
 - and supports test/dashboard/governance validation reports.
 
 Important interpretation:
 - this component supports schema and payload-boundary consistency,
-- but it does not replace the canonical schemas under `common/schemas/`.
+- but it does not replace the canonical schemas under `common/schemas/`,
+- and it does not promote clarification payloads into authorization payloads.
 
 ### 4.8 Approved Low-Risk Actuation Path
 The execution path for approved low-risk actions.
@@ -369,6 +393,7 @@ Role:
 
 Important interpretation:
 - this is not a general sensitive-actuation path,
+- Class 2-to-Class 1 transitions still require Policy Router re-entry and Deterministic Validator approval,
 - and doorlock must not be treated as automatically included here.
 - In compact figures, this should be labeled as Class 1 bounded execution and currently lighting only.
 
@@ -393,7 +418,22 @@ Role:
 - keeps a pending clarification state,
 - provides the basis for clarification prompt generation.
 
-#### 4.9.3 Escalation-Required Deferral
+#### 4.9.3 Class 2 Clarification Manager
+Role:
+- manages Class 2 as bounded clarification / transition handling,
+- requests bounded candidate choices from the LLM Guidance Layer or Input Context Mapper,
+- presents candidate choices through TTS/Display,
+- collects user/caregiver selection, timeout, or deterministic evidence,
+- requests Policy Router re-entry,
+- records candidate, selection, timeout, transition, and final safe outcome evidence.
+
+Important interpretation:
+- Class 2 Clarification Manager has no actuation authority,
+- no final class-decision authority,
+- no emergency-trigger authority,
+- and no validator-bypass authority.
+
+#### 4.9.4 Escalation-Required Deferral
 Role:
 - identifies cases that cannot be safely resolved by follow-up user input alone,
 - forwards the interaction toward caregiver escalation.
@@ -411,7 +451,8 @@ Role:
 - supports human-in-the-loop handling of sensitive actuation.
 
 Important interpretation:
-- this is central for representative sensitive-actuation cases such as doorlock-related requests.
+- this is central for representative sensitive-actuation cases such as doorlock-related requests,
+- and for unresolved Class 2 cases where user clarification is unavailable, ambiguous, timed out, or sensitive.
 
 ### 4.11 TTS Rendering / Voice Output
 The voice-rendering layer for user-facing messages.
@@ -430,7 +471,8 @@ Examples:
 
 Important interpretation:
 - TTS is the rendering/output layer,
-- while explanation and prompt generation occur in the LLM reasoning layer.
+- while explanation and prompt generation occur in the LLM reasoning layer,
+- and TTS output is guidance, not execution authority.
 
 ### 4.12 ACK Handling
 The result-confirmation layer.
@@ -448,6 +490,10 @@ Examples of logged content:
 - routing result,
 - validator result,
 - deferral / clarification state,
+- clarification candidates,
+- selection result,
+- timeout result,
+- transition target,
 - escalation result,
 - caregiver approval result,
 - ACK result.
@@ -471,11 +517,12 @@ Role:
 - progress monitoring,
 - result summary display,
 - approval-status visibility only,
+- Class 2 clarification/transition visibility,
 - graph/CSV export visibility where available.
 
 Important interpretation:
 - it may initiate experiment execution through the orchestrator,
-- but it does not bypass policy, validator, caregiver approval, ACK, or audit boundaries.
+- but it does not bypass policy, validator, Class 2 re-entry, caregiver approval, ACK, or audit boundaries.
 
 ### 5.2 Scenario Orchestrator
 Runs experiment scenarios.
@@ -484,6 +531,7 @@ Examples:
 - visitor-response scenarios,
 - intent-recovery comparison,
 - clarification-interaction scenarios,
+- Class 2 transition scenarios,
 - sensitive-actuation validation scenarios.
 
 ### 5.3 Simulation / Replay
@@ -511,7 +559,8 @@ Role:
 - artifact publication,
 - reproducibility support,
 - validation report publication,
-- governance report publication.
+- governance report publication,
+- Class 2 transition evaluation report publication.
 
 Important interpretation:
 - validation reports and governance reports are evidence/support artifacts,
@@ -525,6 +574,7 @@ Role:
 - publisher/subscriber consistency checking,
 - topic-to-payload contract validation,
 - payload example validation,
+- clarification interaction payload validation,
 - schema path and example path resolution,
 - interface-matrix alignment validation,
 - topic/payload hardcoding drift detection,
@@ -543,6 +593,7 @@ Role:
 - draft topic deletion,
 - publisher/subscriber role management,
 - payload family and schema/example linkage,
+- clarification interaction payload boundary validation,
 - interface-matrix alignment validation,
 - topic/payload drift report generation,
 - governance backend/UI separation validation support,
@@ -555,6 +606,7 @@ Important interpretation:
 - does not directly modify canonical policies or schemas,
 - does not publish actuator or doorlock commands,
 - does not spoof caregiver approval,
+- does not promote clarification payloads into actuation authority,
 - does not convert proposed changes into live authority without review,
 - and does not create doorlock execution authority.
 
@@ -567,9 +619,11 @@ Role:
 - create/edit/delete draft interactions through backend APIs,
 - publisher/subscriber role display and editing through backend APIs,
 - payload validation result display,
+- clarification interaction validation result display,
 - interface-matrix alignment display,
 - topic/payload drift warning display,
 - UI/backend contract failure display,
+- Class 2 clarification boundary warning display,
 - doorbell/doorlock boundary warning display,
 - proposed change report display.
 
@@ -580,7 +634,8 @@ Important interpretation:
 - not an actuator console,
 - does not directly edit registry files,
 - does not directly publish operational control topics,
-- and does not expose direct doorlock command controls.
+- does not expose direct doorlock command controls,
+- and does not expose clarification-to-actuation promotion controls.
 
 ### 5.9 Payload Example Manager
 Manages and validates payload examples/templates for governance support.
@@ -589,6 +644,7 @@ Role:
 - list payload examples,
 - list payload templates,
 - validate schema-governed examples,
+- validate clarification interaction examples,
 - generate draft examples for review,
 - export validation reports.
 
@@ -608,6 +664,7 @@ Role:
 
 Important interpretation:
 - dashboard/governance roles must not be assigned direct actuator, caregiver approval, validator, or policy authority unless explicitly marked as controlled test-mode roles.
+- Class 2 clarification roles must not be assigned direct actuator, emergency trigger, validator approval, or doorlock unlock authority.
 
 Important interpretation for the RPi layer as a whole:
 - Raspberry Pi remains an experiment-support layer,
@@ -637,18 +694,20 @@ Initial bounded input
 → Local LLM Reasoning Layer  
 → Policy Router / Deterministic Validator  
 → clarification-needed deferral  
+→ Class 2 Clarification Manager  
 → LLM-generated next-input suggestion  
 → TTS Rendering / Voice Output  
-→ user follow-up bounded input  
+→ user follow-up bounded input / caregiver confirmation / timeout / deterministic evidence  
 → MQTT Ingestion / State Intake  
 → updated Context and Runtime State Aggregation  
-→ Local LLM Reasoning Layer  
-→ Policy Router / Deterministic Validator  
-→ low-risk actuation or continued deferral or escalation
+→ Policy Router re-entry  
+→ Deterministic Validator when Class 1 is reached  
+→ Class 1 bounded actuation, Class 0 emergency handling, continued safe deferral, or caregiver confirmation
 
 Important interpretation:
 - this is not a purely one-shot system,
-- it supports bounded multi-turn clarification when policy permits.
+- it supports bounded multi-turn clarification when policy permits,
+- but clarification results do not bypass Policy Router or Deterministic Validator.
 
 ### 6.3 Emergency path
 Emergency Nodes  
@@ -662,6 +721,7 @@ Emergency Nodes
 Important interpretation:
 - emergency does not depend on the LLM as the primary decision path,
 - though emergency state may later be reflected into runtime-aware user guidance.
+- if deterministic emergency evidence arrives during Class 2 clarification, it may support Class 2-to-Class 0 transition through Policy Router re-entry.
 
 ### 6.4 Sensitive-actuation path
 Bounded Input + Context  
@@ -691,6 +751,7 @@ Important interpretation:
 - this flow does not publish actuator commands,
 - does not modify canonical policy/schema truth directly,
 - does not create doorlock execution authority,
+- does not promote clarification payloads into validator approval or actuator authority,
 - and does not bypass policy, validator, caregiver approval, ACK, or audit boundaries.
 - interface-matrix alignment and topic-drift validation are verification/governance checks, not operational authorization mechanisms.
 
@@ -712,6 +773,7 @@ The paper figure should preserve visibility of at least the following concepts:
 - Policy Router + Deterministic Validator
 - Approved Low-Risk Actuation
 - Safe Deferral and Clarification Management
+- Class 2 Clarification Manager / bounded clarification transition loop
 - Caregiver Escalation / Approval
 - Governed manual dispatch for sensitive actions
 - TTS Rendering / Voice Output
@@ -728,6 +790,7 @@ Optional development/evaluation support inset:
 - Topic Drift Check
 - Payload Example Validation
 - Publisher / Subscriber Role Management
+- Class 2 transition evaluation support
 
 ---
 
@@ -754,9 +817,12 @@ Optional development/evaluation support inset:
 
 ### 8.4 Clarification interaction path
 - safe deferral,
+- Class 2 Clarification Manager,
 - next-input suggestion,
-- follow-up bounded input,
-- re-entry into the decision loop.
+- follow-up bounded input or caregiver confirmation,
+- timeout/no-response handling,
+- Policy Router re-entry,
+- possible Class 1 / Class 0 / Safe Deferral / Caregiver Confirmation outcome.
 
 ### 8.5 Feedback path
 - runtime-aware explanation,
@@ -768,6 +834,7 @@ Optional development/evaluation support inset:
 - publisher/subscriber role validation,
 - interface-matrix alignment,
 - topic/payload drift detection,
+- clarification interaction payload validation,
 - proposed-change review boundary,
 - dashboard UI separated from backend service,
 - no policy, validator, caregiver approval, or actuator authority,
@@ -779,4 +846,4 @@ Optional development/evaluation support inset:
 
 The revised v2 interpretation is:
 
-> The local LLM recovers likely user intent and generates runtime-aware explanations and clarification prompts under constrained-input conditions, while actuation authority remains with policy routing, deterministic validation, and caregiver-mediated escalation for sensitive actions; MQTT/payload governance supports registry-driven communication management without becoming operational control authority.
+> The local LLM recovers likely user intent and generates runtime-aware explanations and clarification prompts under constrained-input conditions, while actuation authority remains with policy routing, deterministic validation, Class 2 Policy Router re-entry, and caregiver-mediated escalation for sensitive actions; MQTT/payload governance supports registry-driven communication management without becoming operational control authority.

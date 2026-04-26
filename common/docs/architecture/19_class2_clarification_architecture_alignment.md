@@ -113,7 +113,7 @@ The compact SVG does not need to draw every candidate-selection arrow if the cap
 
 ### 3.4 Relationship to `17_payload_contract_and_registry.md`
 
-Document 17 currently separates pure context payloads from dashboard, manual approval, ACK, and audit states.
+Document 17 currently separates pure context payloads from dashboard, manual approval, ACK, audit states, and Class 2 clarification interaction payloads.
 
 This alignment preserves that boundary:
 
@@ -123,17 +123,19 @@ Class 2 clarification payloads must not be forced into pure_context_payload.
 
 Clarification candidate choices, user selections, timeout results, and transition outcomes are interaction payloads or scenario/test artifacts, not pure context state.
 
-Recommended future payload family:
+Current clarification payload family:
 
 ```text
 clarification_interaction_payload
 ```
 
-Recommended future schema, if formalization is needed:
+Current clarification interaction schema:
 
 ```text
 common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 ```
+
+This schema governs Class 2 clarification interaction records and is distinct from `pure_context_payload` and `class_2_notification_payload`.
 
 ### 3.5 Relationship to `18_scenario_node_component_mapping.md`
 
@@ -389,15 +391,23 @@ Class 2 clarification is an interaction/control payload family, not pure operati
 Existing deferral, escalation, caregiver confirmation, and audit topics are sufficient for architecture-level representation.
 ```
 
-### 8.2 Payloads that need later formalization
+### 8.2 Current schema-governed clarification interaction payload
 
-The following payload concept should be formalized in Phase 3 if fixtures/tests require a stable schema:
+The following payload family is the current Class 2 clarification interaction payload family:
 
 ```text
 clarification_interaction_payload
 ```
 
-Recommended fields:
+It is governed by:
+
+```text
+common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+```
+
+This schema records clarification candidates, presentation channel, user/caregiver response, timeout result, transition target, and final safe outcome. It must remain separate from pure context payloads, notification payloads, validator outputs, actuation commands, and emergency triggers.
+
+Representative fields:
 
 ```json
 {

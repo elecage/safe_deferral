@@ -30,14 +30,15 @@ Do not invent schemas, thresholds, policy rules, timeout values, topic namespace
 Always read them from the provided frozen artifacts and aligned project documents first.
 
 The following required canonical frozen artifacts must be loaded into the agent knowledge base before implementation:
-- common/policies/policy_table_v1_1_2_FROZEN.json
+- common/policies/policy_table_v1_2_0_FROZEN.json
 - common/policies/low_risk_actions_v1_1_0_FROZEN.json
 - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
 - common/schemas/context_schema_v1_0_0_FROZEN.json
 - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
 - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
 - common/schemas/validator_output_schema_v1_1_0_FROZEN.json
-- common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+- common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+- common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 - common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md
 
 Optional or version-sensitive companion assets may also be loaded when needed:
@@ -59,6 +60,13 @@ Respect repository separation:
 - rpi/ = experiment dashboard, simulation, fault injection, orchestration, replay, and closed-loop evaluation support
 - esp32/ = bounded physical node layer
 - integration/measurement/ = optional out-of-band timing and latency evaluation support
+
+Additional constraint for Class 2 clarification generation:
+- When generating runtime code, implement Class 2 clarification as a bounded interaction manager, not as a final caregiver escalation terminal state.
+- Class 2 Clarification Manager may request candidate choices from the LLM Guidance Layer, but it must not authorize actuation, determine final class transitions by itself, trigger emergency handling, or bypass the Deterministic Validator.
+- After user or caregiver confirmation, timeout, or additional deterministic evidence, Class 2 transition outcomes must re-enter the Policy Router.
+- Class 2 clarification records must remain aligned with `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`.
+- Candidate choices, selection results, timeout results, transition targets, and final safe outcomes must be audit logged when implemented.
 
 Additional constraint for doorlock-related generation:
 - Do not assume that door unlock is part of the currently authorized autonomous low-risk Class 1 actuation scope.
@@ -234,11 +242,13 @@ Requirements:
 - Support Telegram Bot API first.
 - Support a mock fallback mode.
 - Input payload behavior must align with:
-  - common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+  - common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+- Class 2 clarification interaction records, when used, must align with:
+  - common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 - Provide a clean Python interface:
   - send_class0_alert(payload)
   - send_class2_escalation(payload)
-- Do not invent ad hoc payload fields that are not grounded in the canonical notification payload schema.
+- Do not invent ad hoc payload fields that are not grounded in the canonical notification or clarification payload schemas.
 - Include tests for payload validation and dry-run mode.
 ```
 
@@ -408,14 +418,15 @@ Requirements:
 - Synchronize runtime copies of the frozen shared assets needed for simulation and fault injection.
 - The authoritative source remains the shared frozen repository state, not Pi-local files.
 - Support synchronization of required canonical frozen assets such as:
-  - common/policies/policy_table_v1_1_2_FROZEN.json
+  - common/policies/policy_table_v1_2_0_FROZEN.json
   - common/policies/low_risk_actions_v1_1_0_FROZEN.json
   - common/policies/fault_injection_rules_v1_4_0_FROZEN.json
   - common/schemas/context_schema_v1_0_0_FROZEN.json
   - common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
   - common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
   - common/schemas/validator_output_schema_v1_1_0_FROZEN.json
-  - common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+  - common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+  - common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 - Optional or version-sensitive companion assets may also be synchronized when needed, including output profile assets.
 - Verify checksum, version, or structural consistency after sync.
 - Keep synced runtime copies read-only for Pi-side runtime modules where appropriate.

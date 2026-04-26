@@ -33,14 +33,15 @@ Current interface, communication, and payload references:
 The following shared frozen assets and shared reference assets must exist before code generation or runtime implementation proceeds.
 
 ### Required authority assets
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 
 ### Required communication / payload reference assets
 - `common/mqtt/topic_registry_v1_0_0.json`
@@ -203,7 +204,8 @@ Each major module should have explicit acceptance criteria before it is consider
 
 #### Outbound Notification Interface
 - outbound escalation payload is emitted successfully
-- payload structure is aligned with `class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- payload structure is aligned with `class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- Class 2 clarification interaction records are aligned with `clarification_interaction_schema_v1_0_0_FROZEN.json` when implemented
 - mock fallback works when external notification is not available
 
 #### Caregiver Confirmation Backend
@@ -329,6 +331,7 @@ A reusable test-data package should be created for implementation and verificati
 - expected safe-deferral cases
 - expected escalation cases
 - representative Class 2 notification payload examples
+- representative Class 2 clarification interaction payload examples
 - representative ESP32-linked bounded input/output cases when embedded nodes are used
 - ESP32 sample-build or template-validation references where bring-up verification is part of the development package
 - canonical policy/fault/schema consistency fixtures

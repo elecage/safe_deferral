@@ -8,6 +8,7 @@ This document contains the prompt set for:
 - STM32 timing / measurement support
 - experiment-readiness support
 - constrained-input evaluation
+- Class 2 clarification and transition evaluation
 - sensitive-actuation evaluation
 
 The common repository-wide prompt assumptions are indexed from:
@@ -548,6 +549,80 @@ Requirements:
   - scenario schema
   - label semantics
   - how the scenarios support paper contribution evaluation
+```
+
+---
+
+## Prompt 31. Implement Class 2 Clarification Transition Evaluation Flow
+
+```text
+Implement a Class 2 clarification transition evaluation flow for ambiguous or insufficient-context scenarios.
+
+Target repository areas:
+- integration/tests/
+- integration/scenarios/
+- rpi/code/ if scenario replay, simulation, or dashboard support is needed
+- mac_mini/code/ only if a runtime adapter or mock bridge is needed
+
+Requirements:
+- The purpose of this component is to verify that Class 2 behaves as a bounded clarification and transition state, not as autonomous actuation or terminal caregiver escalation by default.
+- Class 2 entry scenarios should include:
+  - ambiguous bounded input,
+  - insufficient context,
+  - unresolved low-risk candidates,
+  - no response / timeout,
+  - emergency confirmation after initial ambiguity,
+  - caregiver confirmation when unresolved or sensitive.
+- The flow must validate `clarification_interaction_payload` records against:
+  - common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+- The flow must verify all of the following branches:
+
+  Class 2 → Class 1 transition test:
+  - ambiguous lighting request
+  - bounded clarification candidate selected
+  - Policy Router re-entry
+  - Deterministic Validator approval
+  - lighting actuator command only after approval
+  - lighting actuator ACK observed
+  - audit log complete
+
+  Class 2 → Class 0 transition test:
+  - ambiguous distress input
+  - emergency confirmation or deterministic emergency evidence
+  - Policy Router re-entry
+  - Class 0 local emergency action
+  - no LLM emergency trigger authority
+  - audit log complete
+
+  Class 2 → Safe Deferral / Caregiver Confirmation test:
+  - no response, timeout, persistent ambiguity, or sensitive unresolved request
+  - no inferred intent
+  - no actuator dispatch
+  - safe deferral or caregiver confirmation outcome logged
+
+- The flow must ensure that LLM-generated candidate text is not treated as:
+  - final class decision,
+  - validator approval,
+  - actuator authorization,
+  - emergency trigger evidence,
+  - doorlock unlock approval.
+- The output must include:
+  - per-scenario transition result,
+  - expected vs observed route comparison,
+  - clarification payload validation result,
+  - audit completeness summary,
+  - machine-readable JSON summary,
+  - markdown summary suitable for paper/evaluation reporting.
+- Keep the design aligned with:
+  - common/docs/architecture/19_class2_clarification_architecture_alignment.md
+  - common/docs/architecture/20_scenario_data_flow_matrix.md
+  - common/docs/architecture/17_payload_contract_and_registry.md
+- Include unit or integration tests for:
+  - Class 2 → Class 1 selected lighting candidate,
+  - Class 2 → Class 0 emergency confirmation,
+  - Class 2 → Safe Deferral timeout,
+  - invalid clarification payload containing actuator authorization,
+  - candidate text not promoted to executable authority.
 ```
 
 ---
