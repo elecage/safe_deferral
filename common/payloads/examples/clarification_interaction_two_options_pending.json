@@ -1,0 +1,41 @@
+{
+  "payload_family": "CLASS2_CLARIFICATION_INTERACTION",
+  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "clarification_id": "example-class2-clarification-001",
+  "audit_correlation_id": "example-class2-clarification-001",
+  "source_scenario": "ambiguous_light_target_two_options",
+  "source_layer": "class2_clarification_manager",
+  "unresolved_reason": "ambiguous_candidates",
+  "candidate_choices": [
+    {
+      "candidate_id": "A",
+      "prompt": "Turn on the living room light.",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true,
+      "allowed_next_path": "policy_router_reentry_then_validator",
+      "risk_note": "Low-risk lighting candidate; validator approval still required."
+    },
+    {
+      "candidate_id": "B",
+      "prompt": "Turn on the bedroom light.",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true,
+      "allowed_next_path": "policy_router_reentry_then_validator",
+      "risk_note": "Low-risk lighting candidate; validator approval still required."
+    }
+  ],
+  "presentation_channel": "tts",
+  "transition_target": "PENDING",
+  "timeout_result": "pending",
+  "llm_boundary": {
+    "candidate_generation_only": true,
+    "final_decision_allowed": false,
+    "actuation_authority_allowed": false,
+    "emergency_trigger_authority_allowed": false
+  },
+  "timestamp_ms": 1710000000800,
+  "notes": [
+    "This payload is clarification evidence only and does not authorize actuation.",
+    "Selection results must re-enter the Policy Router and Class 1 transition still requires Deterministic Validator approval."
+  ]
+}
