@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "clarification_interaction_schema_v1_0_0",
+  "title": "clarification_interaction_schema",
   "description": "Schema for Class 2 clarification interaction artifacts: bounded candidate choices, presentation channel, user/caregiver selection, timeout/no-response result, and transition target. This schema does not define pure context input, validator approval, actuation command, doorlock authorization, or emergency trigger authority. Optional fixture metadata fields are allowed for integration-test artifacts but do not create operational authority. For timeout/no-response artifacts, candidate_choices should preserve the choices that were presented or pending at the time of timeout so that timeout outcomes remain auditable.",
   "type": "object",
   "additionalProperties": false,
@@ -16,7 +16,7 @@
     },
     "schema_ref": {
       "type": "string",
-      "const": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+      "const": "common/schemas/clarification_interaction_schema.json",
       "description": "Optional fixture metadata pointing to this schema."
     },
     "clarification_id": {

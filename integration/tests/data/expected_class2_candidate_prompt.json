@@ -1,6 +1,6 @@
 {
   "expected_payload_family": "CLASS2_CLARIFICATION_INTERACTION",
-  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "schema_ref": "common/schemas/clarification_interaction_schema.json",
   "expected_class2_role": "clarification_transition_state",
   "expected_unresolved_reason": "insufficient_context",
   "expected_candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",

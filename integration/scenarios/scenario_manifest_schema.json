@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/elecage/safe_deferral/integration/scenarios/scenario_manifest_schema.json",
   "title": "safe_deferral scenario manifest schema",
-  "description": "Documentation schema for integration scenario skeleton manifests. This schema describes the scenario asset contract; it does not define policy or schema authority. It explicitly documents Class 2 clarification/transition fields introduced by policy_table_v1_2_0_FROZEN.json and the dedicated safe_deferral/clarification/interaction evidence topic.",
+  "description": "Documentation schema for integration scenario skeleton manifests. This schema describes the scenario asset contract; it does not define policy or schema authority. It explicitly documents Class 2 clarification/transition fields introduced by policy_table.json and the dedicated safe_deferral/clarification/interaction evidence topic.",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -170,7 +170,7 @@
         },
         "clarification_schema_ref": {
           "type": "string",
-          "const": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json"
+          "const": "common/schemas/clarification_interaction_schema.json"
         },
         "example_payload_ref": {
           "type": "string",
@@ -220,7 +220,7 @@
         },
         "clarification_schema_ref": {
           "type": "string",
-          "const": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json"
+          "const": "common/schemas/clarification_interaction_schema.json"
         },
         "example_payload_ref": {
           "type": "string",

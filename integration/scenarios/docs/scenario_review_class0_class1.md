@@ -25,7 +25,7 @@ It is not intended to represent one specific user situation. It provides a start
 - Does it stay generic enough to be a reusable template?
 - Is the structure easy for runners and comparators to consume?
 - Does it use the `safe_deferral/...` namespace?
-- Does it assume current MQTT registry `common/mqtt/topic_registry_v1_1_0.json`?
+- Does it assume current MQTT registry `common/mqtt/topic_registry.json`?
 - Does it avoid becoming canonical policy truth?
 
 ---
@@ -144,7 +144,7 @@ Deterministic Validator approves exactly one admissible low-risk action
 
 ### Review points
 
-- Is the action inside `common/policies/low_risk_actions_v1_1_0_FROZEN.json`?
+- Is the action inside `common/policies/low_risk_actions.json`?
 - Does the scenario avoid treating doorlock as low risk?
 - Does it avoid fabricating missing context to reach Class 1?
 - Is validator approval required before dispatch?

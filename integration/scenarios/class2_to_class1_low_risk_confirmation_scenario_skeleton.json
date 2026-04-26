@@ -58,7 +58,7 @@
   "clarification_interaction": {
     "class2_role": "clarification_transition_state",
     "clarification_topic": "safe_deferral/clarification/interaction",
-    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
     "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
@@ -78,7 +78,7 @@
   "class2_clarification_expectation": {
     "enabled": true,
     "clarification_topic": "safe_deferral/clarification/interaction",
-    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_1",
     "requires_policy_router_reentry": true,
@@ -110,7 +110,7 @@
     ],
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false,
-    "allowed_action_catalog_ref": "common/policies/low_risk_actions_v1_1_0_FROZEN.json"
+    "allowed_action_catalog_ref": "common/policies/low_risk_actions.json"
   },
   "notes": [
     "This scenario proves that a Class 2 selection does not bypass Policy Router re-entry or Deterministic Validator approval.",

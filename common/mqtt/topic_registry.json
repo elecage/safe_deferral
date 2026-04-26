@@ -1,7 +1,7 @@
 {
   "registry_version": "1.1.0",
   "status": "DRAFT",
-  "supersedes": "common/mqtt/topic_registry_v1_0_0.json",
+  "supersedes": "common/history/mqtt/topic_registry.json",
   "description": "MQTT topic registry for safe_deferral with machine-readable publisher/subscriber role metadata. Topic names are implementation-facing draft contracts and must be reviewed before freezing.",
   "authority_note": "This registry defines communication contracts, publisher/subscriber roles, and topic metadata. It does not define policy authority, schema authority, validator authority, or actuation authority. Policies and schemas under common/policies and common/schemas remain authoritative.",
   "role_metadata_note": "Version 1.1.0 adds publisher/subscriber role classification so governance tooling can distinguish field-side operational publishers, Mac mini runtime services, controlled experiment publishers, optional observers, and dashboard/governance visibility roles.",
@@ -71,7 +71,7 @@
         ]
       },
       "payload_family": "policy_router_input",
-      "schema": "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+      "schema": "common/schemas/policy_router_input_schema.json",
       "example_payload": "common/payloads/examples/policy_router_input_non_visitor.json",
       "qos": 1,
       "retain": false,
@@ -116,7 +116,7 @@
         ]
       },
       "payload_family": "policy_router_input_or_emergency_context",
-      "schema": "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+      "schema": "common/schemas/policy_router_input_schema.json",
       "example_payload": "common/payloads/examples/policy_router_input_emergency_temperature.json",
       "qos": 1,
       "retain": false,
@@ -154,7 +154,7 @@
         ]
       },
       "payload_family": "candidate_action",
-      "schema": "common/schemas/candidate_action_schema_v1_0_0_FROZEN.json",
+      "schema": "common/schemas/candidate_action_schema.json",
       "example_payload": "common/payloads/examples/candidate_action_light_on.json",
       "qos": 1,
       "retain": false,
@@ -193,7 +193,7 @@
         ]
       },
       "payload_family": "validator_output",
-      "schema": "common/schemas/validator_output_schema_v1_1_0_FROZEN.json",
+      "schema": "common/schemas/validator_output_schema.json",
       "example_payload": "common/payloads/examples/validator_output_execute_approved_light.json",
       "qos": 1,
       "retain": false,
@@ -284,7 +284,7 @@
         ]
       },
       "payload_family": "class_2_notification_payload",
-      "schema": "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
+      "schema": "common/schemas/class2_notification_payload_schema.json",
       "example_payload": "common/payloads/examples/class_2_notification_doorlock_sensitive.json",
       "qos": 1,
       "retain": false,
@@ -324,7 +324,7 @@
         ]
       },
       "payload_family": "clarification_interaction_payload",
-      "schema": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+      "schema": "common/schemas/clarification_interaction_schema.json",
       "example_payload": "common/payloads/examples/clarification_interaction_two_options_pending.json",
       "qos": 1,
       "retain": false,
@@ -545,7 +545,7 @@
         ]
       },
       "payload_family": "policy_router_input_or_context_fixture",
-      "schema": "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json",
+      "schema": "common/schemas/policy_router_input_schema.json",
       "example_payload": "common/payloads/examples/policy_router_input_visitor_doorbell.json",
       "qos": 1,
       "retain": false,

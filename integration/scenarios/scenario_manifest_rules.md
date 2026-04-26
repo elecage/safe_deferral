@@ -28,8 +28,8 @@ scenario manifest 규칙은 다음을 위해 필요하다.
 - scenario는 frozen assets를 소비하는 evaluation asset이다.
 - scenario는 operational hub를 우회하는 제어 경로를 만들면 안 된다.
 - threshold, required key, trigger predicate, routing truth를 scenario가 최종 정의하면 안 된다.
-- scenario topic은 `common/mqtt/topic_registry_v1_1_0.json` 및 `common/docs/architecture/15_interface_matrix.md`와 정렬되어야 한다.
-- `common/mqtt/topic_registry_v1_0_0.json`은 historical baseline으로만 다룬다.
+- scenario topic은 `common/mqtt/topic_registry.json` 및 `common/docs/architecture/15_interface_matrix.md`와 정렬되어야 한다.
+- `common/history/mqtt/topic_registry.json`은 historical baseline으로만 다룬다.
 - scenario fixture는 current schema boundary를 따라야 한다.
 - scenario는 Class 1 autonomous low-risk scope를 frozen lighting catalog 밖으로 확장하면 안 된다.
 - scenario는 doorlock-sensitive behavior를 autonomous Class 1 execution으로 표현하면 안 된다.
@@ -45,37 +45,37 @@ Scenario manifest는 아래 active baseline과 정합적이어야 한다.
 
 ```text
 Active policy baseline:
-common/policies/policy_table_v1_2_0_FROZEN.json
+common/policies/policy_table.json
 
 Low-risk action catalog:
-common/policies/low_risk_actions_v1_1_0_FROZEN.json
+common/policies/low_risk_actions.json
 
 Fault injection rules:
-common/policies/fault_injection_rules_v1_4_0_FROZEN.json
+common/policies/fault_injection_rules.json
 
 Pure context schema:
-common/schemas/context_schema_v1_0_0_FROZEN.json
+common/schemas/context_schema.json
 
 Policy router input schema:
-common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
+common/schemas/policy_router_input_schema.json
 
 Candidate action schema:
-common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
+common/schemas/candidate_action_schema.json
 
 Validator output schema:
-common/schemas/validator_output_schema_v1_1_0_FROZEN.json
+common/schemas/validator_output_schema.json
 
 Class 2 notification schema:
-common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+common/schemas/class2_notification_payload_schema.json
 
 Class 2 clarification interaction schema:
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 
 Current MQTT topic registry:
-common/mqtt/topic_registry_v1_1_0.json
+common/mqtt/topic_registry.json
 
 MQTT topic payload contracts:
-common/mqtt/topic_payload_contracts_v1_0_0.md
+common/mqtt/topic_payload_contracts.md
 
 Representative Class 2 clarification interaction example:
 common/payloads/examples/clarification_interaction_two_options_pending.json
@@ -93,9 +93,9 @@ common/docs/architecture/19_class2_clarification_architecture_alignment.md
 Historical baselines:
 
 ```text
-common/policies/policy_table_v1_1_2_FROZEN.json
-common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
-common/mqtt/topic_registry_v1_0_0.json
+common/history/policies/policy_table.json
+common/history/schemas/class2_notification_payload_schema.json
+common/history/mqtt/topic_registry.json
 ```
 
 Historical baselines must not be used as current scenario alignment authority when they conflict with Class 2 clarification / transition semantics.
@@ -169,13 +169,13 @@ Scenario는 current MQTT registry와 interface matrix를 따라야 한다.
 
 Authoritative current references:
 
-- `common/mqtt/topic_registry_v1_1_0.json`
+- `common/mqtt/topic_registry.json`
 - `common/docs/architecture/15_interface_matrix.md`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_payload_contracts.md`
 
 Historical reference:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/history/mqtt/topic_registry.json`
 
 기본 namespace:
 
@@ -247,7 +247,7 @@ Class 2 scenario는 다음 구조를 권장한다.
   "clarification_interaction": {
     "class2_role": "clarification_transition_state",
     "clarification_topic": "safe_deferral/clarification/interaction",
-    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
     "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
@@ -276,7 +276,7 @@ Class 2 transition scenario는 다음 block을 권장한다.
   "class2_clarification_expectation": {
     "enabled": true,
     "clarification_topic": "safe_deferral/clarification/interaction",
-    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
     "requires_policy_router_reentry": true,
@@ -393,7 +393,7 @@ Class 1 autonomous execution은 현재 frozen low-risk lighting catalog로 제�
 Authoritative reference:
 
 ```text
-common/policies/low_risk_actions_v1_1_0_FROZEN.json
+common/policies/low_risk_actions.json
 ```
 
 Scenario는 다음을 하면 안 된다.
@@ -465,17 +465,17 @@ Verifier는 다음을 확인해야 한다.
 
 Scenario는 다음 frozen assets 및 registry/interface references와 정합적이어야 한다.
 
-- `common/policies/policy_table_v1_2_0_FROZEN.json`
-- `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
-- `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
-- `common/schemas/context_schema_v1_0_0_FROZEN.json`
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/policies/policy_table.json`
+- `common/policies/low_risk_actions.json`
+- `common/policies/fault_injection_rules.json`
+- `common/schemas/context_schema.json`
+- `common/schemas/candidate_action_schema.json`
+- `common/schemas/policy_router_input_schema.json`
+- `common/schemas/validator_output_schema.json`
+- `common/schemas/class2_notification_payload_schema.json`
+- `common/schemas/clarification_interaction_schema.json`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/topic_payload_contracts.md`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`

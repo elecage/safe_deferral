@@ -25,8 +25,8 @@
     "primary_channel": "telegram",
     "fallback_channel": "mock_logger",
     "caregiver_confirmation_supported": true,
-    "payload_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
-    "clarification_interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "payload_schema_ref": "common/schemas/class2_notification_payload_schema.json",
+    "clarification_interaction_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "required_core_fields": [
       "event_summary",
       "context_summary",

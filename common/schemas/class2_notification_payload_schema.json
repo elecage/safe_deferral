@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "class_2_notification_payload_schema_v1_1_0",
+  "title": "class2_notification_payload_schema",
   "description": "Authoritative schema for caregiver escalation and Class 2 clarification notification payloads emitted when the system enters or remains in a Class 2 clarification/escalation path. This schema governs outbound Class 2 notification contracts and should not be overridden by companion output-profile assets. For doorlock-sensitive or other sensitive actuation cases, this payload may describe escalation and a governed manual confirmation path, but it must not itself authorize actuation or bypass validator, caregiver approval, ACK, or audit boundaries. Version 1.1.0 extends v1.0.0 for Class 2 clarification/transition semantics and C206/C207 trigger IDs.",
   "type": "object",
   "additionalProperties": false,

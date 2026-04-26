@@ -33,7 +33,7 @@
   ],
   "class2_transition_reference": {
     "may_be_reached_from_class2": true,
-    "required_condition": "User or caregiver confirms a bounded low-risk assistance candidate, the candidate remains inside common/policies/low_risk_actions_v1_1_0_FROZEN.json, and the Deterministic Validator approves exactly one admissible action before dispatch.",
+    "required_condition": "User or caregiver confirms a bounded low-risk assistance candidate, the candidate remains inside common/policies/low_risk_actions.json, and the Deterministic Validator approves exactly one admissible action before dispatch.",
     "prohibited_shortcut": "Class 2 candidate text or LLM guidance must not directly authorize Class 1 actuation."
   },
   "expected_outcomes": {
@@ -43,7 +43,7 @@
     "llm_decision_invocation_allowed": true,
     "llm_guidance_generation_allowed": true,
     "unsafe_autonomous_actuation_allowed": false,
-    "allowed_action_catalog_ref": "common/policies/low_risk_actions_v1_1_0_FROZEN.json",
+    "allowed_action_catalog_ref": "common/policies/low_risk_actions.json",
     "doorlock_autonomous_execution_allowed": false
   },
   "notes": [

@@ -1,0 +1,92 @@
+{
+  "manifest_version": "1.0",
+  "purpose": "Current canonical asset paths and historical path mappings for the safe_deferral cleanup baseline.",
+  "naming_policy": {
+    "active_files": "Active canonical filenames do not include version strings or FROZEN markers.",
+    "historical_files": "Historical files live under common/history/ and keep descriptive canonical basenames where practical.",
+    "version_tracking": "Former paths and source versions are tracked in this manifest, runtime handoff notes, and git history."
+  },
+  "current": {
+    "policies": {
+      "policy_table": "common/policies/policy_table.json",
+      "low_risk_actions": "common/policies/low_risk_actions.json",
+      "fault_injection_rules": "common/policies/fault_injection_rules.json",
+      "output_profile": "common/policies/output_profile.json"
+    },
+    "schemas": {
+      "policy_router_input_schema": "common/schemas/policy_router_input_schema.json",
+      "context_schema": "common/schemas/context_schema.json",
+      "candidate_action_schema": "common/schemas/candidate_action_schema.json",
+      "validator_output_schema": "common/schemas/validator_output_schema.json",
+      "class2_notification_payload_schema": "common/schemas/class2_notification_payload_schema.json",
+      "clarification_interaction_schema": "common/schemas/clarification_interaction_schema.json"
+    },
+    "mqtt": {
+      "topic_registry": "common/mqtt/topic_registry.json",
+      "publisher_subscriber_matrix": "common/mqtt/publisher_subscriber_matrix.md",
+      "topic_payload_contracts": "common/mqtt/topic_payload_contracts.md"
+    }
+  },
+  "history": {
+    "policies": {
+      "policy_table": {
+        "path": "common/history/policies/policy_table.json",
+        "former_path": "common/policies/policy_table_v1_1_2_FROZEN.json",
+        "status": "superseded"
+      }
+    },
+    "schemas": {
+      "class2_notification_payload_schema": {
+        "path": "common/history/schemas/class2_notification_payload_schema.json",
+        "former_path": "common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+        "status": "superseded"
+      }
+    },
+    "mqtt": {
+      "topic_registry": {
+        "path": "common/history/mqtt/topic_registry.json",
+        "former_path": "common/mqtt/topic_registry_v1_0_0.json",
+        "status": "superseded"
+      }
+    }
+  },
+  "migrations": {
+    "common/policies/policy_table_v1_2_0_FROZEN.json": "common/policies/policy_table.json",
+    "common/policies/low_risk_actions_v1_1_0_FROZEN.json": "common/policies/low_risk_actions.json",
+    "common/policies/fault_injection_rules_v1_4_0_FROZEN.json": "common/policies/fault_injection_rules.json",
+    "common/policies/output_profile_v1_1_0.json": "common/policies/output_profile.json",
+    "common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json": "common/schemas/policy_router_input_schema.json",
+    "common/schemas/context_schema_v1_0_0_FROZEN.json": "common/schemas/context_schema.json",
+    "common/schemas/candidate_action_schema_v1_0_0_FROZEN.json": "common/schemas/candidate_action_schema.json",
+    "common/schemas/validator_output_schema_v1_1_0_FROZEN.json": "common/schemas/validator_output_schema.json",
+    "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json": "common/schemas/class2_notification_payload_schema.json",
+    "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json": "common/schemas/clarification_interaction_schema.json",
+    "common/mqtt/topic_registry_v1_1_0.json": "common/mqtt/topic_registry.json",
+    "common/mqtt/publisher_subscriber_matrix_v1_0_0.md": "common/mqtt/publisher_subscriber_matrix.md",
+    "common/mqtt/topic_payload_contracts_v1_0_0.md": "common/mqtt/topic_payload_contracts.md",
+    "common/policies/policy_table_v1_1_2_FROZEN.json": "common/history/policies/policy_table.json",
+    "common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json": "common/history/schemas/class2_notification_payload_schema.json",
+    "common/mqtt/topic_registry_v1_0_0.json": "common/history/mqtt/topic_registry.json"
+  },
+  "active_reference_validation": {
+    "forbidden_patterns": [
+      "_FROZEN",
+      "_v1_",
+      "topic_registry_v1_",
+      "policy_table_v1_",
+      "low_risk_actions_v1_",
+      "fault_injection_rules_v1_",
+      "output_profile_v1_",
+      "schema_v1_",
+      "publisher_subscriber_matrix_v1_",
+      "topic_payload_contracts_v1_"
+    ],
+    "exception_paths": [
+      "common/history/",
+      "common/docs/runtime/",
+      "common/docs/archive/",
+      "common/docs/architecture/00_documentation_and_asset_restructure_plan.md",
+      "common/docs/architecture/00_canonical_asset_rename_map.md"
+    ]
+  }
+}

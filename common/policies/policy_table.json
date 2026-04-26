@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "description": "Deterministic Routing Policy and Safety Constraints for Edge Smart Home with Class 2 clarification/transition semantics",
-  "supersedes": "common/policies/policy_table_v1_1_2_FROZEN.json",
+  "supersedes": "common/history/policies/policy_table.json",
   "semantic_change_summary": [
     "Class 2 is no longer interpreted only as terminal caregiver escalation.",
     "Class 2 is a clarification/transition state for insufficient context, unresolved ambiguity, stale policy-relevant state, missing critical state, actuation failure, or caregiver-required sensitive paths.",
@@ -170,7 +170,7 @@
         }
       ],
       "interpretation_notes": {
-        "authoritative_action_source": "common/policies/low_risk_actions_v1_1_0_FROZEN.json",
+        "authoritative_action_source": "common/policies/low_risk_actions.json",
         "single_admissible_action_rule": "Autonomous execution is permitted only when deterministic validation resolves exactly one admissible low-risk action.",
         "ambiguity_rule": "If multiple admissible candidates remain or target confidence is insufficient, the system must prefer safe_deferral or Class 2 clarification rather than autonomous actuation.",
         "staleness_rule": "Freshness violations in policy-relevant state must not be silently tolerated in the low-risk path.",
@@ -279,9 +279,9 @@
         "candidate_text_is_not_actuation_command": true
       },
       "payload_contract": {
-        "notification_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
-        "interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
-        "recommended_interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+        "notification_schema_ref": "common/schemas/class2_notification_payload_schema.json",
+        "interaction_schema_ref": "common/schemas/clarification_interaction_schema.json",
+        "recommended_interaction_schema_ref": "common/schemas/clarification_interaction_schema.json",
         "interaction_schema_status": "current_governing_schema_for_class2_clarification_interaction_records",
         "required_core_fields": [
           "event_summary",
@@ -320,9 +320,9 @@
     }
   },
   "implementation_notes": {
-    "authoritative_low_risk_action_catalog": "low_risk_actions_v1_1_0_FROZEN.json",
-    "class_2_notification_payload_schema": "class_2_notification_payload_schema_v1_1_0_FROZEN.json",
-    "class2_interaction_schema": "clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "authoritative_low_risk_action_catalog": "low_risk_actions.json",
+    "class_2_notification_payload_schema": "class2_notification_payload_schema.json",
+    "class2_interaction_schema": "clarification_interaction_schema.json",
     "terminology_note": "Canonical terminology should use Class 2 clarification/transition state and class2_clarification_manager for insufficient-context interaction, while preserving context-integrity-based safe deferral terminology for the lower-level deferral handler.",
     "note": "The routing policy may retain a summarized allowed_actions_taxonomy for local readability, but the dedicated low-risk action catalog remains the authoritative action list.",
     "safe_execution_note": "Validated execution must remain ACK-confirmed and bounded to the low-risk catalog.",

@@ -9,7 +9,7 @@
     "voice_input",
     "caregiver_confirmation"
   ],
-  "expected_low_risk_catalog_ref": "common/policies/low_risk_actions_v1_1_0_FROZEN.json",
+  "expected_low_risk_catalog_ref": "common/policies/low_risk_actions.json",
   "expected_validator_required_before_dispatch": true,
   "expected_single_admissible_action_required": true,
   "expected_llm_decision_invocation_allowed": false,

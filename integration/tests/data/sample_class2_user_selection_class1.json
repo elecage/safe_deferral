@@ -1,6 +1,6 @@
 {
   "payload_family": "CLASS2_USER_SELECTION",
-  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "schema_ref": "common/schemas/clarification_interaction_schema.json",
   "clarification_id": "clarification_sample_class2_001",
   "audit_correlation_id": "sample_class2_case_001",
   "source_scenario": "SCN_CLASS2_INSUFFICIENT_CONTEXT",

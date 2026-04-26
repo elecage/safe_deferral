@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "candidate_action_schema_v1_0_0",
+  "title": "candidate_action_schema",
   "description": "Local LLM output sandbox boundary for a single Class 1 low-risk candidate action or safe deferral. Sensitive actuation requests are outside this schema and must not be represented as autonomous candidate actions.",
   "type": "object",
   "additionalProperties": false,

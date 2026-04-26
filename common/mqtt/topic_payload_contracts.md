@@ -1,4 +1,4 @@
-# topic_payload_contracts_v1_0_0.md
+# topic_payload_contracts.md
 
 ## MQTT Topic Payload Contracts
 
@@ -8,11 +8,11 @@ This document explains the payload expectations for each MQTT topic family.
 
 Current machine-readable topic registry:
 
-- `common/mqtt/topic_registry_v1_1_0.json`
+- `common/mqtt/topic_registry.json`
 
 Historical topic registry baseline:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/history/mqtt/topic_registry.json`
 
 Payload boundary reference:
 
@@ -40,7 +40,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
+- `common/schemas/policy_router_input_schema.json`
 
 Example:
 
@@ -65,7 +65,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
+- `common/schemas/policy_router_input_schema.json`
 
 Example:
 
@@ -90,7 +90,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
+- `common/schemas/candidate_action_schema.json`
 
 Example:
 
@@ -112,7 +112,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
+- `common/schemas/validator_output_schema.json`
 
 Example:
 
@@ -160,7 +160,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/class2_notification_payload_schema.json`
 
 Example:
 
@@ -183,7 +183,7 @@ Expected payload family:
 
 Schema:
 
-- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema.json`
 
 Example:
 
@@ -308,7 +308,7 @@ Rules:
 
 - RPi simulation only.
 - Must be gated so simulation traffic does not accidentally masquerade as uncontrolled operational input.
-- Payloads containing `pure_context_payload` must obey `context_schema_v1_0_0_FROZEN.json`.
+- Payloads containing `pure_context_payload` must obey `context_schema.json`.
 
 ### `safe_deferral/fault/injection`
 
@@ -399,7 +399,7 @@ Rules:
 The following topic payload families are likely candidates for future schema formalization:
 
 - `safe_deferral_event`
-- `clarification_interaction_payload` examples and helper schemas if runtime/test needs require additional machine-readable contracts beyond `clarification_interaction_schema_v1_0_0_FROZEN.json`
+- `clarification_interaction_payload` examples and helper schemas if runtime/test needs require additional machine-readable contracts beyond `clarification_interaction_schema.json`
 - `manual_confirmation_payload`
 - `actuation_command_payload`
 - `actuation_ack_payload`

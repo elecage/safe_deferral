@@ -22,34 +22,34 @@ Scenario review must use the following current baseline.
 
 ```text
 Active policy baseline:
-common/policies/policy_table_v1_2_0_FROZEN.json
+common/policies/policy_table.json
 
 Low-risk action catalog:
-common/policies/low_risk_actions_v1_1_0_FROZEN.json
+common/policies/low_risk_actions.json
 
 Fault injection rules:
-common/policies/fault_injection_rules_v1_4_0_FROZEN.json
+common/policies/fault_injection_rules.json
 
 Pure context schema:
-common/schemas/context_schema_v1_0_0_FROZEN.json
+common/schemas/context_schema.json
 
 Policy-router input schema:
-common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
+common/schemas/policy_router_input_schema.json
 
 Validator output schema:
-common/schemas/validator_output_schema_v1_1_0_FROZEN.json
+common/schemas/validator_output_schema.json
 
 Class 2 notification schema:
-common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
+common/schemas/class2_notification_payload_schema.json
 
 Class 2 clarification interaction schema:
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 
 Current MQTT topic registry:
-common/mqtt/topic_registry_v1_1_0.json
+common/mqtt/topic_registry.json
 
 MQTT topic payload contracts:
-common/mqtt/topic_payload_contracts_v1_0_0.md
+common/mqtt/topic_payload_contracts.md
 
 Representative Class 2 clarification interaction example:
 common/payloads/examples/clarification_interaction_two_options_pending.json
@@ -58,9 +58,9 @@ common/payloads/examples/clarification_interaction_two_options_pending.json
 Historical baselines:
 
 ```text
-common/policies/policy_table_v1_1_2_FROZEN.json
-common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
-common/mqtt/topic_registry_v1_0_0.json
+common/history/policies/policy_table.json
+common/history/schemas/class2_notification_payload_schema.json
+common/history/mqtt/topic_registry.json
 ```
 
 Historical baselines must not be treated as current authority.
@@ -117,13 +117,13 @@ Therefore, reviewers should not read a scenario only as a technical input event.
 
 - Does the scenario avoid redefining thresholds, required keys, or trigger semantics?
 - Does it consume frozen policy/schema assets instead of replacing them?
-- Does it avoid Class 1 actions outside `low_risk_actions_v1_1_0_FROZEN.json`?
+- Does it avoid Class 1 actions outside `low_risk_actions.json`?
 - Does it avoid treating `doorbell_detected` as unlock authorization or emergency trigger?
 - Does it avoid treating Class 2 interaction payload as pure context?
 
 ### MQTT / interface matrix
 
-- Is the ingress topic in `common/mqtt/topic_registry_v1_1_0.json`?
+- Is the ingress topic in `common/mqtt/topic_registry.json`?
 - Does ordinary context use `safe_deferral/context/input`?
 - Does emergency input use `safe_deferral/emergency/event` or an explicit controlled bridge?
 - Does Class 2 clarification interaction evidence use `safe_deferral/clarification/interaction`?

@@ -8,7 +8,7 @@ It replaces the Class 2 portions of the former monolithic `integration/scenarios
 
 ```text
 safe_deferral/clarification/interaction
-common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+common/schemas/clarification_interaction_schema.json
 common/payloads/examples/clarification_interaction_two_options_pending.json
 ```
 
@@ -49,7 +49,7 @@ Contract:
 
 ```text
 payload_family: clarification_interaction_payload
-schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+schema: common/schemas/clarification_interaction_schema.json
 example_payload: common/payloads/examples/clarification_interaction_two_options_pending.json
 authority_level: class2_interaction_evidence_not_authority
 ```
@@ -110,7 +110,7 @@ Class 2 transition scenarios should include a block like this:
 "class2_clarification_expectation": {
   "enabled": true,
   "clarification_topic": "safe_deferral/clarification/interaction",
-  "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
   "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
   "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
   "requires_policy_router_reentry": true,
@@ -139,7 +139,7 @@ Class 2-related scenarios must answer yes to the following:
 - clarification_interaction is present where Class 2 interaction is modeled.
 - class2_clarification_expectation is present for Class 2 transition tests.
 - clarification_topic is safe_deferral/clarification/interaction.
-- clarification_schema_ref is common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json.
+- clarification_schema_ref is common/schemas/clarification_interaction_schema.json.
 - example_payload_ref is common/payloads/examples/clarification_interaction_two_options_pending.json.
 - candidate choices are bounded and at most 4.
 - candidate generation boundary forbids final decision and actuation authority.

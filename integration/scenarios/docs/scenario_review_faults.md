@@ -144,7 +144,7 @@ When a fault scenario uses Class 2-like clarification, verify:
 ```text
 - class2_clarification_expectation is present or explicitly planned.
 - clarification_topic is safe_deferral/clarification/interaction.
-- clarification_schema_ref is common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json.
+- clarification_schema_ref is common/schemas/clarification_interaction_schema.json.
 - clarification_payload_is_not_authorization is true.
 - timeout_must_not_infer_intent is true.
 - requires_policy_router_reentry is true.
@@ -174,8 +174,8 @@ temperature_c vs temperature
 illuminance_lux vs illuminance
 missing trigger_event.timestamp_ms
 missing routing_metadata.ingest_timestamp_ms
-policy_router_input_schema_v1_1_1_FROZEN compliance
-context_schema_v1_0_0_FROZEN compliance
+policy_router_input_schema compliance
+context_schema compliance
 doorbell_detected required field
 doorlock state inside device_states
 ```

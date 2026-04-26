@@ -28,20 +28,20 @@ Authoritative sources remain:
 
 ## Current files
 
-- `topic_registry_v1_1_0.json`
+- `topic_registry.json`
   - Current machine-readable MQTT topic registry.
-  - Supersedes `topic_registry_v1_0_0.json`.
+  - Supersedes `topic_registry.json`.
   - Lists topic patterns, publisher roles, subscriber roles, payload family, schema/example references, authority level, runtime-mode allowance, QoS, retain behavior, and governance notes.
 
-- `topic_registry_v1_0_0.json`
-  - Historical baseline superseded by `topic_registry_v1_1_0.json`.
+- `topic_registry.json`
+  - Historical baseline superseded by `topic_registry.json`.
   - Keep only as a historical reference when needed.
 
-- `publisher_subscriber_matrix_v1_0_0.md`
+- `publisher_subscriber_matrix.md`
   - Human-readable publisher/subscriber matrix.
   - Useful for implementation planning, review, debugging, and governance UI rendering.
 
-- `topic_payload_contracts_v1_0_0.md`
+- `topic_payload_contracts.md`
   - Human-readable topic-to-payload contract notes.
   - Explains payload boundaries, schema references, example references, and forbidden interpretations.
 

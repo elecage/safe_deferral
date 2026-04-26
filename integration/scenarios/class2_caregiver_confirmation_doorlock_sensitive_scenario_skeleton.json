@@ -61,7 +61,7 @@
   "clarification_interaction": {
     "class2_role": "clarification_transition_state",
     "clarification_topic": "safe_deferral/clarification/interaction",
-    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "candidate_generation_actor": "CLASS2_CLARIFICATION_MANAGER_OR_CAREGIVER_CONFIRMATION_BACKEND",
     "candidate_generation_boundary": "candidate_generation_only_no_doorlock_authorization",
@@ -81,7 +81,7 @@
   "class2_clarification_expectation": {
     "enabled": true,
     "clarification_topic": "safe_deferral/clarification/interaction",
-    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CAREGIVER_CONFIRMATION",
     "requires_policy_router_reentry": true,

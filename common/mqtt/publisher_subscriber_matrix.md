@@ -1,4 +1,4 @@
-# publisher_subscriber_matrix_v1_0_0.md
+# publisher_subscriber_matrix.md
 
 ## MQTT Publisher / Subscriber Matrix
 
@@ -8,11 +8,11 @@ This document summarizes the initial MQTT publisher/subscriber relationships for
 
 The current machine-readable role-metadata source is:
 
-- `common/mqtt/topic_registry_v1_1_0.json`
+- `common/mqtt/topic_registry.json`
 
 Historical topic/payload baseline:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/history/mqtt/topic_registry.json`
 
 This matrix is for review, implementation planning, debugging, governance UI rendering, and Package G validation.
 It does not override policy or schema assets.
@@ -44,7 +44,7 @@ It does not override policy or schema assets.
 
 ## Machine-readable role metadata
 
-`topic_registry_v1_1_0.json` mirrors this matrix with structured fields:
+`topic_registry.json` mirrors this matrix with structured fields:
 
 ```text
 publisher_roles
@@ -76,7 +76,7 @@ This clarification aligns this matrix with:
 ```text
 common/docs/architecture/15_interface_matrix.md
 common/docs/architecture/scenario_data_flows/20_00_interface_role_alignment.md
-common/mqtt/topic_registry_v1_1_0.json
+common/mqtt/topic_registry.json
 ```
 
 ---
@@ -131,7 +131,7 @@ Before implementing a topic, confirm:
 
 1. Is the publisher allowed for this topic?
 2. Is the subscriber allowed for this topic?
-3. Is the publisher/subscriber role class correct in `topic_registry_v1_1_0.json`?
+3. Is the publisher/subscriber role class correct in `topic_registry.json`?
 4. Is the payload family correct?
 5. Does the payload have a formal schema?
 6. If schema-governed, does it validate against `common/schemas/`?
@@ -154,7 +154,7 @@ Recommended dashboard capabilities:
 
 - show topic contract rows,
 - show allowed publishers/subscribers,
-- show publisher/subscriber role classes from `topic_registry_v1_1_0.json`,
+- show publisher/subscriber role classes from `topic_registry.json`,
 - validate example payloads,
 - flag unauthorized topic traffic,
 - flag payload/schema drift,

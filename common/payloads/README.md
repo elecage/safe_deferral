@@ -14,12 +14,12 @@ Authoritative sources remain:
 - `common/policies/`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/mqtt/topic_registry_v1_1_0.json`
-- `common/mqtt/topic_payload_contracts_v1_0_0.md`
+- `common/mqtt/topic_registry.json`
+- `common/mqtt/topic_payload_contracts.md`
 
 Historical MQTT registry baseline:
 
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/history/mqtt/topic_registry.json`
 
 ---
 
@@ -77,13 +77,13 @@ Additional templates may be added later for result export, audit events, governa
 
 | Example | Governing schema | Notes |
 |---|---|---|
-| `policy_router_input_non_visitor.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | Non-visitor baseline; `doorbell_detected=false` |
-| `policy_router_input_visitor_doorbell.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | Strict visitor-response context example; doorlock/manual approval/ACK state belongs in fixture annotations, dashboard observation, manual confirmation payloads, or audit artifacts, not in this schema-governed example |
-| `policy_router_input_emergency_temperature.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | E001-style temperature threshold case |
-| `candidate_action_light_on.json` | `candidate_action_schema_v1_0_0_FROZEN.json` | LLM candidate only, not authority |
-| `validator_output_execute_approved_light.json` | `validator_output_schema_v1_1_0_FROZEN.json` | Approved low-risk light action only |
-| `class_2_notification_doorlock_sensitive.json` | `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Class 2 notification/manual confirmation review path, not actuation authority |
-| `clarification_interaction_two_options_pending.json` | `clarification_interaction_schema_v1_0_0_FROZEN.json` | Class 2 clarification interaction evidence for `safe_deferral/clarification/interaction`, not authorization |
+| `policy_router_input_non_visitor.json` | `policy_router_input_schema.json` + `context_schema.json` | Non-visitor baseline; `doorbell_detected=false` |
+| `policy_router_input_visitor_doorbell.json` | `policy_router_input_schema.json` + `context_schema.json` | Strict visitor-response context example; doorlock/manual approval/ACK state belongs in fixture annotations, dashboard observation, manual confirmation payloads, or audit artifacts, not in this schema-governed example |
+| `policy_router_input_emergency_temperature.json` | `policy_router_input_schema.json` + `context_schema.json` | E001-style temperature threshold case |
+| `candidate_action_light_on.json` | `candidate_action_schema.json` | LLM candidate only, not authority |
+| `validator_output_execute_approved_light.json` | `validator_output_schema.json` | Approved low-risk light action only |
+| `class_2_notification_doorlock_sensitive.json` | `class2_notification_payload_schema.json` | Class 2 notification/manual confirmation review path, not actuation authority |
+| `clarification_interaction_two_options_pending.json` | `clarification_interaction_schema.json` | Class 2 clarification interaction evidence for `safe_deferral/clarification/interaction`, not authorization |
 
 ---
 

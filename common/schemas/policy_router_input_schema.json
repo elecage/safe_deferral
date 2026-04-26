@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "policy_router_input_schema_v1_1_1",
+  "title": "policy_router_input_schema",
   "description": "Policy Router 최상위 입력 래퍼(wrapper) 스키마 - 라우팅 메타데이터와 순수 상태 컨텍스트 분리",
   "type": "object",
   "additionalProperties": false,
@@ -46,7 +46,7 @@
     },
     "pure_context_payload": {
       "description": "LLM 프롬프트 조합에 전달 가능한 유일한 순수 컨텍스트",
-      "$ref": "context_schema_v1_0_0_FROZEN.json#"
+      "$ref": "context_schema.json#"
     }
   }
 }

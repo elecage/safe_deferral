@@ -1,6 +1,6 @@
 {
   "payload_family": "CLASS2_CLARIFICATION_INTERACTION",
-  "schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "schema_ref": "common/schemas/clarification_interaction_schema.json",
   "clarification_id": "example-class2-clarification-001",
   "audit_correlation_id": "example-class2-clarification-001",
   "source_scenario": "ambiguous_light_target_two_options",
