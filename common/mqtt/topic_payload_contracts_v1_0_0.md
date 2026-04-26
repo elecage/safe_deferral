@@ -175,6 +175,31 @@ Rules:
 - `manual_confirmation_path` is not autonomous execution authority.
 - Doorlock-sensitive notifications may explain a manual confirmation route, but must not bypass validator, caregiver approval, ACK, or audit boundaries.
 
+### `safe_deferral/clarification/interaction`
+
+Expected payload family:
+
+- `clarification_interaction_payload`
+
+Schema:
+
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+
+Example:
+
+- none yet; future example recommended
+
+Rules:
+
+- Candidate choices are bounded guidance only.
+- User/caregiver selection is evidence for Policy Router re-entry, not validator bypass.
+- Timeout/no-response must not infer intent.
+- `transition_target` must not directly authorize actuation.
+- `CLASS_1` transition still requires Deterministic Validator approval.
+- `CLASS_0` transition requires deterministic emergency evidence or explicit emergency confirmation.
+- Doorlock authorization is not allowed through this payload.
+- This payload must not be confused with `class_2_notification_payload`, `validator_output`, `actuation_command_payload`, or `pure_context_payload`.
+
 ---
 
 ## 4. Manual confirmation and actuation topics
