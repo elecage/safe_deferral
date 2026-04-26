@@ -39,6 +39,7 @@ Some Raspberry Pi governance and MQTT/payload support connections are documented
 | **Current Canonical** | Python App | Policy Router | Mac mini | Python virtual environment | Custom implementation |
 | **Current Canonical** | Python App | Deterministic Validator | Mac mini | Python virtual environment | Custom implementation |
 | **Current Canonical** | Python App | Context-Integrity Safe Deferral Handler | Mac mini | Python virtual environment | Implements the context-integrity-based safe deferral stage |
+| **Current Canonical** | Python App | Class 2 Clarification Manager | Mac mini | Python virtual environment | Manages bounded clarification interactions, user/caregiver confirmation evidence, timeout handling, and Policy Router re-entry. No actuation authority |
 | **Current Canonical** | Python App | Outbound Notification Interface | Mac mini | Python virtual environment | Telegram or mock fallback integration |
 | **Current Canonical** | Python App | Caregiver Confirmation Backend | Mac mini | Python virtual environment | Bounded caregiver confirmation handling |
 | **Current Canonical** | Python App | Audit Logging Service / DB Access Layer | Mac mini | Python virtual environment | SQLite-backed audit pipeline |
@@ -101,11 +102,14 @@ Its intended operational role includes:
 - Policy Router
 - Deterministic Validator
 - Context-Integrity Safe Deferral Handler
+- Class 2 Clarification Manager
 - Caregiver Confirmation Backend
 - Outbound Notification Interface
 - Audit Logging Service / DB Access Layer
 - MQTT Topic Registry Loader / Contract Checker
 - Payload Validation Helper
+
+The Class 2 Clarification Manager runs on the Mac mini Edge Hub. It manages bounded clarification interactions for ambiguous or insufficient-context cases, may request candidate choices from the LLM Guidance Layer, and collects user/caregiver confirmation, timeout, or deterministic evidence. It must not authorize actuation, determine final class transitions by itself, trigger emergency handling, or bypass the Deterministic Validator. After confirmation, timeout, or additional deterministic evidence, it must re-enter the Policy Router so that the final route is determined by policy and validation logic.
 
 Mac mini may expose operational telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 experiment dashboard, but it does not host the experiment and monitoring dashboard itself.
 
@@ -147,6 +151,7 @@ Accordingly, Raspberry Pi 5 should **not** host the core operational runtime ser
 - Policy Router
 - Deterministic Validator
 - Context-Integrity Safe Deferral Handler
+- Class 2 Clarification Manager
 - Audit Logging Service as the operational hub-side authority
 - direct actuator dispatch authority
 - doorlock dispatch authority
