@@ -1,5 +1,8 @@
 # 12_prompts.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Prompt Set Index
 
 The original prompt document has been split for maintainability.

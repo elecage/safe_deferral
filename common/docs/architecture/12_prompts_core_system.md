@@ -1,5 +1,8 @@
 # 12_prompts.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Vibe-Coding Prompt Set
 
 The following prompts are intended for Google Antigravity or similar agent-first development tools.

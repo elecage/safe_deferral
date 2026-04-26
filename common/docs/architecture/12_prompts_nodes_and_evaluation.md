@@ -1,5 +1,8 @@
 # 12_prompts_nodes_and_evaluation.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Node, Measurement, and Evaluation Prompt Set
 
 This document contains the prompt set for:

@@ -1,5 +1,8 @@
 # 18. Scenario Node and Component Mapping
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## 1. Purpose
 
 This document summarizes the implementation elements required by the current scenario set.

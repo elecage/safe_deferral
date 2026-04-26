@@ -1,5 +1,8 @@
 # 01_installation_target_classification.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Installation Target Classification and Deployment Boundary Reference
 
 This document defines where each major component of the safe deferral system should be installed, how it should be deployed, and which deployment boundary it belongs to.

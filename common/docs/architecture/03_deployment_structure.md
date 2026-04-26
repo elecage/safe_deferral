@@ -1,5 +1,8 @@
 # 03_deployment_structure.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Deployment Structure
 
 This document defines the high-level structure used to organize the project into three major deployment layers:

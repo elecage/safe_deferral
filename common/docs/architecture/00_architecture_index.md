@@ -99,6 +99,9 @@ history and fine-grained detail. New work should update the active document set
 first, then update legacy notes only when a specific detailed reference still
 depends on them.
 
+Each legacy/source note carries a short banner pointing back to this index so it
+is not mistaken for the first active baseline.
+
 ## 6. Historical Areas
 
 Historical assets and runtime handoff notes may retain old names or old

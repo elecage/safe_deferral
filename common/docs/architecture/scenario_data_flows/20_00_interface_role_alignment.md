@@ -1,5 +1,8 @@
 # 20_00. Scenario Data-Flow Interface and Role Alignment
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## 1. Purpose
 
 This document is a companion refinement for:

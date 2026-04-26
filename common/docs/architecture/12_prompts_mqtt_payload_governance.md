@@ -1,5 +1,8 @@
 # 12_prompts_mqtt_payload_governance.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## MQTT / Payload Governance Prompt Set
 
 This document contains prompts for implementing the MQTT topic and payload governance layer.

@@ -1,5 +1,8 @@
 # 07_task_breakdown.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Task Breakdown
 
 This document defines the implementation-oriented task breakdown for the safe deferral system.

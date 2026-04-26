@@ -1,5 +1,8 @@
 # 02_mac_mini_build_sequence.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Mac mini Build Sequence
 
 This document defines the recommended build and bring-up sequence for the Mac mini operational hub in the `safe_deferral` system.

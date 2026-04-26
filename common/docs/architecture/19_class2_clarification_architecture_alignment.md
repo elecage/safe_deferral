@@ -1,5 +1,8 @@
 # 19. Class 2 Clarification Architecture Alignment
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## 1. Purpose
 
 This document records the Phase 1 architecture alignment for the revised Class 2 semantics.

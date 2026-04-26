@@ -1,5 +1,8 @@
 # 11_configuration_script_structure.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Configuration Script Structure
 
 ## Goal
@@ -507,7 +510,7 @@ Recommended responsibilities:
 - synchronize publisher/subscriber matrix and topic-payload contract references when needed
 - synchronize payload examples/templates when needed
 - synchronize Class 2 clarification fixtures when implemented
-- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- verify legacy source references and prompt support files still exist when this legacy script guidance is consulted
 - verify required synchronized runtime assets exist
 
 ### Principle
@@ -766,7 +769,7 @@ Before device-specific configuration proceeds:
 - verify synchronized or deployed copies will be sourced from the canonical baseline
 - verify `common/schemas/clarification_interaction_schema.json` exists
 - verify MQTT topic registry and payload reference directories exist
-- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- verify legacy source references and prompt support files still exist when this legacy script guidance is consulted
 - verify Class 2 clarification fixture directories or planned locations exist when Class 2 transition evaluation is in scope
 - ensure configuration is not starting from an incomplete frozen/reference state
 

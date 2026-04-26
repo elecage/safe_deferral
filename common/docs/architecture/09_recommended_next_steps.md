@@ -1,5 +1,8 @@
 # 09_recommended_next_steps.md
 
+> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+
+
 ## Recommended Immediate Next Steps
 
 This document defines the recommended immediate next steps for the safe deferral project.
