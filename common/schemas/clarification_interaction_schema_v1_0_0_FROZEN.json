@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "clarification_interaction_schema_v1_0_0",
-  "description": "Schema for Class 2 clarification interaction artifacts: bounded candidate choices, presentation channel, user/caregiver selection, timeout/no-response result, and transition target. This schema does not define pure context input, validator approval, actuation command, doorlock authorization, or emergency trigger authority. Optional fixture metadata fields are allowed for integration-test artifacts but do not create operational authority.",
+  "description": "Schema for Class 2 clarification interaction artifacts: bounded candidate choices, presentation channel, user/caregiver selection, timeout/no-response result, and transition target. This schema does not define pure context input, validator approval, actuation command, doorlock authorization, or emergency trigger authority. Optional fixture metadata fields are allowed for integration-test artifacts but do not create operational authority. For timeout/no-response artifacts, candidate_choices should preserve the choices that were presented or pending at the time of timeout so that timeout outcomes remain auditable.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -46,9 +46,10 @@
         "class2_clarification_manager",
         "input_context_mapper",
         "llm_guidance_layer",
+        "caregiver_confirmation_backend",
         "system"
       ],
-      "description": "System layer that created or updated this clarification interaction artifact."
+      "description": "System layer that created or updated this clarification interaction artifact. caregiver_confirmation_backend may update the artifact when caregiver confirmation provides selection evidence, but this does not create autonomous actuation authority."
     },
     "unresolved_reason": {
       "type": "string",
@@ -70,7 +71,7 @@
       "type": "array",
       "minItems": 1,
       "maxItems": 4,
-      "description": "Bounded choices that may be presented to the user/caregiver for confirmation. Candidate choices are guidance only and do not authorize actuation.",
+      "description": "Bounded choices that may be presented to the user/caregiver for confirmation. Candidate choices are guidance only and do not authorize actuation. For timeout/no-response artifacts, this array should preserve the choices that were presented or pending at the time of timeout.",
       "items": {
         "type": "object",
         "additionalProperties": false,

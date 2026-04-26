@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "description": "Companion output profile for bounded safe deferral guidance, outbound notifications, audit logging, governance evidence reporting, and local warning outputs. This asset complements but does not override canonical policy or schema truth.",
+  "description": "Companion output profile for bounded safe deferral guidance, Class 2 clarification candidate presentation, outbound notifications, audit logging, governance evidence reporting, and local warning outputs. This asset complements but does not override canonical policy or schema truth.",
   "voice_feedback": {
     "engine": "local_tts",
     "allowed_engines": [
@@ -13,17 +13,20 @@
     "supported_use_cases": [
       "safe_deferral_feedback",
       "bounded_option_announcement",
+      "class2_clarification_candidate_presentation",
+      "class2_transition_status_feedback",
       "escalation_notice",
       "status_feedback"
     ],
-    "policy_linkage_note": "Voice feedback may support bounded safe deferral guidance and system status communication, but it must not become an open-ended dialogue path or override policy-controlled routing outcomes.",
-    "purpose": "Cloud-independent bounded voice guidance for safe deferral feedback and limited system announcements"
+    "policy_linkage_note": "Voice feedback may support bounded safe deferral guidance, Class 2 clarification candidate presentation, transition status feedback, and system status communication, but it must not become an open-ended dialogue path or override policy-controlled routing outcomes.",
+    "purpose": "Cloud-independent bounded voice guidance for safe deferral feedback, Class 2 clarification prompts, and limited system announcements"
   },
   "outbound_notification": {
     "primary_channel": "telegram",
     "fallback_channel": "mock_logger",
     "caregiver_confirmation_supported": true,
-    "payload_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json",
+    "payload_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
+    "clarification_interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
     "required_core_fields": [
       "event_summary",
       "context_summary",
@@ -41,9 +44,16 @@
       "candidate_options",
       "related_device_state"
     ],
+    "supported_use_cases": [
+      "caregiver_alert",
+      "bounded_escalation_payload_delivery",
+      "limited_approval_path_support",
+      "class2_clarification_transition_notification"
+    ],
     "caregiver_confirmation_note": "Class 1 caregiver confirmation support remains bounded by the canonical low-risk action catalog. Caregiver-mediated approval for sensitive actions, if implemented, belongs to a separate governed manual confirmation path and must not be treated as autonomous low-risk execution.",
-    "companion_asset_note": "This output profile describes preferred output behavior and channel use, but the payload contract itself remains governed by the canonical Class 2 notification schema.",
-    "purpose": "Caregiver alerts, bounded escalation payload delivery, and limited approval-path support"
+    "clarification_boundary_note": "Class 2 clarification interaction payloads may describe candidate choices, selection results, timeout/no-response results, transition targets, and final safe outcomes, but they must not be treated as validator approval, actuation commands, emergency trigger evidence, or doorlock authorization.",
+    "companion_asset_note": "This output profile describes preferred output behavior and channel use, but notification payload contracts remain governed by the canonical Class 2 notification schema and clarification interaction records remain governed by the canonical clarification interaction schema.",
+    "purpose": "Caregiver alerts, bounded escalation payload delivery, Class 2 clarification transition notification, and limited approval-path support"
   },
   "logging_output": {
     "destination": "sqlite",
@@ -55,6 +65,11 @@
       "routing",
       "validator",
       "safe_deferral",
+      "class2_clarification",
+      "class2_candidate_presentation",
+      "class2_selection",
+      "class2_timeout",
+      "class2_transition",
       "timeout",
       "escalation",
       "caregiver_confirmation",
@@ -74,5 +89,5 @@
     "scope_note": "Local warning outputs are policy-controlled safety outputs and should not be interpreted as equivalent to the Class 1 low-risk autonomous actuation taxonomy.",
     "purpose": "Bounded local warning outputs for emergency or safety-critical feedback under policy control"
   },
-  "governance_output_note": "Governance reports such as interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are verification/evidence artifacts and must not be treated as operational authorization, policy authority, schema authority, caregiver approval authority, or actuation authority."
+  "governance_output_note": "Governance reports such as interface-matrix alignment reports, topic-drift reports, payload validation reports, clarification interaction validation reports, and proposed-change reports are verification/evidence artifacts and must not be treated as operational authorization, policy authority, schema authority, caregiver approval authority, Class 2 transition authority, or actuation authority."
 }

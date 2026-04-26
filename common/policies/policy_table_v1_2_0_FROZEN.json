@@ -280,7 +280,9 @@
       },
       "payload_contract": {
         "notification_schema_ref": "common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json",
+        "interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
         "recommended_interaction_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+        "interaction_schema_status": "current_governing_schema_for_class2_clarification_interaction_records",
         "required_core_fields": [
           "event_summary",
           "context_summary",
