@@ -10,6 +10,7 @@ Install the required components for the Mac mini, Raspberry Pi 5, ESP32 developm
 - device-aware
 - aligned with the frozen asset strategy
 - aligned with MQTT topic / payload contract governance
+- aligned with Class 2 clarification / transition verification needs
 - suitable for vibe-coding and reproducible bring-up
 
 This document does not replace the canonical frozen baseline.  
@@ -19,6 +20,8 @@ Current interface, communication, and payload references:
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
@@ -34,15 +37,15 @@ Current interface, communication, and payload references:
 - Keep **installation**, **configuration**, and **verification** separated.
 - Install Python-based applications inside **virtual environments** where host-side Python services are used.
 - Treat the Mac mini as the **primary operational hub**.
-- Treat the Raspberry Pi 5 as the **experiment dashboard, simulation, orchestration, replay, fault-injection, evaluation, and non-authoritative MQTT/payload governance support node**, not as a replacement for the Mac mini runtime.
+- Treat the Raspberry Pi 5 as the **experiment dashboard, simulation, orchestration, replay, fault-injection, evaluation, Class 2 transition verification, and non-authoritative MQTT/payload governance support node**, not as a replacement for the Mac mini runtime.
 - Treat ESP32 as the **embedded physical node layer** with its own cross-platform SDK/toolchain setup workflow.
 - Treat optional timing/measurement infrastructure as an **evaluation-only support path**, not part of the operational control path.
 - Ensure scripts fail fast and emit clear logs.
 - Complete **shared frozen assets** before implementation-side installation logic depends on them.
-- Prepare dependency support for MQTT topic registry loading, payload validation, topic drift checks, validation report export, and dashboard/governance backend/UI support where those components are implemented.
+- Prepare dependency support for MQTT topic registry loading, payload validation, clarification interaction payload validation, topic drift checks, validation report export, dashboard/governance backend/UI support, and Class 2 transition verifier execution where those components are implemented.
 - Keep governance dashboard UI separated from the MQTT/payload governance backend service.
 - Do not let install-time convenience rewrite canonical policy/schema truth.
-- Do not let installation of governance tooling create policy, validator, caregiver approval, audit, actuator, or doorlock execution authority.
+- Do not let installation of governance tooling create policy, validator, caregiver approval, audit, actuator, Class 2 transition, or doorlock execution authority.
 
 ---
 
@@ -54,14 +57,7 @@ safe_deferral/
 │   ├── policies/
 │   ├── schemas/
 │   ├── mqtt/
-│   │   ├── README.md
-│   │   ├── topic_registry_v1_0_0.json
-│   │   ├── publisher_subscriber_matrix_v1_0_0.md
-│   │   └── topic_payload_contracts_v1_0_0.md
 │   ├── payloads/
-│   │   ├── README.md
-│   │   ├── examples/
-│   │   └── templates/
 │   ├── docs/
 │   │   ├── architecture/
 │   │   ├── runtime/
@@ -106,14 +102,15 @@ safe_deferral/
 The following shared assets should be prepared before implementation depends on them.
 
 ### Required canonical frozen authority assets
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 - `common/terminology/TERM_FREEZE_CONTEXT_INTEGRITY_SAFE_DEFERRAL_STAGE.md`
 
 ### Required communication / payload reference assets
@@ -129,6 +126,14 @@ The following shared assets should be prepared before implementation depends on 
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
+- `common/docs/architecture/20_scenario_data_flow_matrix.md`
+
+### Required Class 2 clarification / transition references
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+- Class 2 clarification scenario fixtures under `integration/scenarios/` when implemented
+- Class 2 transition verifier fixtures under `integration/tests/` when implemented
+- Class 2-to-Class 1, Class 2-to-Class 0, and Class 2 timeout/safe-deferral scenario definitions when implemented
 
 ### Optional or version-sensitive companion assets
 - output profile assets
@@ -142,6 +147,8 @@ Canonical policy and schema truth remains under `common/policies/` and `common/s
 `common/mqtt/` and `common/payloads/` are shared reference layers for communication contracts and payload examples/templates. They must not override canonical policy or schema authority.
 
 `common/docs/architecture/15_interface_matrix.md` is the MQTT-aware interface contract reference used to guide topic-facing installation, configuration, and later verification assumptions.
+
+`clarification_interaction_schema_v1_0_0_FROZEN.json` is the current Class 2 clarification interaction schema. Install scripts may verify that it is present and prepare dependencies for validating it, but they must not promote clarification payloads into validator approval, actuation authorization, emergency trigger authority, or doorlock authorization.
 
 ---
 
@@ -172,7 +179,9 @@ Recommended responsibilities:
 - verify network connectivity
 - prepare workspace directories
 - verify that required frozen asset baseline is present before install-dependent implementation proceeds
-- verify that `common/mqtt/`, `common/payloads/`, `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, and `12_prompts_mqtt_payload_governance.md` exist when registry/payload-aware implementation is in scope
+- verify that `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` exists
+- verify that `common/mqtt/`, `common/payloads/`, `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist when registry/payload-aware implementation is in scope
+- verify that install-time checks do not claim Class 2 transition or actuation correctness; those belong to configuration/verification/integration stages
 
 #### `10_install_homebrew_deps.sh`
 Install or verify required macOS package dependencies.
@@ -211,6 +220,7 @@ Recommended responsibilities:
 - prepare volume mount paths
 - prepare runtime configuration directories
 - prepare mount/path assumptions for deployed or synchronized MQTT registry and payload reference files when needed
+- prepare runtime path assumptions for `clarification_interaction_schema_v1_0_0_FROZEN.json` and Class 2 audit output when implemented
 
 #### `30_setup_python_venv_mac.sh`
 Create the Mac mini Python virtual environment.
@@ -225,6 +235,8 @@ Recommended responsibilities:
 - prepare dependency support for JSON schema validation
 - prepare dependency support for MQTT topic registry loading
 - prepare dependency support for payload validation helpers
+- prepare dependency support for clarification interaction payload validation
+- prepare dependency support for Class 2 transition verifier adapters when implemented
 - prepare dependency support for payload example validation
 - prepare dependency support for topic drift checks where implemented
 - prepare dependency support for validation report export where implemented
@@ -240,6 +252,7 @@ Recommended responsibilities:
   - Policy Router
   - Deterministic Validator
   - Context-Integrity Safe Deferral Handler
+  - Class 2 Clarification Manager
   - Audit Logging Service
   - Outbound Notification Interface
   - Caregiver Confirmation Backend
@@ -249,6 +262,7 @@ Recommended responsibilities:
   should live under `mac_mini/code/`, not inside install scripts.
 - Compose files, runtime directories, and local runtime assets under `mac_mini/runtime/` are deployment/runtime surfaces, not the canonical source of policy truth.
 - Mac mini runtime apps should not hardcode MQTT topics or payload contracts where registry lookup is practical.
+- Class 2 Clarification Manager installation support must remain platform/dependency preparation only; it does not create actuation authority.
 
 ---
 
@@ -266,6 +280,8 @@ It should install only the dependencies required for:
 - governance dashboard UI
 - topic/payload contract validation utility
 - payload example manager / validator
+- clarification interaction payload validator
+- Class 2 transition verifier
 - publisher/subscriber role manager
 - virtual context generation
 - virtual `doorbell_detected` visitor-response context generation
@@ -273,6 +289,7 @@ It should install only the dependencies required for:
 - fault injection
 - scenario orchestration
 - scenario replay
+- Class 2-to-Class 1 / Class 2-to-Class 0 / Class 2 timeout scenario replay
 - progress/status publication
 - result artifact export
 - closed-loop automated verification
@@ -284,6 +301,7 @@ It should **not** install or host Mac mini operational hub services or authoriti
 - Policy Router
 - Deterministic Validator
 - Context-Integrity Safe Deferral Handler
+- Class 2 Clarification Manager
 - hub-side operational audit authority
 - validator authority
 - caregiver approval authority
@@ -292,6 +310,7 @@ It should **not** install or host Mac mini operational hub services or authoriti
 - direct registry-file editing through dashboard UI
 - canonical policy/schema editing authority
 - governance backend publishing actuator or doorlock commands
+- Class 2 transition authority
 
 ### Frozen / expected script set
 - `00_preflight_rpi.sh`
@@ -314,6 +333,7 @@ Recommended responsibilities:
 - prepare workspace directories
 - confirm evaluation-node-only installation assumptions
 - verify registry/payload reference path expectations when synchronized copies are required later
+- verify that the Class 2 clarification schema and scenario/test fixture directories are present when Class 2 transition evaluation is in scope
 
 #### `10_install_system_packages_rpi.sh`
 Install Raspberry Pi system packages.
@@ -354,6 +374,8 @@ Representative dependencies:
 - governance backend service dependencies when implemented
 - governance dashboard UI dependencies when implemented
 - payload/schema validation helper dependencies
+- clarification interaction payload validation dependencies
+- Class 2 transition verifier dependencies
 - payload example validation dependencies
 - CSV/JSON export dependencies
 - validation report export dependencies
@@ -376,12 +398,12 @@ Recommended responsibilities:
 
 - Raspberry Pi 5 should consume synchronized runtime copies of frozen assets later during configuration, not invent local policy truth during installation.
 - Install scripts should remain **rerunnable**, **stage-verifiable**, and clearly bounded to the evaluation path.
-- The purpose of the Raspberry Pi install layer is to prepare a stable base for dashboard, simulation, orchestration, fault-injection, result export, governance support, and experiment execution, not to recreate the Mac mini runtime stack.
+- The purpose of the Raspberry Pi install layer is to prepare a stable base for dashboard, simulation, orchestration, fault-injection, Class 2 transition verification, result export, governance support, and experiment execution, not to recreate the Mac mini runtime stack.
 - MQTT/payload governance tooling on Raspberry Pi is allowed only as backend-supported inspection, validation, draft/report generation, and dashboard UI support.
 - Governance dashboard UI must remain separated from the governance backend service.
-- Governance dashboard installation must not introduce policy override, validator override, caregiver approval spoofing, direct registry-file editing, direct actuator command authority, or doorlock dispatch authority.
+- Governance dashboard installation must not introduce policy override, validator override, caregiver approval spoofing, direct registry-file editing, direct actuator command authority, Class 2 transition authority, or doorlock dispatch authority.
 - Governance backend installation must not introduce canonical policy/schema editing authority or actuator/doorlock command publishing authority.
-- Canonical policy/schema/rules consistency verification and topic/payload contract verification belong to the **verify** stage, while install scripts only prepare the dependencies and runtime needed for those checks.
+- Canonical policy/schema/rules consistency verification, topic/payload contract verification, clarification interaction schema verification, and Class 2 transition verification belong to the **verify/integration** stage, while install scripts only prepare the dependencies and runtime needed for those checks.
 
 ---
 
@@ -396,7 +418,7 @@ Recommended responsibilities:
 - `esp32/docs/`
 
 ### Role
-ESP32 nodes are bounded physical clients, but the repository now contains an explicit cross-platform host-side setup path for ESP32 development.
+ESP32 nodes are bounded physical clients, but the repository contains an explicit cross-platform host-side setup path for ESP32 development.
 
 The install layer prepares:
 - host prerequisite packages
@@ -494,7 +516,7 @@ Installation or build preparation is not responsible for full runtime correctnes
 Goal:  
 Software, runtimes, toolchains, or build prerequisites are present on the target platform.
 
-Installation may prepare dependency support and filesystem paths for later MQTT registry loading, payload example/template access, dashboard runtime, governance backend service, governance dashboard UI, topic drift checks, validation report export, and topic/payload validation, but actual topic/payload consistency checks belong to verification.
+Installation may prepare dependency support and filesystem paths for later MQTT registry loading, payload example/template access, dashboard runtime, governance backend service, governance dashboard UI, topic drift checks, clarification interaction payload validation, Class 2 transition verification, validation report export, and topic/payload validation, but actual topic/payload/Class 2 consistency checks belong to verification or integration tests.
 
 ### Configuration
 Goal:  
@@ -504,9 +526,19 @@ Installed components are aligned with the safe deferral architecture.
 Goal:  
 Each component works correctly before integration begins.
 
+Required Class 2 verification targets prepared by install/configure but executed in verify/integration stages:
+- clarification interaction schema installation check
+- Class 2 clarification fixture installation check
+- Class 2 transition verifier dependency check
+- Class 2-to-Class 1 replay/verification support
+- Class 2-to-Class 0 replay/verification support
+- Class 2 timeout/safe-deferral replay/verification support
+- audit path readiness for clarification candidates, selections, timeouts, transition targets, and final safe outcomes
+
 Related directories:
 - `common/mqtt/`
 - `common/payloads/`
+- `common/schemas/`
 - `mac_mini/scripts/configure/`
 - `mac_mini/scripts/verify/`
 - `rpi/scripts/configure/`
@@ -526,8 +558,10 @@ Related directories:
 Before device-specific installation proceeds:
 - verify required frozen assets exist
 - verify canonical baseline version set is present
+- verify `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` exists
 - verify MQTT topic registry and payload reference directories exist
-- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- verify active architecture references `15_interface_matrix.md`, `16_system_architecture_figure.md`, `17_payload_contract_and_registry.md`, `19_class2_clarification_architecture_alignment.md`, `20_scenario_data_flow_matrix.md`, and `12_prompts_mqtt_payload_governance.md` exist
+- verify Class 2 clarification fixture directories or planned locations exist when Class 2 transition evaluation is in scope
 - ensure install-dependent work is not starting from an incomplete frozen/reference state
 
 ### Mac mini
@@ -596,6 +630,8 @@ Examples:
 - file/path checks
 - topic registry loading helpers
 - payload validation helpers
+- clarification interaction validation helpers
+- Class 2 transition verifier helpers
 - topic drift check helpers
 - governance backend/UI separation check helpers
 - validation report export helpers
@@ -617,12 +653,14 @@ These should remain auxiliary utilities, not replace the device-specific install
 - keep embedded SDK/toolchain setup separate from actual firmware implementation
 - keep timing/measurement support documented separately from the operational control path when out-of-band evaluation is used
 - do not hardcode MQTT topic strings or payload contracts in install-time generated app configs where registry lookup is practical
-- install scripts may prepare registry/payload paths but must not rewrite policy/schema truth
+- install scripts may prepare registry/payload/schema paths but must not rewrite policy/schema truth
+- install scripts may prepare dependencies for clarification interaction payload validation and Class 2 transition verification, but actual Class 2 verification belongs to verify/integration stages
 - install scripts may prepare dependencies for topic drift checks, but actual drift checks belong to verification
 - dashboard/governance tooling installed by Raspberry Pi scripts must remain non-authoritative
 - governance dashboard UI must not directly edit registry files
 - governance backend must not directly modify canonical policies or schemas
 - governance tooling must not publish actuator or doorlock commands
+- governance or install tooling must not convert clarification payloads into authorization payloads
 - prevent deployment-local runtime files or synchronized copies from redefining canonical frozen policy truth
 
 ---
@@ -630,12 +668,13 @@ These should remain auxiliary utilities, not replace the device-specific install
 ## Architectural Summary
 
 - Mac mini install scripts prepare the operational hub
-- Raspberry Pi install scripts prepare the dashboard/simulation/orchestration/fault-injection/evaluation/governance-support node only
+- Raspberry Pi install scripts prepare the dashboard/simulation/orchestration/fault-injection/evaluation/governance-support/Class 2 transition verification node only
 - Raspberry Pi does not replace the Mac mini runtime stack
 - Raspberry Pi governance support remains non-authoritative and must preserve governance backend/UI separation
 - ESP32 install scripts prepare the cross-platform ESP-IDF development environment for bounded physical node implementation, including future doorbell / visitor-arrival context node work
 - optional timing/measurement readiness prepares out-of-band latency evaluation support
 - shared frozen assets in `common/policies/` and `common/schemas/` define the policy/schema authority state
+- `clarification_interaction_schema_v1_0_0_FROZEN.json` defines the current Class 2 clarification interaction payload structure
 - shared MQTT contracts in `common/mqtt/` and payload examples/templates in `common/payloads/` define reference state for communication and payload governance
 - `common/docs/architecture/15_interface_matrix.md` defines the MQTT-aware interface contract reference
 - install scripts and embedded build preparation establish the platform only
