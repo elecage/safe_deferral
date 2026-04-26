@@ -16,6 +16,7 @@
     "doorbell_detected is visitor-response context only and must not authorize emergency handling or autonomous doorlock control.",
     "Doorlock-sensitive outcomes must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.",
     "LLM candidate/guidance topics never authorize actuation.",
+    "Class 2 clarification interaction payloads are evidence/transition records and must not be treated as validator approval, actuation commands, emergency trigger authority, or doorlock authorization.",
     "Governance dashboard UI must not publish operational control topics, expose unrestricted actuator consoles, or expose direct doorlock command controls.",
     "Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert draft/proposed changes into live authority without review.",
     "FAULT_CONTRACT_DRIFT_01 is a governance/verification fault profile and must not be treated as an operational control path."
@@ -295,6 +296,49 @@
         "manual_confirmation_path is not autonomous execution authority.",
         "Doorlock-sensitive outcomes should use escalation/manual confirmation path.",
         "Class 2 notification is not terminal failure by itself."
+      ]
+    },
+    {
+      "topic": "safe_deferral/clarification/interaction",
+      "description": "Class 2 clarification interaction artifact carrying bounded candidate choices, selection result, timeout/no-response result, transition target, and final safe outcome evidence.",
+      "publishers": [
+        "mac_mini.class2_clarification_manager",
+        "mac_mini.caregiver_confirmation_backend"
+      ],
+      "publisher_roles": {
+        "mac_mini_runtime_publisher": [
+          "mac_mini.class2_clarification_manager",
+          "mac_mini.caregiver_confirmation_backend"
+        ]
+      },
+      "subscribers": [
+        "mac_mini.audit_logging_service_observer_optional",
+        "rpi.dashboard_telemetry_bridge_optional",
+        "rpi.class2_transition_verifier_optional"
+      ],
+      "subscriber_roles": {
+        "observer_subscriber": [
+          "mac_mini.audit_logging_service_observer_optional",
+          "rpi.dashboard_telemetry_bridge_optional",
+          "rpi.class2_transition_verifier_optional"
+        ]
+      },
+      "payload_family": "clarification_interaction_payload",
+      "schema": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+      "example_payload": null,
+      "qos": 1,
+      "retain": false,
+      "authority_level": "class2_interaction_evidence_not_authority",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": true,
+      "notes": [
+        "Candidate choices are guidance only and do not authorize actuation.",
+        "Selection results require Policy Router re-entry.",
+        "Class 1 transition still requires Deterministic Validator approval.",
+        "Class 0 transition requires deterministic emergency evidence or explicit emergency confirmation.",
+        "Timeout/no-response must not infer user intent.",
+        "This topic must not authorize doorlock control."
       ]
     },
     {
