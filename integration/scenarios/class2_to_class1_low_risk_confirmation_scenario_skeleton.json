@@ -1,0 +1,121 @@
+{
+  "scenario_id": "SCN_CLASS2_TO_CLASS1_LOW_RISK_CONFIRMATION",
+  "title": "Class 2 to Class 1 low-risk confirmation transition scenario",
+  "description": "Deterministic scenario skeleton for a Class 2 clarification path where the user or caregiver selects a bounded low-risk lighting candidate. The selection must re-enter the Policy Router and still requires Deterministic Validator approval before Class 1 bounded actuation.",
+  "category": "class2_transition",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an ambiguous but non-emergency context payload that cannot safely resolve the target device without clarification.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_clarification_state",
+      "description": "Route to Class 2 clarification. Candidate generation may be used for bounded guidance only."
+    },
+    {
+      "step_id": 3,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish bounded candidate choices to safe_deferral/clarification/interaction. The payload is evidence only and not actuation authorization.",
+      "payload_fixture": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+    },
+    {
+      "step_id": 4,
+      "action": "collect_low_risk_selection",
+      "description": "Collect user or caregiver selection of a low-risk lighting candidate. The selection does not directly authorize actuation."
+    },
+    {
+      "step_id": 5,
+      "action": "reenter_policy_router_and_validate",
+      "description": "Re-enter the Policy Router and require Deterministic Validator approval against the frozen low-risk lighting catalog before any Class 1 dispatch."
+    },
+    {
+      "step_id": 6,
+      "action": "observe_audit_stream",
+      "description": "Observe audit evidence for candidate presentation, selection, Policy Router re-entry, validator approval, and bounded Class 1 outcome."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_OR_VOICE_OUTPUT",
+      "DISPLAY_OUTPUT",
+      "ACCESSIBLE_FEEDBACK_OUTPUT"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE",
+      "VOICE_INPUT",
+      "CAREGIVER_CONFIRMATION"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_1",
+    "requires_policy_router_reentry": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_1",
+      "condition": "User or caregiver confirms a bounded lighting candidate and the Deterministic Validator approves it after Policy Router re-entry.",
+      "allowed_next_path": "policy_router_reentry_then_validator_then_bounded_low_risk_assistance_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_1"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false,
+    "allowed_action_catalog_ref": "common/policies/low_risk_actions_v1_1_0_FROZEN.json"
+  },
+  "notes": [
+    "This scenario proves that a Class 2 selection does not bypass Policy Router re-entry or Deterministic Validator approval.",
+    "Candidate text alone does not authorize actuation.",
+    "Only frozen low-risk lighting actions may be admitted for Class 1 transition.",
+    "Doorlock must not be treated as a Class 1 low-risk action."
+  ]
+}
