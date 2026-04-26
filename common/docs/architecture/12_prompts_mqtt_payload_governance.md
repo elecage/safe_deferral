@@ -24,6 +24,8 @@ This prompt set is for:
 - dashboard UI integration,
 - governance audit trail,
 - clarification interaction payload validation,
+- dedicated Class 2 clarification interaction topic validation,
+- scenario fixture `class2_clarification_expectation` validation,
 - and non-authoritative inspection workflows.
 
 ## Required references
@@ -36,16 +38,21 @@ Before implementing any component from this prompt set, the agent must read:
 - `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry_v1_1_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
+- `common/payloads/templates/scenario_fixture_template.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
 - `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
 - `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
+
+Historical MQTT registry baseline:
+
+- `common/mqtt/topic_registry_v1_0_0.json`
 
 ## Payload family separation
 
@@ -61,6 +68,20 @@ pure_context_payload
 ```
 
 `clarification_interaction_payload` may contain candidate choices, selection result, timeout result, transition target, and final safe outcome. It must not contain actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval.
+
+Current dedicated MQTT topic for published Class 2 clarification interaction artifacts:
+
+```text
+safe_deferral/clarification/interaction
+```
+
+Expected contract:
+
+```text
+payload_family: clarification_interaction_payload
+schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+authority_level: class2_interaction_evidence_not_authority
+```
 
 ## Non-negotiable authority boundary
 
@@ -84,6 +105,7 @@ It must not:
 - override Policy Router or Deterministic Validator decisions,
 - treat `clarification_interaction_payload` as validator approval or actuator authorization,
 - treat Class 2 candidate text as emergency trigger evidence,
+- treat `safe_deferral/clarification/interaction` as an authorization topic,
 - or convert draft/proposed registry changes into live operational authority without review.
 
 The dashboard UI must remain a presentation and interaction layer only.  
@@ -103,7 +125,8 @@ Target repository areas:
 
 Requirements:
 - Load topic definitions from:
-  - common/mqtt/topic_registry_v1_0_0.json
+  - common/mqtt/topic_registry_v1_1_0.json
+- Treat common/mqtt/topic_registry_v1_0_0.json as historical baseline only unless an explicit migration/compatibility test requires it.
 - Do not hardcode MQTT topic strings where registry lookup is practical.
 - Expose lookup functions such as:
   - get_topic(topic_id)
@@ -114,28 +137,42 @@ Requirements:
   - get_example_payload_path(topic_id)
   - get_allowed_publishers(topic_id)
   - get_allowed_subscribers(topic_id)
+  - get_publisher_roles(topic_id)
+  - get_subscriber_roles(topic_id)
+  - get_authority_level(topic_id)
+  - is_allowed_in_operational_runtime(topic_id)
+  - is_allowed_in_experiment_runtime(topic_id)
 - Validate that every registry entry has:
   - topic or topic pattern
-  - stable topic_id or equivalent key
   - publisher list
   - subscriber list
+  - publisher_roles where role metadata is provided
+  - subscriber_roles where role metadata is provided
   - payload family
   - QoS
   - retain flag
   - authority level
+  - allowed_in_operational_runtime
+  - allowed_in_experiment_runtime
+- Validate role_classes coverage where role metadata is used.
 - Validate that schema paths and example payload paths resolve when specified.
 - Validate that MQTT-facing behavior remains aligned with:
   - common/docs/architecture/15_interface_matrix.md
+  - common/docs/architecture/17_payload_contract_and_registry.md
   - common/mqtt/publisher_subscriber_matrix_v1_0_0.md
   - common/mqtt/topic_payload_contracts_v1_0_0.md
 - Validate topic/payload hardcoding drift where implementation files are in scope.
 - Validate that dashboard/governance topics are marked non-authoritative.
 - Validate that RPi simulation/fault topics are marked experiment-only unless explicitly allowed otherwise.
 - Validate that Class 2 clarification or notification topics do not imply actuator authorization.
+- Validate that safe_deferral/clarification/interaction maps to clarification_interaction_payload.
+- Validate that safe_deferral/clarification/interaction uses common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json.
+- Validate that safe_deferral/clarification/interaction uses authority_level class2_interaction_evidence_not_authority.
+- Validate that safe_deferral/clarification/interaction does not become validator approval, actuation command, emergency trigger authority, or doorlock authorization.
 - Validate that `clarification_interaction_payload` remains distinct from pure context, validator output, and actuation command payloads.
 - Validate that doorbell-related topics do not authorize autonomous doorlock control.
 - Produce a machine-readable validation report and a concise human-readable summary.
-- Include unit tests for valid registry, missing topic_id, missing publisher/subscriber lists, missing payload family, unresolved schema path, unresolved example payload path, interface-matrix mismatch, topic drift, clarification payload authority escalation, and forbidden authority escalation.
+- Include unit tests for valid registry, missing publisher/subscriber lists, missing role metadata where required, missing payload family, unresolved schema path, unresolved example payload path, interface-matrix mismatch, topic drift, clarification payload authority escalation, invalid safe_deferral/clarification/interaction authority level, and forbidden authority escalation.
 ```
 
 ---
@@ -175,6 +212,8 @@ Requirements:
   - link example payload path to topic
   - validate payload example against referenced schema
   - validate clarification interaction payloads against common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+  - validate safe_deferral/clarification/interaction topic contract
+  - validate scenario fixture class2_clarification_expectation blocks when fixture templates are in scope
   - run interface-matrix alignment check
   - run topic/payload hardcoding drift check where implementation files are in scope
   - export proposed registry changes
@@ -191,16 +230,18 @@ Requirements:
 - The service must not spoof caregiver approval.
 - The service must not dispatch doorlock commands.
 - The service must not treat clarification candidate text as Policy Router output, validator approval, actuator authorization, or emergency evidence.
+- The service must not promote safe_deferral/clarification/interaction into actuation, validator approval, emergency trigger, or doorlock authorization.
 - The service must not convert draft/proposed changes into live operational authority without review.
 - Store edit history or change proposals as governance artifacts, not as policy truth.
 - Include validation rules for:
-  - required topic_id
+  - required topic string or topic pattern
   - unique topic string or topic pattern
   - valid publisher/subscriber role lists
   - valid payload family
   - schema path existence when required
   - example payload path existence when required
   - clarification interaction schema conformance
+  - safe_deferral/clarification/interaction contract conformance
   - interface-matrix alignment
   - topic/payload hardcoding drift where applicable
   - forbidden dashboard/control authority escalation
@@ -246,6 +287,7 @@ Required UI capabilities:
 - operational vs experiment-only flag viewer/editor for draft entries
 - validation result panel
 - clarification interaction payload validation result panel
+- safe_deferral/clarification/interaction topic detail and validation panel
 - interface-matrix alignment result panel
 - topic/payload drift warning panel where implemented
 - diff/proposed-change preview
@@ -260,6 +302,7 @@ Required safety warnings:
 - Highlight when a topic appears to grant dashboard/control authority.
 - Highlight when a topic appears to allow unrestricted actuation.
 - Highlight when a topic appears to allow doorlock control outside caregiver-mediated/manual-confirmation paths.
+- Highlight when safe_deferral/clarification/interaction appears to grant validator approval, actuation authority, emergency trigger authority, or doorlock authorization.
 - Highlight when a clarification interaction payload appears to contain actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval.
 - Highlight when a payload example omits `environmental_context.doorbell_detected` where context schema validity is required.
 - Highlight when doorlock state appears inside current `pure_context_payload.device_states`.
@@ -278,6 +321,7 @@ Forbidden UI behavior:
 Include tests or verification notes for:
 - topic list rendering
 - topic detail rendering
+- safe_deferral/clarification/interaction evidence-only rendering
 - create draft flow
 - edit draft flow
 - delete draft flow
@@ -313,6 +357,11 @@ Requirements:
   - common/payloads/examples/
 - Load payload templates from:
   - common/payloads/templates/
+- Validate scenario fixture templates that include class2_clarification_expectation.
+- Ensure class2_clarification_expectation.clarification_topic is safe_deferral/clarification/interaction.
+- Ensure class2_clarification_expectation.clarification_schema_ref is common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json.
+- Ensure class2_clarification_expectation.clarification_payload_is_not_authorization is true.
+- Ensure class2_clarification_expectation.timeout_must_not_infer_intent is true.
 - Validate schema-governed examples against the corresponding schema files under common/schemas/.
 - Support listing examples by payload family.
 - Support viewing payload examples without modifying them.
@@ -327,10 +376,11 @@ Requirements:
   - clarification_interaction_payload is separate from pure_context_payload and class_2_notification_payload
   - clarification_interaction_payload may contain candidate choices, selection result, timeout result, transition_target, and final_safe_outcome
   - clarification_interaction_payload must not contain actuator authorization, emergency trigger authority, validator approval, or doorlock unlock approval
+  - safe_deferral/clarification/interaction is evidence/transition state only
   - doorlock state must not appear in current pure_context_payload.device_states
   - manual approval state must not appear in pure_context_payload
   - ACK state must not appear in pure_context_payload
-- Include tests for valid examples, missing doorbell_detected, valid clarification interaction payload, invalid clarification interaction payload with actuator authority, doorlock-in-device-states, unresolved schema path, unresolved example path, and invalid payload family.
+- Include tests for valid examples, missing doorbell_detected, valid clarification interaction payload, invalid clarification interaction payload with actuator authority, valid class2_clarification_expectation block, invalid clarification topic in scenario fixture template, doorlock-in-device-states, unresolved schema path, unresolved example path, and invalid payload family.
 ```
 
 ---
@@ -352,6 +402,7 @@ Requirements:
   - mac_mini.local_llm_adapter
   - mac_mini.class2_clarification_manager
   - mac_mini.audit_logging_service
+  - mac_mini.audit_logging_service_observer_optional
   - mac_mini.dispatcher_low_risk_path
   - mac_mini.dispatcher_manual_path
   - mac_mini.caregiver_confirmation_backend
@@ -360,6 +411,8 @@ Requirements:
   - rpi.scenario_orchestrator
   - rpi.dashboard_backend
   - rpi.dashboard_frontend
+  - rpi.dashboard_telemetry_bridge_optional
+  - rpi.class2_transition_verifier_optional
   - rpi.mqtt_payload_governance_backend
   - esp32.button_node
   - esp32.lighting_control_node
@@ -369,7 +422,9 @@ Requirements:
 - Validate that topic publishers and subscribers refer to known roles or explicitly marked extension roles.
 - Distinguish operational roles from experiment-only roles.
 - Distinguish dashboard/gov roles from policy/validator/dispatcher roles.
+- Validate that mac_mini.class2_clarification_manager and mac_mini.caregiver_confirmation_backend are allowed publishers for safe_deferral/clarification/interaction.
+- Validate that mac_mini.audit_logging_service_observer_optional, rpi.dashboard_telemetry_bridge_optional, and rpi.class2_transition_verifier_optional remain observer subscribers for safe_deferral/clarification/interaction.
 - Prevent dashboard/gov roles from being assigned direct actuator or caregiver approval authority unless explicitly marked as controlled test-mode roles.
 - Prevent Class 2 clarification publisher/subscriber roles from being assigned direct actuator, emergency trigger, validator approval, or doorlock unlock authority.
-- Include tests for valid roles, unknown roles, dashboard role assigned to forbidden authority, Class 2 clarification role assigned to forbidden authority, RPi simulation role assigned to operational-only topic, and ESP32 role assigned to policy authority.
+- Include tests for valid roles, unknown roles, dashboard role assigned to forbidden authority, Class 2 clarification role assigned to forbidden authority, RPi simulation role assigned to operational-only topic, invalid safe_deferral/clarification/interaction publisher, invalid safe_deferral/clarification/interaction authority level, and ESP32 role assigned to policy authority.
 ```
