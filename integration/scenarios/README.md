@@ -1,8 +1,8 @@
 # integration/scenarios
 
-이 디렉터리는 **deterministic scenario, stress scenario, fault-injection scenario, reproducible evaluation package**를 두는 공간이다.
+이 디렉터리는 deterministic scenario, stress scenario, fault-injection scenario, reproducible evaluation package를 두는 공간이다.
 
-이 디렉터리의 파일은 canonical policy/schema truth가 아니다. Scenario는 `common/` 아래 frozen policy, frozen schema, MQTT registry, interface matrix를 소비하는 **integration-side evaluation asset**이다.
+Scenario 파일은 canonical policy/schema truth가 아니다. Scenario는 `common/` 아래 frozen policy, frozen schema, MQTT registry, interface matrix를 소비하는 integration-side evaluation asset이다.
 
 ---
 
@@ -33,11 +33,17 @@ common/policies/policy_table_v1_2_0_FROZEN.json
 Low-risk action catalog:
 common/policies/low_risk_actions_v1_1_0_FROZEN.json
 
+Fault injection rules:
+common/policies/fault_injection_rules_v1_4_0_FROZEN.json
+
 Pure context schema:
 common/schemas/context_schema_v1_0_0_FROZEN.json
 
 Policy-router input schema:
 common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json
+
+Candidate action schema:
+common/schemas/candidate_action_schema_v1_0_0_FROZEN.json
 
 Validator output schema:
 common/schemas/validator_output_schema_v1_1_0_FROZEN.json
@@ -48,17 +54,31 @@ common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
 Class 2 clarification interaction schema:
 common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 
-MQTT topic registry:
-common/mqtt/topic_registry_v1_0_0.json
+Current MQTT topic registry:
+common/mqtt/topic_registry_v1_1_0.json
+
+MQTT payload contracts:
+common/mqtt/topic_payload_contracts_v1_0_0.md
+
+Interface matrix:
+common/docs/architecture/15_interface_matrix.md
+
+Payload registry:
+common/docs/architecture/17_payload_contract_and_registry.md
+
+Class 2 architecture alignment:
+common/docs/architecture/19_class2_clarification_architecture_alignment.md
 ```
 
-Historical baseline:
+Historical baselines:
 
 ```text
 common/policies/policy_table_v1_1_2_FROZEN.json
+common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json
+common/mqtt/topic_registry_v1_0_0.json
 ```
 
-`policy_table_v1_1_2_FROZEN.json`은 Class 2 clarification / transition 의미가 반영된 현재 기준이 아니며, 현재 scenario alignment 기준은 `policy_table_v1_2_0_FROZEN.json`이다.
+Historical baselines must not be used as the current scenario alignment authority when they conflict with Class 2 clarification / transition semantics.
 
 ---
 
@@ -68,44 +88,17 @@ JSON skeleton만 보면 의미를 빠르게 파악하기 어려울 수 있으므
 
 - `scenario_review_guide.md`
 - `scenario_manifest_rules.md`
+- `scenario_manifest_schema.json`
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
-
-이 문서들은 다음을 설명한다.
-
-- 각 scenario가 실제로 무엇을 시험하는지
-- 왜 필요한지
-- 어떤 결과가 안전한지
-- 어떤 결과가 위험 신호인지
-- 실제 사용 맥락에서 어떻게 읽어야 하는지
-- scenario가 어떤 MQTT topic, policy, schema, fixture boundary를 따라야 하는지
-- Class 2가 어떻게 후보 제시, 사용자/보호자 확인, Class 0/Class 1/Safe Deferral 전이로 이어지는지
-
-그 다음에 JSON skeleton과 fixture를 보는 것이 자연스럽다.
+- `common/mqtt/topic_registry_v1_1_0.json`
+- `common/mqtt/topic_payload_contracts_v1_0_0.md`
 
 ---
 
 ## 현재 반영된 scenario skeleton
 
 현재 다음 skeleton이 반영되어 있다.
-
-- `baseline_scenario_skeleton.json`
-- `class0_e001_scenario_skeleton.json`
-- `class0_e002_scenario_skeleton.json`
-- `class0_e003_scenario_skeleton.json`
-- `class0_e004_scenario_skeleton.json`
-- `class0_e005_scenario_skeleton.json`
-- `class1_baseline_scenario_skeleton.json`
-- `class2_insufficient_context_scenario_skeleton.json`
-- `stale_fault_scenario_skeleton.json`
-- `conflict_fault_scenario_skeleton.json`
-- `missing_state_scenario_skeleton.json`
-
-이 파일들은 canonical truth가 아니라 **integration-side scenario assets**다.
-
----
-
-## skeleton 분류
 
 ### Baseline / class-oriented
 
@@ -124,13 +117,22 @@ JSON skeleton만 보면 의미를 빠르게 파악하기 어려울 수 있으므
 - `conflict_fault_scenario_skeleton.json`
 - `missing_state_scenario_skeleton.json`
 
+### Recommended next Class 2 skeletons
+
+The following skeletons should be added in the next scenario-expansion pass.
+
+- `class2_to_class1_low_risk_confirmation_scenario_skeleton.json`
+- `class2_to_class0_emergency_confirmation_scenario_skeleton.json`
+- `class2_timeout_no_response_safe_deferral_scenario_skeleton.json`
+- `class2_caregiver_confirmation_doorlock_sensitive_scenario_skeleton.json`
+
 ---
 
 ## 공통 구조 원칙
 
 현재 skeleton들은 가능한 한 공통 필드를 맞추도록 작성되어 있다.
 
-대표 필드:
+Representative fields:
 
 - `scenario_id`
 - `title`
@@ -140,66 +142,73 @@ JSON skeleton만 보면 의미를 빠르게 파악하기 어려울 수 있으므
 - `input_plane`
 - `preconditions`
 - `steps`
+- `clarification_interaction`, for Class 2 scenarios
+- `class2_clarification_expectation`, for Class 2 transition scenarios
+- `transition_outcomes`, for Class 2 scenarios
 - `expected_outcomes`
 - `notes`
-
-Class 2 clarification / transition scenario는 추가로 다음 필드를 사용할 수 있다.
-
-- `clarification_interaction`
-- `transition_outcomes`
-- step-level `candidate_choices`
-- `expected_outcomes.class2_role`
-- `expected_outcomes.candidate_generation_allowed`
-- `expected_outcomes.candidate_generation_authorizes_actuation`
-- `expected_outcomes.confirmation_required_before_transition`
-- `expected_outcomes.allowed_transition_targets`
-
-추가 규칙 문서는 아래를 참조한다.
-
-- `scenario_manifest_rules.md`
-- `scenario_manifest_schema.json`
 
 ---
 
 ## MQTT topic boundary
 
-Scenario skeleton은 현재 MQTT registry와 interface matrix에 맞춰야 한다.
+Scenario skeletons must align with the current MQTT registry and interface matrix.
 
-기본 namespace는 다음이다.
+Current registry:
+
+```text
+common/mqtt/topic_registry_v1_1_0.json
+```
+
+Historical registry baseline:
+
+```text
+common/mqtt/topic_registry_v1_0_0.json
+```
+
+Default namespace:
 
 ```text
 safe_deferral/...
 ```
 
-ordinary context/input scenario의 기본 ingress topic은 다음이어야 한다.
+Ordinary context/input scenario ingress topic:
 
 ```text
 safe_deferral/context/input
 ```
 
-Class 0 emergency scenario의 기본 ingress topic은 다음이어야 한다.
+Class 0 emergency scenario ingress topic:
 
 ```text
 safe_deferral/emergency/event
 ```
 
-Class 2 clarification flow는 현재 별도 topic registry version 없이 기존 topic으로 표현한다.
+Class 2 notification topic:
 
 ```text
-safe_deferral/context/input
-safe_deferral/deferral/request
 safe_deferral/escalation/class2
+```
+
+Class 2 clarification interaction evidence topic:
+
+```text
+safe_deferral/clarification/interaction
+```
+
+Class 2 caregiver confirmation topic:
+
+```text
 safe_deferral/caregiver/confirmation
+```
+
+Audit observation topic:
+
+```text
 safe_deferral/audit/log
 ```
 
-단, Class 0 fixture가 아직 `policy_router_input` wrapper 형태인 경우에는 scenario가 다음을 명확히 구분해야 한다.
-
-- emergency event ingress topic: `safe_deferral/emergency/event`
-- normalized policy-input bridge, if used: controlled experiment/runtime bridge
-- audit observation topic: `safe_deferral/audit/log`
-
-Legacy topic인 다음 값은 신규 scenario 기준으로 사용하지 않는다.
+Legacy topics are not allowed in new or aligned scenarios:
 
 ```text
 smarthome/context/raw
@@ -208,9 +217,53 @@ smarthome/audit/validator_output
 
 ---
 
+## Class 2 clarification interaction topic
+
+When Class 2 clarification interaction artifacts are published over MQTT, they should use:
+
+```text
+safe_deferral/clarification/interaction
+```
+
+Contract:
+
+```text
+payload_family: clarification_interaction_payload
+schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+example_payload: common/payloads/examples/clarification_interaction_two_options_pending.json
+authority_level: class2_interaction_evidence_not_authority
+```
+
+This topic may carry:
+
+- candidate choices
+- presentation channel
+- user/caregiver selection result
+- timeout/no-response result
+- transition target
+- final safe outcome evidence
+
+It must not be interpreted as:
+
+- validator approval
+- actuation command
+- emergency trigger authority
+- doorlock authorization
+
+Required interpretation:
+
+```text
+selection results require Policy Router re-entry
+Class 1 transition still requires Deterministic Validator approval
+Class 0 transition requires deterministic emergency evidence or explicit emergency confirmation
+timeout/no-response must not infer user intent
+```
+
+---
+
 ## Class 0 emergency boundary
 
-Class 0은 생명·안전 관련 즉시 대응 경로다.
+Class 0 is a life/safety emergency path.
 
 Canonical emergency family:
 
@@ -222,24 +275,13 @@ E004 gas detected
 E005 fall detected
 ```
 
-Class 0은 LLM을 primary decision path로 사용하면 안 된다.
-
-Class 2 clarification 중에도 다음 조건이 발생하면 Class 0으로 전이할 수 있다.
-
-```text
-- 사용자가 긴급 도움 후보를 명확히 선택함
-- 보호자가 emergency path를 확인함
-- triple-hit pattern이 발생함
-- E001~E005 deterministic emergency evidence가 도착함
-```
-
-이 경우에도 LLM은 emergency trigger 권한을 갖지 않는다.
+Class 0 must not use the LLM as the primary decision path. During Class 2 clarification, Class 0 may be reached only through explicit emergency confirmation, triple-hit input, or deterministic E001~E005 evidence. LLM candidate text alone is not emergency evidence.
 
 ---
 
 ## Class 1 low-risk boundary
 
-현재 Class 1 autonomous low-risk execution은 frozen lighting catalog로 제한된다.
+Current Class 1 autonomous low-risk execution is limited to the frozen lighting catalog.
 
 Authoritative reference:
 
@@ -247,39 +289,19 @@ Authoritative reference:
 common/policies/low_risk_actions_v1_1_0_FROZEN.json
 ```
 
-현재 baseline에서 허용되는 autonomous low-risk action은 조명 관련 action으로 제한된다.
-
-Class 2 clarification 후에도 사용자가 조명 같은 low-risk assistance 후보를 확인하면 Class 1로 전이할 수 있다. 단, 다음 조건이 필요하다.
-
-```text
-- user/caregiver confirmation 존재
-- candidate가 low-risk catalog 안에 있음
-- Deterministic Validator가 정확히 하나의 admissible action을 승인함
-- actuator dispatch 전 validator approval 필요
-```
-
-Scenario는 다음을 하면 안 된다.
-
-- doorlock을 Class 1 autonomous low-risk action으로 표현
-- `door_unlock`을 Class 1 expected action으로 표현
-- `front_door_lock`을 Class 1 target device로 표현
-- low-risk catalog를 scenario 안에서 확장
-
-Doorlock-sensitive request는 Class 2 clarification/escalation 또는 별도 governed manual confirmation path로 해석해야 한다.
+Class 2 can transition to Class 1 only after confirmation, Policy Router re-entry, and Deterministic Validator approval. Scenario files must not represent `door_unlock` or `front_door_lock` as Class 1 autonomous low-risk actions.
 
 ---
 
 ## Class 2 clarification / transition boundary
 
-Class 2는 더 이상 단순 terminal failure 또는 caregiver escalation만을 의미하지 않는다.
-
-현재 기준:
+Current interpretation:
 
 ```text
 Class 2 = clarification / transition state
 ```
 
-Class 2는 다음 상황에서 진입할 수 있다.
+Class 2 may be entered for:
 
 - insufficient context
 - ambiguous user intent
@@ -291,89 +313,79 @@ Class 2는 다음 상황에서 진입할 수 있다.
 - caregiver-required sensitive path
 - no response / timeout after candidate presentation
 
-Class 2에서 허용되는 흐름:
+Class 2 allowed flow:
 
 ```text
 ambiguous or insufficient input
 → bounded candidate choices
 → TTS/display/caregiver prompt
-→ user/caregiver selection or deterministic evidence
+→ user/caregiver selection, timeout/no-response, or deterministic evidence
+→ Policy Router re-entry
 → CLASS_1 / CLASS_0 / SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION
 ```
 
-Class 2에서 LLM은 다음을 할 수 있다.
+Class 2 candidate generation is guidance only. It is not validator output, actuator command, emergency trigger authority, or doorlock authorization.
 
-```text
-- bounded candidate choice generation
-- user-facing guidance text generation
-- ambiguity explanation
-- waiting-for-confirmation explanation
-```
+---
 
-Class 2에서 LLM은 다음을 할 수 없다.
+## Recommended `class2_clarification_expectation` block
 
-```text
-- final class decision
-- actuator authorization
-- emergency trigger
-- sensitive actuation approval
-- Policy Router override
-- Deterministic Validator bypass
+Class 2 transition scenarios should include a block like this:
+
+```json
+"class2_clarification_expectation": {
+  "enabled": true,
+  "clarification_topic": "safe_deferral/clarification/interaction",
+  "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+  "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+  "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+  "requires_policy_router_reentry": true,
+  "requires_validator_when_class1": true,
+  "timeout_must_not_infer_intent": true,
+  "clarification_payload_is_not_authorization": true,
+  "forbidden_interpretations": [
+    "validator_approval",
+    "actuation_command",
+    "emergency_trigger_authority",
+    "doorlock_authorization"
+  ]
+}
 ```
 
 ---
 
 ## Fault scenario boundary
 
-Fault scenario는 단순히 실패를 뜻하지 않는다. 각 fault는 서로 다른 안전 처리 이유를 가진다.
+Fault scenario is not just a failure label. Each fault has a distinct safety reason.
 
-| Fault | 의미 | 안전 처리 |
+| Fault | Meaning | Safe handling |
 |---|---|---|
-| stale fault | policy-relevant state가 오래되어 신뢰할 수 없음 | safe deferral 또는 Class 2 clarification / caregiver confirmation |
-| conflict fault | 여러 후보가 동시에 가능해 임의 선택이 위험함 | 후보 확인 또는 safe deferral |
-| missing-state fault | 필요한 상태 보고가 누락됨 | 상태 재확인, safe deferral, caregiver confirmation |
+| stale fault | policy-relevant state is too old to trust | safe deferral or Class 2 clarification / caregiver confirmation |
+| conflict fault | multiple plausible candidates make arbitrary selection unsafe | bounded clarification or safe deferral |
+| missing-state fault | required state report is missing | state recheck, safe deferral, or caregiver confirmation |
 
-Conflict fault와 missing-state fault는 Class 2-like clarification flow로 이어질 수 있지만, audit과 scenario 설명에서는 원인 구분을 유지해야 한다.
+Fault scenarios may use Class 2-like clarification, but the fault cause identity must remain explicit.
 
 ---
 
 ## `doorbell_detected` boundary
 
-현재 context schema에서 `environmental_context.doorbell_detected`는 required field다.
+`environmental_context.doorbell_detected` is required in schema-governed context payloads.
 
-Scenario fixture가 schema-governed context payload를 참조하는 경우 다음을 지켜야 한다.
+Rules:
 
-- non-visitor scenario에서는 일반적으로 `doorbell_detected=false`
-- visitor-response scenario에서는 적절한 경우에만 `doorbell_detected=true`
-- `doorbell_detected=true`는 emergency evidence가 아님
-- `doorbell_detected=true`는 autonomous door unlock authorization이 아님
-
----
-
-## LLM invocation boundary
-
-기존 skeleton의 `llm_invocation_allowed`는 coarse legacy-style field로 볼 수 있다.
-
-향후 scenario는 가능하면 다음을 구분해야 한다.
-
-- `llm_decision_invocation_allowed`
-- `llm_guidance_generation_allowed`
-
-해석:
-
-- LLM decision/candidate generation은 execution authority가 아니다.
-- Class 0 emergency는 LLM을 primary decision path로 사용하면 안 된다.
-- safe deferral, clarification, caregiver waiting, ACK result 설명은 policy-constrained guidance generation으로 허용될 수 있다.
-- guidance generation 허용은 actuation authorization이 아니다.
-- Class 2의 candidate generation은 clarification interaction일 뿐 validator output이나 actuator command가 아니다.
+- non-visitor scenario: normally `doorbell_detected=false`
+- visitor-response scenario: may set `doorbell_detected=true`
+- `doorbell_detected=true` is not emergency evidence
+- `doorbell_detected=true` is not autonomous door unlock authorization
 
 ---
 
 ## Payload boundary
 
-Class 2 clarification data는 pure context payload가 아니다.
+Class 2 clarification data is not pure context payload.
 
-다음은 `pure_context_payload`에 넣지 않는다.
+Do not put the following into `pure_context_payload`:
 
 ```text
 candidate_choices
@@ -383,29 +395,17 @@ timeout_result
 LLM-generated prompt text
 ```
 
-Class 2 clarification interaction payload는 다음 schema를 따른다.
+Use `clarification_interaction_payload` governed by:
 
 ```text
 common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
 ```
 
-Class 2 notification payload는 다음 schema를 따른다.
+Class 2 notification payload is governed by:
 
 ```text
 common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
 ```
-
----
-
-## 포함 가능한 대상
-
-- normal-context scenarios
-- emergency-trigger scenarios
-- Class 2 clarification/transition scenarios
-- conflict / stale / missing-state scenarios
-- randomized stress metadata
-- expected outcome summary files
-- scenario manifest or profile files
 
 ---
 
@@ -415,17 +415,16 @@ common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
 - scenario는 frozen assets를 소비하는 evaluation asset이다.
 - scenario는 operational hub를 우회하는 control path를 만들지 않는다.
 - threshold, required key, trigger semantics는 `common/` frozen assets에서 최종적으로 해석되어야 한다.
-- current implemented scope 기준의 low-risk autonomous actuation 범위는 `common/policies/low_risk_actions_v1_1_0_FROZEN.json` 및 `required_experiments.md`와 정렬되어야 한다.
-- scenario topic은 `common/mqtt/topic_registry_v1_0_0.json` 및 `common/docs/architecture/15_interface_matrix.md`와 정렬되어야 한다.
+- scenario topic은 `common/mqtt/topic_registry_v1_1_0.json` 및 `common/docs/architecture/15_interface_matrix.md`와 정렬되어야 한다.
 - scenario fixture는 current schema boundary를 따르고, `doorbell_detected` required field와 doorlock state boundary를 위반하면 안 된다.
-- Class 2 clarification interaction은 `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`과 `common/policies/policy_table_v1_2_0_FROZEN.json`을 따라야 한다.
+- Class 2 clarification interaction은 `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`, `common/policies/policy_table_v1_2_0_FROZEN.json`, and `safe_deferral/clarification/interaction`을 따라야 한다.
 
 ---
 
 ## 다음 권장 작업
 
-1. Scenario skeleton JSON의 remaining legacy topic / wording 정렬
-2. Class 2 candidate prompt / Class 2→Class 1 / Class 2→Class 0 / timeout fixture 추가
+1. Existing Class 2 / fault skeleton에 `class2_clarification_expectation` 추가
+2. Class 2 transition skeleton 4개 추가
 3. conflict fault 및 missing-state fault expected fixture 분리
 4. fixture reference existence verifier 강화
 5. scenario topic alignment verifier 강화
