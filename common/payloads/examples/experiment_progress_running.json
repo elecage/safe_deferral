@@ -3,13 +3,15 @@
   "run_id": "run-example-001",
   "scenario_id": "visitor_possible_unlock_intent_001",
   "status": "running",
-  "current_step": "caregiver_escalation_waiting",
+  "current_step": "caregiver_confirmation_waiting",
+  "class2_transition_state": "safe_deferral_or_caregiver_confirmation",
   "completed_steps": [
     "input_ingested",
     "policy_routed",
-    "validator_rejected_escalation",
-    "class_2_notification_sent"
+    "validator_rejected_class2_clarification",
+    "class_2_clarification_notification_sent",
+    "clarification_interaction_recorded"
   ],
   "timestamp_ms": 1710000000700,
-  "authority_note": "Experiment progress is status-only and has no operational control authority."
+  "authority_note": "Experiment progress is status-only and has no operational control authority. Class 2 clarification state does not authorize actuation."
 }
