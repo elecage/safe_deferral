@@ -3,14 +3,14 @@
 
 ## 0. 문서의 역할과 적용 범위
 
-본 문서는 제안 시스템의 실험 설계, 검증 대상, 평가 지표, frozen/reference asset 간 연결 관계를 정의하는 **실험 기준 문서(experiment baseline manifest)**이다.
+본 문서는 제안 시스템의 실험 설계, 검증 대상, 평가 지표, canonical/reference asset 간 연결 관계를 정의하는 **실험 기준 문서(experiment baseline manifest)**이다.
 
 본 문서는 단순 개념 설명이 아니라, 실제 실험 스크립트, 결과 표, 논문 본문, dashboard/result artifact, MQTT/payload governance report와 정합성을 유지하기 위한 기준 문서로 사용한다.
 
 본 문서의 목적은 다음과 같다.
 
 1. 어떤 실험을 반드시 수행해야 하는지 정의한다.
-2. 각 실험이 어떤 frozen policy/schema asset 및 communication/payload reference asset에 의존하는지 명시한다.
+2. 각 실험이 어떤 canonical policy/schema asset 및 communication/payload reference asset에 의존하는지 명시한다.
 3. 현재 구현 범위(Current Implemented Scope)와 향후 확장 범위(Extended Experimental Scope)를 구분한다.
 4. fault taxonomy와 deterministic fault profile ID를 매핑한다.
 5. 논문 표/그림에 직접 연결될 수 있는 평가 지표를 고정한다.
@@ -18,9 +18,9 @@
 
 ---
 
-## 1. Canonical Frozen Asset Versions
+## 1. Canonical Asset Set
 
-본 문서는 아래 frozen asset version을 기준으로 해석한다.
+본 문서는 아래 canonical asset set을 기준으로 해석한다.
 
 - `common/policies/policy_table.json`
 - `common/policies/low_risk_actions.json`
@@ -32,7 +32,7 @@
 - `common/schemas/validator_output_schema.json`
 - `common/schemas/class2_notification_payload_schema.json`
 
-> 주의: frozen asset 간 버전이 변경되면, 본 문서도 함께 갱신되어야 한다. 특히 policy table, low-risk action catalog, validator output schema, context schema, fault injection rules 간 trigger ID, required context field, action scope의 정합성을 유지해야 한다.
+> 주의: canonical asset 간 버전이 변경되면, 본 문서도 함께 갱신되어야 한다. 특히 policy table, low-risk action catalog, validator output schema, context schema, fault injection rules 간 trigger ID, required context field, action scope의 정합성을 유지해야 한다.
 
 ### 1.1 Communication / Payload / Governance Reference Assets
 
@@ -96,7 +96,7 @@ Reference asset은 communication/payload consistency와 governance/verification 
 단, 주의할 점은 다음과 같다.
 
 - `doorbell_detected`는 방문자 응답 상황을 해석하기 위한 policy-relevant context이지 doorlock 자동 개방 권한이 아니다.
-- `doorlock`은 현재 저장소의 구현 대상 범위에는 포함될 수 있지만, 현재 frozen low-risk action catalog 기준의 **authoritative autonomous Class 1 low-risk action scope**로는 확정되지 않았다.
+- `doorlock`은 현재 저장소의 구현 대상 범위에는 포함될 수 있지만, 현재 canonical low-risk action catalog 기준의 **authoritative autonomous Class 1 low-risk action scope**로는 확정되지 않았다.
 
 따라서 문서, 실험, 코드에서 doorlock을 다룰 때는 다음을 구분해야 한다.
 
@@ -224,7 +224,7 @@ Topic IDs, payload families, publisher/subscriber roles, schema paths, example p
 - current policy table 기준 emergency event는 올바르게 Class 0으로 라우팅되는가?
 - current low-risk action catalog 범위 내에서 단일 admissible action만 승인되는가?
 - ambiguity 또는 insufficient context 상황에서 unsafe actuation 없이 `safe_deferral` 또는 `class_2_escalation`으로 전환되는가?
-- `doorbell_detected` visitor-response context가 존재하더라도 doorlock control이 frozen authoritative low-risk catalog 범위를 넘어서는 자율 actuation으로 오해되지 않는가?
+- `doorbell_detected` visitor-response context가 존재하더라도 doorlock control이 canonical authoritative low-risk catalog 범위를 넘어서는 자율 actuation으로 오해되지 않는가?
 - doorlock representative interface path가 포함된 실험에서도 autonomous unlock이 차단되고 Class 2 escalation 또는 별도 governed manual confirmation path로 처리되는가?
 - scenario input payloads가 `03_payload_and_mqtt_contracts.md`와 정합되는가?
 - MQTT-facing test traffic이 `03_payload_and_mqtt_contracts.md`와 정합되는가?
@@ -374,7 +374,7 @@ Class 0, Class 1, Class 2가 서로 다른 경로를 가지므로, 경로별 지
 
 참고:
 - current implementation-facing scope에 doorlock representative interface와 doorbell / visitor-arrival context signal이 포함될 수 있으므로, latency capture profile에는 필요 시 visitor-response trigger-to-escalation 또는 manual-confirmation path를 별도 부가 측정 경로로 둘 수 있다.
-- authoritative Class 1 low-risk latency baseline 자체는 현재 frozen low-risk catalog 범위를 기준으로 해석한다.
+- authoritative Class 1 low-risk latency baseline 자체는 현재 canonical low-risk catalog 범위를 기준으로 해석한다.
 
 ### 6.3 필수 측정 경로
 
@@ -404,7 +404,7 @@ Class 0, Class 1, Class 2가 서로 다른 경로를 가지므로, 경로별 지
 
 ### 7.2 authoritative generation principle
 
-Fault injection 수치는 임의 하드코딩하지 않는다. 반드시 다음 frozen/reference asset을 파싱하여 동적으로 생성한다.
+Fault injection 수치는 임의 하드코딩하지 않는다. 반드시 다음 canonical/reference asset을 파싱하여 동적으로 생성한다.
 
 - `common/policies/policy_table.json`
 - `common/schemas/context_schema.json`
@@ -734,9 +734,9 @@ MQTT topic registry, publisher/subscriber matrix, topic-payload contracts, paylo
 1. 실험은 “똑똑함”보다 **안전한 분기, 보류, 위임**을 검증해야 한다.
 2. 현재 구현 범위와 확장 범위를 혼용하지 않는다.
 3. emergency 판정은 반드시 current canonical policy table을 기준으로 한다.
-4. fault injection은 frozen policy/schema/rules를 파싱하여 동적으로 생성한다.
+4. fault injection은 canonical policy/schema/rules를 파싱하여 동적으로 생성한다.
 5. 논문 표/그림의 모든 결과는 deterministic profile 또는 canonical scenario ID와 연결 가능해야 한다.
-6. frozen/reference asset version이 변경되면 본 문서도 함께 갱신한다.
+6. canonical/reference asset version이 변경되면 본 문서도 함께 갱신한다.
 7. current implementation-facing device scope와 current authoritative autonomous low-risk scope를 혼동하지 않는다.
 8. `doorbell_detected`는 visitor-response interpretation context이지 doorlock 자동 개방 권한이 아니다.
 9. LLM-assisted intent recovery 평가는 autonomous actuation coverage가 아니라, **bounded authority 하에서의 interpretation quality improvement**를 보이는 방향으로 설계해야 한다.

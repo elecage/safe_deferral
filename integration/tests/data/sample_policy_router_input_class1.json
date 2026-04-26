@@ -20,5 +20,5 @@
       "bedroom_light": "off"
     }
   },
-  "notes": "Sample integration fixture only. Current authoritative low-risk scope in required_experiments.md is limited to living_room_light and bedroom_light on/off behavior. Field meanings and admissibility must remain aligned with the frozen policy/schema baseline. doorbell_detected=false because this is not a visitor-response scenario."
+  "notes": "Sample integration fixture only. Current authoritative low-risk scope in required_experiments.md is limited to living_room_light and bedroom_light on/off behavior. Field meanings and admissibility must remain aligned with the canonical policy/schema baseline. doorbell_detected=false because this is not a visitor-response scenario."
 }

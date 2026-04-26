@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS1_BASELINE",
   "title": "Class 1 bounded assistance baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative Class 1 bounded low-risk assistance path. This file is an integration asset and must remain aligned with frozen assets under common/. Class 1 may also be reached after Class 2 clarification when the user or caregiver confirms a bounded low-risk assistance candidate and the Deterministic Validator approves exactly one admissible low-risk action.",
+  "description": "Deterministic scenario skeleton for a representative Class 1 bounded low-risk assistance path. This file is an integration asset and must remain aligned with canonical assets under common/. Class 1 may also be reached after Class 2 clarification when the user or caregiver confirms a bounded low-risk assistance candidate and the Deterministic Validator approves exactly one admissible low-risk action.",
   "category": "class1_baseline",
   "mode": "deterministic",
   "input_plane": {
@@ -48,8 +48,8 @@
   },
   "notes": [
     "This scenario is intended to represent a bounded low-risk assistance path rather than an emergency or direct escalation path.",
-    "Exact admissibility assumptions remain defined by frozen policy and schema assets.",
-    "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog.",
+    "Exact admissibility assumptions remain defined by canonical policy and schema assets.",
+    "Class 1 autonomous execution must remain limited to the canonical low-risk lighting catalog.",
     "Doorlock-sensitive behavior must not be represented as Class 1 autonomous execution.",
     "Class 1 may be reached after Class 2 clarification only after user/caregiver confirmation and deterministic validation against the low-risk catalog.",
     "Class 2 candidate text is not validator output and must not be treated as actuation authority.",

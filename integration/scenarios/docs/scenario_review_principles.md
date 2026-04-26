@@ -83,12 +83,12 @@ Therefore, reviewers should not read a scenario only as a technical input event.
 ## Core interpretation rules
 
 - Scenarios are integration/evaluation assets, not canonical truth.
-- Scenarios consume frozen policies, frozen schemas, current MQTT topic registry, and interface matrix.
+- Scenarios consume canonical policies, canonical schemas, current MQTT topic registry, and interface matrix.
 - Scenarios must not redefine thresholds, required keys, trigger predicates, or allowed action scope.
 - MQTT topics must stay under the `safe_deferral/...` namespace.
 - Legacy `smarthome/...` topics must not be used in new or aligned scenarios.
 - Class 0 emergency must not use the LLM as the primary decision path.
-- Class 1 autonomous low-risk execution is currently limited to the frozen lighting catalog.
+- Class 1 autonomous low-risk execution is currently limited to the canonical lighting catalog.
 - Class 2 is a clarification / transition state, not terminal failure only.
 - Class 2 clarification interaction evidence topic is `safe_deferral/clarification/interaction`.
 - Class 2 LLM output may generate bounded candidate guidance, but has no final-decision, actuation-authorization, or emergency-trigger authority.
@@ -116,7 +116,7 @@ Therefore, reviewers should not read a scenario only as a technical input event.
 ### Canonical baseline
 
 - Does the scenario avoid redefining thresholds, required keys, or trigger semantics?
-- Does it consume frozen policy/schema assets instead of replacing them?
+- Does it consume canonical policy/schema assets instead of replacing them?
 - Does it avoid Class 1 actions outside `low_risk_actions.json`?
 - Does it avoid treating `doorbell_detected` as unlock authorization or emergency trigger?
 - Does it avoid treating Class 2 interaction payload as pure context?

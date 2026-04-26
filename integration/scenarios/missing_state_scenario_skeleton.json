@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_FAULT_MISSING_STATE_BASELINE",
   "title": "Missing-state fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative missing-state or missing-required-key case. This file is an integration asset and must remain aligned with frozen assets under common/. Missing-state fault is distinct from insufficient context: a required device or context state is absent, and the system must not fabricate or assume that state.",
+  "description": "Deterministic scenario skeleton for a representative missing-state or missing-required-key case. This file is an integration asset and must remain aligned with canonical assets under common/. Missing-state fault is distinct from insufficient context: a required device or context state is absent, and the system must not fabricate or assume that state.",
   "category": "fault_missing_state",
   "mode": "deterministic",
   "input_plane": {
@@ -95,7 +95,7 @@
   },
   "notes": [
     "Missing-state cases should distinguish policy-input omissions from validator or action-schema omissions during later detailed expansion.",
-    "This skeleton remains an integration asset and must not redefine required-key truth outside the frozen schema baseline.",
+    "This skeleton remains an integration asset and must not redefine required-key truth outside the canonical schema baseline.",
     "This baseline scenario uses a missing-device-state fixture that preserves environmental_context.doorbell_detected=false.",
     "A separate negative fixture intentionally omits doorbell_detected and should only be used by explicit negative schema-boundary tests.",
     "Missing-state fault is distinct from Class 2 insufficient context: the issue is absence of a required device/context state rather than only ambiguous user intent.",

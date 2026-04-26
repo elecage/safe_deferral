@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_BASELINE_TEMPLATE_001",
   "title": "Baseline integration scenario skeleton",
-  "description": "Template scenario for deterministic end-to-end integration validation. This file is not canonical policy truth and must remain aligned with frozen assets under common/.",
+  "description": "Template scenario for deterministic end-to-end integration validation. This file is not canonical policy truth and must remain aligned with canonical assets under common/.",
   "category": "baseline",
   "mode": "deterministic",
   "input_plane": {
@@ -42,9 +42,9 @@
     "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
-    "Thresholds, trigger predicates, and action-domain assumptions must be derived from frozen assets rather than hardcoded here.",
+    "Thresholds, trigger predicates, and action-domain assumptions must be derived from canonical assets rather than hardcoded here.",
     "Clone this file to create deterministic Class 0, Class 1, Class 2, stale, missing-state, or conflict scenarios.",
-    "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog; doorlock-sensitive behavior must not be represented as Class 1 execution.",
+    "Class 1 autonomous execution must remain limited to the canonical low-risk lighting catalog; doorlock-sensitive behavior must not be represented as Class 1 execution.",
     "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."
   ]
 }

@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS2_INSUFFICIENT_CONTEXT",
   "title": "Class 2 insufficient-context clarification transition scenario",
-  "description": "Deterministic scenario skeleton for a representative Class 2 insufficient-context path. Class 2 is modeled as a clarification and transition state: the system presents bounded candidate choices, collects user or caregiver confirmation, and then transitions to Class 1 bounded assistance, Class 0 emergency handling, or safe deferral / caregiver confirmation if ambiguity remains. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative Class 2 insufficient-context path. Class 2 is modeled as a clarification and transition state: the system presents bounded candidate choices, collects user or caregiver confirmation, and then transitions to Class 1 bounded assistance, Class 0 emergency handling, or safe deferral / caregiver confirmation if ambiguity remains. This file is an integration asset and must remain aligned with canonical assets under common/.",
   "category": "class2_insufficient_context",
   "mode": "deterministic",
   "input_plane": {

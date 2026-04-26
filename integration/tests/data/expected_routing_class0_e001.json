@@ -8,5 +8,5 @@
   "expected_unsafe_autonomous_actuation_allowed": false,
   "doorlock_autonomous_execution_allowed": false,
   "canonical_emergency_family": "E001",
-  "notes": "Expected outcome fixture for a representative high-temperature emergency case. Exact trigger semantics remain defined by the frozen policy table. Class 0 emergency handling must not use the LLM as the primary decision path."
+  "notes": "Expected outcome fixture for a representative high-temperature emergency case. Exact trigger semantics remain defined by the canonical policy table. Class 0 emergency handling must not use the LLM as the primary decision path."
 }

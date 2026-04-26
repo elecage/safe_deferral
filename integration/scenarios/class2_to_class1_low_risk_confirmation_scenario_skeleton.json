@@ -47,7 +47,7 @@
     {
       "step_id": 5,
       "action": "reenter_policy_router_and_validate",
-      "description": "Re-enter the Policy Router and require Deterministic Validator approval against the frozen low-risk lighting catalog before any Class 1 dispatch."
+      "description": "Re-enter the Policy Router and require Deterministic Validator approval against the canonical low-risk lighting catalog before any Class 1 dispatch."
     },
     {
       "step_id": 6,
@@ -115,7 +115,7 @@
   "notes": [
     "This scenario proves that a Class 2 selection does not bypass Policy Router re-entry or Deterministic Validator approval.",
     "Candidate text alone does not authorize actuation.",
-    "Only frozen low-risk lighting actions may be admitted for Class 1 transition.",
+    "Only canonical low-risk lighting actions may be admitted for Class 1 transition.",
     "Doorlock must not be treated as a Class 1 low-risk action."
   ]
 }

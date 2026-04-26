@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E001_BASELINE",
   "title": "Class 0 E001 emergency baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative E001-aligned emergency path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative E001-aligned emergency path. This file is an integration asset and must remain aligned with canonical assets under common/.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {
@@ -44,7 +44,7 @@
     "canonical_emergency_family": "E001"
   },
   "notes": [
-    "Exact threshold semantics remain defined by the frozen policy table.",
+    "Exact threshold semantics remain defined by the canonical policy table.",
     "This scenario is intended for emergency override path validation and later class-wise latency profiling.",
     "Class 0 emergency handling must not use the LLM as the primary decision path.",
     "doorbell_detected is not emergency evidence and does not authorize doorlock control."

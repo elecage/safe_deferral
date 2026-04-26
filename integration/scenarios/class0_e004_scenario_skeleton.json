@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E004_GAS",
   "title": "Class 0 E004 gas emergency scenario",
-  "description": "Deterministic scenario skeleton for a representative E004-aligned gas-detected emergency path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative E004-aligned gas-detected emergency path. This file is an integration asset and must remain aligned with canonical assets under common/.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {

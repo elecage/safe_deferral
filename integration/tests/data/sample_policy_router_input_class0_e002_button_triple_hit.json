@@ -20,5 +20,5 @@
       "bedroom_light": "off"
     }
   },
-  "notes": "Sample emergency-aligned integration fixture intended to represent an E002-type pattern-event case (bounded input triple-hit). Device-state naming is kept consistent with the current implemented light scope. Exact trigger semantics remain defined by the frozen policy table. doorbell_detected=false because this is not a visitor-response scenario and doorbell context is not emergency evidence."
+  "notes": "Sample emergency-aligned integration fixture intended to represent an E002-type pattern-event case (bounded input triple-hit). Device-state naming is kept consistent with the current implemented light scope. Exact trigger semantics remain defined by the canonical policy table. doorbell_detected=false because this is not a visitor-response scenario and doorbell context is not emergency evidence."
 }

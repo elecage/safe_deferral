@@ -28,7 +28,7 @@ experiments:
     required_services:
       - "mqtt_broker"
     required_topics:
-      - "smarthome/verify/test"
+      - "safe_deferral/experiment/progress"
     required_assets: []
     required_runtime_conditions:
       - "mqtt_reachable"
@@ -69,7 +69,7 @@ experiments:
       - "timesync_service"
     required_topics: []
     required_assets:
-      - "policy_table_v1_1_2_FROZEN.json"
+      - "policy_table.json"
     required_runtime_conditions:
       - "rpi_time_sync_available"
     required_measurement_nodes: []
@@ -93,12 +93,12 @@ experiments:
       - "mqtt_broker"
       - "audit_pipeline"
     required_topics:
-      - "smarthome/context/raw"
-      - "smarthome/audit/validator_output"
+      - "safe_deferral/context/input"
+      - "safe_deferral/validator/output"
     required_assets:
-      - "policy_table_v1_1_2_FROZEN.json"
-      - "fault_injection_rules_v1_4_0_FROZEN.json"
-      - "validator_output_schema_v1_1_0_FROZEN.json"
+      - "policy_table.json"
+      - "fault_injection_rules.json"
+      - "validator_output_schema.json"
     required_runtime_conditions:
       - "artifact_sync_complete"
       - "mqtt_reachable"
@@ -131,11 +131,11 @@ experiments:
       - "mqtt_broker"
       - "experiment_runner"
     required_topics:
-      - "experiment/preflight/result"
-      - "experiment/result/summary"
+      - "safe_deferral/experiment/progress"
+      - "safe_deferral/experiment/result"
     required_assets:
-      - "policy_table_v1_1_2_FROZEN.json"
-      - "output_profile_v1_1_0.json"
+      - "policy_table.json"
+      - "output_profile.json"
     required_runtime_conditions:
       - "result_store_writable"
       - "experiment_runner_idle"
@@ -168,11 +168,11 @@ experiments:
       - "audit_pipeline"
       - "actuation_ack_pipeline"
     required_topics:
-      - "smarthome/context/raw"
-      - "smarthome/audit/validator_output"
+      - "safe_deferral/context/input"
+      - "safe_deferral/validator/output"
     required_assets:
-      - "policy_table_v1_1_2_FROZEN.json"
-      - "low_risk_actions_v1_1_0_FROZEN.json"
+      - "policy_table.json"
+      - "low_risk_actions.json"
     required_runtime_conditions:
       - "result_store_writable"
       - "experiment_runner_idle"

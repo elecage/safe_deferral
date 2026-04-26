@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_FAULT_STALE_BASELINE",
   "title": "Stale fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative freshness-violation case. This file is an integration asset and must remain aligned with frozen assets under common/. Stale fault is distinct from missing-state and conflict faults: state exists, but it is too old or untrusted for safe autonomous action.",
+  "description": "Deterministic scenario skeleton for a representative freshness-violation case. This file is an integration asset and must remain aligned with canonical assets under common/. Stale fault is distinct from missing-state and conflict faults: state exists, but it is too old or untrusted for safe autonomous action.",
   "category": "fault_stale",
   "mode": "deterministic",
   "input_plane": {
@@ -86,7 +86,7 @@
     "doorlock_autonomous_execution_allowed": false
   },
   "notes": [
-    "The exact stale predicate must be derived from frozen policy and schema assets rather than encoded here.",
+    "The exact stale predicate must be derived from canonical policy and schema assets rather than encoded here.",
     "This skeleton is intended to represent a freshness-violation test class, not a canonical threshold source.",
     "This scenario now uses a stale-specific fixture instead of a generic insufficient-context fixture.",
     "Stale fault is distinct from missing-state fault and conflict fault: the state exists but is too old or untrusted.",

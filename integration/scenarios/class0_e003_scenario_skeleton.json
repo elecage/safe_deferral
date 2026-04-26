@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E003_SMOKE",
   "title": "Class 0 E003 smoke emergency scenario",
-  "description": "Deterministic scenario skeleton for a representative E003-aligned smoke-detected emergency path. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative E003-aligned smoke-detected emergency path. This file is an integration asset and must remain aligned with canonical assets under common/.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {

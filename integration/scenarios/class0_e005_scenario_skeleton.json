@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E005_FALL",
   "title": "Class 0 E005 fall emergency scenario",
-  "description": "Deterministic scenario skeleton for a representative E005-aligned fall-detected emergency path. This file is an integration asset and must remain aligned with frozen assets under common/. E005 may be reached directly from fall evidence or during Class 2 clarification if the user confirms a fall/emergency condition or new deterministic fall evidence arrives.",
+  "description": "Deterministic scenario skeleton for a representative E005-aligned fall-detected emergency path. This file is an integration asset and must remain aligned with canonical assets under common/. E005 may be reached directly from fall evidence or during Class 2 clarification if the user confirms a fall/emergency condition or new deterministic fall evidence arrives.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {

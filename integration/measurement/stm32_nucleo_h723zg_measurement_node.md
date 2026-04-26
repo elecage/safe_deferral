@@ -11,7 +11,7 @@
 - class-wise latency 실험 근거 데이터 수집
 - CSV / timestamp export 생성 보조
 
-이 노드는 operational control path에 속하지 않는다.  
+이 노드는 operational control path에 속하지 않는다.
 즉, 본 노드는 **evaluation-only measurement support node**다.
 
 ---

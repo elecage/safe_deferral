@@ -2,8 +2,8 @@
 
 이 문서는 `integration/measurement/`에서 사용할 **class-wise latency evaluation profile**의 목적, 범위, 구성 원칙을 정리한다.
 
-이 문서는 latency threshold 자체를 canonical truth로 정의하지 않는다.  
-정책/스키마/trigger semantics의 authoritative baseline은 `common/`의 frozen assets에 남는다.
+이 문서는 latency threshold 자체를 canonical truth로 정의하지 않는다.
+정책/스키마/trigger semantics의 authoritative baseline은 `common/`의 canonical assets에 남는다.
 
 ---
 

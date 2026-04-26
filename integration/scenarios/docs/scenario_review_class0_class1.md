@@ -127,7 +127,7 @@ The point is not maximum automation. The point is safe assistance from limited i
 
 - Routing to `CLASS_1` may be allowed.
 - LLM candidate generation is not execution authority.
-- Autonomous execution remains inside the frozen lighting catalog.
+- Autonomous execution remains inside the canonical lighting catalog.
 - Doorlock-sensitive behavior must not appear as Class 1 autonomous execution.
 - Deterministic Validator remains the execution-admissibility boundary.
 

@@ -2,7 +2,7 @@
 
 이 디렉터리는 deterministic scenario, stress scenario, fault-injection scenario, reproducible evaluation package를 두는 공간이다.
 
-Scenario 파일은 canonical policy/schema truth가 아니다. Scenario는 `common/` 아래 frozen policy, frozen schema, MQTT registry, interface matrix를 소비하는 integration-side evaluation asset이다.
+Scenario 파일은 canonical policy/schema truth가 아니다. Scenario는 `common/` 아래 canonical policy/schema assets, MQTT registry, payload contracts, and active architecture documents를 소비하는 integration-side evaluation asset이다.
 
 ---
 
@@ -16,7 +16,7 @@ Scenario 파일은 canonical policy/schema truth가 아니다. Scenario는 `comm
 - reproducible paper-evaluation support
 - canonical emergency family `E001`~`E005`와 정합적인 scenario 구성
 - `safe_deferral/...` MQTT namespace와 정합적인 scenario 구성
-- frozen policy/schema/payload boundary를 변경하지 않는 integration evaluation 구성
+- canonical policy/schema/payload boundary를 변경하지 않는 integration evaluation 구성
 - Class 2 clarification / transition interaction 검토
 - conflict fault, missing-state fault, stale fault의 보수적 처리 검토
 
@@ -60,14 +60,14 @@ common/mqtt/topic_registry.json
 MQTT payload contracts:
 common/mqtt/topic_payload_contracts.md
 
-Interface matrix:
-common/docs/architecture/15_interface_matrix.md
+Scenario/evaluation architecture:
+common/docs/architecture/07_scenarios_and_evaluation.md
 
-Payload registry:
-common/docs/architecture/17_payload_contract_and_registry.md
+MQTT/payload contracts:
+common/docs/architecture/03_payload_and_mqtt_contracts.md
 
-Class 2 architecture alignment:
-common/docs/architecture/19_class2_clarification_architecture_alignment.md
+Class 2 clarification:
+common/docs/architecture/04_class2_clarification.md
 ```
 
 Historical baselines:
@@ -89,8 +89,10 @@ JSON skeleton만 보면 의미를 빠르게 파악하기 어려울 수 있으므
 - `scenario_review_guide.md`
 - `scenario_manifest_rules.md`
 - `scenario_manifest_schema.json`
-- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/00_architecture_index.md`
+- `common/docs/architecture/03_payload_and_mqtt_contracts.md`
+- `common/docs/architecture/04_class2_clarification.md`
+- `common/docs/architecture/07_scenarios_and_evaluation.md`
 - `common/mqtt/topic_registry.json`
 - `common/mqtt/topic_payload_contracts.md`
 
@@ -281,7 +283,7 @@ Class 0 must not use the LLM as the primary decision path. During Class 2 clarif
 
 ## Class 1 low-risk boundary
 
-Current Class 1 autonomous low-risk execution is limited to the frozen lighting catalog.
+Current Class 1 autonomous low-risk execution is limited to the canonical lighting catalog.
 
 Authoritative reference:
 
@@ -412,10 +414,10 @@ common/schemas/class2_notification_payload_schema.json
 ## 경계 원칙
 
 - scenario는 canonical policy truth를 재정의하지 않는다.
-- scenario는 frozen assets를 소비하는 evaluation asset이다.
+- scenario는 canonical assets를 소비하는 evaluation asset이다.
 - scenario는 operational hub를 우회하는 control path를 만들지 않는다.
-- threshold, required key, trigger semantics는 `common/` frozen assets에서 최종적으로 해석되어야 한다.
-- scenario topic은 `common/mqtt/topic_registry.json` 및 `common/docs/architecture/15_interface_matrix.md`와 정렬되어야 한다.
+- threshold, required key, trigger semantics는 `common/` canonical assets에서 최종적으로 해석되어야 한다.
+- scenario topic은 `common/mqtt/topic_registry.json` 및 `common/docs/architecture/03_payload_and_mqtt_contracts.md`와 정렬되어야 한다.
 - scenario fixture는 current schema boundary를 따르고, `doorbell_detected` required field와 doorlock state boundary를 위반하면 안 된다.
 - Class 2 clarification interaction은 `common/schemas/clarification_interaction_schema.json`, `common/policies/policy_table.json`, and `safe_deferral/clarification/interaction`을 따라야 한다.
 

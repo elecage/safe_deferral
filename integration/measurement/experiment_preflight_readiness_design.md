@@ -11,7 +11,7 @@
 - Home Assistant 대시보드 또는 다른 실험 제어 UI에서 **실험 시작 가능 여부**를 설명 가능하게 만든다.
 - 실험 실행 경로와 out-of-band measurement 경로를 분리한다.
 
-이 문서는 canonical frozen policy/schema truth를 재정의하지 않는다.  
+이 문서는 canonical policy/schema truth를 재정의하지 않는다.
 이 문서의 역할은 **운영/평가용 preflight 계층 설계**다.
 
 ---
@@ -133,8 +133,8 @@ STM32 Nucleo-H723ZG 기반 시간계측 노드는 **integration/measurement/ lay
     "audit_pipeline"
   ],
   "required_topics": [
-    "smarthome/context/raw",
-    "smarthome/audit/validator_output"
+    "safe_deferral/context/input",
+    "safe_deferral/validator/output"
   ],
   "required_assets": [
     "policy_table.json",
@@ -462,21 +462,15 @@ required_measurement_nodes 및 measurement export 조건을 검사한다.
 
 ## 12. MQTT topic 예시
 
-### node status
-- `node/status/mac_mini`
-- `node/status/rpi`
-- `node/status/edge_controller_app`
-- `node/status/stm32_time_probe_01`
-- `node/status/stm32_time_probe_02`
+Preflight and monitoring examples should stay within the active
+`safe_deferral/...` namespace unless the topic registry is intentionally updated.
 
-### experiment preflight
-- `experiment/preflight/check`
-- `experiment/preflight/result`
-- `experiment/preflight/detail`
+### dashboard / node observation
+- `safe_deferral/dashboard/observation`
 
-### experiment control
-- `experiment/control/start`
-- `experiment/control/stop`
+### experiment progress and result
+- `safe_deferral/experiment/progress`
+- `safe_deferral/experiment/result`
 
 ---
 

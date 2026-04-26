@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS0_E002_BUTTON_TRIPLE_HIT",
   "title": "Class 0 E002 emergency button triple-hit scenario",
-  "description": "Deterministic scenario skeleton for a representative E002-aligned emergency path (bounded input triple-hit). This file is an integration asset and must remain aligned with frozen assets under common/. E002 may be reached directly from a triple-hit event or during Class 2 clarification if a triple-hit pattern occurs while the system is waiting for confirmation.",
+  "description": "Deterministic scenario skeleton for a representative E002-aligned emergency path (bounded input triple-hit). This file is an integration asset and must remain aligned with canonical assets under common/. E002 may be reached directly from a triple-hit event or during Class 2 clarification if a triple-hit pattern occurs while the system is waiting for confirmation.",
   "category": "class0_emergency",
   "mode": "deterministic",
   "input_plane": {
@@ -49,7 +49,7 @@
     "canonical_emergency_family": "E002"
   },
   "notes": [
-    "Exact trigger semantics remain defined by the frozen policy table.",
+    "Exact trigger semantics remain defined by the canonical policy table.",
     "This scenario is intended for emergency override path validation and later class-wise latency profiling.",
     "Class 0 emergency handling must not use the LLM as the primary decision path.",
     "During Class 2 clarification, E002 can override the clarification wait only when the deterministic triple-hit pattern is observed or emergency help is confirmed.",
