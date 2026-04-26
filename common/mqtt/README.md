@@ -28,9 +28,14 @@ Authoritative sources remain:
 
 ## Current files
 
+- `topic_registry_v1_1_0.json`
+  - Current machine-readable MQTT topic registry.
+  - Supersedes `topic_registry_v1_0_0.json`.
+  - Lists topic patterns, publisher roles, subscriber roles, payload family, schema/example references, authority level, runtime-mode allowance, QoS, retain behavior, and governance notes.
+
 - `topic_registry_v1_0_0.json`
-  - Machine-readable MQTT topic registry.
-  - Lists topic patterns, publisher roles, subscriber roles, payload family, schema/example references, authority level, QoS, retain behavior, and notes.
+  - Historical baseline superseded by `topic_registry_v1_1_0.json`.
+  - Keep only as a historical reference when needed.
 
 - `publisher_subscriber_matrix_v1_0_0.md`
   - Human-readable publisher/subscriber matrix.
@@ -52,6 +57,7 @@ In particular:
 - audit topics are evidence/traceability artifacts, not policy truth;
 - RPi simulation/fault topics are experiment support, not operational authority;
 - caregiver confirmation topics must not be confused with Class 1 autonomous validator approval;
+- Class 2 clarification interaction topics are evidence/transition records, not validator approval, actuation commands, emergency trigger authority, or doorlock authorization;
 - actuation ACK topics are closed-loop evidence, not pure context input;
 - topic registry entries are communication contracts, not routing or execution authority;
 - topic-payload mappings are contract references, not schema authority;
@@ -69,10 +75,11 @@ In particular:
 6. RPi may publish simulation/fault topics only in controlled experiment/simulation mode.
 7. `environmental_context.doorbell_detected` remains context only and must not authorize autonomous doorlock control.
 8. Doorlock-related sensitive outcomes must route through Class 2 escalation or separately governed manual confirmation with ACK and audit.
-9. Governance dashboard UI must call the governance backend for create/update/delete/validation/export operations.
-10. Governance dashboard UI must not directly edit registry files, publish operational control topics, expose unrestricted actuator consoles, or expose direct doorlock command controls.
-11. Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert draft/proposed changes into live authority without review.
-12. `FAULT_CONTRACT_DRIFT_01` and related Package G checks are governance/verification checks, not operational fault paths.
+9. Class 2 clarification interaction payloads must remain evidence for clarification/transition handling and must not be interpreted as validator approval, actuator authorization, emergency trigger authority, or doorlock authorization.
+10. Governance dashboard UI must call the governance backend for create/update/delete/validation/export operations.
+11. Governance dashboard UI must not directly edit registry files, publish operational control topics, expose unrestricted actuator consoles, or expose direct doorlock command controls.
+12. Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert draft/proposed changes into live authority without review.
+13. `FAULT_CONTRACT_DRIFT_01` and related Package G checks are governance/verification checks, not operational fault paths.
 
 ---
 
