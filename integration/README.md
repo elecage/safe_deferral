@@ -24,7 +24,6 @@ integration/
 ├── requirements.md
 ├── tests/
 │   ├── README.md
-│   ├── integration_test_runner_skeleton.py
 │   └── data/
 │      ├── README.md
 │      ├── sample_policy_router_input_class1.json
@@ -61,14 +60,13 @@ integration/
 
 이 파일들은 canonical truth가 아니라 **integration-side sample fixture**다.
 
-### `integration/tests/integration_test_runner_skeleton.py`
-역할:
-- scenario JSON 로드
-- scenario가 참조하는 fixture JSON 로드
-- fixture path 누락/오타/JSON syntax 오류 fail-fast 검출
-- machine-readable summary 출력
+### Python runner status
 
-현재 단계에서는 **scenario / fixture loading skeleton**이다.
+Python runner/comparator code has been removed during the current documentation
+and contract cleanup phase. `integration/tests/data/` and `integration/scenarios/`
+remain as active contract and fixture assets. A runner may be reintroduced only
+after the canonical architecture, scenario, policy, schema, MQTT, and payload
+baseline is stable.
 
 ### `integration/measurement/class_wise_latency_profiles.md`
 역할:
@@ -157,34 +155,20 @@ integration/
 
 1. scenario skeleton 작성 또는 복제
 2. `integration/tests/data/`의 fixture 참조
-3. `integration_test_runner_skeleton.py`로 scenario + fixture loading 검증
+3. JSON syntax와 fixture reference를 문서/리뷰 기준으로 확인
 4. 필요 시 `integration/measurement/experiment_preflight_readiness_design.md`를 바탕으로 실험 전 readiness 조건 정의
 5. timing/latency 실험이 필요한 경우 `integration/measurement/stm32_nucleo_h723zg_measurement_node.md`를 참고하여 measurement node 요구사항 정리
-6. 이후 expected outcome comparator / MQTT adapter / audit observer 추가
-
-예:
-
-```bash
-python3 integration/tests/integration_test_runner_skeleton.py --pretty
-```
-
-특정 scenario 지정 예:
-
-```bash
-python3 integration/tests/integration_test_runner_skeleton.py \
-  --scenario integration/scenarios/baseline_scenario_skeleton.json \
-  --pretty
-```
+6. 이후 runner / expected outcome comparator / MQTT adapter / audit observer를 재도입
 
 ---
 
 ## 7. 현재 단계에서 권장되는 다음 작업
 
-1. expected outcome comparator 추가
-2. scenario loader unit test 추가
-3. canonical consistency smoke test 추가
-4. `integration/measurement/`에 result template 문서 추가
-5. `integration/scenarios/`에 Class 0 / Class 2 / stale / conflict skeleton 추가
+1. non-Python 또는 추후 재도입 runner 검증 방식 결정
+2. expected outcome comparator 설계 재정의
+3. scenario loader validation rule 문서화
+4. canonical consistency smoke test 설계
+5. `integration/measurement/`에 result template 문서 추가
 6. experiment registry / node registry 설계 자산 추가
 7. Home Assistant 실험 대시보드와 연결될 preflight readiness panel 설계
 8. STM32 measurement node heartbeat / export contract 구체화

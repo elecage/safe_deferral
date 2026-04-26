@@ -319,9 +319,11 @@ common/mqtt/topic_registry.json
 common/mqtt/topic_payload_contracts.md
 common/payloads/templates/scenario_fixture_template.json
 integration/scenarios/scenario_manifest_schema.json
-integration/scenarios/verify_scenario_policy_schema_alignment.py
-integration/scenarios/verify_scenario_manifest.py
 ```
+
+Python scenario verifiers are not present during the current cleanup phase.
+Verifier behavior should be reintroduced only after the canonical document and
+contract baseline is stable.
 
 ---
 

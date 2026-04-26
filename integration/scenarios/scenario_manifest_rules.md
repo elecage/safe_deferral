@@ -507,10 +507,10 @@ Scenario는 이후 class-wise latency profile과 연결될 수 있어야 한다.
 1. Existing Class 2 / fault skeleton에 `class2_clarification_expectation` 추가
 2. Class 2 transition fixture 추가
 3. Class 2 transition skeleton 4개 추가
-4. scenario loader unit test 추가
-5. expected outcome comparator 추가
-6. `verify_scenario_topic_alignment.py` 추가 보강
-7. `verify_scenario_fixture_refs.py` 추가 보강
-8. `verify_scenario_policy_schema_alignment.py` 추가 보강
+4. scenario loader validation rule 문서화
+5. expected outcome comparator 설계 재정의
+6. topic alignment 검증 방식 재정의
+7. fixture reference 검증 방식 재정의
+8. policy/schema alignment 검증 방식 재정의
 9. randomized stress metadata 규칙 문서화
 10. measurement profile과 scenario 매핑 문서화

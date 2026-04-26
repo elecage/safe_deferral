@@ -241,11 +241,11 @@ Verify topic registry readability, publisher/subscriber matrix consistency, topi
 실험 인프라는 다음처럼 역할 분리된다.
 
 - **Mac mini**: safety-critical operational edge hub, including policy routing, local LLM reasoning, deterministic validation, safe deferral, caregiver escalation/approval handling, ACK, audit logging, topic registry loading, and payload validation support
-- **Raspberry Pi 5**: experiment-side support region, including Monitoring / Experiment Dashboard, simulation, replay, fault injection, closed-loop experiment orchestration, progress/status publication, result summary, graph/CSV export, evaluation artifact generation, and non-authoritative MQTT/payload governance support
+- **Raspberry Pi 5**: experiment-side support region, including Monitoring / Experiment Dashboard, virtual-node hosting, simulation, replay, fault injection, closed-loop experiment orchestration, progress/status publication, result summary, graph/CSV export, evaluation artifact generation, and non-authoritative MQTT/payload governance support
 - **ESP32**: bounded physical node layer (button, sensor, actuator/warning interface)
 - **Optional STM32 or dedicated timing node**: out-of-band latency measurement infrastructure
 
-Raspberry Pi 5 hosts the experiment and monitoring dashboard. The dashboard is a support-side visibility and experiment-operations console; it is not the policy authority, validator authority, caregiver approval authority, or primary operational hub. Mac mini may expose telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard.
+Raspberry Pi 5 hosts the experiment and monitoring dashboard and may create experiment-only virtual nodes such as simulated sensors, emergency event publishers, doorbell/context publishers, fault injectors, and mock ACK publishers. These virtual nodes are controlled experiment sources or observers; they are not production devices and do not create policy, validator, caregiver approval, actuator, or doorlock authority. The dashboard is a support-side visibility and experiment-operations console; it is not the policy authority, validator authority, caregiver approval authority, or primary operational hub. Mac mini may expose telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard.
 
 The MQTT/payload governance dashboard UI, if implemented, must call a separate governance backend for create/update/delete/validation/export operations. The UI must not directly edit registry files, publish operational control topics, expose unrestricted actuator consoles, or provide direct doorlock command controls.
 
@@ -285,10 +285,14 @@ This repository is being initialized with:
 
 ## Key Reference Documents
 
-- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
-- `common/docs/architecture/15_interface_matrix.md`
-- `common/docs/architecture/16_system_architecture_figure.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
+- `common/docs/architecture/00_architecture_index.md`
+- `common/docs/architecture/01_system_architecture.md`
+- `common/docs/architecture/02_safety_and_authority_boundaries.md`
+- `common/docs/architecture/03_payload_and_mqtt_contracts.md`
+- `common/docs/architecture/04_class2_clarification.md`
+- `common/docs/architecture/05_implementation_plan.md`
+- `common/docs/architecture/06_deployment_and_scripts.md`
+- `common/docs/architecture/07_scenarios_and_evaluation.md`
 - `common/docs/required_experiments.md`
 - `common/mqtt/topic_registry.json`
 - `common/mqtt/publisher_subscriber_matrix.md`
