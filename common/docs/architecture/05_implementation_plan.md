@@ -18,12 +18,16 @@ Completed cleanup work:
 - superseded policy/schema/MQTT assets moved under `common/history/`,
 - `common/asset_manifest.json` added,
 - active references migrated to canonical asset names,
-- Python files removed for the current cleanup phase.
+- active architecture document set established,
+- legacy architecture notes marked as source notes,
+- scenario and experiment guidance aligned with the active architecture set,
+- `CLAUDE.md` simplified into a compact coding-agent operating guide,
+- Python files removed for the current cleanup phase,
+- runtime handoff index updated with the cleanup addendum.
 
-## 3. Current Priority
+## 3. Current Baseline
 
-The current priority is to reduce architecture-document duplication and establish
-the active document set:
+The active architecture document set is:
 
 1. `00_architecture_index.md`
 2. `01_system_architecture.md`
@@ -34,18 +38,18 @@ the active document set:
 7. `06_deployment_and_scripts.md`
 8. `07_scenarios_and_evaluation.md`
 
-## 4. Next Cleanup Steps
+## 4. Remaining Cleanup Steps
 
-1. Update root guidance so `README.md` and `CLAUDE.md` point to the active
-   architecture index.
-2. Simplify `CLAUDE.md` into a compact coding-agent operating guide.
-3. Decide whether older `01` through `20` architecture notes should move to
-   `common/docs/archive/architecture_legacy/` or remain in place as legacy source
-   notes.
-4. Consolidate scenario guidance so `integration/scenarios/` remains the active
-   scenario-contract area without duplicating architecture prose.
-5. Update `common/docs/runtime/SESSION_HANDOFF.md` after the cleanup batch is
-   complete.
+The documentation and contract cleanup baseline is now stable enough for a final
+review or a deliberate next pass.
+
+Remaining cleanup should be handled as separate, intentional batches:
+
+1. Prompt-set cleanup for `12_prompts*.md`.
+2. Optional archive move for legacy architecture notes if preserving them in
+   place becomes distracting.
+3. Reintroduction of implementation code after the resume gate below is
+   explicitly satisfied.
 
 ## 5. Implementation Resume Gate
 
