@@ -66,12 +66,12 @@ common/policies/low_risk_actions.json
 common/policies/fault_injection_rules.json
 common/policies/output_profile.json
 
-common/schemas/policy_router_input.schema.json
-common/schemas/context.schema.json
-common/schemas/candidate_action.schema.json
-common/schemas/validator_output.schema.json
-common/schemas/class2_notification_payload.schema.json
-common/schemas/clarification_interaction.schema.json
+common/schemas/policy_router_input_schema.json
+common/schemas/context_schema.json
+common/schemas/candidate_action_schema.json
+common/schemas/validator_output_schema.json
+common/schemas/class2_notification_payload_schema.json
+common/schemas/clarification_interaction_schema.json
 
 common/mqtt/topic_registry.json
 common/mqtt/publisher_subscriber_matrix.md
@@ -93,6 +93,11 @@ common/history/schemas/
 common/history/mqtt/
 common/docs/archive/architecture_legacy/
 ```
+
+Files under `common/history/` should use the same descriptive basename as the
+active canonical file where practical. The fact that the file is historical is
+expressed by its directory and by `common/asset_manifest.json`, not by adding a
+version string back into the filename.
 
 Historical handoff files under `common/docs/runtime/` may keep old filenames and
 old references because they are session history.
@@ -299,19 +304,19 @@ Source documents likely merged:
 | `common/policies/low_risk_actions_v1_1_0_FROZEN.json` | `common/policies/low_risk_actions.json` | Current Class 1 low-risk catalog |
 | `common/policies/fault_injection_rules_v1_4_0_FROZEN.json` | `common/policies/fault_injection_rules.json` | Current fault rules |
 | `common/policies/output_profile_v1_1_0.json` | `common/policies/output_profile.json` | Current output profile |
-| `common/policies/policy_table_v1_1_2_FROZEN.json` | `common/history/policies/policy_table_v1_1_2.json` | Historical |
+| `common/policies/policy_table_v1_1_2_FROZEN.json` | `common/history/policies/policy_table.json` | Historical |
 
 ### 5.2 Schema assets
 
 | Current active or historical file | Target canonical file | Note |
 |---|---|---|
-| `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json` | `common/schemas/policy_router_input.schema.json` | Current |
-| `common/schemas/context_schema_v1_0_0_FROZEN.json` | `common/schemas/context.schema.json` | Current |
-| `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json` | `common/schemas/candidate_action.schema.json` | Current |
-| `common/schemas/validator_output_schema_v1_1_0_FROZEN.json` | `common/schemas/validator_output.schema.json` | Current |
-| `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json` | `common/schemas/class2_notification_payload.schema.json` | Current |
-| `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` | `common/schemas/clarification_interaction.schema.json` | Current |
-| `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json` | `common/history/schemas/class2_notification_payload_v1_0_0.schema.json` | Historical |
+| `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json` | `common/schemas/policy_router_input_schema.json` | Current |
+| `common/schemas/context_schema_v1_0_0_FROZEN.json` | `common/schemas/context_schema.json` | Current |
+| `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json` | `common/schemas/candidate_action_schema.json` | Current |
+| `common/schemas/validator_output_schema_v1_1_0_FROZEN.json` | `common/schemas/validator_output_schema.json` | Current |
+| `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json` | `common/schemas/class2_notification_payload_schema.json` | Current |
+| `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json` | `common/schemas/clarification_interaction_schema.json` | Current |
+| `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json` | `common/history/schemas/class2_notification_payload_schema.json` | Historical |
 
 ### 5.3 MQTT assets
 
@@ -320,7 +325,7 @@ Source documents likely merged:
 | `common/mqtt/topic_registry_v1_1_0.json` | `common/mqtt/topic_registry.json` | Current |
 | `common/mqtt/publisher_subscriber_matrix_v1_0_0.md` | `common/mqtt/publisher_subscriber_matrix.md` | Current |
 | `common/mqtt/topic_payload_contracts_v1_0_0.md` | `common/mqtt/topic_payload_contracts.md` | Current |
-| `common/mqtt/topic_registry_v1_0_0.json` | `common/history/mqtt/topic_registry_v1_0_0.json` | Historical |
+| `common/mqtt/topic_registry_v1_0_0.json` | `common/history/mqtt/topic_registry.json` | Historical |
 
 ### 5.4 Payload assets
 
@@ -359,12 +364,12 @@ Representative shape:
     "fault_injection_rules": "common/policies/fault_injection_rules.json",
     "output_profile": "common/policies/output_profile.json",
     "topic_registry": "common/mqtt/topic_registry.json",
-    "context_schema": "common/schemas/context.schema.json",
-    "policy_router_input_schema": "common/schemas/policy_router_input.schema.json",
-    "candidate_action_schema": "common/schemas/candidate_action.schema.json",
-    "validator_output_schema": "common/schemas/validator_output.schema.json",
-    "class2_notification_payload_schema": "common/schemas/class2_notification_payload.schema.json",
-    "clarification_interaction_schema": "common/schemas/clarification_interaction.schema.json"
+    "context_schema": "common/schemas/context_schema.json",
+    "policy_router_input_schema": "common/schemas/policy_router_input_schema.json",
+    "candidate_action_schema": "common/schemas/candidate_action_schema.json",
+    "validator_output_schema": "common/schemas/validator_output_schema.json",
+    "class2_notification_payload_schema": "common/schemas/class2_notification_payload_schema.json",
+    "clarification_interaction_schema": "common/schemas/clarification_interaction_schema.json"
   },
   "superseded": {
     "common/policies/policy_table_v1_2_0_FROZEN.json": "common/policies/policy_table.json",
@@ -410,10 +415,10 @@ common/policies/policy_table_v1_2_0_FROZEN.json
 → common/policies/policy_table.json
 
 common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
-→ common/schemas/clarification_interaction.schema.json
+→ common/schemas/clarification_interaction_schema.json
 
 common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json
-→ common/schemas/class2_notification_payload.schema.json
+→ common/schemas/class2_notification_payload_schema.json
 
 common/mqtt/topic_registry_v1_1_0.json
 → common/mqtt/topic_registry.json
@@ -466,7 +471,7 @@ with:
 
 ```text
 payload_family: clarification_interaction_payload
-schema: common/schemas/clarification_interaction.schema.json
+schema: common/schemas/clarification_interaction_schema.json
 authority_level: class2_interaction_evidence_not_authority
 ```
 
@@ -548,9 +553,16 @@ common/docs/archive/
 
 1. Keep this plan as the cleanup anchor.
 2. Create a full rename map for active policy/schema/MQTT assets.
+   - Current execution map:
+     `common/docs/architecture/00_canonical_asset_rename_map.md`
 3. Decide archive path naming: `common/history/` vs `common/archive/`.
+   - Current decision: use `common/history/` for superseded
+     policy/schema/MQTT assets.
 4. Decide whether old architecture docs get moved immediately or first receive
    superseded banners.
+   - Current recommendation: do not move all legacy architecture docs in the
+     first rename batch. Rename canonical assets first, then consolidate prose in
+     a separate batch.
 
 ### Phase B. Canonical asset rename
 
@@ -613,4 +625,3 @@ The cleanup is successful when:
 - historical references are isolated under history/runtime/archive paths,
 - and no Python code remains in the repository during this documentation and
   contract cleanup phase.
-
