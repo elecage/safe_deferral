@@ -17,6 +17,8 @@ This document should be read together with:
 ## Non-Goals
 - No autonomous door unlocking
 - No free-form LLM actuation
+- No LLM-driven final Class 2 transition decision
+- No Class 2 Clarification Manager actuation authority
 - No user-study implementation in this phase
 - No cloud-dependent inference in the core architecture
 - No hardcoded MQTT topic or payload-contract drift in runtime apps where registry-based loading is practical
@@ -26,7 +28,7 @@ This document should be read together with:
 - No governance tooling publishing actuator or doorlock commands
 
 ## Architecture Scope
-- The Mac mini hosts all core operational runtime services
+- The Mac mini hosts all core operational runtime services, including Policy Router, Deterministic Validator, Context-Integrity Safe Deferral Handler, Class 2 Clarification Manager, caregiver confirmation, notification, and audit services
 - Raspberry Pi 5 is used as the experiment-side dashboard, multi-node simulation, virtual sensing, replay, fault-injection, scenario orchestration, progress/result publication, closed-loop evaluation node, and non-authoritative MQTT/payload governance support host
 - Raspberry Pi 5 may host MQTT/payload governance backend service, governance dashboard UI, topic/payload validation utilities, payload example validation, and publisher/subscriber role review when implemented
 - ESP32 devices are used as embedded physical nodes for bounded button input, sensing, doorbell / visitor-arrival context generation, or actuator/warning interfacing within the applicable scope
@@ -102,42 +104,45 @@ This document should be read together with:
 1. Policy Router
 2. Deterministic Validator
 3. Context-Integrity Safe Deferral Handler
-4. Audit Logging Service / DB Access Layer
-5. Outbound Notification Interface
-6. Caregiver Confirmation Backend
-7. MQTT Topic Registry Loader / Contract Checker
-8. Payload Validation Helper
+4. Class 2 Clarification Manager
+5. Audit Logging Service / DB Access Layer
+6. Outbound Notification Interface
+7. Caregiver Confirmation Backend
+8. MQTT Topic Registry Loader / Contract Checker
+9. Payload Validation Helper
+
+The Class 2 Clarification Manager is a Mac mini runtime module for bounded clarification and transition handling. It may request LLM-generated candidate choices and accessible user-facing wording, but it must not authorize actuation, determine final class transitions by itself, trigger emergency handling, or bypass the Deterministic Validator. Its outputs must re-enter the Policy Router after user/caregiver confirmation, timeout, or additional deterministic evidence.
 
 ### Raspberry Pi experiment-side modules
-9. Virtual Sensor Node Runtime
-10. Virtual Emergency Sensor Runtime
-11. Virtual `doorbell_detected` Visitor-Response Context Runtime
-12. Fault Injection Harness
-13. Scenario Orchestrator
-14. Replay Runtime
-15. Experiment and Monitoring Dashboard
-16. MQTT / Payload Governance Backend Service
-17. Governance Dashboard UI
-18. Topic / Payload Contract Validation Utility
-19. Payload Example Manager / Validator
-20. Publisher / Subscriber Role Manager
-21. Closed-loop Audit Evaluation Harness
-22. Verification Utilities
-23. Artifact Sync Utility
-24. Time Sync Check Utility
-25. Progress / Result Publication Utility
+10. Virtual Sensor Node Runtime
+11. Virtual Emergency Sensor Runtime
+12. Virtual `doorbell_detected` Visitor-Response Context Runtime
+13. Fault Injection Harness
+14. Scenario Orchestrator
+15. Replay Runtime
+16. Experiment and Monitoring Dashboard
+17. MQTT / Payload Governance Backend Service
+18. Governance Dashboard UI
+19. Topic / Payload Contract Validation Utility
+20. Payload Example Manager / Validator
+21. Publisher / Subscriber Role Manager
+22. Closed-loop Audit Evaluation Harness
+23. Verification Utilities
+24. Artifact Sync Utility
+25. Time Sync Check Utility
+26. Progress / Result Publication Utility
 
 ### ESP32 bring-up and embedded modules when used
-26. Cross-platform ESP-IDF install / configure / verify scaffolding
-27. Minimal template project for sample-build validation
-28. Button Node Firmware
-29. Environmental / Safety Sensor Node Firmware
-30. Doorbell / Visitor-Arrival Context Node Firmware
-31. Actuator / Warning Interface Firmware
+27. Cross-platform ESP-IDF install / configure / verify scaffolding
+28. Minimal template project for sample-build validation
+29. Button Node Firmware
+30. Environmental / Safety Sensor Node Firmware
+31. Doorbell / Visitor-Arrival Context Node Firmware
+32. Actuator / Warning Interface Firmware
 
 ### Optional timing and measurement support when used
-32. Out-of-band Timing Measurement Support
-33. Timing Capture and Latency Evaluation Support
+33. Out-of-band Timing Measurement Support
+34. Timing Capture and Latency Evaluation Support
 
 ---
 
@@ -209,6 +214,7 @@ Accordingly, Raspberry Pi 5 must not host or replace the Mac mini hub-side opera
 - Policy Router
 - Deterministic Validator
 - Context-Integrity Safe Deferral Handler
+- Class 2 Clarification Manager
 - hub-side operational audit authority
 - validator approval authority
 - caregiver approval authority
@@ -240,6 +246,7 @@ Freeze the shared reference assets before implementation begins.
 - fault injection rules
 - JSON schemas
 - Class 2 notification payload schema
+- Class 2 clarification interaction schema
 - canonical terminology
 - environment variable templates
 - installation/configuration/verification script set
@@ -250,14 +257,15 @@ Freeze the shared reference assets before implementation begins.
 - payload examples/templates for implementation, testing, simulation, and dashboard tooling
 
 #### Representative frozen / reference files
-- `common/policies/policy_table_v1_1_2_FROZEN.json`
+- `common/policies/policy_table_v1_2_0_FROZEN.json`
 - `common/policies/low_risk_actions_v1_1_0_FROZEN.json`
 - `common/policies/fault_injection_rules_v1_4_0_FROZEN.json`
 - `common/schemas/context_schema_v1_0_0_FROZEN.json`
 - `common/schemas/candidate_action_schema_v1_0_0_FROZEN.json`
 - `common/schemas/policy_router_input_schema_v1_1_1_FROZEN.json`
 - `common/schemas/validator_output_schema_v1_1_0_FROZEN.json`
-- `common/schemas/class_2_notification_payload_schema_v1_0_0_FROZEN.json`
+- `common/schemas/class_2_notification_payload_schema_v1_1_0_FROZEN.json`
+- `common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json`
 - `common/mqtt/topic_registry_v1_0_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
@@ -314,6 +322,9 @@ Implement the hub-side core decision pipeline.
 - implement Policy Router
 - implement Deterministic Validator
 - implement Context-Integrity Safe Deferral Handler
+- implement Class 2 Clarification Manager as a bounded interaction and transition module
+- ensure Class 2 Clarification Manager outputs re-enter the Policy Router and never dispatch actuator commands directly
+- add tests for Class 2 → Class 1, Class 2 → Class 0, and Class 2 → Safe Deferral transitions
 - implement Audit Logging Service integration
 - implement MQTT topic registry loader / contract checker
 - implement payload validation helper using `common/schemas/`, `common/mqtt/`, and `common/payloads/`
@@ -325,7 +336,7 @@ Implement the hub-side core decision pipeline.
 - `mac_mini/code/`
 
 #### Completion criterion
-The core decision pipeline can receive input, validate it, and produce auditable routing outcomes using registry-aligned topic and payload contracts.
+The core decision pipeline can receive input, validate it, manage bounded Class 2 clarification, re-enter policy routing after confirmation/timeout/evidence, and produce auditable routing outcomes using registry-aligned topic and payload contracts.
 
 ---
 
@@ -335,8 +346,9 @@ Implement bounded external communication paths.
 #### Tasks
 - implement Telegram or mock outbound notification path
 - implement caregiver confirmation path
-- connect notification and confirmation logic to validator outcomes
+- connect notification and confirmation logic to validator outcomes and Class 2 clarification outcomes
 - ensure Class 2 notification payloads remain schema-valid
+- ensure Class 2 clarification interaction records remain schema-valid
 - ensure caregiver confirmation payloads do not masquerade as autonomous Class 1 validator approval
 
 #### Primary repository location
@@ -559,35 +571,38 @@ All runtime logic must respect frozen policy assets before any actuation-related
 The deterministic validator and safe deferral logic must remain authoritative.  
 The LLM is only used for bounded interpretation, explanation support, or candidate generation under deterministic policy and validator control.
 
-### C. Device-role separation
+### C. Class 2 clarification as bounded transition handling
+Class 2 is implemented as a bounded clarification and transition state, not as unrestricted dialogue, autonomous actuation, or terminal caregiver escalation by default. The Class 2 Clarification Manager may manage candidate presentation, user/caregiver response capture, timeout handling, transition evidence recording, and Policy Router re-entry. It must not dispatch actuator commands directly.
+
+### D. Device-role separation
 - Mac mini = operational hub
 - Raspberry Pi 5 = experiment dashboard, multi-node simulation, fault injection, scenario replay, progress/result publication, non-authoritative MQTT/payload governance support, and closed-loop evaluation node
 - ESP32 = bounded physical node layer plus cross-platform bring-up workflow for node development
 - STM32 timing node or equivalent = optional out-of-band latency measurement infrastructure
 
-### D. Auditable outcomes
+### E. Auditable outcomes
 All meaningful routing and validation outcomes should be observable through logs, notifications, or audit channels.
 
-### E. Repository-structured implementation
+### F. Repository-structured implementation
 Code, scripts, frozen assets, embedded firmware, integration scenarios, MQTT contracts, payload examples/templates, governance artifacts, and measurement assets should be placed according to the repository structure rather than mixed into a single flat project layout.
 
-### F. Closed-loop evaluation discipline
+### G. Closed-loop evaluation discipline
 Experiment-side execution should not bypass the operational decision path.  
 Raspberry Pi-based simulation and fault injection must exercise the same input plane and must verify outcomes through observed audit behavior rather than assumed internal state.
 
-### G. Deployment-local separation
+### H. Deployment-local separation
 Deployment-local configuration and runtime copies are necessary for execution, but they must not override the canonical frozen architecture baseline.
 
-### H. Do not hardcode MQTT topics or payload contracts
+### I. Do not hardcode MQTT topics or payload contracts
 Runtime apps, dashboard apps, and experiment tools should load topic names, publisher/subscriber rules, payload families, schema paths, and example references from `common/mqtt/topic_registry_v1_0_0.json` whenever practical.
 
-### I. Keep dashboard and governance tooling non-authoritative
+### J. Keep dashboard and governance tooling non-authoritative
 The experiment dashboard and MQTT/payload governance dashboard may inspect, validate, and visualize state, but must not override policy routing, validator decisions, caregiver approval, or actuation dispatch.
 
 The governance dashboard UI is a presentation and interaction layer. The MQTT/payload governance backend is the draft/validate/export service. Neither may create operational authority, bypass policy/schema constraints, or convert proposed registry changes into live control authority.
 
-### J. Preserve payload boundaries
-`doorbell_detected` belongs in `environmental_context`; doorlock state, manual approval state, and ACK state do not belong in current `pure_context_payload.device_states`.
+### K. Preserve payload boundaries
+`doorbell_detected` belongs in `environmental_context`; doorlock state, manual approval state, ACK state, and Class 2 clarification interaction state do not belong in current `pure_context_payload.device_states`.
 
 ---
 
@@ -596,7 +611,8 @@ The governance dashboard UI is a presentation and interaction layer. The MQTT/pa
 The final prototype should demonstrate that:
 - the Mac mini can safely host the operational decision pipeline
 - bounded LLM assistance is restricted to interpretation, explanation support, and approved low-risk candidate generation under deterministic policy and validator control
-- incomplete, stale, or conflicting context leads to safe deferral rather than unsafe autonomous actuation
+- incomplete, stale, or conflicting context leads to Class 2 clarification, safe deferral, or caregiver confirmation rather than unsafe autonomous actuation
+- Class 2 clarification can present bounded candidates, collect user/caregiver confirmation or timeout evidence, and re-enter the Policy Router without granting execution authority to the LLM or clarification manager
 - ESP32-based bounded physical input/output paths can be integrated without bypassing policy control
 - ESP32 bring-up and sample-build validation can be reproduced across supported host environments before real node firmware generation begins
 - `environmental_context.doorbell_detected` can support visitor-response interpretation without authorizing autonomous doorlock control
