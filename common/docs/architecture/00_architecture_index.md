@@ -66,6 +66,10 @@ Current MQTT and payload reference assets:
 | `07_scenarios_and_evaluation.md` | Scenario contracts, evaluation boundaries, measurement direction |
 | `08_system_structure_figure_revision_plan.md` | Stepwise revision plan for the system structure figure |
 
+System-figure revision working notes live under:
+
+- `figure_revision/`
+
 ## 5. Active Prompt Sets
 
 Implementation-generation prompts are indexed from:
