@@ -27,11 +27,14 @@ This document is a system-architecture interpretation note and should be read to
 - `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
 - `common/docs/architecture/20_scenario_data_flow_matrix.md`
 - `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry_v1_1_0.json`
 - `common/mqtt/publisher_subscriber_matrix_v1_0_0.md`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
 - `common/payloads/README.md`
 - `CLAUDE.md`
+
+Historical MQTT registry baseline:
+- `common/mqtt/topic_registry_v1_0_0.json`
 
 ---
 
@@ -114,6 +117,7 @@ Role:
 - manages draft topic/payload registry edits,
 - validates topic-payload contracts,
 - validates clarification interaction payload boundaries,
+- validates the dedicated `safe_deferral/clarification/interaction` topic contract where used,
 - manages publisher/subscriber role assignments,
 - validates payload examples against referenced schemas,
 - runs interface-matrix alignment checks,
@@ -143,6 +147,7 @@ Role:
 - visualizes publisher/subscriber role assignments,
 - visualizes payload validation results,
 - visualizes clarification interaction payload validation results,
+- visualizes `safe_deferral/clarification/interaction` as an evidence-only topic,
 - visualizes interface-matrix alignment results,
 - visualizes topic/payload drift warnings where implemented,
 - visualizes UI/backend contract failure states,
@@ -355,12 +360,13 @@ Important interpretation:
 The registry-consistency support layer for runtime and verification code.
 
 Role:
-- loads topic definitions from `common/mqtt/`,
+- loads topic definitions from `common/mqtt/topic_registry_v1_1_0.json`,
+- treats `topic_registry_v1_0_0.json` as a historical baseline unless explicitly used for compatibility checks,
 - prevents topic string drift where registry lookup is practical,
 - checks alignment with `common/docs/architecture/15_interface_matrix.md`,
 - detects topic/payload hardcoding drift where implemented,
 - checks publisher/subscriber assumptions,
-- resolves payload family, schema, example payload, QoS, retain, and authority-level information.
+- resolves payload family, schema, example payload, QoS, retain, runtime-mode flags, and authority-level information.
 
 Important interpretation:
 - this component supports communication consistency,
@@ -373,6 +379,7 @@ Role:
 - validates schema-governed payloads,
 - checks required `environmental_context.doorbell_detected` in valid context examples,
 - validates Class 2 clarification interaction payloads where used,
+- validates `safe_deferral/clarification/interaction` topic payloads where MQTT publication is used,
 - flags missing or malformed payload fields,
 - flags or rejects doorlock state inside current `pure_context_payload.device_states`,
 - and supports test/dashboard/governance validation reports.
@@ -427,11 +434,26 @@ Role:
 - requests Policy Router re-entry,
 - records candidate, selection, timeout, transition, and final safe outcome evidence.
 
+When MQTT publication is used, Class 2 clarification interaction artifacts should use:
+
+```text
+safe_deferral/clarification/interaction
+```
+
+Topic contract:
+
+```text
+payload_family: clarification_interaction_payload
+schema: common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json
+authority_level: class2_interaction_evidence_not_authority
+```
+
 Important interpretation:
 - Class 2 Clarification Manager has no actuation authority,
 - no final class-decision authority,
 - no emergency-trigger authority,
-- and no validator-bypass authority.
+- no validator-bypass authority,
+- and its MQTT clarification interaction topic carries evidence, not authorization.
 
 #### 4.9.4 Escalation-Required Deferral
 Role:
@@ -534,6 +556,8 @@ Examples:
 - Class 2 transition scenarios,
 - sensitive-actuation validation scenarios.
 
+Class 2 transition scenarios may use `class2_clarification_expectation` in scenario fixtures to record the expected clarification topic, schema, transition target, Policy Router re-entry requirement, validator requirement for Class 1, timeout/no-response behavior, and non-authorization boundary.
+
 ### 5.3 Simulation / Replay
 Supports event and state replay.
 
@@ -573,6 +597,7 @@ Role:
 - topic registry validation,
 - publisher/subscriber consistency checking,
 - topic-to-payload contract validation,
+- `safe_deferral/clarification/interaction` contract validation,
 - payload example validation,
 - clarification interaction payload validation,
 - schema path and example path resolution,
@@ -594,6 +619,7 @@ Role:
 - publisher/subscriber role management,
 - payload family and schema/example linkage,
 - clarification interaction payload boundary validation,
+- dedicated clarification interaction topic validation,
 - interface-matrix alignment validation,
 - topic/payload drift report generation,
 - governance backend/UI separation validation support,
@@ -620,6 +646,7 @@ Role:
 - publisher/subscriber role display and editing through backend APIs,
 - payload validation result display,
 - clarification interaction validation result display,
+- dedicated clarification interaction topic visibility,
 - interface-matrix alignment display,
 - topic/payload drift warning display,
 - UI/backend contract failure display,
@@ -645,6 +672,7 @@ Role:
 - list payload templates,
 - validate schema-governed examples,
 - validate clarification interaction examples,
+- validate `class2_clarification_expectation` template blocks,
 - generate draft examples for review,
 - export validation reports.
 
@@ -660,11 +688,13 @@ Role:
 - list known subscriber roles,
 - validate role assignment against topic authority level,
 - distinguish operational roles from experiment-only roles,
-- distinguish dashboard/governance roles from policy/validator/dispatcher roles.
+- distinguish dashboard/governance roles from policy/validator/dispatcher roles,
+- validate publishers/subscribers for `safe_deferral/clarification/interaction`.
 
 Important interpretation:
 - dashboard/governance roles must not be assigned direct actuator, caregiver approval, validator, or policy authority unless explicitly marked as controlled test-mode roles.
 - Class 2 clarification roles must not be assigned direct actuator, emergency trigger, validator approval, or doorlock unlock authority.
+- The RPi-side Class 2 transition verifier may subscribe to `safe_deferral/clarification/interaction` as an observer only. It must not create Class 2 transition authority, validator authority, caregiver approval authority, or actuation authority.
 
 Important interpretation for the RPi layer as a whole:
 - Raspberry Pi remains an experiment-support layer,
@@ -704,10 +734,17 @@ Initial bounded input
 → Deterministic Validator when Class 1 is reached  
 → Class 1 bounded actuation, Class 0 emergency handling, continued safe deferral, or caregiver confirmation
 
+Optional MQTT evidence publication for this path:
+
+```text
+safe_deferral/clarification/interaction
+```
+
 Important interpretation:
 - this is not a purely one-shot system,
 - it supports bounded multi-turn clarification when policy permits,
-- but clarification results do not bypass Policy Router or Deterministic Validator.
+- clarification results do not bypass Policy Router or Deterministic Validator,
+- and the dedicated clarification interaction topic is evidence/transition state only, not execution authority.
 
 ### 6.3 Emergency path
 Emergency Nodes  
@@ -791,6 +828,7 @@ Optional development/evaluation support inset:
 - Payload Example Validation
 - Publisher / Subscriber Role Management
 - Class 2 transition evaluation support
+- Class 2 clarification interaction evidence topic: `safe_deferral/clarification/interaction`
 
 ---
 
@@ -822,7 +860,8 @@ Optional development/evaluation support inset:
 - follow-up bounded input or caregiver confirmation,
 - timeout/no-response handling,
 - Policy Router re-entry,
-- possible Class 1 / Class 0 / Safe Deferral / Caregiver Confirmation outcome.
+- possible Class 1 / Class 0 / Safe Deferral / Caregiver Confirmation outcome,
+- optional evidence publication through `safe_deferral/clarification/interaction`.
 
 ### 8.5 Feedback path
 - runtime-aware explanation,
@@ -835,6 +874,7 @@ Optional development/evaluation support inset:
 - interface-matrix alignment,
 - topic/payload drift detection,
 - clarification interaction payload validation,
+- dedicated clarification interaction topic validation,
 - proposed-change review boundary,
 - dashboard UI separated from backend service,
 - no policy, validator, caregiver approval, or actuator authority,
@@ -846,4 +886,4 @@ Optional development/evaluation support inset:
 
 The revised v2 interpretation is:
 
-> The local LLM recovers likely user intent and generates runtime-aware explanations and clarification prompts under constrained-input conditions, while actuation authority remains with policy routing, deterministic validation, Class 2 Policy Router re-entry, and caregiver-mediated escalation for sensitive actions; MQTT/payload governance supports registry-driven communication management without becoming operational control authority.
+> The local LLM recovers likely user intent and generates runtime-aware explanations and clarification prompts under constrained-input conditions, while actuation authority remains with policy routing, deterministic validation, Class 2 Policy Router re-entry, and caregiver-mediated escalation for sensitive actions; MQTT/payload governance supports registry-driven communication management and Class 2 clarification interaction evidence without becoming operational control authority.
