@@ -1,111 +1,109 @@
 # 12_prompts.md
 
-> Legacy source note: The active architecture entry point is `00_architecture_index.md`. This file is retained for detailed source context and should not be used as the first active baseline.
+## Purpose
 
+This document is the active prompt-set index for implementation generation.
 
-## Prompt Set Index
+The prompt set is organized by implementation target rather than by the older
+historical prompt numbering. Use this index when choosing which prompt document
+to give to an implementation agent.
 
-The original prompt document has been split for maintainability.
+Prompt documents do not define policy, schema, MQTT, scenario, or experiment
+authority. They must remain aligned with the active architecture documents and
+canonical assets.
 
-Use the following files:
+## Required Read Order
 
-- `common/docs/architecture/12_prompts_core_system.md`
-- `common/docs/architecture/12_prompts_nodes_and_evaluation.md`
-- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
+Before using any prompt set, read:
 
-## Current prompt references
+1. `common/docs/architecture/00_architecture_index.md`
+2. `common/docs/architecture/01_system_architecture.md`
+3. `common/docs/architecture/02_safety_and_authority_boundaries.md`
+4. `common/docs/architecture/03_payload_and_mqtt_contracts.md`
+5. `common/docs/architecture/04_class2_clarification.md`
+6. `common/docs/architecture/05_implementation_plan.md`
+7. `common/docs/architecture/06_deployment_and_scripts.md`
+8. `common/docs/architecture/07_scenarios_and_evaluation.md`
+9. `common/docs/required_experiments.md`
 
-All prompt files should remain aligned with:
+## Active Prompt Sets
 
-- `common/docs/architecture/15_interface_matrix.md`
-- `common/docs/architecture/16_system_architecture_figure.md`
-- `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/docs/architecture/12_prompts_mqtt_payload_governance.md`
-- `common/docs/architecture/19_class2_clarification_architecture_alignment.md`
-- `common/docs/architecture/20_scenario_data_flow_matrix.md`
-- `common/mqtt/topic_registry.json`
-- `common/mqtt/publisher_subscriber_matrix.md`
-- `common/mqtt/topic_payload_contracts.md`
-- `common/payloads/README.md`
+| File | Use for |
+|---|---|
+| `12_prompts_mac_mini_components.md` | Mac mini operational hub components |
+| `12_prompts_rpi_experiment_apps.md` | Raspberry Pi experiment apps, managers, dashboard, and governance support |
+| `12_prompts_physical_nodes.md` | Physical nodes required for the actual prototype baseline |
+| `12_prompts_experiment_physical_nodes.md` | Physical nodes used only for experiment extension or representative sensitive cases |
+| `12_prompts_stm32_time_sync_node.md` | STM32 timing, synchronization, and measurement node support |
 
-## Repository-wide prompt boundary
+## Category Boundaries
 
-All generated artifacts must preserve:
+Mac mini prompt sets are for safety-critical operational services:
 
-- Mac mini as the operational hub,
-- Raspberry Pi as dashboard, simulation, orchestration, replay, fault-injection, result-export, and non-authoritative MQTT/payload governance support,
-- ESP32 as the bounded physical node layer,
-- optional timing/measurement infrastructure as evaluation-only support,
-- `common/policies/` and `common/schemas/` as policy/schema authority,
-- `common/mqtt/` and `common/payloads/` as shared communication/payload reference layers,
-- `common/docs/architecture/15_interface_matrix.md` as the MQTT-aware interface contract reference,
-- governance dashboard UI as a presentation and interaction layer,
-- governance backend service as the draft/create/update/delete/validate/export service,
-- Class 2 clarification as bounded interaction and transition handling, not autonomous actuation or terminal caregiver escalation by default,
-- Class 2 transition outcomes as Policy Router re-entry events after user/caregiver confirmation, timeout, or deterministic evidence,
-- and the rule that governance tooling must not create policy, schema, validator, caregiver approval, audit, actuator, or doorlock execution authority.
-
-## Runtime generation tasks that must remain covered
-
-The split prompt set must keep explicit coverage for:
-
+- MQTT/context intake,
+- local LLM adapter,
+- Policy Router,
+- Deterministic Validator,
 - Class 2 Clarification Manager,
-- clarification interaction payload handling,
-- Class 2 transition tests,
-- audit logging for clarification candidates, selections, timeouts, transition targets, and final safe outcomes,
-- MQTT/payload governance checks for `clarification_interaction_payload`,
-- Class 2 → Class 1 transition evaluation,
-- Class 2 → Class 0 transition evaluation,
-- Class 2 → Safe Deferral / Caregiver Confirmation evaluation.
+- safe deferral handling,
+- low-risk dispatcher,
+- caregiver escalation and confirmation handling,
+- ACK and audit logging,
+- read-only telemetry exposed to experiment tools.
 
-## File roles
+Raspberry Pi prompt sets are for experiment-side apps:
 
-### `12_prompts_core_system.md`
-Use this file for hub/backend/runtime generation tasks such as:
+- paper experiment batch execution,
+- result storage and analysis,
+- experiment manager,
+- virtual node creation/deletion,
+- virtual behavior execution,
+- virtual fault injection,
+- scenario generation and execution,
+- MQTT/interface status management,
+- web-based monitoring dashboard,
+- non-authoritative MQTT/payload governance support.
 
-- policy router
-- deterministic validator
-- safe deferral handler
-- Class 2 Clarification Manager
-- audit logging
-- notification and caregiver confirmation backend
-- Raspberry Pi virtual sensors, emergency simulation, fault injection, and orchestration
-- install/configure/verify scripts
+Physical-node prompt sets are split into:
 
-### `12_prompts_nodes_and_evaluation.md`
-Use this file for node firmware, measurement, and paper-oriented evaluation tasks such as:
+- actual prototype nodes required by the baseline,
+- experiment-only or representative physical nodes,
+- out-of-band STM32 timing/measurement nodes.
 
-- ESP32 node firmware
-- STM32 measurement node support
-- preflight readiness backend
-- constrained-input intent recovery evaluation
-- Class 2 clarification and transition evaluation flows
-- visitor-response / doorlock-sensitive evaluation flows
-- experiment dashboard control surface
-- developer/test-app flows
+Fault injection should be implemented through RPi virtual nodes and virtual
+behavior managers by default. A physical fault-injection node is intentionally
+not part of the active prompt set.
 
-### `12_prompts_mqtt_payload_governance.md`
-Use this file for MQTT topic and payload governance tasks such as:
+## Repository-Wide Prompt Boundary
 
-- topic registry loader / contract checker
-- MQTT topic create/update/delete governance backend
-- publisher node management
-- subscriber node management
-- payload example manager and validator
-- clarification interaction payload validation
-- MQTT/payload governance dashboard UI
-- topic/payload validation reports
-- topic/payload hardcoding drift detection
-- interface-matrix alignment validation
+All generated work must preserve these rules:
 
-The governance dashboard UI must remain a presentation and interaction layer. Actual topic/payload create, update, delete, validation, and export operations should be handled by a separate governance backend/service.
+- LLM output is candidate guidance only.
+- Policy/schema authority lives in `common/policies/` and `common/schemas/`.
+- MQTT/payload references live in `common/mqtt/` and `common/payloads/`.
+- Scenario contracts live in `integration/scenarios/`.
+- Required experiment intent lives in `common/docs/required_experiments.md`.
+- Mac mini remains the operational edge hub.
+- Raspberry Pi remains experiment support, dashboard, orchestration,
+  simulation, replay, monitoring, and result-export infrastructure.
+- ESP32 and other physical nodes remain bounded input/context/actuator
+  interfaces and do not create policy authority.
+- STM32 timing support remains out-of-band measurement infrastructure.
+- Doorlock remains a sensitive actuation case outside autonomous Class 1 unless
+  future canonical policy/schema changes explicitly add that authority.
+- `doorbell_detected` is visitor-response context, not doorlock authorization.
+- `safe_deferral/clarification/interaction` is Class 2 interaction evidence,
+  not validator approval, actuator authority, emergency trigger authority, or
+  doorlock authorization.
 
-## Numbering policy
+## Legacy Source Notes
 
-Prompt numbering is intentionally preserved across the split files.
+The following older prompt files remain as source notes during the transition:
 
-- `12_prompts_core_system.md` contains the earlier core prompt set.
-- `12_prompts_nodes_and_evaluation.md` continues the numbering for node, measurement, and evaluation prompts.
-- `12_prompts_mqtt_payload_governance.md` continues with MQTT/payload governance prompts.
+- `12_prompts_core_system.md`
+- `12_prompts_nodes_and_evaluation.md`
+- `12_prompts_mqtt_payload_governance.md`
 
-Do not renumber prompts unless there is a deliberate repository-wide cleanup.
+Do not use their old numbering as the active implementation plan. When older
+prompt wording conflicts with the active prompt sets or active architecture
+documents, prefer the active prompt sets and active architecture documents.

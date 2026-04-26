@@ -22,6 +22,7 @@ Completed cleanup work:
 - legacy architecture notes marked as source notes,
 - scenario and experiment guidance aligned with the active architecture set,
 - `CLAUDE.md` simplified into a compact coding-agent operating guide,
+- prompt set reorganized by implementation target category,
 - Python files removed for the current cleanup phase,
 - runtime handoff index updated with the cleanup addendum.
 
@@ -45,10 +46,9 @@ review or a deliberate next pass.
 
 Remaining cleanup should be handled as separate, intentional batches:
 
-1. Prompt-set cleanup for `12_prompts*.md`.
-2. Optional archive move for legacy architecture notes if preserving them in
+1. Optional archive move for legacy architecture notes if preserving them in
    place becomes distracting.
-3. Reintroduction of implementation code after the resume gate below is
+2. Reintroduction of implementation code after the resume gate below is
    explicitly satisfied.
 
 ## 5. Implementation Resume Gate
@@ -67,14 +67,18 @@ Before Python or service implementation is reintroduced, confirm:
 
 When implementation resumes, the likely order is:
 
-1. Mac mini runtime skeleton and policy-router input handling.
-2. Deterministic validator and low-risk action dispatch.
-3. Class 2 clarification manager.
-4. MQTT topic registry loader and payload validation support.
-5. Audit and ACK path.
-6. RPi controlled simulation, fault injection, dashboard, and result export.
-7. ESP32 bounded input/context/actuator sample firmware.
-8. Integration scenario runner and measurement support.
+1. Mac mini runtime skeleton and operational intake.
+2. Policy Router, Deterministic Validator, Class 2 Clarification Manager,
+   low-risk dispatcher, ACK, caregiver, and audit path.
+3. RPi experiment manager, virtual-node manager, virtual fault-injection and
+   behavior manager, scenario manager, MQTT/interface status manager, result
+   store, and web dashboard.
+4. Actual physical nodes for bounded input, context, visitor context, lighting,
+   feedback, and state reporting.
+5. Experiment-only physical nodes for gas, smoke/fire, fall, warning, and
+   doorlock-sensitive cases. Fault injection remains virtual by default.
+6. STM32 out-of-band timing, synchronization, readiness, and measurement export
+   support.
 
 ## 7. Source Notes
 

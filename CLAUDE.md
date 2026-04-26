@@ -27,8 +27,10 @@ Read in this order before making implementation or documentation changes:
 11. `common/docs/paper/01_paper_contributions.md`
 12. `common/docs/runtime/SESSION_HANDOFF.md`
 
-Use `common/docs/architecture/12_prompts.md` only as the prompt-set index.
-Detailed prompt documents are legacy/source notes until the prompt cleanup phase.
+Use `common/docs/architecture/12_prompts.md` as the active prompt-set index when
+implementation-generation prompts are needed. The active prompt sets are grouped
+by Mac mini components, RPi experiment apps, physical nodes, experiment physical
+nodes, and STM32 timing/measurement support.
 
 ## Canonical Assets
 

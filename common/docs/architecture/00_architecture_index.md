@@ -64,7 +64,24 @@ Current MQTT and payload reference assets:
 | `06_deployment_and_scripts.md` | Install/configure/verify structure for Mac mini, RPi, ESP32 |
 | `07_scenarios_and_evaluation.md` | Scenario contracts, evaluation boundaries, measurement direction |
 
-## 5. Legacy Architecture Notes
+## 5. Active Prompt Sets
+
+Implementation-generation prompts are indexed from:
+
+- `12_prompts.md`
+
+Current prompt categories:
+
+- `12_prompts_mac_mini_components.md`
+- `12_prompts_rpi_experiment_apps.md`
+- `12_prompts_physical_nodes.md`
+- `12_prompts_experiment_physical_nodes.md`
+- `12_prompts_stm32_time_sync_node.md`
+
+Older prompt files remain source notes and should not be treated as the active
+prompt structure.
+
+## 6. Legacy Architecture Notes
 
 The following older documents remain useful as source notes, but should not be
 used as the first active read path:
@@ -80,7 +97,6 @@ used as the first active read path:
 - `09_recommended_next_steps.md`
 - `10_install_script_structure.md`
 - `11_configuration_script_structure.md`
-- `12_prompts.md`
 - `12_prompts_core_system.md`
 - `12_prompts_mqtt_payload_governance.md`
 - `12_prompts_nodes_and_evaluation.md`
@@ -102,7 +118,7 @@ depends on them.
 Each legacy/source note carries a short banner pointing back to this index so it
 is not mistaken for the first active baseline.
 
-## 6. Historical Areas
+## 7. Historical Areas
 
 Historical assets and runtime handoff notes may retain old names or old
 references:
@@ -114,7 +130,7 @@ references:
 Active docs, active scenarios, scripts, and README-style guidance should use the
 canonical names listed in this index.
 
-## 7. Authority Rule
+## 8. Authority Rule
 
 Architecture documents explain the system, but policy/schema authority lives in
 the canonical assets. MQTT and payload references describe communication
