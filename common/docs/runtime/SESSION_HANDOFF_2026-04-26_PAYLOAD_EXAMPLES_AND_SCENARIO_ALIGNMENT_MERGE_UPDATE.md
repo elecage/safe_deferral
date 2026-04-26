@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This addendum records the payload-example and integration-scenario alignment work merged into `main` through PR #10 and PR #12.
+This addendum records the payload-example, integration-scenario, and scenario-review-reference alignment work merged into `main` through PR #10, PR #12, and PR #14.
 
 Read this addendum before older payload, MQTT, scenario, Class 2, and integration-test handoff notes when the current task involves:
 
@@ -12,6 +12,8 @@ Read this addendum before older payload, MQTT, scenario, Class 2, and integratio
 - `integration/scenarios/`,
 - scenario manifest schema/rules,
 - scenario review guidance,
+- split scenario review docs,
+- `CLAUDE.md` scenario-review reference follow-up,
 - Class 2 scenario expansion,
 - Class 2 clarification interaction evidence,
 - timeout/no-response behavior,
@@ -82,9 +84,33 @@ Scope:
 Integration scenario docs, scenario manifest schema, existing Class 2/fault skeletons, split review guides, and four new Class 2 transition skeletons.
 ```
 
+### PR #14
+
+```text
+https://github.com/elecage/safe_deferral/pull/14
+```
+
+Title:
+
+```text
+docs: record CLAUDE scenario review reference update
+```
+
+Merge commit:
+
+```text
+795ae441b257160e5fd677fef227eb8131bd47a4
+```
+
+Scope:
+
+```text
+Adds a helper note documenting how CLAUDE.md should be updated to prefer the split scenario review docs under integration/scenarios/docs/ while retaining scenario_review_guide.md as a legacy compatibility reference.
+```
+
 ---
 
-## Current baseline after PR #10 and PR #12
+## Current baseline after PR #10, PR #12, and PR #14
 
 Use the following current references for payload-example and scenario work:
 
@@ -400,6 +426,90 @@ Class 2 doorlock-sensitive/caregiver-confirmation path without autonomous Class 
 
 ---
 
+## PR #14 CLAUDE scenario-review reference note
+
+PR #14 added:
+
+```text
+common/docs/runtime/CLAUDE_SCENARIO_REVIEW_REFERENCE_UPDATE.md
+```
+
+Purpose:
+
+```text
+Record the required CLAUDE.md reference update after the scenario review guide split introduced by PR #12.
+```
+
+Important current state:
+
+```text
+CLAUDE.md was not directly edited in PR #14.
+```
+
+Reason:
+
+```text
+CLAUDE.md is a long file and should only be edited using a method that preserves the complete file content and verifies the final diff.
+```
+
+The helper note records that future agents and developers should prefer:
+
+```text
+integration/scenarios/docs/README.md
+integration/scenarios/docs/scenario_review_principles.md
+integration/scenarios/docs/scenario_review_class0_class1.md
+integration/scenarios/docs/scenario_review_class2.md
+integration/scenarios/docs/scenario_review_faults.md
+```
+
+over the older monolithic guide:
+
+```text
+integration/scenarios/scenario_review_guide.md
+```
+
+The older monolithic guide is retained only for compatibility.
+
+### Exact future CLAUDE.md update needed
+
+`CLAUDE.md` should later be safely updated so scenario/integration references prefer:
+
+```text
+/integration/scenarios/docs/README.md
+/integration/scenarios/docs/scenario_review_principles.md
+/integration/scenarios/docs/scenario_review_class0_class1.md
+/integration/scenarios/docs/scenario_review_class2.md
+/integration/scenarios/docs/scenario_review_faults.md
+```
+
+and mark:
+
+```text
+/integration/scenarios/scenario_review_guide.md
+```
+
+as:
+
+```text
+retained legacy compatibility reference only
+```
+
+Safe editing options:
+
+```text
+1. Clone locally, edit with git, run diff, push branch.
+2. Use a GitHub editor session that preserves the whole file.
+3. Use an API workflow that retrieves the complete file and verifies the final diff before committing.
+```
+
+Related issue:
+
+```text
+https://github.com/elecage/safe_deferral/issues/13
+```
+
+---
+
 ## Current scenario-review read order
 
 For scenario review work, read:
@@ -427,6 +537,12 @@ but new work should prefer the split docs under:
 
 ```text
 integration/scenarios/docs/
+```
+
+`CLAUDE.md` has not yet been directly updated, but the required update is recorded in:
+
+```text
+common/docs/runtime/CLAUDE_SCENARIO_REVIEW_REFERENCE_UPDATE.md
 ```
 
 ---
@@ -488,7 +604,23 @@ Delete or archive integration/scenarios/scenario_review_guide.md after confirmin
 
 Do not do this automatically. It should be a deliberate cleanup PR.
 
-### 3. Optional C206/C207 scenario expansion
+### 3. CLAUDE.md direct update
+
+`CLAUDE.md` still needs a safe direct update to prefer the split scenario review docs.
+
+Guidance is recorded in:
+
+```text
+common/docs/runtime/CLAUDE_SCENARIO_REVIEW_REFERENCE_UPDATE.md
+```
+
+Issue:
+
+```text
+https://github.com/elecage/safe_deferral/issues/13
+```
+
+### 4. Optional C206/C207 scenario expansion
 
 Potential additional skeletons:
 
@@ -500,7 +632,7 @@ integration/scenarios/class2_missing_state_recheck_then_safe_deferral_scenario_s
 integration/scenarios/class2_stale_state_caregiver_confirmation_scenario_skeleton.json
 ```
 
-### 4. Verification scripts
+### 5. Verification scripts
 
 Future verifier work should check:
 
@@ -514,6 +646,7 @@ Class 1 transition requires Deterministic Validator approval
 Class 0 transition requires emergency evidence or explicit confirmation
 doorbell_detected is not doorlock authorization
 doorlock is not current Class 1 low-risk scope
+CLAUDE.md scenario references prefer integration/scenarios/docs/ after direct update
 ```
 
 ---
@@ -531,6 +664,8 @@ Scenario split review docs: present on main
 Existing Class 2/fault skeletons: updated with clarification expectation references
 Minimum Class 2 transition skeletons: present on main
 scenario_review_guide.md: retained, not deleted
+CLAUDE_SCENARIO_REVIEW_REFERENCE_UPDATE.md: present on main
+CLAUDE.md direct edit: still pending, should be done only with full-file-safe editing
 ```
 
 Any future implementation should treat:
