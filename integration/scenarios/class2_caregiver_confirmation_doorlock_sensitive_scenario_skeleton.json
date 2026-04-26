@@ -1,0 +1,132 @@
+{
+  "scenario_id": "SCN_CLASS2_CAREGIVER_CONFIRMATION_DOORLOCK_SENSITIVE",
+  "title": "Class 2 caregiver confirmation doorlock-sensitive scenario",
+  "description": "Deterministic scenario skeleton for a doorlock-sensitive or visitor-response-sensitive request that must enter Class 2 caregiver confirmation rather than autonomous Class 1 execution. Doorbell context is not unlock authorization, and caregiver confirmation is not validator approval.",
+  "category": "class2_caregiver_confirmation",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "class2_notification_topic": "safe_deferral/escalation/class2",
+    "caregiver_confirmation_topic": "safe_deferral/caregiver/confirmation",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_caregiver_confirmation_backend": true,
+    "requires_audit_logging_service": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_visitor_or_doorlock_sensitive_context",
+      "description": "Publish visitor-response context or doorlock-sensitive intent evidence through the registry-aligned context input plane. doorbell_detected may be true, but it is not door unlock authorization.",
+      "payload_fixture": "common/payloads/examples/policy_router_input_visitor_doorbell.json"
+    },
+    {
+      "step_id": 2,
+      "action": "route_to_class2_or_caregiver_confirmation",
+      "description": "Route the sensitive request to Class 2 notification / caregiver confirmation rather than autonomous Class 1 execution."
+    },
+    {
+      "step_id": 3,
+      "action": "publish_class2_notification",
+      "description": "Publish Class 2 notification for the doorlock-sensitive case. The notification describes the manual confirmation path but is not actuation authority.",
+      "payload_fixture": "common/payloads/examples/class_2_notification_doorlock_sensitive.json"
+    },
+    {
+      "step_id": 4,
+      "action": "publish_clarification_interaction_evidence_if_used",
+      "description": "If clarification interaction is used before caregiver decision, publish the interaction artifact to safe_deferral/clarification/interaction. This artifact must not authorize doorlock control.",
+      "payload_fixture": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+    },
+    {
+      "step_id": 5,
+      "action": "collect_caregiver_confirmation",
+      "description": "Collect caregiver confirmation through the governed manual confirmation path. Caregiver confirmation is a separate governed path and not autonomous Class 1 validator approval."
+    },
+    {
+      "step_id": 6,
+      "action": "require_ack_and_audit_for_manual_path",
+      "description": "If any governed manual doorlock action is executed outside the current Class 1 baseline, ACK and audit must be captured. The scenario does not expand the autonomous low-risk catalog."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "CLASS2_CLARIFICATION_MANAGER_OR_CAREGIVER_CONFIRMATION_BACKEND",
+    "candidate_generation_boundary": "candidate_generation_only_no_doorlock_authorization",
+    "presentation_channels": [
+      "CAREGIVER_NOTIFICATION",
+      "DISPLAY_OUTPUT",
+      "ACCESSIBLE_FEEDBACK_OUTPUT"
+    ],
+    "selection_inputs": [
+      "CAREGIVER_CONFIRMATION",
+      "CAREGIVER_DENIAL",
+      "TIMEOUT_OR_NO_RESPONSE"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CAREGIVER_CONFIRMATION",
+    "requires_policy_router_reentry": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CAREGIVER_CONFIRMATION",
+      "condition": "Doorlock-sensitive or visitor-response-sensitive request requires governed caregiver confirmation.",
+      "allowed_next_path": "caregiver_confirmation_manual_path_with_ack_and_audit"
+    },
+    {
+      "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "condition": "Caregiver response is absent, denied, ambiguous, or cannot be verified.",
+      "allowed_next_path": "safe_deferral_or_caregiver_confirmation_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CAREGIVER_CONFIRMATION",
+      "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false,
+    "doorbell_detected_authorizes_unlock": false,
+    "caregiver_confirmation_equals_validator_approval": false
+  },
+  "notes": [
+    "doorbell_detected is visitor-response context and not door unlock authorization.",
+    "Doorlock is not part of the current autonomous Class 1 low-risk catalog.",
+    "Class 2 notification and clarification interaction payloads do not authorize doorlock control.",
+    "Caregiver confirmation belongs to a separately governed manual path and must be audit-visible.",
+    "ACK is required if a governed manual doorlock action is executed outside the current Class 1 baseline."
+  ]
+}
