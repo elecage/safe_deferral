@@ -119,8 +119,8 @@ Class 2 scenario contracts should include explicit expectations for:
 
 This active summary consolidates the stable material from:
 
-- `19_class2_clarification_architecture_alignment.md`
-- `20_scenario_data_flow_matrix.md`
-- `12_prompts_core_system.md`
-- `12_prompts_mqtt_payload_governance.md`
+- `common/docs/archive/architecture_legacy/19_class2_clarification_architecture_alignment.md`
+- `common/docs/archive/architecture_legacy/20_scenario_data_flow_matrix.md`
+- `common/docs/archive/architecture_legacy/12_prompts_core_system.md`
+- `common/docs/archive/architecture_legacy/12_prompts_mqtt_payload_governance.md`
 - `integration/scenarios/`

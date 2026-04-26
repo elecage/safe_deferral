@@ -116,7 +116,7 @@ review and maintenance, but cannot become operational authorization.
 
 This active summary consolidates the stable material from:
 
-- `15_interface_matrix.md`
-- `17_payload_contract_and_registry.md`
+- `common/docs/archive/architecture_legacy/15_interface_matrix.md`
+- `common/docs/archive/architecture_legacy/17_payload_contract_and_registry.md`
 - `common/mqtt/README.md`
 - `common/payloads/README.md`

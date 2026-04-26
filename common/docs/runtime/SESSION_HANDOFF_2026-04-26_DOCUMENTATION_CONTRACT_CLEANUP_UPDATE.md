@@ -36,9 +36,16 @@ Use this active architecture read path for current work:
 7. `common/docs/architecture/06_deployment_and_scripts.md`
 8. `common/docs/architecture/07_scenarios_and_evaluation.md`
 
-The older `01` through `20` architecture notes remain in place as legacy/source
-notes and carry banners pointing back to the active index. New work should
-update the active architecture set first.
+The older `01` through `20` architecture notes have been moved to:
+
+- `common/docs/archive/architecture_legacy/`
+
+Cleanup planning notes have been moved to:
+
+- `common/docs/archive/documentation_cleanup/`
+
+New work should update the active architecture set first. Consult archived
+source notes only when fine-grained historical detail is needed.
 
 ## Scenario And Experiment Baseline
 
@@ -66,14 +73,17 @@ and canonical asset baseline is stable.
 
 ## Prompt Set Status
 
-Prompt documents are not yet fully consolidated. For now:
+The active prompt set is now grouped by implementation target:
 
-- `common/docs/architecture/12_prompts.md` is the prompt-set index.
-- `12_prompts_core_system.md`,
-  `12_prompts_mqtt_payload_governance.md`, and
-  `12_prompts_nodes_and_evaluation.md` are legacy/source prompt notes.
-- Prompt cleanup should be handled as a later deliberate pass, with the active
-  architecture and canonical assets treated as the source of truth.
+- `common/docs/architecture/12_prompts.md`
+- `common/docs/architecture/12_prompts_mac_mini_components.md`
+- `common/docs/architecture/12_prompts_rpi_experiment_apps.md`
+- `common/docs/architecture/12_prompts_physical_nodes.md`
+- `common/docs/architecture/12_prompts_experiment_physical_nodes.md`
+- `common/docs/architecture/12_prompts_stm32_time_sync_node.md`
+
+Older prompt files have been moved to
+`common/docs/archive/architecture_legacy/` as source notes.
 
 ## Safety And Authority Reminders
 

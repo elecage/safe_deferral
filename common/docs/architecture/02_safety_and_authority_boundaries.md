@@ -115,7 +115,7 @@ Governance reports are evidence artifacts, not authorization mechanisms.
 
 This active summary consolidates the stable material from:
 
-- `13_doorlock_access_control_and_caregiver_escalation.md`
-- `15_interface_matrix.md`
-- `17_payload_contract_and_registry.md`
-- `19_class2_clarification_architecture_alignment.md`
+- `common/docs/archive/architecture_legacy/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/archive/architecture_legacy/15_interface_matrix.md`
+- `common/docs/archive/architecture_legacy/17_payload_contract_and_registry.md`
+- `common/docs/archive/architecture_legacy/19_class2_clarification_architecture_alignment.md`

@@ -21,6 +21,7 @@ Read these documents first for current architecture work:
 6. `05_implementation_plan.md`
 7. `06_deployment_and_scripts.md`
 8. `07_scenarios_and_evaluation.md`
+9. `08_system_structure_figure_revision_plan.md`
 
 These files are the active navigation layer. They intentionally summarize and
 deduplicate the older numbered notes.
@@ -63,6 +64,7 @@ Current MQTT and payload reference assets:
 | `05_implementation_plan.md` | Current implementation order and cleanup sequence |
 | `06_deployment_and_scripts.md` | Install/configure/verify structure for Mac mini, RPi, ESP32 |
 | `07_scenarios_and_evaluation.md` | Scenario contracts, evaluation boundaries, measurement direction |
+| `08_system_structure_figure_revision_plan.md` | Stepwise revision plan for the system structure figure |
 
 ## 5. Active Prompt Sets
 
@@ -81,42 +83,39 @@ Current prompt categories:
 Older prompt files remain source notes and should not be treated as the active
 prompt structure.
 
-## 6. Legacy Architecture Notes
+## 6. Archived Architecture Notes
 
-The following older documents remain useful as source notes, but should not be
-used as the first active read path:
+The following older documents remain useful as archived source notes, but should
+not be used as the first active read path:
 
-- `01_installation_target_classification.md`
-- `02_mac_mini_build_sequence.md`
-- `03_deployment_structure.md`
-- `04_project_directory_structure.md`
-- `05_automation_strategy.md`
-- `06_implementation_plan.md`
-- `07_task_breakdown.md`
-- `08_additional_required_work.md`
-- `09_recommended_next_steps.md`
-- `10_install_script_structure.md`
-- `11_configuration_script_structure.md`
-- `12_prompts_core_system.md`
-- `12_prompts_mqtt_payload_governance.md`
-- `12_prompts_nodes_and_evaluation.md`
-- `13_doorlock_access_control_and_caregiver_escalation.md`
-- `14_system_components_outline_v2.md`
-- `15_interface_matrix.md`
-- `16_system_architecture_figure.md`
-- `17_payload_contract_and_registry.md`
-- `18_scenario_node_component_mapping.md`
-- `19_class2_clarification_architecture_alignment.md`
-- `20_scenario_data_flow_matrix.md`
-- `scenario_data_flows/20_00_interface_role_alignment.md`
+- `common/docs/archive/architecture_legacy/01_installation_target_classification.md`
+- `common/docs/archive/architecture_legacy/02_mac_mini_build_sequence.md`
+- `common/docs/archive/architecture_legacy/03_deployment_structure.md`
+- `common/docs/archive/architecture_legacy/04_project_directory_structure.md`
+- `common/docs/archive/architecture_legacy/05_automation_strategy.md`
+- `common/docs/archive/architecture_legacy/06_implementation_plan.md`
+- `common/docs/archive/architecture_legacy/07_task_breakdown.md`
+- `common/docs/archive/architecture_legacy/08_additional_required_work.md`
+- `common/docs/archive/architecture_legacy/09_recommended_next_steps.md`
+- `common/docs/archive/architecture_legacy/10_install_script_structure.md`
+- `common/docs/archive/architecture_legacy/11_configuration_script_structure.md`
+- `common/docs/archive/architecture_legacy/12_prompts_core_system.md`
+- `common/docs/archive/architecture_legacy/12_prompts_mqtt_payload_governance.md`
+- `common/docs/archive/architecture_legacy/12_prompts_nodes_and_evaluation.md`
+- `common/docs/archive/architecture_legacy/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/archive/architecture_legacy/14_system_components_outline_v2.md`
+- `common/docs/archive/architecture_legacy/15_interface_matrix.md`
+- `common/docs/archive/architecture_legacy/16_system_architecture_figure.md`
+- `common/docs/archive/architecture_legacy/17_payload_contract_and_registry.md`
+- `common/docs/archive/architecture_legacy/18_scenario_node_component_mapping.md`
+- `common/docs/archive/architecture_legacy/19_class2_clarification_architecture_alignment.md`
+- `common/docs/archive/architecture_legacy/20_scenario_data_flow_matrix.md`
+- `common/docs/archive/architecture_legacy/scenario_data_flows/20_00_interface_role_alignment.md`
 
-During this transition, the legacy notes remain in place to preserve review
-history and fine-grained detail. New work should update the active document set
-first, then update legacy notes only when a specific detailed reference still
-depends on them.
-
-Each legacy/source note carries a short banner pointing back to this index so it
-is not mistaken for the first active baseline.
+The legacy notes have been moved out of `common/docs/architecture/` to reduce
+active-document noise. New work should update the active document set first,
+then consult archived source notes only when fine-grained historical detail is
+needed.
 
 ## 7. Historical Areas
 

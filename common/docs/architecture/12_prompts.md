@@ -100,9 +100,9 @@ All generated work must preserve these rules:
 
 The following older prompt files remain as source notes during the transition:
 
-- `12_prompts_core_system.md`
-- `12_prompts_nodes_and_evaluation.md`
-- `12_prompts_mqtt_payload_governance.md`
+- `common/docs/archive/architecture_legacy/12_prompts_core_system.md`
+- `common/docs/archive/architecture_legacy/12_prompts_nodes_and_evaluation.md`
+- `common/docs/archive/architecture_legacy/12_prompts_mqtt_payload_governance.md`
 
 Do not use their old numbering as the active implementation plan. When older
 prompt wording conflicts with the active prompt sets or active architecture

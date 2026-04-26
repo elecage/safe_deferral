@@ -190,9 +190,9 @@ contract baseline is stable.
 
 This active summary consolidates the stable material from:
 
-- `18_scenario_node_component_mapping.md`
-- `20_scenario_data_flow_matrix.md`
-- `scenario_data_flows/20_00_interface_role_alignment.md`
+- `common/docs/archive/architecture_legacy/18_scenario_node_component_mapping.md`
+- `common/docs/archive/architecture_legacy/20_scenario_data_flow_matrix.md`
+- `common/docs/archive/architecture_legacy/scenario_data_flows/20_00_interface_role_alignment.md`
 - `integration/scenarios/README.md`
 - `integration/scenarios/scenario_manifest_rules.md`
 - `integration/scenarios/scenario_review_guide.md`

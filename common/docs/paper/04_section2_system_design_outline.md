@@ -10,7 +10,7 @@ It is intended to keep future drafting aligned with:
 - `common/docs/paper/02_ICT_Express_submission_notes.md`
 - `common/docs/paper/03_title_keywords_and_introduction_outline.md`
 - `common/docs/required_experiments.md`
-- `common/docs/architecture/13_doorlock_access_control_and_caregiver_escalation.md`
+- `common/docs/architecture/02_safety_and_authority_boundaries.md`
 
 This is a drafting-support document, not a canonical policy/schema authority document.
 

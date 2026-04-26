@@ -19,7 +19,8 @@ Completed cleanup work:
 - `common/asset_manifest.json` added,
 - active references migrated to canonical asset names,
 - active architecture document set established,
-- legacy architecture notes marked as source notes,
+- legacy architecture notes archived under `common/docs/archive/architecture_legacy/`,
+- cleanup planning notes archived under `common/docs/archive/documentation_cleanup/`,
 - scenario and experiment guidance aligned with the active architecture set,
 - `CLAUDE.md` simplified into a compact coding-agent operating guide,
 - prompt set reorganized by implementation target category,
@@ -38,6 +39,7 @@ The active architecture document set is:
 6. `05_implementation_plan.md`
 7. `06_deployment_and_scripts.md`
 8. `07_scenarios_and_evaluation.md`
+9. `08_system_structure_figure_revision_plan.md`
 
 ## 4. Remaining Cleanup Steps
 
@@ -46,10 +48,10 @@ review or a deliberate next pass.
 
 Remaining cleanup should be handled as separate, intentional batches:
 
-1. Optional archive move for legacy architecture notes if preserving them in
-   place becomes distracting.
-2. Reintroduction of implementation code after the resume gate below is
+1. Reintroduction of implementation code after the resume gate below is
    explicitly satisfied.
+2. System structure diagram improvement according to
+   `08_system_structure_figure_revision_plan.md`.
 
 ## 5. Implementation Resume Gate
 
@@ -84,8 +86,8 @@ When implementation resumes, the likely order is:
 
 This active summary consolidates the stable material from:
 
-- `06_implementation_plan.md`
-- `07_task_breakdown.md`
-- `08_additional_required_work.md`
-- `09_recommended_next_steps.md`
-- `00_documentation_and_asset_restructure_plan.md`
+- `common/docs/archive/architecture_legacy/06_implementation_plan.md`
+- `common/docs/archive/architecture_legacy/07_task_breakdown.md`
+- `common/docs/archive/architecture_legacy/08_additional_required_work.md`
+- `common/docs/archive/architecture_legacy/09_recommended_next_steps.md`
+- `common/docs/archive/documentation_cleanup/00_documentation_and_asset_restructure_plan.md`

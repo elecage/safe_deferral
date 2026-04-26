@@ -122,9 +122,9 @@ architecture documents control.
 
 This active summary consolidates the stable material from:
 
-- `01_installation_target_classification.md`
-- `02_mac_mini_build_sequence.md`
-- `03_deployment_structure.md`
-- `04_project_directory_structure.md`
-- `14_system_components_outline_v2.md`
-- `16_system_architecture_figure.md`
+- `common/docs/archive/architecture_legacy/01_installation_target_classification.md`
+- `common/docs/archive/architecture_legacy/02_mac_mini_build_sequence.md`
+- `common/docs/archive/architecture_legacy/03_deployment_structure.md`
+- `common/docs/archive/architecture_legacy/04_project_directory_structure.md`
+- `common/docs/archive/architecture_legacy/14_system_components_outline_v2.md`
+- `common/docs/archive/architecture_legacy/16_system_architecture_figure.md`

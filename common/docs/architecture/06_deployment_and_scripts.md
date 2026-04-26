@@ -143,11 +143,11 @@ Scripts should not hardcode obsolete asset filenames.
 
 This active summary consolidates the stable material from:
 
-- `10_install_script_structure.md`
-- `11_configuration_script_structure.md`
-- `01_installation_target_classification.md`
-- `02_mac_mini_build_sequence.md`
-- `03_deployment_structure.md`
-- `04_project_directory_structure.md`
+- `common/docs/archive/architecture_legacy/10_install_script_structure.md`
+- `common/docs/archive/architecture_legacy/11_configuration_script_structure.md`
+- `common/docs/archive/architecture_legacy/01_installation_target_classification.md`
+- `common/docs/archive/architecture_legacy/02_mac_mini_build_sequence.md`
+- `common/docs/archive/architecture_legacy/03_deployment_structure.md`
+- `common/docs/archive/architecture_legacy/04_project_directory_structure.md`
 - `mac_mini/docs/README.md`
 - `rpi/docs/README.md`
