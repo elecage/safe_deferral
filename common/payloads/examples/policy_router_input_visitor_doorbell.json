@@ -25,12 +25,5 @@
       "living_room_blind": "closed",
       "tv_main": "off"
     }
-  },
-  "experiment_annotation": {
-    "visitor_response_case": true,
-    "doorlock_state": "locked",
-    "manual_approval_state": "not_requested",
-    "ack_state": "not_dispatched",
-    "note": "doorlock_state is experiment annotation, not pure_context_payload.device_states"
   }
 }

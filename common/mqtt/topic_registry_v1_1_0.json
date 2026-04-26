@@ -325,7 +325,7 @@
       },
       "payload_family": "clarification_interaction_payload",
       "schema": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
-      "example_payload": null,
+      "example_payload": "common/payloads/examples/clarification_interaction_two_options_pending.json",
       "qos": 1,
       "retain": false,
       "authority_level": "class2_interaction_evidence_not_authority",

@@ -187,7 +187,7 @@ Schema:
 
 Example:
 
-- none yet; future example recommended
+- `common/payloads/examples/clarification_interaction_two_options_pending.json`
 
 Rules:
 

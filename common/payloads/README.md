@@ -14,8 +14,12 @@ Authoritative sources remain:
 - `common/policies/`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/17_payload_contract_and_registry.md`
-- `common/mqtt/topic_registry_v1_0_0.json`
+- `common/mqtt/topic_registry_v1_1_0.json`
 - `common/mqtt/topic_payload_contracts_v1_0_0.md`
+
+Historical MQTT registry baseline:
+
+- `common/mqtt/topic_registry_v1_0_0.json`
 
 ---
 
@@ -31,6 +35,7 @@ common/payloads/
 │   ├── candidate_action_light_on.json
 │   ├── validator_output_execute_approved_light.json
 │   ├── class_2_notification_doorlock_sensitive.json
+│   ├── clarification_interaction_two_options_pending.json
 │   ├── safe_deferral_request_two_options.json
 │   ├── manual_confirmation_doorlock_approved.json
 │   ├── actuation_command_light_on.json
@@ -60,9 +65,11 @@ Additional templates may be added later for result export, audit events, governa
 8. Dashboard observation examples are visibility artifacts, not policy truth.
 9. Scenario fixture templates are not executable policy unless interpreted through integration/scenario tooling.
 10. MQTT topic-payload linkage should be tracked under `common/mqtt/`.
-11. Governance change reports, interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are evidence artifacts, not operational authorization mechanisms.
-12. Governance dashboard UI must not directly edit registry files or publish operational control topics.
-13. Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert proposed changes into live authority without review.
+11. `clarification_interaction_payload` must remain separate from `safe_deferral_event`, `class_2_notification_payload`, `validator_output_payload`, `actuation_command_payload`, and `pure_context_payload`.
+12. `safe_deferral/clarification/interaction` carries Class 2 clarification evidence and must not be interpreted as validator approval, actuation command, emergency trigger authority, or doorlock authorization.
+13. Governance change reports, interface-matrix alignment reports, topic-drift reports, payload validation reports, and proposed-change reports are evidence artifacts, not operational authorization mechanisms.
+14. Governance dashboard UI must not directly edit registry files or publish operational control topics.
+15. Governance backend must not directly modify canonical policies/schemas, publish actuator or doorlock commands, spoof caregiver approval, override the Policy Router or Deterministic Validator, or convert proposed changes into live authority without review.
 
 ---
 
@@ -71,11 +78,12 @@ Additional templates may be added later for result export, audit events, governa
 | Example | Governing schema | Notes |
 |---|---|---|
 | `policy_router_input_non_visitor.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | Non-visitor baseline; `doorbell_detected=false` |
-| `policy_router_input_visitor_doorbell.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | Visitor-response context; doorlock state only in experiment annotation |
+| `policy_router_input_visitor_doorbell.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | Strict visitor-response context example; doorlock/manual approval/ACK state belongs in fixture annotations, dashboard observation, manual confirmation payloads, or audit artifacts, not in this schema-governed example |
 | `policy_router_input_emergency_temperature.json` | `policy_router_input_schema_v1_1_1_FROZEN.json` + `context_schema_v1_0_0_FROZEN.json` | E001-style temperature threshold case |
 | `candidate_action_light_on.json` | `candidate_action_schema_v1_0_0_FROZEN.json` | LLM candidate only, not authority |
 | `validator_output_execute_approved_light.json` | `validator_output_schema_v1_1_0_FROZEN.json` | Approved low-risk light action only |
-| `class_2_notification_doorlock_sensitive.json` | `class_2_notification_payload_schema_v1_0_0_FROZEN.json` | Escalation/manual confirmation review path, not actuation authority |
+| `class_2_notification_doorlock_sensitive.json` | `class_2_notification_payload_schema_v1_1_0_FROZEN.json` | Class 2 notification/manual confirmation review path, not actuation authority |
+| `clarification_interaction_two_options_pending.json` | `clarification_interaction_schema_v1_0_0_FROZEN.json` | Class 2 clarification interaction evidence for `safe_deferral/clarification/interaction`, not authorization |
 
 ---
 
@@ -83,7 +91,7 @@ Additional templates may be added later for result export, audit events, governa
 
 | Example | Payload family | Authority boundary |
 |---|---|---|
-| `safe_deferral_request_two_options.json` | `safe_deferral_event` | Bounded clarification only |
+| `safe_deferral_request_two_options.json` | `safe_deferral_event` | Legacy/bounded safe-deferral request event; not a `clarification_interaction_payload` example |
 | `manual_confirmation_doorlock_approved.json` | `manual_confirmation_payload` | Separately governed manual path, not Class 1 approval |
 | `actuation_command_light_on.json` | `actuation_command_payload` | Valid only after validator approval |
 | `actuation_ack_success.json` | `actuation_ack_payload` | Closed-loop evidence only |
@@ -134,6 +142,8 @@ A future payload management dashboard may use this directory to:
 - detect topic/payload hardcoding drift,
 - show missing required fields such as `doorbell_detected`,
 - flag disallowed fields such as doorlock inside current `device_states`,
+- validate `clarification_interaction_payload` examples,
+- warn if a clarification interaction example appears to authorize actuation, validator approval, emergency handling, or doorlock control,
 - export payload validation reports and proposed-change reports.
 
 Such a dashboard must remain a governance/inspection tool, not policy authority, schema authority, caregiver approval authority, actuator control authority, or doorlock execution authority.
