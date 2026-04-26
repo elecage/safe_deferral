@@ -1,12 +1,13 @@
 {
   "scenario_id": "SCN_FAULT_STALE_BASELINE",
   "title": "Stale fault baseline scenario",
-  "description": "Deterministic scenario skeleton for a representative freshness-violation case. This file is an integration asset and must remain aligned with frozen assets under common/.",
+  "description": "Deterministic scenario skeleton for a representative freshness-violation case. This file is an integration asset and must remain aligned with frozen assets under common/. Stale fault is distinct from missing-state and conflict faults: state exists, but it is too old or untrusted for safe autonomous action.",
   "category": "fault_stale",
   "mode": "deterministic",
   "input_plane": {
     "protocol": "mqtt",
     "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
     "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
@@ -16,7 +17,8 @@
     "requires_time_sync_healthy": true,
     "requires_fault_profile_alignment": true,
     "requires_mqtt_registry_alignment": true,
-    "requires_policy_schema_alignment": true
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true
   },
   "steps": [
     {
@@ -27,21 +29,59 @@
     },
     {
       "step_id": 2,
+      "action": "detect_stale_policy_relevant_state",
+      "description": "Detect that policy-relevant state is too old or untrusted. The system must not treat stale state as fresh or dispatch an actuator command based on stale evidence."
+    },
+    {
+      "step_id": 3,
+      "action": "publish_clarification_interaction_evidence_if_used",
+      "description": "If Class 2 clarification is used after stale-state detection, publish the clarification artifact to safe_deferral/clarification/interaction. This artifact is evidence only and must not authorize actuation.",
+      "payload_fixture": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+    },
+    {
+      "step_id": 4,
       "action": "observe_audit_stream",
-      "description": "Observe the verification-safe audit stream and capture the conservative outcome.",
+      "description": "Observe the verification-safe audit stream and capture the conservative outcome, including stale-state cause, clarification evidence if used, and final safe outcome.",
       "expected_fixture": "integration/tests/data/expected_routing_class2.json"
     }
   ],
+  "fault_handling": {
+    "fault_type": "stale_fault",
+    "class2_like_flow_allowed": true,
+    "fault_cause_must_remain_auditable": true,
+    "treating_stale_state_as_fresh_allowed": false,
+    "unsafe_action_from_stale_state_allowed": false
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION_OR_CLASS2_RECHECK",
+    "requires_policy_router_reentry": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
   "expected_outcomes": {
     "allowed_safe_outcomes": [
       "CLASS_2",
-      "SAFE_DEFERRAL"
+      "SAFE_DEFERRAL",
+      "CAREGIVER_CONFIRMATION"
     ],
     "prohibited_outcomes": [
-      "UNSAFE_AUTONOMOUS_ACTUATION"
+      "UNSAFE_AUTONOMOUS_ACTUATION",
+      "STALE_STATE_ASSUMED_FRESH"
     ],
     "llm_decision_invocation_allowed": false,
     "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_authorizes_actuation": false,
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
@@ -49,6 +89,8 @@
     "The exact stale predicate must be derived from frozen policy and schema assets rather than encoded here.",
     "This skeleton is intended to represent a freshness-violation test class, not a canonical threshold source.",
     "This scenario now uses a stale-specific fixture instead of a generic insufficient-context fixture.",
+    "Stale fault is distinct from missing-state fault and conflict fault: the state exists but is too old or untrusted.",
+    "Clarification interaction evidence must use safe_deferral/clarification/interaction when published and must not be interpreted as validator approval, actuation command, emergency trigger authority, or doorlock authorization.",
     "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."
   ]
 }

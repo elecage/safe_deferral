@@ -7,6 +7,7 @@
   "input_plane": {
     "protocol": "mqtt",
     "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
     "audit_topic": "safe_deferral/audit/log"
   },
   "preconditions": {
@@ -60,8 +61,14 @@
     },
     {
       "step_id": 4,
+      "action": "publish_clarification_interaction_evidence_if_used",
+      "description": "If bounded conflict clarification is used, publish the clarification artifact to safe_deferral/clarification/interaction. This preserves the conflict cause and remains evidence-only, not authorization.",
+      "payload_fixture": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+    },
+    {
+      "step_id": 5,
       "action": "observe_audit_stream",
-      "description": "Observe the verification-safe audit stream and capture the conservative conflict-handling outcome, including the conflict cause, candidate set, confirmation requirement, and final safe outcome.",
+      "description": "Observe the verification-safe audit stream and capture the conservative conflict-handling outcome, including the conflict cause, candidate set, confirmation requirement, clarification evidence if used, and final safe outcome.",
       "expected_fixture": "integration/tests/data/expected_fault_conflict_safe_deferral.json"
     }
   ],
@@ -71,6 +78,23 @@
     "fault_cause_must_remain_auditable": true,
     "conflict_resolution_requires_confirmation": true,
     "unsafe_arbitrary_candidate_selection_allowed": false
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_1_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+    "requires_policy_router_reentry": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
   },
   "expected_outcomes": {
     "allowed_safe_outcomes": [
@@ -95,6 +119,7 @@
     "This scenario now uses a conflict-specific fixture instead of a generic Class 1 fixture.",
     "Conflict fault is distinct from Class 2 insufficient context: the issue is not simply absence of information but simultaneous plausibility of multiple candidates.",
     "Class 2-like clarification may be used to resolve the conflict, but candidate prompt text must not be treated as validator output or actuator authority.",
+    "Clarification interaction evidence must use safe_deferral/clarification/interaction when published and must not be interpreted as validator approval, actuation command, emergency trigger authority, or doorlock authorization.",
     "If the conflict cannot be resolved with user/caregiver confirmation, the safe outcome is safe deferral or caregiver confirmation.",
     "Class 1 autonomous execution must remain limited to the frozen low-risk lighting catalog when conflict is resolved safely."
   ]

@@ -1,0 +1,121 @@
+{
+  "scenario_id": "SCN_CLASS2_TO_CLASS0_EMERGENCY_CONFIRMATION",
+  "title": "Class 2 to Class 0 emergency confirmation transition scenario",
+  "description": "Deterministic scenario skeleton for a Class 2 clarification path where emergency confirmation or deterministic E001-E005 evidence transitions the system to Class 0. LLM candidate text alone is not emergency trigger authority.",
+  "category": "class2_transition",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_ambiguous_context_payload",
+      "description": "Publish an ambiguous context payload that enters Class 2 rather than immediate emergency handling because deterministic emergency evidence is not yet present.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_clarification_state",
+      "description": "Enter bounded Class 2 clarification and present an emergency-help candidate as guidance only."
+    },
+    {
+      "step_id": 3,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish bounded clarification evidence to safe_deferral/clarification/interaction. This payload is not emergency trigger authority.",
+      "payload_fixture": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+    },
+    {
+      "step_id": 4,
+      "action": "collect_emergency_confirmation_or_evidence",
+      "description": "Collect explicit emergency confirmation, emergency-pattern input such as triple-hit, or deterministic E001-E005 evidence."
+    },
+    {
+      "step_id": 5,
+      "action": "reenter_policy_router_for_class0",
+      "description": "Re-enter the Policy Router and transition to Class 0 only when emergency confirmation or deterministic emergency evidence is present."
+    },
+    {
+      "step_id": 6,
+      "action": "observe_audit_stream",
+      "description": "Observe audit evidence for clarification, emergency confirmation/evidence, Policy Router re-entry, and Class 0 transition."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "LLM_GUIDANCE_LAYER_OR_INPUT_CONTEXT_MAPPER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_emergency_trigger_authority",
+    "presentation_channels": [
+      "TTS_OR_VOICE_OUTPUT",
+      "DISPLAY_OUTPUT",
+      "ACCESSIBLE_FEEDBACK_OUTPUT"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE",
+      "VOICE_INPUT",
+      "CAREGIVER_CONFIRMATION",
+      "DETERMINISTIC_EMERGENCY_EVIDENCE"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_0",
+    "requires_policy_router_reentry": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_0",
+      "condition": "User/caregiver confirms emergency help, triple-hit input occurs, or deterministic E001-E005 emergency evidence arrives.",
+      "allowed_next_path": "policy_router_reentry_then_immediate_emergency_override_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "candidate_generation_authorizes_emergency": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_0"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "This scenario proves that Class 2 candidate text alone is not emergency trigger authority.",
+    "Class 0 transition requires explicit emergency confirmation, triple-hit input, or deterministic E001-E005 evidence.",
+    "The Policy Router must re-evaluate the confirmed/evidenced condition before Class 0 transition."
+  ]
+}

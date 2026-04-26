@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/elecage/safe_deferral/integration/scenarios/scenario_manifest_schema.json",
   "title": "safe_deferral scenario manifest schema",
-  "description": "Documentation schema for integration scenario skeleton manifests. This schema describes the scenario asset contract; it does not define policy or schema authority. It explicitly documents Class 2 clarification/transition fields introduced by policy_table_v1_2_0_FROZEN.json.",
+  "description": "Documentation schema for integration scenario skeleton manifests. This schema describes the scenario asset contract; it does not define policy or schema authority. It explicitly documents Class 2 clarification/transition fields introduced by policy_table_v1_2_0_FROZEN.json and the dedicated safe_deferral/clarification/interaction evidence topic.",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -38,6 +38,9 @@
         "class0_emergency",
         "class1_baseline",
         "class2_insufficient_context",
+        "class2_transition",
+        "class2_timeout",
+        "class2_caregiver_confirmation",
         "fault_stale",
         "fault_conflict",
         "fault_missing_state"
@@ -73,6 +76,10 @@
           "type": "string",
           "minLength": 1
         },
+        "clarification_interaction_topic": {
+          "type": "string",
+          "const": "safe_deferral/clarification/interaction"
+        },
         "bridge_mode": {
           "type": "string",
           "minLength": 1
@@ -96,6 +103,12 @@
           "type": "boolean"
         },
         "requires_bounded_selection_input": {
+          "type": "boolean"
+        },
+        "requires_mqtt_registry_alignment": {
+          "type": "boolean"
+        },
+        "requires_policy_schema_alignment": {
           "type": "boolean"
         }
       }
@@ -151,6 +164,18 @@
             "clarification_transition_state"
           ]
         },
+        "clarification_topic": {
+          "type": "string",
+          "const": "safe_deferral/clarification/interaction"
+        },
+        "clarification_schema_ref": {
+          "type": "string",
+          "const": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json"
+        },
+        "example_payload_ref": {
+          "type": "string",
+          "const": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+        },
         "candidate_generation_actor": {
           "type": "string",
           "minLength": 1
@@ -178,6 +203,59 @@
         "timeout_behavior": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "class2_clarification_expectation": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Scenario-level expectation block for Class 2 clarification/transition tests. This block describes evidence and verification expectations only, not authorization.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "clarification_topic": {
+          "type": "string",
+          "const": "safe_deferral/clarification/interaction"
+        },
+        "clarification_schema_ref": {
+          "type": "string",
+          "const": "common/schemas/clarification_interaction_schema_v1_0_0_FROZEN.json"
+        },
+        "example_payload_ref": {
+          "type": "string",
+          "const": "common/payloads/examples/clarification_interaction_two_options_pending.json"
+        },
+        "expected_transition_target": {
+          "type": "string"
+        },
+        "requires_policy_router_reentry": {
+          "type": "boolean",
+          "const": true
+        },
+        "requires_validator_when_class1": {
+          "type": "boolean",
+          "const": true
+        },
+        "timeout_must_not_infer_intent": {
+          "type": "boolean",
+          "const": true
+        },
+        "clarification_payload_is_not_authorization": {
+          "type": "boolean",
+          "const": true
+        },
+        "forbidden_interpretations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "validator_approval",
+              "actuation_command",
+              "emergency_trigger_authority",
+              "doorlock_authorization"
+            ]
+          }
         }
       }
     },
