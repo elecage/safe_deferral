@@ -60,7 +60,7 @@ Mac mini는 정책 판단과 안전 검증의 중심이다. Dashboard, test app,
 - MQTT runtime references: `~/smarthome_workspace/docker/volumes/app/config/mqtt`
 - Payload runtime references: `~/smarthome_workspace/docker/volumes/app/config/payloads`
 
-Container 내부 app 경로:
+Future app/runtime consumer 경로:
 
 - `POLICY_DIR=/app/config/policies`
 - `SCHEMA_DIR=/app/config/schemas`
@@ -68,7 +68,7 @@ Container 내부 app 경로:
 - `PAYLOAD_EXAMPLES_DIR=/app/config/payloads`
 - `SQLITE_PATH=/app/db/audit_log.db`
 
-Host-side Python/runtime `.env`는 host path를 사용하고, Compose service environment는 container path를 사용한다.
+현재 compose 템플릿은 infrastructure services만 실행한다. 위 `/app/...` 경로는 이후 Mac mini operational app을 다시 구현할 때 container-side convention으로 사용하며, host-side Python/runtime `.env`는 host path를 사용한다.
 
 ---
 
@@ -172,6 +172,8 @@ Configure responsibilities:
 - `10_configure_home_assistant.sh`
   - writes Home Assistant config under `docker/volumes/homeassistant/config`
   - does not overwrite an existing `configuration.yaml`
+  - applies `mac_mini/scripts/templates/configuration.yaml.template` only when that optional template exists
+  - if the template is absent, Home Assistant is expected to create its default configuration on first container start
 
 - `30_configure_ollama.sh`
   - verifies Ollama API on host-side `127.0.0.1:11434`
@@ -197,21 +199,13 @@ The compose template includes:
 - `mosquitto`
 - `homeassistant`
 - `ollama`
-- `edge_controller_app`
-
-Current verification treats `edge_controller_app` as optional until `mac_mini/code/Dockerfile` and the operational app runtime are finalized.
-
-Inside the Compose network:
-
-- app should use `MQTT_HOST=mosquitto`
-- app should use `OLLAMA_HOST=http://ollama:11434`
 
 Host-side scripts still use:
 
 - `MQTT_HOST=127.0.0.1`
 - `OLLAMA_HOST=http://127.0.0.1:11434`
 
-This distinction is intentional.
+Mac mini operational app code is intentionally out of scope for this script set until it is reimplemented.
 
 ---
 
@@ -237,8 +231,7 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 Verify behavior:
 
 - `10_verify_docker_services.sh`
-  - required core services: `homeassistant`, `mosquitto`, `ollama`
-  - optional service: `edge_controller_app`
+  - required services: `homeassistant`, `mosquitto`, `ollama`
 
 - `20_verify_mqtt_pubsub.sh`
   - uses test topic `safe_deferral/verify/mqtt_pubsub`
@@ -325,13 +318,12 @@ This is for controlled LAN lab setup only. Production or shared-network deployme
 
 ## 10. Known follow-up
 
-`edge_controller_app` remains optional in Docker service verification until the following are finalized:
+Mac mini operational app code will be reimplemented separately. Until then, this script set manages infrastructure bring-up and runtime assets only:
 
-- `mac_mini/code/Dockerfile`
-- Policy Router implementation
-- Deterministic Validator implementation
-- Safe Deferral Handler implementation
-- Audit/notification integration
-- runtime app entrypoint
+- Docker Compose infrastructure services
+- Mosquitto, Home Assistant, and Ollama readiness
+- SQLite audit DB preparation
+- policy/schema/MQTT/payload runtime asset deployment
+- Telegram notification configuration and verification
 
-When finalized, `edge_controller_app` can be promoted from optional to required in `10_verify_docker_services.sh`.
+When the operational app is reintroduced, its container/service definition, runtime entrypoint, and verification rules should be added as a separate documented change.

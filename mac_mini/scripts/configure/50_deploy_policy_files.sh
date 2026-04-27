@@ -14,6 +14,17 @@ SOURCE_COMMON_DIR="${PROJECT_ROOT}/common"
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
 RUNTIME_TARGET_DIR="${WORKSPACE_DIR}/docker/volumes/app/config"
 
+prepare_target_dir() {
+    local dst="$1"
+
+    if [ -d "${dst}" ]; then
+        chmod -R u+rwX "${dst}"
+    fi
+
+    mkdir -p "${dst}"
+    chmod u+rwx "${dst}"
+}
+
 copy_dir_sync() {
     local src="$1"
     local dst="$2"
@@ -23,7 +34,7 @@ copy_dir_sync() {
         exit 1
     fi
 
-    mkdir -p "${dst}"
+    prepare_target_dir "${dst}"
 
     if command -v rsync >/dev/null 2>&1; then
         rsync -a --delete "${src}/" "${dst}/"
@@ -34,10 +45,10 @@ copy_dir_sync() {
     fi
 }
 
-mkdir -p "${RUNTIME_TARGET_DIR}/policies"
-mkdir -p "${RUNTIME_TARGET_DIR}/schemas"
-mkdir -p "${RUNTIME_TARGET_DIR}/mqtt"
-mkdir -p "${RUNTIME_TARGET_DIR}/payloads"
+prepare_target_dir "${RUNTIME_TARGET_DIR}/policies"
+prepare_target_dir "${RUNTIME_TARGET_DIR}/schemas"
+prepare_target_dir "${RUNTIME_TARGET_DIR}/mqtt"
+prepare_target_dir "${RUNTIME_TARGET_DIR}/payloads"
 
 # 1. Deploy policy assets explicitly so the frozen runtime surface remains reviewable.
 cp "${SOURCE_COMMON_DIR}/policies/policy_table.json" "${RUNTIME_TARGET_DIR}/policies/"

@@ -263,6 +263,11 @@ bash mac_mini/scripts/verify/80_verify_services.sh
 - SQLite 재설정
 - broker / Home Assistant / Ollama / notification 재설정
 
+참고:
+- `10_configure_home_assistant.sh`는 기존 `configuration.yaml`을 덮어쓰지 않는다.
+- `mac_mini/scripts/templates/configuration.yaml.template`이 있으면 최초 설정 파일로 배포한다.
+- 해당 템플릿이 없으면 Home Assistant가 첫 container start 시 기본 설정을 만들도록 둔다.
+
 ### verify 재실행이 필요한 경우
 - install 또는 configure 이후 상태 점검
 - 일부 서비스가 비정상일 때 재확인
