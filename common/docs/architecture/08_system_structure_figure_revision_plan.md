@@ -213,9 +213,13 @@ Current output:
 Add only the main operational path:
 
 ```text
-physical/virtual input -> Mac mini intake -> state aggregation -> policy/router
+physical input -> Mac mini intake -> state aggregation -> policy/router
 -> validator -> dispatcher -> physical actuator -> ACK/audit
 ```
+
+Current output:
+
+- `figure_revision/04_operational_arrow_pass.md`
 
 ### Step 5. Class 2 and caregiver arrow pass
 

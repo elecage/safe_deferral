@@ -147,7 +147,7 @@ Step 4. Operational arrow pass
 Step 4 should add only the main operational path:
 
 ```text
-physical / virtual input
+physical input
 -> Mac mini MQTT / Context Intake
 -> State Aggregation
 -> Policy Router
@@ -159,3 +159,7 @@ physical / virtual input
 ```
 
 Do not add Class 2, caregiver, RPi, or STM32 arrows in Step 4.
+
+Current follow-up output:
+
+- `figure_revision/04_operational_arrow_pass.md`

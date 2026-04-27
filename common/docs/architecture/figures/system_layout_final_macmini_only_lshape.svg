@@ -26,7 +26,25 @@
       .measure-block { fill: #ffffff; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 6 4; rx: 12; ry: 12; }
       .asset-area { fill: #f9fafb; stroke: #6b7280; stroke-width: 1.8; rx: 16; ry: 16; }
       .footer { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.6; rx: 10; ry: 10; }
+      .arrow { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+      .input-arrow { stroke: #334155; marker-end: url(#arrowhead-input); }
+      .op-arrow { stroke: #0e7490; marker-end: url(#arrowhead-op); }
+      .exec-arrow { stroke: #166534; marker-end: url(#arrowhead-exec); }
+      .ack-arrow { stroke: #475569; stroke-dasharray: 6 4; marker-end: url(#arrowhead-ack); }
+      .flow-label { font: 700 11px Arial, sans-serif; fill: #334155; }
     </style>
+    <marker id="arrowhead-input" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#334155"/>
+    </marker>
+    <marker id="arrowhead-op" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#0e7490"/>
+    </marker>
+    <marker id="arrowhead-exec" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#166534"/>
+    </marker>
+    <marker id="arrowhead-ack" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#475569"/>
+    </marker>
   </defs>
 
   <text x="900" y="42" text-anchor="middle" class="title">Privacy-Aware Edge Smart-Home Architecture with Safe Deferral</text>
@@ -202,6 +220,22 @@
   <text x="1080" y="1058" text-anchor="middle" class="small">policies, schemas, MQTT registry, payload contracts, scenario contracts, and required experiment definitions</text>
   <text x="1080" y="1078" text-anchor="middle" class="tiny">repository-governed reference layer; not a live operational override channel</text>
 
+  <path d="M380 437 H405 V226 H465" class="arrow input-arrow"/>
+  <text x="398" y="213" text-anchor="middle" class="flow-label">field input/context</text>
+
+  <path d="M575 262 V285" class="arrow op-arrow"/>
+  <path d="M685 321 H705 V226 H720" class="arrow op-arrow"/>
+  <path d="M830 262 V285" class="arrow op-arrow"/>
+  <path d="M940 321 H955 V226 H975" class="arrow op-arrow"/>
+  <text x="812" y="179" text-anchor="middle" class="flow-label">operational routing</text>
+
+  <path d="M1175 226 H1225 V795 H400 V617 H350" class="arrow exec-arrow"/>
+  <text x="1020" y="786" text-anchor="middle" class="flow-label">approved low-risk dispatch</text>
+
+  <path d="M350 638 H405 V646 H570" class="arrow ack-arrow"/>
+  <path d="M800 646 H835" class="arrow ack-arrow"/>
+  <text x="492" y="666" text-anchor="middle" class="flow-label">ACK evidence</text>
+
   <rect x="40" y="1245" width="1720" height="36" class="footer"/>
-  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 3 block-only layout: final arrows are intentionally omitted and will be added in separate operational, caregiver, RPi, and STM32 passes.</text>
+  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 4 operational flow: caregiver, RPi experiment, STM32 measurement, and canonical-reference arrows remain separated for later passes.</text>
 </svg>
