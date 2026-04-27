@@ -1,0 +1,689 @@
+"""Tests for all RPi experiment app components (RPI-01 through RPI-10)."""
+
+import json
+import pytest
+
+from experiment_manager.manager import ExperimentManager
+from experiment_manager.models import ExperimentFamily, RunParameters, RunState
+from governance.backend import GovernanceBackend, ProposalStatus
+from mqtt_status.monitor import MqttStatusMonitor, TopicHealth
+from preflight.readiness import PreflightManager, ReadinessLevel
+from result_store.store import ResultStore
+from scenario_manager.manager import ScenarioManager
+from virtual_behavior.behavior import (
+    BehaviorProfile,
+    BehaviorRunState,
+    BehaviorType,
+    VirtualBehaviorManager,
+)
+from virtual_node_manager.manager import VirtualNodeManager
+from virtual_node_manager.models import (
+    VirtualNodeProfile,
+    VirtualNodeState,
+    VirtualNodeType,
+)
+
+AUDIT_ID = "test_audit_rpi"
+
+
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
+
+def _run_params(family=ExperimentFamily.CLASS1_BASELINE, scenarios=None):
+    return RunParameters(
+        experiment_family=family,
+        scenario_ids=scenarios or ["SCN_CLASS1_BASELINE"],
+        trial_count=3,
+    )
+
+
+def _context_profile(profile_id="P_NORMAL"):
+    return VirtualNodeProfile(
+        profile_id=profile_id,
+        payload_template={
+            "routing_metadata": {"audit_correlation_id": AUDIT_ID,
+                                  "ingest_timestamp_ms": 0, "network_status": "online"},
+            "pure_context_payload": {},
+        },
+        publish_topic="safe_deferral/context/input",
+    )
+
+
+def _behavior_profile(behavior_type=BehaviorType.NORMAL_CONTEXT, fault_id=None):
+    return BehaviorProfile(
+        profile_id="BP_TEST",
+        behavior_type=behavior_type,
+        fault_profile_id=fault_id,
+        base_payload={"a": {"b": 10}, "c": "hello"},
+    )
+
+
+# ==================================================================
+# RPI-01: Experiment Manager
+# ==================================================================
+
+class TestExperimentManager:
+    def test_create_run_pending(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        assert run.state == RunState.PENDING
+
+    def test_start_run_transitions_to_running(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        assert run.state == RunState.RUNNING
+
+    def test_start_run_records_checksums(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        assert len(run.asset_checksums) > 0
+
+    def test_complete_run(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        mgr.complete_run(run)
+        assert run.state == RunState.COMPLETED
+        assert run.finished_at_ms is not None
+
+    def test_fail_run_with_error(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        mgr.fail_run(run, "simulated failure")
+        assert run.state == RunState.FAILED
+        assert run.error_message == "simulated failure"
+
+    def test_abort_run(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        mgr.abort_run(run)
+        assert run.state == RunState.ABORTED
+
+    def test_pause_and_resume(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        mgr.pause_run(run)
+        assert run.state == RunState.PAUSED
+        mgr.resume_run(run)
+        assert run.state == RunState.RUNNING
+
+    def test_record_trial(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        mgr.record_trial(run, {"scenario_id": "S1", "route_class": "CLASS_1"})
+        assert len(run.trial_results) == 1
+
+    def test_trial_index_increments(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        mgr.start_run(run)
+        mgr.record_trial(run, {"route_class": "CLASS_1"})
+        mgr.record_trial(run, {"route_class": "CLASS_2"})
+        assert run.trial_results[0]["trial_index"] == 0
+        assert run.trial_results[1]["trial_index"] == 1
+
+    def test_get_run(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params(), run_id="run-001")
+        assert mgr.get_run("run-001") is run
+
+    def test_list_runs_by_family(self):
+        mgr = ExperimentManager()
+        mgr.create_run(_run_params(ExperimentFamily.CLASS1_BASELINE))
+        mgr.create_run(_run_params(ExperimentFamily.FAULT_INJECTION))
+        assert len(mgr.list_runs_by_family(ExperimentFamily.CLASS1_BASELINE)) == 1
+
+    def test_summary_dict_has_required_fields(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        d = run.to_summary_dict()
+        for field in ("run_id", "experiment_family", "state", "trial_count",
+                      "trials_recorded"):
+            assert field in d
+
+    def test_host_info_recorded(self):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params())
+        assert "platform" in run.host_info
+
+
+# ==================================================================
+# RPI-02: Result Store
+# ==================================================================
+
+class TestResultStore:
+    def _make_run(self, n_trials=3, family=ExperimentFamily.CLASS1_BASELINE):
+        mgr = ExperimentManager()
+        run = mgr.create_run(_run_params(family))
+        mgr.start_run(run)
+        for i in range(n_trials):
+            mgr.record_trial(run, {
+                "route_class": "CLASS_1",
+                "latency_ms": 100 + i * 10,
+                "fault_outcome": "none",
+            })
+        mgr.complete_run(run)
+        return run
+
+    def test_save_and_get_run(self):
+        store = ResultStore()
+        run = self._make_run()
+        store.save_run(run)
+        assert store.get_run(run.run_id) is run
+
+    def test_list_summaries(self):
+        store = ResultStore()
+        store.save_run(self._make_run())
+        store.save_run(self._make_run())
+        assert len(store.list_summaries()) == 2
+
+    def test_metrics_total_trials(self):
+        store = ResultStore()
+        run = self._make_run(n_trials=5)
+        store.save_run(run)
+        m = store.compute_metrics(run.run_id)
+        assert m["total_trials"] == 5
+
+    def test_metrics_route_distribution(self):
+        store = ResultStore()
+        run = self._make_run(n_trials=3)
+        store.save_run(run)
+        m = store.compute_metrics(run.run_id)
+        assert m["route_class_distribution"].get("CLASS_1") == 3
+
+    def test_metrics_latency_stats(self):
+        store = ResultStore()
+        run = self._make_run(n_trials=3)
+        store.save_run(run)
+        m = store.compute_metrics(run.run_id)
+        assert "min_ms" in m["latency_stats"]
+        assert m["latency_stats"]["min_ms"] == 100
+
+    def test_export_json_contains_summary(self):
+        store = ResultStore()
+        run = self._make_run()
+        store.save_run(run)
+        exported = json.loads(store.export_json(run.run_id))
+        assert "summary" in exported
+        assert "metrics" in exported
+
+    def test_export_csv_has_header(self):
+        store = ResultStore()
+        run = self._make_run(n_trials=2)
+        store.save_run(run)
+        csv_text = store.export_csv(run.run_id)
+        assert "route_class" in csv_text
+
+    def test_export_markdown_contains_run_id(self):
+        store = ResultStore()
+        run = self._make_run()
+        store.save_run(run)
+        md = store.export_markdown(run.run_id)
+        assert run.run_id in md
+
+    def test_unknown_run_returns_empty_metrics(self):
+        store = ResultStore()
+        assert store.compute_metrics("no-such-run") == {}
+
+
+# ==================================================================
+# RPI-03: Virtual Node Manager
+# ==================================================================
+
+class TestVirtualNodeManager:
+    def test_create_node(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        assert node.state == VirtualNodeState.CREATED
+
+    def test_start_node(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        mgr.start_node(node)
+        assert node.state == VirtualNodeState.RUNNING
+
+    def test_stop_node(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        mgr.start_node(node)
+        mgr.stop_node(node)
+        assert node.state == VirtualNodeState.STOPPED
+
+    def test_delete_node(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile(),
+                               node_id="del-node")
+        mgr.delete_node("del-node")
+        assert mgr.get_node("del-node") is None
+
+    def test_publish_once_increments_count(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        mgr.start_node(node)
+        mgr.publish_once(node)
+        assert node.published_count == 1
+
+    def test_publish_once_not_running_raises(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        with pytest.raises(RuntimeError):
+            mgr.publish_once(node)
+
+    def test_invalid_source_id_raises(self):
+        mgr = VirtualNodeManager()
+        with pytest.raises(ValueError, match="simulated origin"):
+            mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile(),
+                            source_node_id="esp32.real_node")
+
+    def test_invalid_topic_raises(self):
+        mgr = VirtualNodeManager()
+        bad_profile = VirtualNodeProfile(
+            profile_id="bad",
+            payload_template={},
+            publish_topic="safe_deferral/actuation/command",  # not allowed
+        )
+        with pytest.raises(ValueError, match="not in the allowed"):
+            mgr.create_node(VirtualNodeType.CONTEXT_NODE, bad_profile)
+
+    def test_list_running_nodes(self):
+        mgr = VirtualNodeManager()
+        n1 = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        n2 = mgr.create_node(VirtualNodeType.CONTEXT_NODE,
+                              _context_profile("P2"), node_id="n2")
+        mgr.start_node(n1)
+        assert len(mgr.list_running_nodes()) == 1
+
+    def test_node_to_dict(self):
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        d = node.to_dict()
+        for key in ("node_id", "node_type", "source_node_id", "state"):
+            assert key in d
+
+
+# ==================================================================
+# RPI-04: Virtual Behavior Manager
+# ==================================================================
+
+class TestVirtualBehaviorManager:
+    def test_create_run(self):
+        mgr = VirtualBehaviorManager()
+        run = mgr.create_run(_behavior_profile())
+        assert run.state == BehaviorRunState.PENDING
+
+    def test_execute_normal(self):
+        mgr = VirtualBehaviorManager()
+        run = mgr.create_run(_behavior_profile())
+        payload = mgr.execute(run)
+        assert run.state == BehaviorRunState.COMPLETED
+        assert payload == {"a": {"b": 10}, "c": "hello"}
+
+    def test_mutation_set(self):
+        mgr = VirtualBehaviorManager()
+        profile = _behavior_profile()
+        profile.mutations = [{"op": "set", "path": "a.b", "value": 999}]
+        run = mgr.create_run(profile)
+        payload = mgr.execute(run)
+        assert payload["a"]["b"] == 999
+
+    def test_mutation_delete(self):
+        mgr = VirtualBehaviorManager()
+        profile = _behavior_profile()
+        profile.mutations = [{"op": "delete", "path": "c"}]
+        run = mgr.create_run(profile)
+        payload = mgr.execute(run)
+        assert "c" not in payload
+
+    def test_mutation_subtract(self):
+        mgr = VirtualBehaviorManager()
+        profile = _behavior_profile()
+        profile.mutations = [{"op": "subtract", "path": "a.b", "value": 3}]
+        run = mgr.create_run(profile)
+        payload = mgr.execute(run)
+        assert payload["a"]["b"] == 7
+
+    def test_stale_fault_profile_accepted(self):
+        mgr = VirtualBehaviorManager()
+        profile = _behavior_profile(
+            behavior_type=BehaviorType.STALE_STATE,
+            fault_id="FAULT_STALENESS_01",
+        )
+        run = mgr.create_run(profile)
+        assert run.profile.fault_profile_id == "FAULT_STALENESS_01"
+
+    def test_unknown_fault_profile_raises(self):
+        mgr = VirtualBehaviorManager()
+        profile = _behavior_profile(fault_id="FAULT_NONEXISTENT_99")
+        with pytest.raises(ValueError, match="Unknown fault_profile_id"):
+            mgr.create_run(profile)
+
+    def test_run_to_dict(self):
+        mgr = VirtualBehaviorManager()
+        run = mgr.create_run(_behavior_profile())
+        mgr.execute(run)
+        d = run.to_dict()
+        for key in ("run_id", "profile_id", "behavior_type", "state"):
+            assert key in d
+
+
+# ==================================================================
+# RPI-05: Scenario Manager
+# ==================================================================
+
+class TestScenarioManager:
+    def test_list_scenario_files(self):
+        mgr = ScenarioManager()
+        files = mgr.list_scenario_files()
+        assert len(files) > 0
+        assert any("class1" in f for f in files)
+
+    def test_load_scenario(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        assert "scenario_id" in scenario
+        assert "expected_outcomes" in scenario
+
+    def test_execute_scenario_matched(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        # Provide all keys from expected_outcomes so _compare_outcomes passes
+        observed = {
+            "route_class": "CLASS_1",
+            "routing_target": "CLASS_1",
+            "llm_invocation_allowed": True,
+            "llm_decision_invocation_allowed": True,
+            "llm_guidance_generation_allowed": True,
+            "unsafe_autonomous_actuation_allowed": False,
+            "allowed_action_catalog_ref": "common/policies/low_risk_actions.json",
+            "doorlock_autonomous_execution_allowed": False,
+        }
+        result = mgr.execute_scenario(scenario, observed)
+        assert result.matched is True
+        assert result.state.value == "passed"
+
+    def test_execute_scenario_not_matched(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        observed = {"route_class": "CLASS_2"}
+        result = mgr.execute_scenario(scenario, observed)
+        assert result.matched is False
+        assert result.state.value == "failed"
+
+    def test_results_accumulated(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        mgr.execute_scenario(scenario, {"route_class": "CLASS_1",
+                                         "doorlock_autonomous_execution_allowed": False})
+        mgr.execute_scenario(scenario, {"route_class": "CLASS_2"})
+        assert len(mgr.get_results()) == 2
+
+    def test_export_json_report(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        mgr.execute_scenario(scenario, {"route_class": "CLASS_1",
+                                         "doorlock_autonomous_execution_allowed": False})
+        data = json.loads(mgr.export_json_report())
+        assert isinstance(data, list)
+        assert len(data) == 1
+
+    def test_export_markdown_report(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        mgr.execute_scenario(scenario, {"route_class": "CLASS_1",
+                                         "doorlock_autonomous_execution_allowed": False})
+        md = mgr.export_markdown_report()
+        assert "Scenario Execution Report" in md
+
+    def test_result_to_dict(self):
+        mgr = ScenarioManager()
+        scenario = mgr.load_scenario("class1_baseline_scenario_skeleton.json")
+        result = mgr.execute_scenario(scenario, {"route_class": "CLASS_1",
+                                                   "doorlock_autonomous_execution_allowed": False})
+        d = result.to_dict()
+        for key in ("scenario_id", "state", "matched", "expected_outcome",
+                    "observed_outcome"):
+            assert key in d
+
+
+# ==================================================================
+# RPI-06: MQTT Status Monitor
+# ==================================================================
+
+class TestMqttStatusMonitor:
+    def test_broker_reachable_false_initially(self):
+        mon = MqttStatusMonitor()
+        assert mon._broker_reachable is False
+
+    def test_set_broker_reachable(self):
+        mon = MqttStatusMonitor()
+        mon.set_broker_reachable(True)
+        report = mon.build_report()
+        assert report.broker_reachable is True
+
+    def test_unobserved_topic_is_missing(self):
+        mon = MqttStatusMonitor()
+        health = mon.get_topic_health("safe_deferral/context/input")
+        assert health == TopicHealth.MISSING
+
+    def test_observed_topic_is_healthy(self):
+        mon = MqttStatusMonitor()
+        mon.observe_message("safe_deferral/context/input",
+                             timestamp_ms=int(__import__("time").time() * 1000))
+        health = mon.get_topic_health("safe_deferral/context/input")
+        assert health == TopicHealth.HEALTHY
+
+    def test_report_has_registry_topics(self):
+        mon = MqttStatusMonitor()
+        report = mon.build_report()
+        topic_names = {t.topic for t in report.topic_statuses}
+        assert "safe_deferral/context/input" in topic_names
+
+    def test_unexpected_topic_flagged(self):
+        mon = MqttStatusMonitor()
+        mon.observe_message("safe_deferral/not/in/registry",
+                             timestamp_ms=int(__import__("time").time() * 1000))
+        report = mon.build_report()
+        unexpected = [t for t in report.topic_statuses
+                      if t.health == TopicHealth.UNEXPECTED]
+        assert len(unexpected) >= 1
+
+    def test_authority_note_in_report(self):
+        mon = MqttStatusMonitor()
+        report = mon.build_report()
+        assert "authority_note" in report.to_dict()
+
+    def test_reset_clears_observations(self):
+        mon = MqttStatusMonitor()
+        mon.observe_message("safe_deferral/context/input",
+                             timestamp_ms=int(__import__("time").time() * 1000))
+        mon.reset()
+        assert mon.get_topic_health("safe_deferral/context/input") == TopicHealth.MISSING
+
+    def test_report_healthy_count(self):
+        mon = MqttStatusMonitor()
+        now = int(__import__("time").time() * 1000)
+        mon.observe_message("safe_deferral/context/input", timestamp_ms=now)
+        mon.observe_message("safe_deferral/actuation/command", timestamp_ms=now)
+        report = mon.build_report()
+        assert report.healthy_count >= 2
+
+
+# ==================================================================
+# RPI-07: Preflight Readiness Manager
+# ==================================================================
+
+class TestPreflightManager:
+    def test_default_checks_ready(self):
+        mgr = PreflightManager()
+        report = mgr.run_preflight()
+        assert report.overall == ReadinessLevel.READY
+
+    def test_blocked_when_required_check_fails(self):
+        mgr = PreflightManager()
+        mgr.add_check(
+            "always_fail",
+            "This check always fails",
+            required=True,
+            check_fn=lambda: (ReadinessLevel.BLOCKED, "intentional failure"),
+        )
+        report = mgr.run_preflight()
+        assert report.overall == ReadinessLevel.BLOCKED
+
+    def test_degraded_when_optional_check_fails(self):
+        mgr = PreflightManager()
+        mgr.add_check(
+            "optional_fail",
+            "Optional check fails",
+            required=False,
+            check_fn=lambda: (ReadinessLevel.DEGRADED, "optional degraded"),
+        )
+        report = mgr.run_preflight()
+        assert report.overall == ReadinessLevel.DEGRADED
+
+    def test_blocked_reasons_listed(self):
+        mgr = PreflightManager()
+        mgr.add_check(
+            "fail_check",
+            "Failing",
+            required=True,
+            check_fn=lambda: (ReadinessLevel.BLOCKED, "reason A"),
+        )
+        report = mgr.run_preflight()
+        assert any("reason A" in r for r in report.blocked_reasons)
+
+    def test_checks_in_report(self):
+        mgr = PreflightManager()
+        report = mgr.run_preflight()
+        assert len(report.checks) >= 2
+
+    def test_report_to_dict(self):
+        mgr = PreflightManager()
+        report = mgr.run_preflight()
+        d = report.to_dict()
+        for key in ("overall", "generated_at_ms", "checks",
+                    "blocked_reasons", "authority_note"):
+            assert key in d
+
+    def test_authority_note_no_policy_relaxation(self):
+        mgr = PreflightManager()
+        report = mgr.run_preflight()
+        assert "policy" in report.authority_note.lower()
+
+    def test_exception_in_check_gives_unknown(self):
+        mgr = PreflightManager()
+        mgr.add_check(
+            "exc_check",
+            "Raises exception",
+            required=False,
+            check_fn=lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
+        report = mgr.run_preflight()
+        exc_check = next((c for c in report.checks if c.check_id == "exc_check"), None)
+        assert exc_check is not None
+        assert exc_check.level == ReadinessLevel.UNKNOWN
+
+
+# ==================================================================
+# RPI-09: Governance Backend
+# ==================================================================
+
+class TestGovernanceBackend:
+    def test_list_topics_not_empty(self):
+        backend = GovernanceBackend()
+        topics = backend.list_topics()
+        assert len(topics) > 0
+
+    def test_topic_has_required_fields(self):
+        backend = GovernanceBackend()
+        t = backend.list_topics()[0]
+        assert "topic" in t
+        assert "authority_level" in t
+
+    def test_get_topic_found(self):
+        backend = GovernanceBackend()
+        t = backend.get_topic("safe_deferral/context/input")
+        assert t is not None
+        assert t["topic"] == "safe_deferral/context/input"
+
+    def test_get_topic_not_found(self):
+        backend = GovernanceBackend()
+        assert backend.get_topic("safe_deferral/does/not/exist") is None
+
+    def test_validate_valid_payload(self):
+        backend = GovernanceBackend()
+        payload = {
+            "event_summary": "테스트 이벤트",
+            "context_summary": "테스트 컨텍스트",
+            "unresolved_reason": "insufficient_context",
+            "manual_confirmation_path": "보호자 검토 경로",
+        }
+        report = backend.validate_payload_example(
+            "class2_notification_payload_schema.json", payload
+        )
+        assert report.is_valid is True
+        assert report.errors == []
+
+    def test_validate_invalid_payload(self):
+        backend = GovernanceBackend()
+        report = backend.validate_payload_example(
+            "class2_notification_payload_schema.json", {}
+        )
+        assert report.is_valid is False
+        assert len(report.errors) > 0
+
+    def test_validate_unknown_schema(self):
+        backend = GovernanceBackend()
+        report = backend.validate_payload_example("nonexistent_schema.json", {})
+        assert report.is_valid is False
+
+    def test_report_has_authority_note(self):
+        backend = GovernanceBackend()
+        report = backend.validate_payload_example(
+            "class2_notification_payload_schema.json", {}
+        )
+        assert "authority_note" in report.to_dict()
+
+    def test_create_proposal_draft(self):
+        backend = GovernanceBackend()
+        p = backend.create_proposal("safe_deferral/context/input", "Add X field")
+        assert p.status == ProposalStatus.DRAFT
+
+    def test_advance_proposal_to_proposed(self):
+        backend = GovernanceBackend()
+        p = backend.create_proposal("safe_deferral/context/input", "Add X")
+        backend.advance_proposal(p.proposal_id, ProposalStatus.PROPOSED, "looks good")
+        assert p.status == ProposalStatus.PROPOSED
+
+    def test_advance_unknown_proposal_raises(self):
+        backend = GovernanceBackend()
+        with pytest.raises(KeyError):
+            backend.advance_proposal("no-such-id", ProposalStatus.PROPOSED)
+
+    def test_list_proposals_by_status(self):
+        backend = GovernanceBackend()
+        backend.create_proposal("t1", "change 1")
+        p2 = backend.create_proposal("t2", "change 2")
+        backend.advance_proposal(p2.proposal_id, ProposalStatus.PROPOSED)
+        drafts = backend.list_proposals(ProposalStatus.DRAFT)
+        proposed = backend.list_proposals(ProposalStatus.PROPOSED)
+        assert len(drafts) == 1
+        assert len(proposed) == 1
+
+    def test_proposal_authority_note(self):
+        backend = GovernanceBackend()
+        p = backend.create_proposal("t", "desc")
+        assert "authority" in p.to_dict()["authority_note"].lower()
+
+    def test_export_proposals_report(self):
+        backend = GovernanceBackend()
+        backend.create_proposal("t", "desc")
+        data = json.loads(backend.export_proposals_report())
+        assert isinstance(data, list)
+        assert len(data) == 1
