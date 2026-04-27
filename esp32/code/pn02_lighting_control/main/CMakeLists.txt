@@ -1,0 +1,16 @@
+idf_component_register(
+    SRCS
+        "pn02_lighting_control.c"
+        "../../shared/sd_payload.c"
+    INCLUDE_DIRS
+        "."
+        "../../shared"
+    REQUIRES
+        driver
+        esp_timer
+        mqtt
+        esp_event
+        log
+        freertos
+        json
+)
