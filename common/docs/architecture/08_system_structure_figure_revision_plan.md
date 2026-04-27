@@ -230,22 +230,35 @@ Current output:
 
 - `figure_revision/05_class2_caregiver_arrow_pass.md`
 
-### Step 6. RPi experiment arrow pass
+### Step 6. Mac mini internal behavior arrow pass
+
+Finalize Mac mini-internal support flows before adding experiment-host flows:
+
+```text
+state aggregation -> local LLM adapter -> Class 2 clarification manager
+context-integrity safe deferral -> audit-oriented deferral record
+```
+
+Current output:
+
+- `figure_revision/06_macmini_internal_behavior_arrow_pass.md`
+
+### Step 7. RPi experiment arrow pass
 
 Add RPi virtual node, virtual behavior/fault injection, scenario execution,
 dashboard, telemetry observation, result store, and governance-support flows.
 
-### Step 7. STM32 timing arrow pass
+### Step 8. STM32 timing arrow pass
 
 Add STM32 timing capture and measurement export flow without connecting it as
 operational authority.
 
-### Step 8. Text and legend pass
+### Step 9. Text and legend pass
 
 Shorten labels, add line breaks, and add a concise legend for authority
 boundaries.
 
-### Step 9. Render validation
+### Step 10. Render validation
 
 Render the SVG and visually inspect:
 
@@ -256,7 +269,7 @@ Render the SVG and visually inspect:
 - no missing major architecture block,
 - no authority ambiguity.
 
-### Step 10. Documentation update
+### Step 11. Documentation update
 
 Update any active document references if the figure filename or interpretation
 changes.

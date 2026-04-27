@@ -109,9 +109,13 @@ Validation completed:
 Proceed to:
 
 ```text
-Step 6. RPi experiment arrow pass
+Step 6. Mac mini internal behavior arrow pass
 ```
 
-Step 6 should add Raspberry Pi virtual node, virtual behavior/fault injection,
-scenario execution, dashboard, telemetry observation, result store, and
-governance-support flows without granting RPi operational authority.
+Step 6 should finalize Mac mini internal support flows, especially LLM
+candidate guidance and context-integrity deferral records, before RPi experiment
+or telemetry arrows are added.
+
+Current follow-up output:
+
+- `figure_revision/06_macmini_internal_behavior_arrow_pass.md`
