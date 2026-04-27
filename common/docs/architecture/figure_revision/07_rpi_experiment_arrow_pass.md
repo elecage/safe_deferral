@@ -109,3 +109,7 @@ Step 8. STM32 timing arrow pass
 
 Step 8 should add STM32 timing capture and measurement export flow without
 connecting STM32 to Mac mini policy routing or actuator dispatch as authority.
+
+Current follow-up output:
+
+- `figure_revision/08_stm32_timing_arrow_pass.md`

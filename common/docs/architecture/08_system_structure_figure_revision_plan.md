@@ -257,6 +257,10 @@ Current output:
 Add STM32 timing capture and measurement export flow without connecting it as
 operational authority.
 
+Current output:
+
+- `figure_revision/08_stm32_timing_arrow_pass.md`
+
 ### Step 9. Text and legend pass
 
 Shorten labels, add line breaks, and add a concise legend for authority

@@ -38,6 +38,7 @@
       .deferral-arrow { stroke: #9a3412; stroke-dasharray: 4 4; marker-end: url(#arrowhead-deferral); }
       .rpi-arrow { stroke: #2563eb; stroke-dasharray: 5 5; marker-end: url(#arrowhead-rpi); }
       .telemetry-arrow { stroke: #1d4ed8; stroke-dasharray: 9 5; marker-end: url(#arrowhead-telemetry); }
+      .measure-arrow { stroke: #64748b; stroke-dasharray: 8 5; marker-end: url(#arrowhead-measure); }
       .flow-label { font: 700 11px Arial, sans-serif; fill: #334155; }
     </style>
     <marker id="arrowhead-input" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
@@ -72,6 +73,9 @@
     </marker>
     <marker id="arrowhead-telemetry" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
       <polygon points="0 0, 6 2.25, 0 4.5" fill="#1d4ed8"/>
+    </marker>
+    <marker id="arrowhead-measure" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#64748b"/>
     </marker>
   </defs>
 
@@ -234,11 +238,11 @@
   <text x="820" y="870" text-anchor="middle" class="area-title">STM32 Timing / Measurement Support</text>
   <text x="820" y="891" text-anchor="middle" class="area-note">out-of-band latency evidence and export; not operational control</text>
 
-  <rect x="470" y="915" width="240" height="34" class="measure-block"/>
-  <text x="590" y="936" text-anchor="middle" class="label">STM32 Measurement Node</text>
+  <rect x="470" y="915" width="190" height="34" class="measure-block"/>
+  <text x="565" y="936" text-anchor="middle" class="label">Capture Channels</text>
 
-  <rect x="750" y="915" width="190" height="34" class="measure-block"/>
-  <text x="845" y="936" text-anchor="middle" class="label">Capture Channels</text>
+  <rect x="700" y="915" width="240" height="34" class="measure-block"/>
+  <text x="820" y="936" text-anchor="middle" class="label">Timestamping Core</text>
 
   <rect x="980" y="915" width="190" height="34" class="measure-block"/>
   <text x="1075" y="936" text-anchor="middle" class="label">Measurement Export</text>
@@ -305,6 +309,15 @@
   <path d="M1175 466 H1218 V566 H1290" class="arrow telemetry-arrow"/>
   <text x="1215" y="552" text-anchor="middle" class="flow-label">read-only telemetry</text>
 
+  <path d="M380 932 H470" class="arrow measure-arrow"/>
+  <text x="426" y="923" text-anchor="middle" class="flow-label">physical signal taps</text>
+  <path d="M660 932 H700" class="arrow measure-arrow"/>
+  <path d="M940 932 H980" class="arrow measure-arrow"/>
+  <text x="824" y="909" text-anchor="middle" class="flow-label">timing capture</text>
+
+  <path d="M1170 932 H1240 V836 H1290" class="arrow measure-arrow"/>
+  <text x="1243" y="892" text-anchor="middle" class="flow-label">measurement export</text>
+
   <rect x="40" y="1245" width="1720" height="36" class="footer"/>
-  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 7 RPi flow: telemetry is read-only, and virtual experiment input enters only through Mac mini intake.</text>
+  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 8 STM32 flow: timing evidence exports to RPi results only and is not part of Mac mini operational control.</text>
 </svg>
