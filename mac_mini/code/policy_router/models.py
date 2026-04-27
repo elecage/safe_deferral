@@ -1,0 +1,44 @@
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+
+
+class RouteClass(str, Enum):
+    CLASS_0 = "CLASS_0"
+    CLASS_1 = "CLASS_1"
+    CLASS_2 = "CLASS_2"
+
+
+@dataclass
+class PolicyRouterResult:
+    """Output of the Policy Router.
+
+    Downstream consumers:
+      CLASS_0 -> emergency handler (no LLM)
+      CLASS_1 -> LLM adapter -> Deterministic Validator
+      CLASS_2 -> Class 2 Clarification Manager
+    """
+
+    route_class: RouteClass
+
+    # E001-E005 for CLASS_0; C202 / C204 / C206 for CLASS_2; None for CLASS_1
+    trigger_id: Optional[str]
+
+    # Whether the LLM adapter may be invoked for candidate generation
+    llm_invocation_allowed: bool
+
+    # Whether bounded candidate generation is allowed (also true in CLASS_2)
+    candidate_generation_allowed: bool
+
+    # Human-readable reason for CLASS_2 routes; None otherwise
+    unresolved_reason: Optional[str]
+
+    source_node_id: str
+    audit_correlation_id: str
+    network_status: str
+
+    # Wall-clock ms when routing decision was made (for audit)
+    routed_at_ms: int
+
+    # Pass-through to LLM adapter / validator (pure context only, no routing metadata)
+    pure_context_payload: dict
