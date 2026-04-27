@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: 30_prepare_managed_components_esp32.sh
+# Script: 40_prepare_managed_components_esp32.sh
 # Purpose: Prepare managed component cache and optional project-level placeholder
 # Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
-echo "==> [30_prepare_managed_components_esp32] Preparing managed component workspace..."
+echo "==> [40_prepare_managed_components_esp32] Preparing managed component workspace..."
 
 WORKSPACE_DIR="${HOME}/esp32_workspace"
 ENV_FILE="${WORKSPACE_DIR}/.env"
@@ -28,13 +28,13 @@ mkdir -p "${MANAGED_COMPONENTS_CACHE_DIR}"
 
 if [ ! -d "${SAMPLE_PROJECT_DIR}" ]; then
     echo "  [FATAL] Sample project directory not found: ${SAMPLE_PROJECT_DIR}"
-    echo "          Please run 40_prepare_sample_project_esp32.sh before this script."
+    echo "          Please run 30_prepare_sample_project_esp32.sh before this script."
     exit 1
 fi
 
 if [ ! -f "${SAMPLE_PROJECT_DIR}/CMakeLists.txt" ] || [ ! -d "${SAMPLE_PROJECT_DIR}/main" ]; then
     echo "  [FATAL] Sample project does not look like a prepared ESP-IDF project: ${SAMPLE_PROJECT_DIR}"
-    echo "          Please run 40_prepare_sample_project_esp32.sh before this script."
+    echo "          Please run 30_prepare_sample_project_esp32.sh before this script."
     exit 1
 fi
 
@@ -49,5 +49,5 @@ else
 fi
 
 echo "  [OK] Managed component cache directory prepared at ${MANAGED_COMPONENTS_CACHE_DIR}."
-echo "  [INFO] This script is intended to run after 40_prepare_sample_project_esp32.sh."
+echo "  [INFO] This script is intended to run after 30_prepare_sample_project_esp32.sh."
 echo "==> [PASS] Managed component workspace preparation completed."

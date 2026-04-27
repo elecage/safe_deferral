@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: 40_prepare_sample_project_esp32.sh
+# Script: 30_prepare_sample_project_esp32.sh
 # Purpose: Prepare a sample ESP-IDF project for environment verification
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
-echo "==> [40_prepare_sample_project_esp32] Preparing sample ESP-IDF project..."
+echo "==> [30_prepare_sample_project_esp32] Preparing sample ESP-IDF project..."
 
 WORKSPACE_DIR="${HOME}/esp32_workspace"
 ENV_FILE="${WORKSPACE_DIR}/.env"
@@ -34,7 +34,17 @@ if [ ! -d "${HELLO_WORLD_TEMPLATE}" ]; then
     exit 1
 fi
 
-mkdir -p "$(dirname "${SAMPLE_PROJECT_DIR}")"
+SAMPLE_PARENT_DIR="$(dirname "${SAMPLE_PROJECT_DIR}")"
+if [ -z "${SAMPLE_PROJECT_DIR}" ] || [ "${SAMPLE_PROJECT_DIR}" = "/" ] || [ "${SAMPLE_PROJECT_DIR}" = "${HOME}" ] || [ "${SAMPLE_PROJECT_DIR}" = "${WORKSPACE_DIR}" ]; then
+    echo "  [FATAL] Refusing to replace unsafe sample project path: ${SAMPLE_PROJECT_DIR:-<empty>}"
+    exit 1
+fi
+if [ "${SAMPLE_PARENT_DIR}" = "/" ] || [ "${SAMPLE_PARENT_DIR}" = "${HOME}" ]; then
+    echo "  [FATAL] Refusing to use unsafe sample project parent path: ${SAMPLE_PARENT_DIR}"
+    exit 1
+fi
+
+mkdir -p "${SAMPLE_PARENT_DIR}"
 rm -rf "${SAMPLE_PROJECT_DIR}"
 cp -R "${HELLO_WORLD_TEMPLATE}" "${SAMPLE_PROJECT_DIR}"
 

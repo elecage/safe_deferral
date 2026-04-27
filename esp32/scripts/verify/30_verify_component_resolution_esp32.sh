@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 30_verify_component_resolution_esp32.sh
 # Purpose: Verify CMake reconfigure and managed component resolution
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
@@ -26,7 +26,7 @@ SAMPLE_PROJECT_DIR="${ESP32_SAMPLE_PROJECT_DIR:-${WORKSPACE_DIR}/samples/hello_i
 
 if [ ! -d "${SAMPLE_PROJECT_DIR}" ]; then
     echo "  [FATAL] Sample project not found at ${SAMPLE_PROJECT_DIR}."
-    echo "          Please run 40_prepare_sample_project_esp32.sh first."
+    echo "          Please run 30_prepare_sample_project_esp32.sh first."
     exit 1
 fi
 

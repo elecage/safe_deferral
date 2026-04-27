@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 20_prepare_idf_workspace_esp32.sh
 # Purpose: Prepare common ESP32 workspace directories
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 

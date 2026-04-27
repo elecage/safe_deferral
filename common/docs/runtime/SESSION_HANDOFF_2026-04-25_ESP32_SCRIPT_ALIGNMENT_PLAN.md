@@ -40,14 +40,16 @@ The current reviewed ESP32 script set includes:
 - `esp32/scripts/configure/10_write_env_files_esp32_windows.ps1`
 - `esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh`
 - `esp32/scripts/configure/20_prepare_idf_workspace_esp32_windows.ps1`
-- `esp32/scripts/configure/30_prepare_managed_components_esp32.sh`
-- `esp32/scripts/configure/30_prepare_managed_components_esp32_windows.ps1`
-- `esp32/scripts/configure/40_prepare_sample_project_esp32.sh`
-- `esp32/scripts/configure/40_prepare_sample_project_esp32_windows.ps1`
+- `esp32/scripts/configure/30_prepare_sample_project_esp32.sh`
+- `esp32/scripts/configure/30_prepare_sample_project_esp32_windows.ps1`
+- `esp32/scripts/configure/40_prepare_managed_components_esp32.sh`
+- `esp32/scripts/configure/40_prepare_managed_components_esp32_windows.ps1`
 - `esp32/scripts/configure/README.md`
 
 ### verify
 
+- `esp32/scripts/verify/00_verify_esp32_script_syntax.sh`
+- `esp32/scripts/verify/00_verify_esp32_powershell_syntax.ps1`
 - `esp32/scripts/verify/10_verify_idf_cli_esp32.sh`
 - `esp32/scripts/verify/10_verify_idf_cli_esp32_windows.ps1`
 - `esp32/scripts/verify/20_verify_toolchain_target_esp32.sh`
@@ -73,9 +75,9 @@ The current reviewed ESP32 script set includes:
 7. ESP32 firmware and environment scripts must not silently create direct doorlock authority.
 8. ESP32 may eventually receive bounded commands from the authorized operational pipeline, but it must not decide policy or safety class on its own.
 
-## 4. Recommended current execution order before fixes
+## 4. Recommended current execution order
 
-The reviewed scripts imply the following current practical execution order.
+The reviewed scripts imply the following practical execution order.
 
 ### macOS
 
@@ -90,8 +92,8 @@ bash esp32/scripts/configure/10_write_env_files_esp32.sh
 # edit ~/esp32_workspace/.env
 
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
@@ -112,8 +114,8 @@ bash esp32/scripts/configure/10_write_env_files_esp32.sh
 # edit ~/esp32_workspace/.env
 
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
@@ -134,8 +136,8 @@ cd C:\path\to\safe_deferral
 # edit $HOME\esp32_workspace\.env.ps1
 
 .\esp32\scripts\configure\20_prepare_idf_workspace_esp32_windows.ps1
-.\esp32\scripts\configure\40_prepare_sample_project_esp32_windows.ps1
-.\esp32\scripts\configure\30_prepare_managed_components_esp32_windows.ps1
+.\esp32\scripts\configure\30_prepare_sample_project_esp32_windows.ps1
+.\esp32\scripts\configure\40_prepare_managed_components_esp32_windows.ps1
 
 .\esp32\scripts\verify\10_verify_idf_cli_esp32_windows.ps1
 .\esp32\scripts\verify\20_verify_toolchain_target_esp32_windows.ps1
@@ -143,7 +145,7 @@ cd C:\path\to\safe_deferral
 .\esp32\scripts\verify\40_verify_sample_build_esp32_windows.ps1
 ```
 
-Important: current configure execution should place sample project preparation before managed-component placeholder preparation, because `40_prepare_sample_project_esp32.*` deletes and re-copies the sample project directory.
+Important: configure execution places sample project preparation before managed-component placeholder preparation, because `30_prepare_sample_project_esp32.*` deletes and re-copies the sample project directory.
 
 ## 5. Phase E1 — ESP32 README refresh
 
@@ -160,8 +162,8 @@ Planned changes:
 - Document macOS, Linux, and Windows flows.
 - Explicitly document the current configure order:
   - `20_prepare_idf_workspace`
-  - `40_prepare_sample_project`
-  - `30_prepare_managed_components`
+  - `30_prepare_sample_project`
+  - `40_prepare_managed_components`
 - Explain POSIX `.env` versus Windows `.env.ps1`.
 - State that ESP32 is a bounded physical node and must not become an authority node.
 
@@ -269,25 +271,21 @@ Completion criterion:
 
 Targets:
 
-- README files first.
-- Optional later rename:
+- README files.
+- Configure script filenames:
   - `30_prepare_sample_project_esp32.*`
   - `40_prepare_managed_components_esp32.*`
 
 Problem:
 
-- `30_prepare_managed_components_esp32.*` creates `idf_component.yml` under the sample project.
-- `40_prepare_sample_project_esp32.*` deletes and re-copies the sample project directory.
-- Therefore, a literal `20 -> 30 -> 40` order deletes the managed-component placeholder created by step 30.
+- `30_prepare_sample_project_esp32.*` deletes and re-copies the sample project directory.
+- `40_prepare_managed_components_esp32.*` creates `idf_component.yml` under the sample project.
+- Therefore, sample-project preparation must run before managed-component placeholder preparation.
 
-Planned immediate fix:
+Planned fix:
 
-- Document execution order as `20 -> 40 -> 30`.
-- Avoid renaming files in the first pass to reduce churn.
-
-Potential future cleanup:
-
-- Rename files so numeric order matches semantic order.
+- Keep execution order as `20 -> 30 -> 40`.
+- Keep filenames aligned with that order so docs and scripts do not need an exception note.
 
 Completion criterion:
 

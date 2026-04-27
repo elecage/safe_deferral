@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 20_verify_toolchain_target_esp32.sh
 # Purpose: Verify target selection for the sample ESP-IDF project
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 
@@ -27,7 +27,7 @@ TARGET="${IDF_TARGET:-esp32}"
 
 if [ ! -d "${SAMPLE_PROJECT_DIR}" ]; then
     echo "  [FATAL] Sample project not found at ${SAMPLE_PROJECT_DIR}."
-    echo "          Please run 40_prepare_sample_project_esp32.sh first."
+    echo "          Please run 30_prepare_sample_project_esp32.sh first."
     exit 1
 fi
 

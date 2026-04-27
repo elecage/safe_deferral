@@ -17,7 +17,7 @@ if (-not $IDF_PATH -or -not (Test-Path (Join-Path $IDF_PATH 'export.ps1'))) {
 $SampleProjectDir = if ($ESP32_SAMPLE_PROJECT_DIR) { $ESP32_SAMPLE_PROJECT_DIR } else { Join-Path $WorkspaceDir 'samples\hello_idf' }
 $Target = if ($IDF_TARGET) { $IDF_TARGET } else { 'esp32' }
 if (-not (Test-Path $SampleProjectDir)) {
-    throw "Sample project not found at $SampleProjectDir. Please run 40_prepare_sample_project_esp32_windows.ps1 first."
+    throw "Sample project not found at $SampleProjectDir. Please run 30_prepare_sample_project_esp32_windows.ps1 first."
 }
 
 . (Join-Path $IDF_PATH 'export.ps1') | Out-Null

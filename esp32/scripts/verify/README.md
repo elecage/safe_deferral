@@ -10,6 +10,7 @@ Verification scripts validate toolchain and build readiness only. They must not 
 
 ## POSIX scripts for macOS/Linux
 
+- `00_verify_esp32_script_syntax.sh`
 - `10_verify_idf_cli_esp32.sh`
 - `20_verify_toolchain_target_esp32.sh`
 - `30_verify_component_resolution_esp32.sh`
@@ -23,6 +24,7 @@ The POSIX environment file is:
 
 ## Windows PowerShell scripts
 
+- `00_verify_esp32_powershell_syntax.ps1`
 - `10_verify_idf_cli_esp32_windows.ps1`
 - `20_verify_toolchain_target_esp32_windows.ps1`
 - `30_verify_component_resolution_esp32_windows.ps1`
@@ -39,6 +41,7 @@ $HOME\esp32_workspace\.env.ps1
 macOS/Linux:
 
 ```bash
+bash esp32/scripts/verify/00_verify_esp32_script_syntax.sh
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
 bash esp32/scripts/verify/30_verify_component_resolution_esp32.sh
@@ -48,6 +51,7 @@ bash esp32/scripts/verify/40_verify_sample_build_esp32.sh
 Windows PowerShell:
 
 ```powershell
+.\esp32\scripts\verify\00_verify_esp32_powershell_syntax.ps1
 .\esp32\scripts\verify\10_verify_idf_cli_esp32_windows.ps1
 .\esp32\scripts\verify\20_verify_toolchain_target_esp32_windows.ps1
 .\esp32\scripts\verify\30_verify_component_resolution_esp32_windows.ps1
@@ -55,6 +59,10 @@ Windows PowerShell:
 ```
 
 ## Verification stages
+
+### 00 — script syntax verification
+
+Checks repository-side script syntax before running environment-dependent ESP-IDF checks.
 
 ### 10 — ESP-IDF CLI verification
 
@@ -90,14 +98,14 @@ and verifies that CMake configuration artifacts are generated.
 
 Runs a clean build for the configured sample project and checks for generated binary and ELF artifacts.
 
-Current default expected artifact names are tied to the ESP-IDF `hello_world` sample:
+The default expected artifact names are tied to the ESP-IDF `hello_world` sample:
 
 ```text
 build/hello_world.bin
 build/hello_world.elf
 ```
 
-A future alignment phase will generalize this with a configurable expected application name.
+For a different sample or firmware app name, set `ESP32_EXPECTED_APP_NAME` before running the build verification script.
 
 ## Completion criterion
 

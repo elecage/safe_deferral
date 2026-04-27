@@ -34,7 +34,7 @@ mkdir -p "${LOG_DIR}"
 
 if [ ! -d "${SAMPLE_PROJECT_DIR}" ]; then
     echo "  [FATAL] Sample project not found at ${SAMPLE_PROJECT_DIR}."
-    echo "          Please run 40_prepare_sample_project_esp32.sh first."
+    echo "          Please run 30_prepare_sample_project_esp32.sh first."
     exit 1
 fi
 

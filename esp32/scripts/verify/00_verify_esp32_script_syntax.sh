@@ -16,7 +16,10 @@ if [ ! -d "${SCRIPTS_ROOT}" ]; then
     exit 1
 fi
 
-mapfile -t SCRIPT_FILES < <(find "${SCRIPTS_ROOT}" -type f -name "*.sh" | sort)
+SCRIPT_FILES=()
+while IFS= read -r script; do
+    SCRIPT_FILES+=("${script}")
+done < <(find "${SCRIPTS_ROOT}" -type f -name "*.sh" | sort)
 
 if [ "${#SCRIPT_FILES[@]}" -eq 0 ]; then
     echo "  [FATAL] No ESP32 Bash scripts found under ${SCRIPTS_ROOT}."
@@ -24,6 +27,12 @@ if [ "${#SCRIPT_FILES[@]}" -eq 0 ]; then
 fi
 
 FAILURES=0
+MALFORMED_HEREDOC_LOG="$(mktemp)"
+
+cleanup() {
+    rm -f "${MALFORMED_HEREDOC_LOG}"
+}
+trap cleanup EXIT
 
 for script in "${SCRIPT_FILES[@]}"; do
     rel_path="${script#${ESP32_ROOT}/}"
@@ -40,13 +49,12 @@ for script in "${SCRIPT_FILES[@]}"; do
         FAILURES=1
     fi
 
-    malformed_heredoc_log="/tmp/esp32_malformed_heredoc_$$.txt"
-    if grep -nE '^cat < [^<]' "${script}" > "${malformed_heredoc_log}"; then
+    : > "${MALFORMED_HEREDOC_LOG}"
+    if grep -nE '^cat < [^<]' "${script}" > "${MALFORMED_HEREDOC_LOG}"; then
         echo "    [FATAL] Possible malformed heredoc pattern found: ${rel_path}"
-        sed 's/^/      /' "${malformed_heredoc_log}"
+        sed 's/^/      /' "${MALFORMED_HEREDOC_LOG}"
         FAILURES=1
     fi
-    rm -f "${malformed_heredoc_log}"
 
     if ! bash -n "${script}"; then
         echo "    [FATAL] Bash syntax check failed: ${rel_path}"

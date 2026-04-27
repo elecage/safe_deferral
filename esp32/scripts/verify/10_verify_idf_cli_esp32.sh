@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script: 10_verify_idf_cli_esp32.sh
 # Purpose: Verify ESP-IDF CLI and core build tools
-# Note: This draft targets POSIX shell environments (macOS/Linux).
+# Note: This script targets POSIX shell environments (macOS/Linux).
 # ==============================================================================
 set -euo pipefail
 

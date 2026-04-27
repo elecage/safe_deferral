@@ -24,7 +24,7 @@ $ExpectedElf = Join-Path $SampleProjectDir "build\$ExpectedAppName.elf"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
 if (-not (Test-Path $SampleProjectDir)) {
-    throw "Sample project not found at $SampleProjectDir. Please run 40_prepare_sample_project_esp32_windows.ps1 first."
+    throw "Sample project not found at $SampleProjectDir. Please run 30_prepare_sample_project_esp32_windows.ps1 first."
 }
 
 . (Join-Path $IDF_PATH 'export.ps1') | Out-Null

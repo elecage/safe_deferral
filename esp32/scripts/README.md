@@ -59,20 +59,21 @@ POSIX shell for macOS/Linux:
 
 - `configure/10_write_env_files_esp32.sh`
 - `configure/20_prepare_idf_workspace_esp32.sh`
-- `configure/30_prepare_managed_components_esp32.sh`
-- `configure/40_prepare_sample_project_esp32.sh`
+- `configure/30_prepare_sample_project_esp32.sh`
+- `configure/40_prepare_managed_components_esp32.sh`
 
 Windows PowerShell:
 
 - `configure/10_write_env_files_esp32_windows.ps1`
 - `configure/20_prepare_idf_workspace_esp32_windows.ps1`
-- `configure/30_prepare_managed_components_esp32_windows.ps1`
-- `configure/40_prepare_sample_project_esp32_windows.ps1`
+- `configure/30_prepare_sample_project_esp32_windows.ps1`
+- `configure/40_prepare_managed_components_esp32_windows.ps1`
 
 ### verify
 
 POSIX shell for macOS/Linux:
 
+- `verify/00_verify_esp32_script_syntax.sh`
 - `verify/10_verify_idf_cli_esp32.sh`
 - `verify/20_verify_toolchain_target_esp32.sh`
 - `verify/30_verify_component_resolution_esp32.sh`
@@ -80,6 +81,7 @@ POSIX shell for macOS/Linux:
 
 Windows PowerShell:
 
+- `verify/00_verify_esp32_powershell_syntax.ps1`
 - `verify/10_verify_idf_cli_esp32_windows.ps1`
 - `verify/20_verify_toolchain_target_esp32_windows.ps1`
 - `verify/30_verify_component_resolution_esp32_windows.ps1`
@@ -100,9 +102,10 @@ bash esp32/scripts/configure/10_write_env_files_esp32.sh
 # Edit ~/esp32_workspace/.env if needed.
 
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
+bash esp32/scripts/verify/00_verify_esp32_script_syntax.sh
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
 bash esp32/scripts/verify/30_verify_component_resolution_esp32.sh
@@ -122,9 +125,10 @@ bash esp32/scripts/configure/10_write_env_files_esp32.sh
 # Edit ~/esp32_workspace/.env if needed.
 
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
+bash esp32/scripts/verify/00_verify_esp32_script_syntax.sh
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
 bash esp32/scripts/verify/30_verify_component_resolution_esp32.sh
@@ -144,24 +148,15 @@ cd C:\path\to\safe_deferral
 # Edit $HOME\esp32_workspace\.env.ps1 if needed.
 
 .\esp32\scripts\configure\20_prepare_idf_workspace_esp32_windows.ps1
-.\esp32\scripts\configure\40_prepare_sample_project_esp32_windows.ps1
-.\esp32\scripts\configure\30_prepare_managed_components_esp32_windows.ps1
+.\esp32\scripts\configure\30_prepare_sample_project_esp32_windows.ps1
+.\esp32\scripts\configure\40_prepare_managed_components_esp32_windows.ps1
 
+.\esp32\scripts\verify\00_verify_esp32_powershell_syntax.ps1
 .\esp32\scripts\verify\10_verify_idf_cli_esp32_windows.ps1
 .\esp32\scripts\verify\20_verify_toolchain_target_esp32_windows.ps1
 .\esp32\scripts\verify\30_verify_component_resolution_esp32_windows.ps1
 .\esp32\scripts\verify\40_verify_sample_build_esp32_windows.ps1
 ```
-
-## Ordering note
-
-Run sample-project preparation before managed-component placeholder preparation:
-
-```text
-20_prepare_idf_workspace -> 40_prepare_sample_project -> 30_prepare_managed_components
-```
-
-The current `40_prepare_sample_project_esp32.*` scripts delete and re-copy the sample project directory. Running `30_prepare_managed_components_esp32.*` before `40_prepare_sample_project_esp32.*` may delete the placeholder manifest created by step 30.
 
 ## Completion criterion
 

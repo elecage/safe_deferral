@@ -73,18 +73,20 @@ esp32/
    │  ├─ README.md
    │  ├─ 10_write_env_files_esp32.sh
    │  ├─ 20_prepare_idf_workspace_esp32.sh
-   │  ├─ 30_prepare_managed_components_esp32.sh
-   │  ├─ 40_prepare_sample_project_esp32.sh
+   │  ├─ 30_prepare_sample_project_esp32.sh
+   │  ├─ 40_prepare_managed_components_esp32.sh
    │  ├─ 10_write_env_files_esp32_windows.ps1
    │  ├─ 20_prepare_idf_workspace_esp32_windows.ps1
-   │  ├─ 30_prepare_managed_components_esp32_windows.ps1
-   │  └─ 40_prepare_sample_project_esp32_windows.ps1
+   │  ├─ 30_prepare_sample_project_esp32_windows.ps1
+   │  └─ 40_prepare_managed_components_esp32_windows.ps1
    └─ verify/
       ├─ README.md
+      ├─ 00_verify_esp32_script_syntax.sh
       ├─ 10_verify_idf_cli_esp32.sh
       ├─ 20_verify_toolchain_target_esp32.sh
       ├─ 30_verify_component_resolution_esp32.sh
       ├─ 40_verify_sample_build_esp32.sh
+      ├─ 00_verify_esp32_powershell_syntax.ps1
       ├─ 10_verify_idf_cli_esp32_windows.ps1
       ├─ 20_verify_toolchain_target_esp32_windows.ps1
       ├─ 30_verify_component_resolution_esp32_windows.ps1
@@ -198,24 +200,26 @@ OS별 개발환경 설치와 공통 구성/검증을 자동화한다.
   - 공통 env 파일 생성
 - `20_prepare_idf_workspace_esp32.sh`
   - workspace 디렉터리 생성
-- `30_prepare_managed_components_esp32.sh`
-  - managed component cache 및 placeholder manifest 준비
-- `40_prepare_sample_project_esp32.sh`
+- `30_prepare_sample_project_esp32.sh`
   - `hello_world` 샘플 프로젝트 복사
+- `40_prepare_managed_components_esp32.sh`
+  - managed component cache 및 placeholder manifest 준비
 
 #### Windows
 - `10_write_env_files_esp32_windows.ps1`
   - Windows용 `.env.ps1` 생성
 - `20_prepare_idf_workspace_esp32_windows.ps1`
   - Windows workspace 디렉터리 생성
-- `30_prepare_managed_components_esp32_windows.ps1`
-  - Windows용 managed component cache 및 placeholder manifest 준비
-- `40_prepare_sample_project_esp32_windows.ps1`
+- `30_prepare_sample_project_esp32_windows.ps1`
   - `hello_world` 샘플 프로젝트 복사
+- `40_prepare_managed_components_esp32_windows.ps1`
+  - Windows용 managed component cache 및 placeholder manifest 준비
 
 ### 6.3 verify
 
 #### POSIX(macOS/Linux)
+- `00_verify_esp32_script_syntax.sh`
+  - ESP32 Bash 스크립트 문법과 기본 형식 확인
 - `10_verify_idf_cli_esp32.sh`
   - `idf.py`, Python, CMake, Ninja, esptool 동작 확인
 - `20_verify_toolchain_target_esp32.sh`
@@ -226,6 +230,8 @@ OS별 개발환경 설치와 공통 구성/검증을 자동화한다.
   - 샘플 프로젝트 실제 build 확인
 
 #### Windows
+- `00_verify_esp32_powershell_syntax.ps1`
+  - ESP32 PowerShell 스크립트 문법 확인
 - `10_verify_idf_cli_esp32_windows.ps1`
   - `idf.py`, Python, CMake, Ninja, esptool 동작 확인
 - `20_verify_toolchain_target_esp32_windows.ps1`
@@ -259,9 +265,10 @@ bash esp32/scripts/install/mac/20_install_esp_idf_esp32_mac.sh
 
 bash esp32/scripts/configure/10_write_env_files_esp32.sh
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
+bash esp32/scripts/verify/00_verify_esp32_script_syntax.sh
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
 bash esp32/scripts/verify/30_verify_component_resolution_esp32.sh
@@ -276,9 +283,10 @@ bash esp32/scripts/install/linux/20_install_esp_idf_esp32_linux.sh
 
 bash esp32/scripts/configure/10_write_env_files_esp32.sh
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
+bash esp32/scripts/verify/00_verify_esp32_script_syntax.sh
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
 bash esp32/scripts/verify/30_verify_component_resolution_esp32.sh
@@ -301,9 +309,10 @@ powershell -ExecutionPolicy Bypass -File .\esp32\scripts\install\windows\20_inst
 
 powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\10_write_env_files_esp32_windows.ps1
 powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\20_prepare_idf_workspace_esp32_windows.ps1
-powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\30_prepare_managed_components_esp32_windows.ps1
-powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\40_prepare_sample_project_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\30_prepare_sample_project_esp32_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\configure\40_prepare_managed_components_esp32_windows.ps1
 
+powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\00_verify_esp32_powershell_syntax.ps1
 powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\10_verify_idf_cli_esp32_windows.ps1
 powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\20_verify_toolchain_target_esp32_windows.ps1
 powershell -ExecutionPolicy Bypass -File .\esp32\scripts\verify\30_verify_component_resolution_esp32_windows.ps1
@@ -330,7 +339,7 @@ ESP32 개발환경 구축 성공의 기준은 단순 설치 완료가 아니다.
 
 ## 9. 현재 단계의 한계
 
-현재 반영된 스크립트는 **개발환경 scaffold 초안**이다.
+현재 반영된 스크립트는 **개발환경 구축과 샘플 빌드 검증을 위한 기본 골격**이다.
 
 아직 남아 있는 작업:
 - `install/*/30_install_extra_tools_esp32_*` 추가

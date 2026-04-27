@@ -12,8 +12,8 @@ ESP32 remains a bounded physical node layer. Configuration scripts may prepare b
 
 - `10_write_env_files_esp32.sh`
 - `20_prepare_idf_workspace_esp32.sh`
-- `30_prepare_managed_components_esp32.sh`
-- `40_prepare_sample_project_esp32.sh`
+- `30_prepare_sample_project_esp32.sh`
+- `40_prepare_managed_components_esp32.sh`
 
 The POSIX environment file is:
 
@@ -25,8 +25,8 @@ The POSIX environment file is:
 
 - `10_write_env_files_esp32_windows.ps1`
 - `20_prepare_idf_workspace_esp32_windows.ps1`
-- `30_prepare_managed_components_esp32_windows.ps1`
-- `40_prepare_sample_project_esp32_windows.ps1`
+- `30_prepare_sample_project_esp32_windows.ps1`
+- `40_prepare_managed_components_esp32_windows.ps1`
 
 The Windows environment file is:
 
@@ -42,8 +42,8 @@ Use this order on macOS/Linux:
 bash esp32/scripts/configure/10_write_env_files_esp32.sh
 # Edit ~/esp32_workspace/.env if needed.
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 ```
 
 Use this order on Windows PowerShell:
@@ -52,20 +52,8 @@ Use this order on Windows PowerShell:
 .\esp32\scripts\configure\10_write_env_files_esp32_windows.ps1
 # Edit $HOME\esp32_workspace\.env.ps1 if needed.
 .\esp32\scripts\configure\20_prepare_idf_workspace_esp32_windows.ps1
-.\esp32\scripts\configure\40_prepare_sample_project_esp32_windows.ps1
-.\esp32\scripts\configure\30_prepare_managed_components_esp32_windows.ps1
-```
-
-## Why `40` runs before `30`
-
-The current `40_prepare_sample_project_esp32.*` scripts remove and re-copy the sample project directory from the ESP-IDF `hello_world` example.
-
-The current `30_prepare_managed_components_esp32.*` scripts create an `idf_component.yml` placeholder under the sample project directory.
-
-Therefore, running `30` before `40` can delete the placeholder created by `30`. Until the scripts are renumbered or refactored, use:
-
-```text
-20_prepare_idf_workspace -> 40_prepare_sample_project -> 30_prepare_managed_components
+.\esp32\scripts\configure\30_prepare_sample_project_esp32_windows.ps1
+.\esp32\scripts\configure\40_prepare_managed_components_esp32_windows.ps1
 ```
 
 ## Current output paths

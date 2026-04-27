@@ -93,11 +93,11 @@ Updated to reflect the implemented configure scripts and the required execution 
 ```text
 10_write_env_files
 20_prepare_idf_workspace
-40_prepare_sample_project
-30_prepare_managed_components
+30_prepare_sample_project
+40_prepare_managed_components
 ```
 
-This order is required because `40_prepare_sample_project_esp32.*` removes and re-copies the sample project directory, while `30_prepare_managed_components_esp32.*` writes `idf_component.yml` under that project.
+This order is required because `30_prepare_sample_project_esp32.*` removes and re-copies the sample project directory, while `40_prepare_managed_components_esp32.*` writes `idf_component.yml` under that project.
 
 ### `esp32/scripts/verify/README.md`
 
@@ -204,7 +204,7 @@ $ALLOW_ESP32_DIRECT_DOORLOCK_AUTHORITY = 'false'
 
 Existing keys are preserved and not overwritten.
 
-### `esp32/scripts/configure/30_prepare_managed_components_esp32.sh`
+### `esp32/scripts/configure/40_prepare_managed_components_esp32.sh`
 
 Updated to fail if the sample project has not already been prepared.
 
@@ -216,7 +216,7 @@ It now requires:
 
 It no longer silently creates an empty sample project directory.
 
-### `esp32/scripts/configure/30_prepare_managed_components_esp32_windows.ps1`
+### `esp32/scripts/configure/40_prepare_managed_components_esp32_windows.ps1`
 
 Windows equivalent of the same ordering guard.
 
@@ -279,8 +279,8 @@ bash esp32/scripts/configure/10_write_env_files_esp32.sh
 bash esp32/scripts/install/linux/20_install_esp_idf_esp32_linux.sh
 
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
@@ -304,8 +304,8 @@ bash esp32/scripts/configure/10_write_env_files_esp32.sh
 bash esp32/scripts/install/mac/20_install_esp_idf_esp32_mac.sh
 
 bash esp32/scripts/configure/20_prepare_idf_workspace_esp32.sh
-bash esp32/scripts/configure/40_prepare_sample_project_esp32.sh
-bash esp32/scripts/configure/30_prepare_managed_components_esp32.sh
+bash esp32/scripts/configure/30_prepare_sample_project_esp32.sh
+bash esp32/scripts/configure/40_prepare_managed_components_esp32.sh
 
 bash esp32/scripts/verify/10_verify_idf_cli_esp32.sh
 bash esp32/scripts/verify/20_verify_toolchain_target_esp32.sh
@@ -329,8 +329,8 @@ git pull
 .\esp32\scripts\install\windows\20_install_esp_idf_esp32_windows.ps1
 
 .\esp32\scripts\configure\20_prepare_idf_workspace_esp32_windows.ps1
-.\esp32\scripts\configure\40_prepare_sample_project_esp32_windows.ps1
-.\esp32\scripts\configure\30_prepare_managed_components_esp32_windows.ps1
+.\esp32\scripts\configure\30_prepare_sample_project_esp32_windows.ps1
+.\esp32\scripts\configure\40_prepare_managed_components_esp32_windows.ps1
 
 .\esp32\scripts\verify\10_verify_idf_cli_esp32_windows.ps1
 .\esp32\scripts\verify\20_verify_toolchain_target_esp32_windows.ps1
