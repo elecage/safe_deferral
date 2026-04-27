@@ -26,7 +26,6 @@
       .measure-block { fill: #ffffff; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 6 4; rx: 12; ry: 12; }
       .asset-area { fill: #f9fafb; stroke: #6b7280; stroke-width: 1.8; rx: 16; ry: 16; }
       .legend-area { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 12; ry: 12; }
-      .footer { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.6; rx: 10; ry: 10; }
       .arrow { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .input-arrow { stroke: #334155; marker-end: url(#arrowhead-input); }
       .op-arrow { stroke: #0e7490; marker-end: url(#arrowhead-op); }
@@ -40,7 +39,7 @@
       .rpi-arrow { stroke: #2563eb; stroke-dasharray: 5 5; marker-end: url(#arrowhead-rpi); }
       .telemetry-arrow { stroke: #1d4ed8; stroke-dasharray: 9 5; marker-end: url(#arrowhead-telemetry); }
       .measure-arrow { stroke: #64748b; stroke-dasharray: 8 5; marker-end: url(#arrowhead-measure); }
-      .flow-label { font: 700 10px Arial, sans-serif; fill: #334155; }
+      .flow-label { font: 700 10px Arial, sans-serif; fill: #334155; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-linejoin: round; }
       .legend-label { font: 700 11px Arial, sans-serif; fill: #334155; }
     </style>
     <marker id="arrowhead-input" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
@@ -82,7 +81,6 @@
   </defs>
 
   <text x="900" y="42" text-anchor="middle" class="title">Privacy-Aware Edge Smart-Home Architecture with Safe Deferral</text>
-  <text x="900" y="68" text-anchor="middle" class="subtitle">Block-only layout draft: Mac mini owns operational authority; Raspberry Pi and STM32 remain non-authoritative experiment and measurement support.</text>
 
   <rect x="40" y="115" width="340" height="86" class="actor"/>
   <text x="210" y="148" text-anchor="middle" class="area-title">User</text>
@@ -281,8 +279,8 @@
   <path d="M1480 236 H1510" class="arrow care-arrow"/>
   <path d="M1600 267 V291 H1515 V315" class="arrow care-arrow"/>
   <path d="M1400 362 H1175" class="arrow care-arrow"/>
-  <text x="1264" y="222" text-anchor="middle" class="flow-label">notification</text>
-  <text x="1286" y="384" text-anchor="middle" class="flow-label">confirmation response</text>
+  <text x="1246" y="222" text-anchor="end" class="flow-label">notification</text>
+  <text x="1246" y="384" text-anchor="end" class="flow-label">response</text>
 
   <path d="M1175 376 H1235 V977 H350" class="arrow manual-arrow"/>
   <text x="858" y="965" text-anchor="middle" class="flow-label">manual dispatch</text>
@@ -308,10 +306,10 @@
   <text x="1452" y="612" text-anchor="middle" class="flow-label">orchestration</text>
 
   <path d="M1290 742 H1250 V178 H575 V190" class="arrow rpi-arrow"/>
-  <text x="1234" y="706" text-anchor="middle" class="flow-label">virtual input</text>
+  <text x="1205" y="706" text-anchor="end" class="flow-label">virtual input</text>
 
   <path d="M1175 466 H1218 V566 H1290" class="arrow telemetry-arrow"/>
-  <text x="1220" y="586" text-anchor="middle" class="flow-label">telemetry view</text>
+  <text x="1205" y="586" text-anchor="end" class="flow-label">telemetry view</text>
 
   <path d="M380 932 H470" class="arrow measure-arrow"/>
   <text x="426" y="923" text-anchor="middle" class="flow-label">signal taps</text>
@@ -320,21 +318,22 @@
   <text x="824" y="909" text-anchor="middle" class="flow-label">timing capture</text>
 
   <path d="M1170 932 H1240 V836 H1290" class="arrow measure-arrow"/>
-  <text x="1243" y="892" text-anchor="middle" class="flow-label">measurement export</text>
+  <text x="1205" y="892" text-anchor="end" class="flow-label">measurement export</text>
 
-  <rect x="430" y="1140" width="1300" height="55" class="legend-area"/>
-  <text x="485" y="1173" text-anchor="start" class="legend-label">Legend</text>
-  <path d="M560 1168 H615" class="arrow op-arrow"/>
-  <text x="625" y="1172" text-anchor="start" class="legend-label">Mac mini operational</text>
-  <path d="M785 1168 H840" class="arrow care-arrow"/>
-  <text x="850" y="1172" text-anchor="start" class="legend-label">Class 2 / caregiver</text>
-  <path d="M1010 1168 H1065" class="arrow manual-arrow"/>
-  <text x="1075" y="1172" text-anchor="start" class="legend-label">governed manual dispatch</text>
-  <path d="M1270 1168 H1325" class="arrow rpi-arrow"/>
-  <text x="1335" y="1172" text-anchor="start" class="legend-label">RPi experiment</text>
-  <path d="M1485 1168 H1540" class="arrow measure-arrow"/>
-  <text x="1550" y="1172" text-anchor="start" class="legend-label">STM32 measurement</text>
-
-  <rect x="40" y="1245" width="1720" height="36" class="footer"/>
-  <text x="900" y="1268" text-anchor="middle" class="tiny">Mac mini retains operational authority; Telegram, RPi, and STM32 provide confirmation, experiment support, and measurement evidence only.</text>
+  <rect x="430" y="1130" width="1300" height="80" class="legend-area"/>
+  <text x="485" y="1160" text-anchor="start" class="legend-label">Legend</text>
+  <path d="M560 1155 H615" class="arrow input-arrow"/>
+  <text x="625" y="1159" text-anchor="start" class="legend-label">field input/context</text>
+  <path d="M800 1155 H855" class="arrow op-arrow"/>
+  <text x="865" y="1159" text-anchor="start" class="legend-label">Mac mini operational</text>
+  <path d="M1090 1155 H1145" class="arrow care-arrow"/>
+  <text x="1155" y="1159" text-anchor="start" class="legend-label">Class 2 / caregiver</text>
+  <path d="M1370 1155 H1425" class="arrow manual-arrow"/>
+  <text x="1435" y="1159" text-anchor="start" class="legend-label">governed manual dispatch</text>
+  <path d="M560 1184 H615" class="arrow ack-arrow"/>
+  <text x="625" y="1188" text-anchor="start" class="legend-label">ACK evidence</text>
+  <path d="M800 1184 H855" class="arrow rpi-arrow"/>
+  <text x="865" y="1188" text-anchor="start" class="legend-label">RPi experiment</text>
+  <path d="M1090 1184 H1145" class="arrow measure-arrow"/>
+  <text x="1155" y="1188" text-anchor="start" class="legend-label">STM32 measurement</text>
 </svg>

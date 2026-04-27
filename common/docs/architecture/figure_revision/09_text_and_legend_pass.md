@@ -65,5 +65,8 @@ Proceed to:
 Step 10. Render validation
 ```
 
-Step 10 should visually inspect the rendered SVG for text fit, arrow overlap,
-block-crossing arrows, and authority ambiguity.
+Step 10 render validation is recorded in:
+
+```text
+figure_revision/10_render_validation.md
+```

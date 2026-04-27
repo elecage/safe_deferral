@@ -281,6 +281,10 @@ Render the SVG and visually inspect:
 - no missing major architecture block,
 - no authority ambiguity.
 
+Current output:
+
+- `figure_revision/10_render_validation.md`
+
 ### Step 11. Documentation update
 
 Update any active document references if the figure filename or interpretation
