@@ -108,3 +108,7 @@ Step 5. Class 2 and caregiver arrow pass
 Step 5 should add the Class 2 clarification, Telegram notification, caregiver
 response, governed manual confirmation, ACK, and audit paths without routing
 them as autonomous doorlock authorization.
+
+Current follow-up output:
+
+- `figure_revision/05_class2_caregiver_arrow_pass.md`

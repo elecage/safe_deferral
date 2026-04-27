@@ -31,6 +31,9 @@
       .op-arrow { stroke: #0e7490; marker-end: url(#arrowhead-op); }
       .exec-arrow { stroke: #166534; marker-end: url(#arrowhead-exec); }
       .ack-arrow { stroke: #475569; stroke-dasharray: 6 4; marker-end: url(#arrowhead-ack); }
+      .class2-arrow { stroke: #9a3412; marker-end: url(#arrowhead-class2); }
+      .care-arrow { stroke: #c2410c; stroke-dasharray: 7 5; marker-end: url(#arrowhead-care); }
+      .manual-arrow { stroke: #7c2d12; marker-end: url(#arrowhead-manual); }
       .flow-label { font: 700 11px Arial, sans-serif; fill: #334155; }
     </style>
     <marker id="arrowhead-input" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
@@ -44,6 +47,15 @@
     </marker>
     <marker id="arrowhead-ack" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
       <polygon points="0 0, 6 2.25, 0 4.5" fill="#475569"/>
+    </marker>
+    <marker id="arrowhead-class2" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#9a3412"/>
+    </marker>
+    <marker id="arrowhead-care" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#c2410c"/>
+    </marker>
+    <marker id="arrowhead-manual" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#7c2d12"/>
     </marker>
   </defs>
 
@@ -236,6 +248,22 @@
   <path d="M800 646 H835" class="arrow ack-arrow"/>
   <text x="492" y="666" text-anchor="middle" class="flow-label">ACK evidence</text>
 
+  <path d="M940 238 H950 V423 H940" class="arrow class2-arrow"/>
+  <text x="967" y="412" text-anchor="middle" class="flow-label">Class 2 branch</text>
+
+  <path d="M940 438 H960 V346 H975" class="arrow class2-arrow"/>
+  <path d="M1175 346 H1240 V236 H1300" class="arrow care-arrow"/>
+  <path d="M1480 236 H1510" class="arrow care-arrow"/>
+  <path d="M1600 267 V291 H1515 V315" class="arrow care-arrow"/>
+  <path d="M1400 362 H1175" class="arrow care-arrow"/>
+  <text x="1264" y="222" text-anchor="middle" class="flow-label">notification</text>
+  <text x="1286" y="384" text-anchor="middle" class="flow-label">confirmation response</text>
+
+  <path d="M1175 376 H1235 V977 H350" class="arrow manual-arrow"/>
+  <text x="858" y="965" text-anchor="middle" class="flow-label">governed manual dispatch after Mac mini checks</text>
+  <path d="M1075 392 V410 H1192 V590 H950 V610" class="arrow care-arrow"/>
+  <text x="1104" y="584" text-anchor="middle" class="flow-label">confirmation audit</text>
+
   <rect x="40" y="1245" width="1720" height="36" class="footer"/>
-  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 4 operational flow: caregiver, RPi experiment, STM32 measurement, and canonical-reference arrows remain separated for later passes.</text>
+  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 5 caregiver flow: Telegram transports notification/response only; Mac mini performs governed manual dispatch and audit handling.</text>
 </svg>

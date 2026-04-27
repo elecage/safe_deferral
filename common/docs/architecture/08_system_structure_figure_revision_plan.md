@@ -226,6 +226,10 @@ Current output:
 Add Class 2 clarification, Telegram notification, caregiver response, governed
 manual confirmation, ACK, and audit paths.
 
+Current output:
+
+- `figure_revision/05_class2_caregiver_arrow_pass.md`
+
 ### Step 6. RPi experiment arrow pass
 
 Add RPi virtual node, virtual behavior/fault injection, scenario execution,
