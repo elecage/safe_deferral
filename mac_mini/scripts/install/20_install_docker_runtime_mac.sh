@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 20_install_docker_runtime_mac.sh
-# Purpose: Install and verify Docker runtime on Mac mini (Phase 2)
+# Purpose: Install and verify Docker runtime on Mac mini
 # ==============================================================================
 set -euo pipefail
 

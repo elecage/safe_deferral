@@ -15,7 +15,7 @@ Mac mini는 다음을 담당한다.
 - Home Assistant 운영
 - Ollama 기반 로컬 LLM runtime 운영
 - SQLite 기반 single-writer audit logging 환경 준비
-- frozen policy/schema runtime asset 배포
+- canonical policy/schema runtime asset 배포
 - MQTT topic registry 및 payload reference asset 배포
 - host-side runtime `.env` 작성
 - 서비스 및 asset 검증
@@ -76,7 +76,7 @@ Future app/runtime consumer 경로:
 
 ### Authoritative policy/schema assets
 
-Mac mini runtime은 다음 frozen/reference assets를 배포해서 읽는다.
+Mac mini runtime은 다음 canonical/reference assets를 배포해서 읽는다.
 
 Policies:
 

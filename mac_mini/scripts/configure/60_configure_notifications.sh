@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 60_configure_notifications.sh
-# Purpose: Configure Telegram or Mock fallback notifications (Phase 4)
+# Purpose: Configure Telegram or mock fallback notifications
 # ==============================================================================
 set -euo pipefail
 
@@ -60,10 +60,14 @@ else
         enable_mock_fallback
     else
         echo "  [INFO] Testing Outbound Telegram connection..."
-        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             -d chat_id="${TELEGRAM_CHAT_ID}"             -d text="✅ [Smart Home Edge] Notification pipeline configured successfully." || echo "000")
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="[Smart Home Edge] Notification pipeline configured successfully." || true)
+        HTTP_STATUS="${HTTP_STATUS:-000}"
 
         # [개선 2] Telegram API 성공 여부에 따른 자연스러운 Fallback 전환
-        if [ "${HTTP_STATUS}" -eq 200 ]; then
+        if [ "${HTTP_STATUS}" = "200" ]; then
             echo "  [OK] Test notification sent successfully. Telegram mode is active."
         else
             echo "  [WARNING] Failed to send test notification (HTTP Status: ${HTTP_STATUS})."

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 30_setup_python_venv_mac.sh
-# Purpose: Create .venv-mac and install Python dependencies (Phase 3)
+# Purpose: Create .venv-mac and install Python dependencies
 # ==============================================================================
 set -euo pipefail
 
@@ -11,6 +11,11 @@ WORKSPACE_DIR="${HOME}/smarthome_workspace"
 VENV_DIR="${WORKSPACE_DIR}/.venv-mac"
 
 mkdir -p "${WORKSPACE_DIR}"
+
+if ! command -v brew >/dev/null 2>&1; then
+    echo "  [FATAL] Homebrew is not installed. Run mac_mini/scripts/install/00_install_homebrew.sh first."
+    exit 1
+fi
 
 # 0. 사용할 Homebrew Python 3.11+ 선택
 PYTHON_BIN=""
@@ -54,7 +59,7 @@ echo "  [INFO] Activating virtual environment..."
 source "${VENV_DIR}/bin/activate"
 
 echo "  [INFO] Upgrading pip, setuptools, and wheel..."
-pip install --quiet --upgrade pip setuptools wheel
+python -m pip install --quiet --upgrade pip setuptools wheel
 
 # 3. Install Requirements
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,11 +68,11 @@ REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements-mac.txt"
 
 if [ -f "${REQUIREMENTS_FILE}" ]; then
     echo "  [INFO] Installing packages from ${REQUIREMENTS_FILE}..."
-    pip install -r "${REQUIREMENTS_FILE}"
+    python -m pip install -r "${REQUIREMENTS_FILE}"
 
     # 4. Lock Dependencies
     LOCK_FILE="${WORKSPACE_DIR}/requirements-mac-lock.txt"
-    pip freeze > "${LOCK_FILE}"
+    python -m pip freeze > "${LOCK_FILE}"
     echo "  [OK] Dependencies locked to requirements-mac-lock.txt"
 else
     echo "  [FATAL] ${REQUIREMENTS_FILE} not found. Core dependencies cannot be installed."
@@ -77,6 +82,6 @@ fi
 # 5. Verify Installation
 echo "  [INFO] Installed Python Environment Versions:"
 python --version | awk '{print "    - "$0}'
-pip --version | awk '{print "    - "$0}'
+python -m pip --version | awk '{print "    - "$0}'
 
 echo "==> [PASS] Python virtual environment ready at ${VENV_DIR}"

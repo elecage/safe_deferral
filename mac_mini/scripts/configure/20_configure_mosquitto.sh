@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 20_configure_mosquitto.sh
-# Purpose: Configure Mosquitto MQTT Broker and apply Trust Boundary rules (Phase 4)
+# Purpose: Configure Mosquitto MQTT Broker and apply LAN trust boundary rules
 # ==============================================================================
 set -euo pipefail
 

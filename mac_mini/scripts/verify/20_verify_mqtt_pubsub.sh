@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 20_verify_mqtt_pubsub.sh
-# Purpose: Verify MQTT Broker Pub/Sub functionality (Phase 5)
+# Purpose: Verify MQTT Broker Pub/Sub functionality
 # ==============================================================================
 set -euo pipefail
 
@@ -39,7 +39,15 @@ fi
 
 TEST_TOPIC="safe_deferral/verify/mqtt_pubsub"
 TEST_MSG="verify_$(date +%s)"
-LOG_FILE="/tmp/mqtt_verify_$$.log"
+LOG_FILE="$(mktemp)"
+
+cleanup() {
+    if [ -n "${SUB_PID:-}" ] && kill -0 "${SUB_PID}" 2>/dev/null; then
+        kill "${SUB_PID}" 2>/dev/null || true
+    fi
+    rm -f "${LOG_FILE}"
+}
+trap cleanup EXIT
 
 echo "  [INFO] Target Broker: ${TARGET_HOST}:${TARGET_PORT}"
 echo "  [INFO] Test Topic: ${TEST_TOPIC}"
@@ -66,8 +74,6 @@ PUB_CMD+=(-t "${TEST_TOPIC}" -m "${TEST_MSG}")
 if ! "${PUB_CMD[@]}"; then
     echo "  [FATAL] mosquitto_pub command failed."
     echo "          Please check if the broker is reachable and credentials are correct."
-    rm -f "${LOG_FILE}"
-    kill "${SUB_PID}" 2>/dev/null || true
     exit 1
 fi
 
@@ -76,13 +82,11 @@ wait "${SUB_PID}" || true
 if grep -q "${TEST_MSG}" "${LOG_FILE}"; then
     echo "  [OK] Subscriber successfully received the test message."
     echo "==> [PASS] MQTT Pub/Sub test successful on ${TARGET_HOST}:${TARGET_PORT}."
-    rm -f "${LOG_FILE}"
 else
     echo "  [FATAL] MQTT Pub/Sub test failed. Subscriber did not receive the test message."
     echo "          Diagnostic hints:"
     echo "          - Check broker status (is mosquitto running?)"
     echo "          - Check network firewall/ACL rules (if remote)"
     echo "          - Check authentication credentials"
-    rm -f "${LOG_FILE}"
     exit 1
 fi

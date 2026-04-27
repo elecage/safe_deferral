@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 10_configure_home_assistant.sh
-# Purpose: Configure Home Assistant and apply configuration templates (Phase 4)
+# Purpose: Configure Home Assistant and apply optional configuration templates
 # ==============================================================================
 set -euo pipefail
 

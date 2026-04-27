@@ -50,13 +50,13 @@ prepare_target_dir "${RUNTIME_TARGET_DIR}/schemas"
 prepare_target_dir "${RUNTIME_TARGET_DIR}/mqtt"
 prepare_target_dir "${RUNTIME_TARGET_DIR}/payloads"
 
-# 1. Deploy policy assets explicitly so the frozen runtime surface remains reviewable.
+# 1. Deploy policy assets explicitly so the runtime surface remains reviewable.
 cp "${SOURCE_COMMON_DIR}/policies/policy_table.json" "${RUNTIME_TARGET_DIR}/policies/"
 cp "${SOURCE_COMMON_DIR}/policies/low_risk_actions.json" "${RUNTIME_TARGET_DIR}/policies/"
 cp "${SOURCE_COMMON_DIR}/policies/fault_injection_rules.json" "${RUNTIME_TARGET_DIR}/policies/"
 cp "${SOURCE_COMMON_DIR}/policies/output_profile.json" "${RUNTIME_TARGET_DIR}/policies/"
 
-# 2. Deploy schema assets explicitly so the frozen validation surface remains reviewable.
+# 2. Deploy schema assets explicitly so the validation surface remains reviewable.
 cp "${SOURCE_COMMON_DIR}/schemas/context_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
 cp "${SOURCE_COMMON_DIR}/schemas/candidate_action_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
 cp "${SOURCE_COMMON_DIR}/schemas/policy_router_input_schema.json" "${RUNTIME_TARGET_DIR}/schemas/"
