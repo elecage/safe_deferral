@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: 20_sync_phase0_artifacts_rpi.sh
+# Script: 20_sync_runtime_assets_rpi.sh
 # Purpose: Sync authority mirrors and reference assets from Mac mini runtime
 # ==============================================================================
 set -euo pipefail
 
-echo "==> [20_sync_phase0_artifacts_rpi] Syncing runtime artifacts from Mac mini..."
+echo "==> [20_sync_runtime_assets_rpi] Syncing runtime/reference assets from Mac mini..."
 
 WORKSPACE_DIR="${HOME}/smarthome_workspace"
 ENV_FILE="${WORKSPACE_DIR}/.env"
@@ -23,6 +23,18 @@ fi
 if [ -z "${MAC_MINI_HOST:-}" ]; then
     echo "  [FATAL] MAC_MINI_HOST is missing in ${ENV_FILE}."
     echo "          Please ensure the authoritative source host is defined."
+    exit 1
+fi
+
+if [ "${MAC_MINI_HOST}" = "192.168.1.100" ]; then
+    echo "  [FATAL] MAC_MINI_HOST still uses the placeholder IP 192.168.1.100."
+    echo "          Set the real Mac mini LAN hostname or IP in ${ENV_FILE}."
+    exit 1
+fi
+
+if [ "${MAC_MINI_USER:-}" = "mac_user" ]; then
+    echo "  [FATAL] MAC_MINI_USER still uses the placeholder value 'mac_user'."
+    echo "          Set the real Mac mini login account in ${ENV_FILE}."
     exit 1
 fi
 

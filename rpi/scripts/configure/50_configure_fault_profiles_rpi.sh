@@ -41,13 +41,13 @@ CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 
 if [ ! -f "${FAULT_RULES_FILE}" ]; then
     echo "  [FATAL] Fault injection rules not found at ${FAULT_RULES_FILE}."
-    echo "          Please run 20_sync_phase0_artifacts_rpi.sh first."
+    echo "          Please run 20_sync_runtime_assets_rpi.sh first."
     exit 1
 fi
 
 if [ ! -f "${CONTEXT_SCHEMA}" ]; then
     echo "  [FATAL] Context schema not found at ${CONTEXT_SCHEMA}."
-    echo "          Please run 20_sync_phase0_artifacts_rpi.sh first."
+    echo "          Please run 20_sync_runtime_assets_rpi.sh first."
     exit 1
 fi
 
@@ -57,7 +57,7 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "  [INFO] Validating frozen fault injection rules against architectural constraints..."
+echo "  [INFO] Validating synced fault injection rules against architectural constraints..."
 if ! jq empty "${FAULT_RULES_FILE}" >/dev/null 2>&1; then
     echo "  [FATAL] Invalid JSON syntax detected in ${FAULT_RULES_FILE}."
     echo "          Please check the file for missing commas, brackets, or typos."
@@ -94,7 +94,7 @@ if ! jq -e '
     echo "            freshness_limit=$.global_constraints.freshness_threshold_ms"
     echo "            required_environmental_keys=$.properties.environmental_context.required"
     echo "            required_device_keys=$.properties.device_states.required"
-    echo "          Re-sync frozen policy/schema assets and review fault_injection_rules.json."
+    echo "          Re-sync policy/schema runtime assets and review fault_injection_rules.json."
     exit 1
 fi
 

@@ -33,6 +33,13 @@ TOPIC_CONTRACTS="${MQTT_DIR}/topic_payload_contracts.md"
 CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 
 FAILURES=0
+SAFE_DEFERRAL_TOPIC_HITS="$(mktemp)"
+DOORBELL_PAYLOAD_HITS="$(mktemp)"
+
+cleanup() {
+    rm -f "${SAFE_DEFERRAL_TOPIC_HITS}" "${DOORBELL_PAYLOAD_HITS}"
+}
+trap cleanup EXIT
 
 require_file() {
     local label="$1"
@@ -88,13 +95,12 @@ else
 fi
 
 echo "  [INFO] Checking safe_deferral topic namespace presence..."
-if ! grep -RIn 'safe_deferral/' "${MQTT_DIR}" >/tmp/rpi_safe_deferral_topic_hits_$$.txt 2>/dev/null; then
+if ! grep -RIn 'safe_deferral/' "${MQTT_DIR}" > "${SAFE_DEFERRAL_TOPIC_HITS}" 2>/dev/null; then
     echo "  [FATAL] No safe_deferral/* topic references found in MQTT registry artifacts."
     FAILURES=1
 else
     echo "  [OK] safe_deferral/* topic references found in MQTT registry artifacts."
 fi
-rm -f /tmp/rpi_safe_deferral_topic_hits_$$.txt
 
 echo "  [INFO] Checking local .env topic namespace alignment..."
 if [ "${TOPIC_NAMESPACE:-}" != "safe_deferral" ]; then
@@ -146,31 +152,31 @@ else
 fi
 
 echo "  [INFO] Validating payload example JSON files..."
-PAYLOAD_JSON_COUNT=0
-while IFS= read -r -d '' payload_file; do
-    PAYLOAD_JSON_COUNT=$((PAYLOAD_JSON_COUNT + 1))
+mapfile -d '' -t PAYLOAD_JSON_FILES < <(find "${PAYLOAD_DIR}" -type f -name "*.json" -print0)
+
+if [ "${#PAYLOAD_JSON_FILES[@]}" -eq 0 ]; then
+    echo "  [WARNING] No *.json payload examples found under ${PAYLOAD_DIR}."
+else
+    for payload_file in "${PAYLOAD_JSON_FILES[@]}"; do
     if ! jq empty "${payload_file}" >/dev/null 2>&1; then
         echo "  [FATAL] Invalid payload example JSON: ${payload_file}"
         FAILURES=1
     fi
-done < <(find "${PAYLOAD_DIR}" -type f -name "*.json" -print0)
-
-if [ "${PAYLOAD_JSON_COUNT}" -eq 0 ]; then
-    echo "  [WARNING] No *.json payload examples found under ${PAYLOAD_DIR}."
-else
-    echo "  [OK] Validated ${PAYLOAD_JSON_COUNT} JSON payload example file(s)."
+    done
+    echo "  [OK] Validated ${#PAYLOAD_JSON_FILES[@]} JSON payload example file(s)."
 fi
 
 echo "  [INFO] Checking payload examples for doorbell_detected representation..."
-if grep -RIn '"doorbell_detected"' "${PAYLOAD_DIR}" >/tmp/rpi_doorbell_payload_hits_$$.txt 2>/dev/null; then
+if grep -RIn '"doorbell_detected"' "${PAYLOAD_DIR}" > "${DOORBELL_PAYLOAD_HITS}" 2>/dev/null; then
     echo "  [OK] payload examples include doorbell_detected."
 else
     echo "  [WARNING] payload examples do not include doorbell_detected. Schema contains it, but example coverage should be reviewed."
 fi
-rm -f /tmp/rpi_doorbell_payload_hits_$$.txt
 
 echo "  [INFO] Checking for prohibited doorlock state fields under pure_context_payload.device_states..."
-DOORLOCK_STATE_VIOLATIONS="$(find "${PAYLOAD_DIR}" -type f -name "*.json" -print0 | xargs -0 jq -r '
+DOORLOCK_STATE_VIOLATIONS=""
+if [ "${#PAYLOAD_JSON_FILES[@]}" -gt 0 ]; then
+    DOORLOCK_STATE_VIOLATIONS="$(jq -r '
     def paths_to_strings:
       paths(scalars) | map(tostring) | join(".");
     select(
@@ -182,7 +188,8 @@ DOORLOCK_STATE_VIOLATIONS="$(find "${PAYLOAD_DIR}" -type f -name "*.json" -print
       )
     )
     | input_filename
-' 2>/dev/null | sort -u || true)"
+' "${PAYLOAD_JSON_FILES[@]}" 2>/dev/null | sort -u || true)"
+fi
 
 if [ -n "${DOORLOCK_STATE_VIOLATIONS}" ]; then
     echo "  [FATAL] Doorlock state fields found under pure_context_payload.device_states:"

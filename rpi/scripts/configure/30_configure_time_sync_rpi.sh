@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: 30_configure_time_sync_rpi.sh
-# Purpose: Configure Chrony for LAN-only Time Sync with Mac mini (Phase 4)
+# Purpose: Configure Chrony for LAN-only time sync with Mac mini
 # ==============================================================================
 set -euo pipefail
 
@@ -28,6 +28,12 @@ if [ -z "${MAC_MINI_HOST:-}" ]; then
     exit 1
 fi
 
+if [ "${MAC_MINI_HOST}" = "192.168.1.100" ]; then
+    echo "  [FATAL] MAC_MINI_HOST still uses the placeholder IP 192.168.1.100."
+    echo "          Set the real Mac mini LAN hostname or IP in ${ENV_FILE}."
+    exit 1
+fi
+
 # 2. Chrony 명령어 존재 여부 확인 (Fail-fast)
 if ! command -v chronyc >/dev/null 2>&1; then
     echo "  [FATAL] 'chronyc' command is not available."
@@ -37,7 +43,8 @@ fi
 
 CHRONY_CONF="/etc/chrony/chrony.conf"
 
-echo "  [INFO] Configuring chrony to sync strictly with Mac mini (${MAC_MINI_HOST})..."
+echo "  [INFO] Configuring this experiment RPi to sync strictly with Mac mini (${MAC_MINI_HOST})."
+echo "  [WARNING] This will replace ${CHRONY_CONF} after creating a timestamped backup."
 
 # 3. 덮어쓰기 방지를 위해 타임스탬프를 포함한 누적 백업 파일 생성
 if [ -f "${CHRONY_CONF}" ]; then
@@ -46,13 +53,15 @@ if [ -f "${CHRONY_CONF}" ]; then
     echo "  [OK] Original chrony configuration safely backed up to ${BACKUP_FILE}"
 fi
 
-# 4. 외부 인터넷 시간원 사용 전면 금지 및 Mac mini 단일 지정
-sudo bash -c "cat <<EOF > ${CHRONY_CONF}
+TEMP_CHRONY_CONF="$(mktemp)"
+cat > "${TEMP_CHRONY_CONF}" <<EOF
 server ${MAC_MINI_HOST} iburst minpoll 2 maxpoll 4
 makestep 1 3
 rtcsync
 logdir /var/log/chrony
-EOF"
+EOF
+sudo install -m 0644 "${TEMP_CHRONY_CONF}" "${CHRONY_CONF}"
+rm -f "${TEMP_CHRONY_CONF}"
 
 echo "  [INFO] Restarting chrony service and waiting for stabilization..."
 sudo systemctl restart chrony

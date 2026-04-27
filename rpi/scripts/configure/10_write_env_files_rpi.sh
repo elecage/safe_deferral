@@ -79,6 +79,32 @@ append_env_var "TIME_SYNC_HOST" "\$MAC_MINI_HOST"
 append_env_var "TIME_SYNC_MAX_OFFSET_MS" "50"
 append_env_var "TIME_SYNC_TARGET_BOUND_MS" "15"
 
+PLACEHOLDER_WARNINGS=0
+
+if grep -Eq '^(MAC_MINI_HOST|MQTT_HOST)=192\.168\.1\.100$' "${ENV_FILE}"; then
+    echo "  [WARNING] Placeholder IP 192.168.1.100 remains in ${ENV_FILE}."
+    PLACEHOLDER_WARNINGS=1
+fi
+
+if grep -q '^MAC_MINI_USER=mac_user$' "${ENV_FILE}"; then
+    echo "  [WARNING] Placeholder MAC_MINI_USER=mac_user remains in ${ENV_FILE}."
+    PLACEHOLDER_WARNINGS=1
+fi
+
+if grep -q '^MQTT_PASS=CHANGE_ME$' "${ENV_FILE}"; then
+    echo "  [WARNING] MQTT_PASS is still CHANGE_ME. Clear it for anonymous MQTT or set the real password."
+    PLACEHOLDER_WARNINGS=1
+fi
+
+if grep -q 'smarthome/' "${ENV_FILE}"; then
+    echo "  [WARNING] Legacy smarthome/* topic values remain in ${ENV_FILE}."
+    PLACEHOLDER_WARNINGS=1
+fi
+
 echo "  [WARNING] ACTION REQUIRED: Please verify MAC_MINI_HOST, MAC_MINI_USER, MQTT_HOST, and MQTT_PASS manually in ${ENV_FILE}."
-echo "  [INFO] Existing legacy values are preserved if already present. Remove or edit stale smarthome/* values manually before verification."
+if [ "${PLACEHOLDER_WARNINGS}" -ne 0 ]; then
+    echo "  [WARNING] Placeholder or legacy values must be fixed before sync/verification."
+else
+    echo "  [OK] No obvious placeholder or legacy topic values detected."
+fi
 echo "==> [PASS] RPi 5 environment variables configuration completed."

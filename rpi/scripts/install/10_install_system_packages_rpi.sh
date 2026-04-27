@@ -29,8 +29,8 @@ sudo env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq
 # - python3 / python3-venv: 시스템 기본 Python 3.11+ 사용
 # - mosquitto-clients: MQTT pub/sub verify 및 통신 점검
 # - chrony: LAN-only 시간 동기화
-# - jq: frozen asset 구조 검증
-# - rsync, curl: Phase 0 artifact sync
+# - jq: runtime/reference asset structure validation
+# - rsync, curl: Mac mini runtime/reference asset sync
 PACKAGES=(
     "python3"
     "python3-venv"

@@ -24,6 +24,12 @@ if [ "${#SCRIPT_FILES[@]}" -eq 0 ]; then
 fi
 
 FAILURES=0
+MALFORMED_HEREDOC_LOG="$(mktemp)"
+
+cleanup() {
+    rm -f "${MALFORMED_HEREDOC_LOG}"
+}
+trap cleanup EXIT
 
 for script in "${SCRIPT_FILES[@]}"; do
     rel_path="${script#${RPI_ROOT}/}"
@@ -40,12 +46,12 @@ for script in "${SCRIPT_FILES[@]}"; do
         FAILURES=1
     fi
 
-    if grep -nE '^cat < [^<]' "${script}" >/tmp/rpi_malformed_heredoc_$$.txt; then
+    : > "${MALFORMED_HEREDOC_LOG}"
+    if grep -nE '^cat < [^<]' "${script}" > "${MALFORMED_HEREDOC_LOG}"; then
         echo "    [FATAL] Possible malformed heredoc pattern found: ${rel_path}"
-        sed 's/^/      /' /tmp/rpi_malformed_heredoc_$$.txt
+        sed 's/^/      /' "${MALFORMED_HEREDOC_LOG}"
         FAILURES=1
     fi
-    rm -f /tmp/rpi_malformed_heredoc_$$.txt
 
     if ! bash -n "${script}"; then
         echo "    [FATAL] Bash syntax check failed: ${rel_path}"

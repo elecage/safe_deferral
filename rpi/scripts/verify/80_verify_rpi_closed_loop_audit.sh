@@ -50,7 +50,7 @@ if [ -n "${MQTT_USER:-}" ] && [ -n "${MQTT_PASS:-}" ]; then
     AUTH_ARGS=("-u" "${MQTT_USER}" "-P" "${MQTT_PASS}")
 fi
 
-echo "  [INFO] Parsing deterministic fault profile from frozen assets..."
+echo "  [INFO] Parsing deterministic fault profile from synced runtime assets..."
 TARGET_PROFILE="${ACTIVE_FAULT_PROFILE:-${FAULT_PROFILE:-FAULT_STALENESS_01}}"
 
 FAULT_PROFILE_JSON=$(jq -c --arg profile "${TARGET_PROFILE}" '
@@ -70,7 +70,7 @@ echo "  [INFO] Selected Fault Profile: ${TARGET_PROFILE} (Type: ${FAULT_TYPE})"
 AUDIT_TOPIC="${VERIFICATION_AUDIT_TOPIC:-safe_deferral/audit/log}"
 INJECT_TOPIC="${FAULT_INJECTION_TOPIC:-safe_deferral/fault/injection}"
 CORRELATION_ID="fi_test_$(date +%s)_$$"
-LOG_FILE="/tmp/audit_result_$$.log"
+LOG_FILE="$(mktemp)"
 
 if [[ "${AUDIT_TOPIC}" != safe_deferral/* ]]; then
     echo "  [FATAL] Audit topic must use safe_deferral/* namespace. Current: ${AUDIT_TOPIC}"

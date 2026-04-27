@@ -24,6 +24,21 @@ fi
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
 
+echo "  [INFO] Checking local RPi .env for placeholder values..."
+if [ "${MAC_MINI_HOST:-}" = "192.168.1.100" ] || [ "${MQTT_HOST:-}" = "192.168.1.100" ]; then
+    echo "  [FATAL] Placeholder IP 192.168.1.100 remains in ${ENV_FILE}."
+    exit 1
+fi
+
+if [ "${MAC_MINI_USER:-}" = "mac_user" ]; then
+    echo "  [FATAL] Placeholder MAC_MINI_USER=mac_user remains in ${ENV_FILE}."
+    exit 1
+fi
+
+if [ "${MQTT_PASS:-}" = "CHANGE_ME" ]; then
+    echo "  [WARNING] MQTT_PASS is still CHANGE_ME. This is acceptable only if the broker ignores MQTT credentials."
+fi
+
 echo "  [INFO] Verifying Raspberry Pi authority boundary flags..."
 if [ "${ALLOW_RPI_ACTUATION:-false}" != "false" ]; then
     echo "  [FATAL] ALLOW_RPI_ACTUATION must be false. RPi must not have actuation authority."
@@ -171,7 +186,7 @@ echo "  [OK] Policy/schema authority mirrors and MQTT/payload reference assets a
 CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 echo "  [INFO] Verifying context schema alignment for doorbell context..."
 if ! jq -e '.. | objects | has("doorbell_detected")' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
-    echo "  [FATAL] context schema does not contain doorbell_detected. Re-sync frozen schema assets."
+    echo "  [FATAL] context schema does not contain doorbell_detected. Re-sync schema runtime assets."
     exit 1
 fi
 echo "  [OK] context schema includes doorbell_detected."
