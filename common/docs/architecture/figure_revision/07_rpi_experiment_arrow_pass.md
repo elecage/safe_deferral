@@ -33,6 +33,8 @@ Experiment Manager
 -> Scenario Manager
 -> Virtual Node Manager
 -> Virtual Behavior / Fault Injection
+MQTT / Interface Status Manager
+-> MQTT / Payload Governance Support
 ```
 
 It also routes:

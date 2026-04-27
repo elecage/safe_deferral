@@ -299,7 +299,9 @@
 
   <path d="M1600 597 V610 H1385 V620" class="arrow rpi-arrow"/>
   <path d="M1480 651 H1505" class="arrow rpi-arrow"/>
+  <path d="M1600 682 V705" class="arrow rpi-arrow"/>
   <path d="M1385 682 V705" class="arrow rpi-arrow"/>
+  <path d="M1600 779 V805" class="arrow rpi-arrow"/>
   <path d="M1480 836 H1505" class="arrow rpi-arrow"/>
   <text x="1452" y="604" text-anchor="middle" class="flow-label">experiment orchestration</text>
 
