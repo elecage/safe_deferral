@@ -69,7 +69,8 @@ Main message:
 - Clarify the role of the main system hosts, including:
   - Mac mini as the control-side hub,
   - Raspberry Pi as the scenario execution / replay / fault-injection support host,
-  - and ESP32 nodes as bounded device-layer interfaces.
+  - actual physical nodes as bounded ESP32 or equivalent device-layer interfaces,
+  - and STM32 as optional out-of-band timing / measurement support.
 
 Main objective of this subsection:
 - provide the full architecture view.

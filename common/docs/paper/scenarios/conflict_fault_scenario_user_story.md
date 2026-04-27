@@ -102,7 +102,7 @@ Conflict fault
 | 사용자 입력 | Bounded Input Node | 사용자가 버튼을 눌렀다는 입력 이벤트 | 단일 버튼 입력 발생 |
 | 입력 의미 후보 | Input Context Mapper 또는 LLM Guidance Layer | 사용자가 원할 가능성이 있는 후보 목록 | 여러 후보가 동시에 존재 |
 | 사용자 위치 | Context Node 또는 Occupancy/Location Node | 사용자가 어느 공간에 있는지에 대한 정보 | 위치 정보가 모호하거나 상충됨 |
-| 조명 상태 | Lighting Actuator Node 또는 Device State Reporter | 침실 조명과 거실 조명의 현재 상태 | 여러 조명이 제어 후보가 될 수 있음 |
+| 조명 상태 | Lighting Control Node 또는 Device-State Reporting Function | 침실 조명과 거실 조명의 현재 상태 | 여러 조명이 제어 후보가 될 수 있음 |
 | 최근 사용 맥락 | Context History 또는 Audit Log | 최근 사용 패턴, 최근 조명 제어 이력 | 여러 후보를 동시에 지지할 수 있음 |
 | 긴급상황 여부 | Emergency Node | 화재, 가스, 낙상 등 위험 상황 감지 정보 | 위험 상황 없음 |
 | 방문자 여부 | Doorbell/Visitor Context Node | 현관 호출 또는 방문자 감지 정보 | 방문자 상황 아님 |
@@ -118,7 +118,7 @@ Conflict fault
 → Bounded Input Node가 제공함
 
 여러 후보
-→ Context Node, Device State Reporter, Context History 등이 동시에 여러 가능성을 만듦
+→ Context Node, Device-State Reporting Function, Context History 등이 동시에 여러 가능성을 만듦
 
 후보 충돌 판단
 → Mac mini Edge Hub가 후보를 비교하고 충돌 상태로 판단함
@@ -140,8 +140,8 @@ Conflict fault
 | LLM Guidance Layer | 후보를 사용자에게 이해하기 쉬운 문장으로 정리 | 충돌 후보를 안내 문장으로 변환 |
 | Context Node | 조도, 점유 여부, 사용자 위치 또는 공간 정보 제공 | 사용자의 위치와 주변 상황을 제공 |
 | Occupancy/Location Node | 사용자가 어느 방에 있는지 추정 | 후보를 좁히는 데 필요하지만, 이 시나리오에서는 모호할 수 있음 |
-| Lighting Actuator Node | 조명 켜기/끄기 수행, 현재 조명 상태 보고 | 여러 조명이 실행 후보로 등장 |
-| Device State Reporter | 조명 등 기기 상태를 보고 | 각 후보의 현재 상태를 제공 |
+| Lighting Control Node | 조명 켜기/끄기 수행, 현재 조명 상태 보고 | 여러 조명이 실행 후보로 등장 |
+| Device-State Reporting Function | 조명 등 기기 상태를 보고 | 각 후보의 현재 상태를 제공 |
 | Context History 또는 Audit Log | 최근 동작 이력, 사용 패턴 기록 | 최근 맥락이 여러 후보를 동시에 지지할 수 있음 |
 | Emergency Node | 위험 상황 감지 | 이 시나리오에서는 위험 상황이 없음을 나타냄 |
 | Doorbell/Visitor Context Node | 방문자 상황 여부 제공 | 이 시나리오에서는 방문자 상황이 아님을 나타냄 |
@@ -242,7 +242,7 @@ TTS/Voice Output 또는 Display Output이 사용자에게 후보를 안내한다
 버튼을 한 번 더 눌러 1번 선택
 버튼을 두 번 눌러 2번 선택
 짧게 “침실” 또는 “거실”이라고 말하기
-보호자가 원격으로 확인하기
+보호자가 Telegram 알림에 수동 확인 응답하기
 ```
 
 ---
@@ -251,12 +251,12 @@ TTS/Voice Output 또는 Display Output이 사용자에게 후보를 안내한다
 
 사용자가 후보 중 하나를 명확히 선택하면, Mac mini Edge Hub는 선택된 후보가 안전하게 실행 가능한지 확인한다.
 
-예를 들어 사용자가 “침실 조명”을 선택했다면 Lighting Actuator Node에 침실 조명 켜기 명령을 보낸다.
+예를 들어 사용자가 “침실 조명”을 선택했다면 Lighting Control Node에 침실 조명 켜기 명령을 보낸다.
 
 ```text
 사용자가 침실 조명을 선택한다.
 → 침실 조명 제어 요청으로 확정된다.
-→ Lighting Actuator Node가 침실 조명을 켠다.
+→ Lighting Control Node가 침실 조명을 켠다.
 ```
 
 ---
@@ -354,8 +354,8 @@ Audit Log는 이 과정에서 발생한 주요 정보를 기록한다.
 - Input Context Mapper는 입력에서 가능한 후보 목록을 생성할 수 있는가?
 - Context Node는 사용자 위치와 공간 정보를 제공할 수 있는가?
 - Occupancy/Location Node는 사용자가 어느 공간에 있는지 추정할 수 있는가?
-- Lighting Actuator Node는 여러 조명의 상태를 보고할 수 있는가?
-- Device State Reporter는 각 조명의 최신 상태를 유지할 수 있는가?
+- Lighting Control Node는 여러 조명의 상태를 보고할 수 있는가?
+- Device-State Reporting Function는 각 조명의 최신 상태를 유지할 수 있는가?
 - Mac mini Edge Hub는 여러 후보가 동시에 가능한 conflict 상태를 감지할 수 있는가?
 - LLM Guidance Layer는 충돌 후보를 사용자가 이해하기 쉬운 문장으로 제시할 수 있는가?
 - TTS/Voice Output은 후보를 짧고 명확하게 안내할 수 있는가?

@@ -21,7 +21,7 @@ guidance without becoming execution authority.
 | --- | --- |
 | User | Provides limited input, selections, confirmations, and contextual intent |
 | Caregiver | Handles sensitive escalation and manual confirmation paths |
-| ESP32 device layer | Bounded physical input, environmental context, emergency events, lighting or warning interface nodes |
+| Actual physical nodes | Bounded physical input, environmental context, emergency events, lighting, warning, and sensitive-interface nodes |
 | Mac mini operational hub | Primary policy routing, deterministic validation, local LLM runtime, audit, notification, MQTT broker/runtime services |
 | Raspberry Pi 5 | Experiment-side simulation, dashboard, fault injection, replay, result export, non-authoritative governance support |
 | Optional timing node | Independent measurement support for latency and timing validation when needed |
@@ -76,9 +76,10 @@ RPi tooling must not replace Mac mini policy authority, validator authority,
 caregiver approval authority, audit authority, actuator authority, or doorlock
 execution authority.
 
-## 6. ESP32 Device Layer
+## 6. Actual Physical Nodes
 
-ESP32 nodes may provide:
+Actual physical nodes may be implemented with ESP32 or another bounded embedded
+platform. They may provide:
 
 - bounded user input,
 - environmental context,
@@ -86,18 +87,18 @@ ESP32 nodes may provide:
 - lighting actuator behavior,
 - warning output,
 - visitor/doorbell context,
-- representative sensitive actuator interface experiments when explicitly gated.
+- representative sensitive actuator interfaces when explicitly governed.
 
-ESP32 nodes must not locally reinterpret sensitive behavior as autonomous Class 1
-authority. Doorlock-sensitive work remains governed by the safety boundaries in
-`02_safety_and_authority_boundaries.md`.
+Actual physical nodes must not locally reinterpret sensitive behavior as
+autonomous Class 1 authority. Doorlock-sensitive work remains governed by the
+safety boundaries in `02_safety_and_authority_boundaries.md`.
 
 ## 7. Closed-Loop Operational Path
 
 The normal operational flow is:
 
-1. Input/context/emergency event enters through ESP32, RPi-hosted virtual nodes,
-   controlled RPi simulation, or Mac mini ingestion.
+1. Input/context/emergency event enters through actual physical nodes,
+   RPi-hosted virtual nodes, controlled RPi simulation, or Mac mini ingestion.
 2. Mac mini aggregates runtime state and normalizes the policy-router input.
 3. LLM may produce bounded candidate guidance where applicable.
 4. Policy Router classifies the route.

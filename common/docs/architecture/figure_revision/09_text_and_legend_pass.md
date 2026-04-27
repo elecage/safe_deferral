@@ -5,8 +5,7 @@
 This document completes Step 9 of
 `common/docs/architecture/08_system_structure_figure_revision_plan.md`.
 
-The SVG now includes concise local flow labels, a legend, and final
-authority-boundary footer:
+The SVG now includes concise local flow labels and a legend:
 
 ```text
 common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
@@ -26,14 +25,14 @@ identifies the main arrow categories:
 The legend uses the same arrow styles as the figure so readers do not have to
 infer line semantics from color and dash patterns alone.
 
-## 3. Footer Updated
+## 3. Later Render Update
 
-The footer now states the final authority boundary instead of a step-specific
-message:
+Step 10 later removed the title subtitle and bottom footer because they repeated
+authority-boundary text already represented by the block layout and legend. It
+also expanded the legend to include field input/context and ACK evidence arrows.
 
 ```text
-Mac mini retains operational authority; Telegram, RPi, and STM32 provide
-confirmation, experiment support, and measurement evidence only.
+figure_revision/10_render_validation.md
 ```
 
 ## 4. Flow Label Cleanup

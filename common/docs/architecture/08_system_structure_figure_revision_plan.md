@@ -290,6 +290,10 @@ Current output:
 Update any active document references if the figure filename or interpretation
 changes.
 
+Current output:
+
+- `figure_revision/11_documentation_update.md`
+
 ## 12. Acceptance Criteria
 
 The revision is complete when:

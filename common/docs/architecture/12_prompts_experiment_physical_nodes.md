@@ -1,6 +1,15 @@
 # 12_prompts_experiment_physical_nodes.md
 
-## Purpose
+## Status
+
+Superseded as an active prompt set.
+
+Experiment-used physical hardware is now handled in
+`12_prompts_physical_nodes.md` under the same bounded physical-node authority
+rules as the actual prototype nodes. The current system layout does not create a
+separate `Experiment-Only Physical Nodes` authority category.
+
+## Historical Purpose
 
 This prompt set covers experiment-only or extension-stage physical nodes.
 
@@ -94,7 +103,7 @@ Forbidden behavior:
 - no unrestricted alarm spam loop,
 - no unrelated actuator control.
 
-## Prompt EPN-05. Doorlock-Sensitive Interface Experiment Node
+## Historical Prompt EPN-05. Doorlock Interface Experiment Node
 
 Generate firmware and experiment notes for a representative doorlock-sensitive
 interface node.

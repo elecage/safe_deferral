@@ -83,7 +83,7 @@
       "y": 720
     },
     "lighting_actuator_node": {
-      "display_name": "Lighting Actuator Node",
+      "display_name": "Lighting Control Node",
       "component_family": "actuator_node",
       "apartment_zone": "living_room_ceiling_light_or_switch_area",
       "x": 1120,

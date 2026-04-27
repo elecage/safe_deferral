@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This prompt set covers physical nodes required for the actual prototype
-baseline.
+This prompt set covers actual physical nodes and optional physical evaluation
+interfaces used by the prototype or paper experiments.
 
-These nodes are bounded interfaces. They provide input, context, state, output,
-or low-risk actuation surfaces. They do not create policy authority, validator
-authority, caregiver approval authority, or autonomous high-risk actuation
-authority.
+These nodes are bounded interfaces. They provide input, context, emergency
+evidence, warning output, low-risk actuation, or governed sensitive-interface
+surfaces. They do not create policy authority, validator authority, caregiver
+approval authority, or autonomous high-risk actuation authority.
 
 ## Common Instructions
 
@@ -97,7 +97,42 @@ Forbidden behavior:
 - no doorlock state insertion into `pure_context_payload.device_states`,
 - no local doorlock control.
 
-## Prompt PN-05. Physical Feedback Output Node
+## Prompt PN-05. Gas / Smoke / Fire Nodes
+
+Generate firmware and support notes for bounded gas, smoke, or fire evidence
+nodes when required by the prototype or experiment plan.
+
+Required behavior:
+
+- publish gas, smoke, or fire evidence in schema-compatible form,
+- document sensor readiness, warm-up, invalid reading, and reconnect behavior,
+- support repeatable Class 0 evaluation steps,
+- keep thresholds aligned with canonical policy and experiment definitions.
+
+Forbidden behavior:
+
+- no local emergency routing authority,
+- no invented trigger thresholds outside canonical policy,
+- no direct actuator or notification command.
+
+## Prompt PN-06. Fall-Detection Node
+
+Generate firmware and support notes for a bounded fall-detection interface.
+
+Required behavior:
+
+- interface with an IMU, bounded fall detector, or external fall signal source,
+- publish fall-related evidence according to current policy/schema
+  interpretation,
+- handle ambiguous signals conservatively,
+- support repeatable fall scenario validation.
+
+Forbidden behavior:
+
+- no arbitrary fall payload,
+- no local emergency dispatch beyond evidence reporting.
+
+## Prompt PN-07. Warning Output Node
 
 Generate firmware and support notes for accessible output feedback.
 
@@ -116,19 +151,29 @@ Forbidden behavior:
 - no direct actuator approval,
 - no hidden caregiver confirmation.
 
-## Prompt PN-06. Device State Reporter
+## Prompt PN-08. Doorlock Interface Node
 
-Generate firmware or support software for device-state reporting.
+Generate firmware and support notes for a governed representative doorlock
+interface node.
 
 Required behavior:
 
-- report current lighting state and node health,
-- include freshness-relevant metadata where required,
-- support missing-state and stale-state experiment detection,
-- distinguish unknown, unavailable, stale, and known states.
+- treat the node as a sensitive-actuation target,
+- require explicit upstream governed manual-path assumptions,
+- support ACK, timeout, mismatch, and denied-path evaluation variants,
+- expose status for dashboard and audit review,
+- document how autonomous Class 1 execution is blocked.
 
 Forbidden behavior:
 
-- no assumption that missing state equals safe state,
-- no local override of validator behavior.
+- no autonomous Class 1 door unlock,
+- no unlock from `doorbell_detected`,
+- no direct dashboard command bypass,
+- no treating caregiver confirmation as validator approval.
 
+## Device-State Reporting Note
+
+Device-state reporting is a behavior of the relevant physical node, especially
+the lighting control node and context nodes. Do not create a standalone
+`Device State Reporter` node unless an implementation later needs a dedicated
+adapter for a specific hardware constraint.

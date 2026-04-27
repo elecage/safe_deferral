@@ -65,7 +65,7 @@ Stale fault
 | 항목 | 정보를 제공하는 노드/구성요소 | 제공되는 정보 | 시나리오 내 상태 |
 |---|---|---|---|
 | 사용자 입력 | Bounded Input Node | 사용자가 버튼을 눌렀다는 이벤트 | 단일 입력 발생 |
-| 오래된 context | Context Node 또는 Device State Reporter | 조도, 점유, 조명 상태 등 | 값은 있지만 freshness 위반 |
+| 오래된 context | Context Node 또는 Device-State Reporting Function | 조도, 점유, 조명 상태 등 | 값은 있지만 freshness 위반 |
 | freshness 판단 | Mac mini Edge Hub 또는 State Store | 마지막 보고 시각과 허용 기준 비교 | stale fault로 판단 |
 | fault 규칙 | canonical policy/schema/fault references | stale 처리 기준 | 정책 기준에 따라 판단 |
 | clarification evidence | Class 2 Clarification Manager | 필요 시 후보 제시 evidence | 실행 권한 아님 |
@@ -79,7 +79,7 @@ Stale fault
 | 노드/구성요소 | 개발 시 필요한 기능 | 이 시나리오에서의 역할 |
 |---|---|---|
 | Context Node | 환경 상태와 timestamp 제공 | freshness 판단 대상 |
-| Device State Reporter | 기기 상태와 마지막 보고 시각 제공 | stale 여부 판단 대상 |
+| Device-State Reporting Function | 기기 상태와 마지막 보고 시각 제공 | stale 여부 판단 대상 |
 | State Store | 최신 상태와 timestamp 관리 | 오래된 상태를 식별 |
 | Mac mini Edge Hub | stale state 감지와 안전 경로 선택 | 자동 실행 차단 |
 | Class 2 Clarification Manager | 필요 시 재확인 또는 선택 후보 제시 | 권한 없는 evidence만 생성 |

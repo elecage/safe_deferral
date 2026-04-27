@@ -74,11 +74,11 @@ integration/scenarios/baseline_scenario_skeleton.json
 |---|---|---|---|
 | 사용자 입력 | Bounded Input Node | 사용자가 버튼을 눌렀다는 입력 이벤트 | 단일 버튼 입력 발생 |
 | 환경 정보 | Context Node | 조도, 점유 여부 등 주변 환경 정보 | 사용자가 실내에 있고 방이 어두운 상태 |
-| 조명 상태 | Lighting Actuator Node 또는 Device State Reporter | 조명이 현재 켜져 있는지 꺼져 있는지에 대한 상태 정보 | 조명이 꺼져 있음 |
+| 조명 상태 | Lighting Control Node 또는 Device-State Reporting Function | 조명이 현재 켜져 있는지 꺼져 있는지에 대한 상태 정보 | 조명이 꺼져 있음 |
 | 긴급상황 여부 | Emergency Node | 화재, 가스, 낙상 등 위험 상황 감지 정보 | 위험 상황 없음 |
 | 방문자 여부 | Doorbell/Visitor Context Node | 현관 호출 또는 방문자 감지 정보 | 방문자 상황 아님 |
 | 요청 해석 | Mac mini Edge Hub | 입력과 상태를 종합한 요청 해석 결과 | 조명 켜기 요청으로 해석 |
-| 조명 실행 | Lighting Actuator Node | 조명 켜기 동작 수행 및 실행 결과 | 조명 켜기 수행 |
+| 조명 실행 | Lighting Control Node | 조명 켜기 동작 수행 및 실행 결과 | 조명 켜기 수행 |
 | 사용자 피드백 | TTS/Voice Output | 처리 결과를 사용자에게 알려주는 음성 안내 | 필요 시 조명 켜짐 안내 |
 | 처리 기록 | Audit Log | 입력, 해석, 실행 결과 기록 | 처리 결과 기록 |
 
@@ -86,7 +86,7 @@ integration/scenarios/baseline_scenario_skeleton.json
 
 ```text
 Light State
-→ Lighting Actuator Node 또는 Device State Reporter가 제공하는 조명 상태 정보
+→ Lighting Control Node 또는 Device-State Reporting Function가 제공하는 조명 상태 정보
 
 Doorbell/Visitor Context
 → Doorbell/Visitor Context Node가 제공하는 방문자 관련 정보
@@ -104,8 +104,8 @@ Doorbell/Visitor Context
 |---|---|---|
 | Bounded Input Node | 버튼 입력 감지, 입력 이벤트 생성, 중복 입력 방지 또는 debounce 처리 | 사용자가 버튼을 한 번 눌렀다는 사실을 시스템에 전달 |
 | Context Node | 조도, 점유 여부 등 환경 정보 수집 | 방이 어두운지, 사용자가 실내에 있는지 판단하는 데 도움 |
-| Lighting Actuator Node | 조명 켜기/끄기 수행, 현재 조명 상태 보고, 실행 결과 ACK 반환 | 조명이 꺼져 있음을 보고하고, 요청 후 조명을 켬 |
-| Device State Reporter | 조명 등 기기 상태를 주기적 또는 이벤트 기반으로 보고 | Lighting Actuator Node가 상태 보고를 직접 하지 않는 경우 필요 |
+| Lighting Control Node | 조명 켜기/끄기 수행, 현재 조명 상태 보고, 실행 결과 ACK 반환 | 조명이 꺼져 있음을 보고하고, 요청 후 조명을 켬 |
+| Device-State Reporting Function | 조명 등 기기 상태를 주기적 또는 이벤트 기반으로 보고 | Lighting Control Node가 상태 보고를 직접 하지 않는 경우 필요 |
 | Emergency Node | 화재, 가스, 낙상 등 위험 상황 감지 | 이 시나리오에서는 위험 상황이 없음을 나타냄 |
 | Doorbell/Visitor Context Node | 현관 호출 또는 방문자 감지 여부 제공 | 이 시나리오에서는 방문자 상황이 아님을 나타냄 |
 | Mac mini Edge Hub | 입력 수신, 상태 종합, 요청 해석, 실행 판단, 로그 기록 | 버튼 입력과 상태 정보를 바탕으로 조명 켜기 요청으로 처리 |
@@ -151,7 +151,7 @@ Context Node는 현재 방 안의 상태를 제공한다.
 
 ### 6.3 조명 상태가 확인된다
 
-Lighting Actuator Node 또는 Device State Reporter는 현재 조명이 켜져 있는지 꺼져 있는지 알려준다.
+Lighting Control Node 또는 Device-State Reporting Function는 현재 조명이 켜져 있는지 꺼져 있는지 알려준다.
 
 이 시나리오에서는 조명이 꺼져 있다.
 
@@ -213,9 +213,9 @@ Mac mini Edge Hub는 다음 정보를 함께 확인한다.
 
 ### 6.7 조명 켜기 동작이 실행된다
 
-Mac mini Edge Hub가 조명 켜기 요청으로 판단하면, Lighting Actuator Node에 조명 켜기 동작을 요청한다.
+Mac mini Edge Hub가 조명 켜기 요청으로 판단하면, Lighting Control Node에 조명 켜기 동작을 요청한다.
 
-Lighting Actuator Node는 조명을 켠다.
+Lighting Control Node는 조명을 켠다.
 
 이후 조명이 정상적으로 켜졌는지 실행 결과를 반환한다.
 
@@ -306,8 +306,8 @@ Audit Log는 이 과정에서 발생한 주요 정보를 기록한다.
 ```text
 - Bounded Input Node는 버튼 입력을 안정적으로 감지할 수 있는가?
 - Context Node는 조도와 점유 여부를 제공할 수 있는가?
-- Lighting Actuator Node는 현재 조명 상태를 보고할 수 있는가?
-- Lighting Actuator Node는 조명 켜기 명령을 수행하고 결과를 반환할 수 있는가?
+- Lighting Control Node는 현재 조명 상태를 보고할 수 있는가?
+- Lighting Control Node는 조명 켜기 명령을 수행하고 결과를 반환할 수 있는가?
 - Emergency Node는 긴급상황이 없다는 상태도 구분할 수 있는가?
 - Doorbell/Visitor Context Node는 방문자 상황이 아님을 제공할 수 있는가?
 - Mac mini Edge Hub는 여러 노드의 정보를 종합해 요청을 해석할 수 있는가?

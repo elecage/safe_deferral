@@ -26,7 +26,7 @@ The render review identified two presentation issues:
 
 - the subtitle still described the figure as a block-only draft;
 - several boundary-lane flow labels were readable but sat too close to dense
-  vertical arrow bundles.
+  vertical arrow bundles;
 - the title subtitle and bottom footer repeated authority-boundary text already
   represented by the block layout and legend;
 - field input/context and ACK evidence arrows were present in the figure but
@@ -40,7 +40,7 @@ The SVG was updated to:
 - add a white text halo to flow labels for readability over lines;
 - move boundary-lane labels to adjacent open space;
 - shorten `confirmation response` to `response` where the arrow direction and
-  caregiver path already provide context.
+  caregiver path already provide context;
 - expand the legend to include field input/context and ACK evidence arrows.
 
 ## 4. Validation Result

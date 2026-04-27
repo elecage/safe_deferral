@@ -29,8 +29,8 @@ Read in this order before making implementation or documentation changes:
 
 Use `common/docs/architecture/12_prompts.md` as the active prompt-set index when
 implementation-generation prompts are needed. The active prompt sets are grouped
-by Mac mini components, RPi experiment apps, physical nodes, experiment physical
-nodes, and STM32 timing/measurement support.
+by Mac mini components, RPi experiment apps, actual physical nodes, and STM32
+timing/measurement support.
 
 ## Canonical Assets
 
@@ -84,6 +84,8 @@ belong under `common/history/`, and runtime handoff history belongs under
 - Governance UI must not directly edit registry files, publish operational
   control topics, expose unrestricted actuator consoles, or expose direct
   doorlock command controls.
+- Telegram is notification and response-collection transport only. It is not a
+  remote-control channel, direct actuator interface, or doorlock console.
 - Governance backend must not directly modify canonical policy/schema assets,
   publish actuator or doorlock commands, spoof caregiver approval, override the
   Policy Router or Deterministic Validator, or convert proposed changes into live
@@ -98,8 +100,9 @@ belong under `common/history/`, and runtime handoff history belongs under
 - Raspberry Pi 5: experiment-side support host. It may run monitoring dashboard,
   scenario orchestration, simulation/replay, fault injection, RPi virtual nodes,
   result export, and non-authoritative MQTT/payload governance support.
-- ESP32: bounded physical node layer for input, context, emergency event,
-  lighting/warning interface, and controlled physical-node validation.
+- Actual physical nodes: bounded ESP32 or equivalent embedded interfaces for
+  input, context, emergency event, lighting, warning output, and governed
+  sensitive-interface validation.
 - Optional STM32 or timing node: out-of-band measurement support only.
 
 RPi virtual nodes are controlled experiment sources or observers. They are not

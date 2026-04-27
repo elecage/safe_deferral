@@ -94,6 +94,11 @@ that preserves:
 - ACK verification,
 - audit trace.
 
+Telegram, if used, is only an outbound notification and response-collection
+transport for caregiver confirmation evidence. It must not be treated as a
+remote-control channel, a direct actuator interface, a doorlock console, or a
+replacement for Mac mini policy routing, validation, dispatch, ACK, or audit.
+
 ## 9. MQTT, Payload, Dashboard, And Governance Boundary
 
 MQTT topics and payload contracts describe communication behavior. They do not

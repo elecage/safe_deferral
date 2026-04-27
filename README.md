@@ -142,8 +142,8 @@ Validator는 다음 세 가지 중 하나만 허용한다.
 - **거부 및 에스컬레이션 (Rejected Escalation)**  
   정책을 명백히 위반하거나 실행 실패, 상태 ACK 불일치, 하드 실패, sensitive actuation request가 의심되면 제어를 차단하고 Class 2로 전환
 
-### 4단계: 보호자 권한 위임 및 알림 (Caregiver Escalation)
-Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소되지 않으면, 시스템은 안전한 아웃바운드 통신(Telegram 등)을 통해 보호자에게 제한적 권한을 위임한다.
+### 4단계: 보호자 확인 요청 및 알림 (Caregiver Escalation)
+Class 2 경로로 전환되거나 Safe Deferral 이후에도 모호성이 해소되지 않으면, 시스템은 안전한 아웃바운드 통신(Telegram 등)을 통해 보호자에게 상황을 알리고 수동 확인 응답을 수집한다.
 
 알림 페이로드에는 다음이 포함될 수 있다.
 - 이벤트 요약
@@ -240,9 +240,9 @@ Verify topic registry readability, publisher/subscriber matrix consistency, topi
 
 실험 인프라는 다음처럼 역할 분리된다.
 
-- **Mac mini**: safety-critical operational edge hub, including policy routing, local LLM reasoning, deterministic validation, safe deferral, caregiver escalation/approval handling, ACK, audit logging, topic registry loading, and payload validation support
+- **Mac mini**: safety-critical operational edge hub, including policy routing, local LLM reasoning, deterministic validation, safe deferral, caregiver notification/confirmation handling, ACK, audit logging, topic registry loading, and payload validation support
 - **Raspberry Pi 5**: experiment-side support region, including Monitoring / Experiment Dashboard, virtual-node hosting, simulation, replay, fault injection, closed-loop experiment orchestration, progress/status publication, result summary, graph/CSV export, evaluation artifact generation, and non-authoritative MQTT/payload governance support
-- **ESP32**: bounded physical node layer (button, sensor, actuator/warning interface)
+- **Actual physical nodes**: bounded ESP32 or equivalent embedded interfaces for button input, context sensing, emergency evidence, lighting control, warning output, and governed sensitive-interface validation
 - **Optional STM32 or dedicated timing node**: out-of-band latency measurement infrastructure
 
 Raspberry Pi 5 hosts the experiment and monitoring dashboard and may create experiment-only virtual nodes such as simulated sensors, emergency event publishers, doorbell/context publishers, fault injectors, and mock ACK publishers. These virtual nodes are controlled experiment sources or observers; they are not production devices and do not create policy, validator, caregiver approval, actuator, or doorlock authority. The dashboard is a support-side visibility and experiment-operations console; it is not the policy authority, validator authority, caregiver approval authority, or primary operational hub. Mac mini may expose telemetry, audit summaries, and control-state topics consumed by the Raspberry Pi 5 dashboard.

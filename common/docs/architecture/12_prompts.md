@@ -32,8 +32,7 @@ Before using any prompt set, read:
 |---|---|
 | `12_prompts_mac_mini_components.md` | Mac mini operational hub components |
 | `12_prompts_rpi_experiment_apps.md` | Raspberry Pi experiment apps, managers, dashboard, and governance support |
-| `12_prompts_physical_nodes.md` | Physical nodes required for the actual prototype baseline |
-| `12_prompts_experiment_physical_nodes.md` | Physical nodes used only for experiment extension or representative sensitive cases |
+| `12_prompts_physical_nodes.md` | Actual physical nodes and optional physical evaluation interfaces |
 | `12_prompts_stm32_time_sync_node.md` | STM32 timing, synchronization, and measurement node support |
 
 ## Category Boundaries
@@ -64,11 +63,16 @@ Raspberry Pi prompt sets are for experiment-side apps:
 - web-based monitoring dashboard,
 - non-authoritative MQTT/payload governance support.
 
-Physical-node prompt sets are split into:
+Physical-node prompts are handled as one bounded physical-node category:
 
 - actual prototype nodes required by the baseline,
-- experiment-only or representative physical nodes,
-- out-of-band STM32 timing/measurement nodes.
+- optional physical evaluation interfaces needed by experiments,
+- representative sensitive interfaces such as a governed doorlock interface.
+
+Do not create a separate authority category for experiment-only physical nodes.
+If a physical node is used only for an experiment, document that usage in the
+experiment setup while keeping it under the same bounded physical-node authority
+rules.
 
 Fault injection should be implemented through RPi virtual nodes and virtual
 behavior managers by default. A physical fault-injection node is intentionally
@@ -86,7 +90,7 @@ All generated work must preserve these rules:
 - Mac mini remains the operational edge hub.
 - Raspberry Pi remains experiment support, dashboard, orchestration,
   simulation, replay, monitoring, and result-export infrastructure.
-- ESP32 and other physical nodes remain bounded input/context/actuator
+- Actual physical nodes remain bounded input/context/evidence/output/actuator
   interfaces and do not create policy authority.
 - STM32 timing support remains out-of-band measurement infrastructure.
 - Doorlock remains a sensitive actuation case outside autonomous Class 1 unless

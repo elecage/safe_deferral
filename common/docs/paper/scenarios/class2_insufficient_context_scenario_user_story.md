@@ -132,7 +132,7 @@ LLM의 역할은 사용자의 입력과 현재 가능한 정보를 바탕으로 
 | 사용자 입력 | Bounded Input Node | 사용자가 버튼을 눌렀다는 입력 이벤트 | 단일 버튼 입력 발생 |
 | 입력 의미 후보 | LLM Guidance Layer 또는 Input Context Mapper | 사용자가 원할 가능성이 있는 도움 후보 | 여러 후보가 존재 |
 | 환경 정보 | Context Node | 조도, 점유 여부, 사용자가 있는 공간 등 주변 환경 정보 | 일부 정보가 없거나 불충분함 |
-| 기기 상태 | Lighting Actuator Node 또는 Device State Reporter | 조명이 현재 켜져 있는지 꺼져 있는지에 대한 상태 정보 | 상태 확인 불충분 또는 누락 |
+| 기기 상태 | Lighting Control Node 또는 Device-State Reporting Function | 조명이 현재 켜져 있는지 꺼져 있는지에 대한 상태 정보 | 상태 확인 불충분 또는 누락 |
 | 긴급상황 여부 | Emergency Node | 화재, 가스, 낙상 등 위험 상황 감지 정보 | 직접 감지된 위험 상황 없음 |
 | 방문자 여부 | Doorbell/Visitor Context Node | 현관 호출 또는 방문자 감지 정보 | 방문자 상황 아님 |
 | 후보 제시 | TTS/Voice Output 또는 Display Output | 사용자가 선택할 수 있는 후보 안내 | 후보 안내 가능 |
@@ -167,8 +167,8 @@ LLM의 역할은 사용자의 입력과 현재 가능한 정보를 바탕으로 
 | Bounded Input Node | 버튼 입력 감지, debounce 처리, 최초 요청 입력과 후보 선택 입력 구분 | 최초 도움 요청과 후보 선택 입력을 전달 |
 | Voice Input | 사용자의 짧은 음성 응답 수집 | 사용자가 “1번”, “보호자”, “긴급” 등으로 응답할 수 있는 경우 사용 |
 | Context Node | 조도, 점유 여부, 사용자 위치 또는 공간 정보 제공 | 후보를 좁히는 데 필요한 주변 정보 제공 |
-| Lighting Actuator Node | 조명 켜기/끄기 수행, 현재 조명 상태 보고 | 후보 중 조명 제어가 선택될 경우 실행 대상 |
-| Device State Reporter | 조명 등 기기 상태 보고 | 후보를 좁히거나 실행 가능 여부를 판단하는 데 도움 |
+| Lighting Control Node | 조명 켜기/끄기 수행, 현재 조명 상태 보고 | 후보 중 조명 제어가 선택될 경우 실행 대상 |
+| Device-State Reporting Function | 조명 등 기기 상태 보고 | 후보를 좁히거나 실행 가능 여부를 판단하는 데 도움 |
 | Emergency Node | 화재, 가스, 낙상 등 위험 상황 감지 | 직접 감지된 위험 상황이 있는 경우 Class 0 전이에 사용 |
 | Doorbell/Visitor Context Node | 현관 호출 또는 방문자 감지 여부 제공 | 이 시나리오에서는 방문자 상황이 아님을 나타냄 |
 | LLM Guidance Layer | 가능한 도움 후보를 짧고 이해하기 쉬운 문장으로 구성 | 사용자가 선택할 수 있는 후보를 제시 |
@@ -275,7 +275,7 @@ TTS/Voice Output 또는 Display Output은 후보를 사용자에게 안내한다
 버튼을 두 번 눌러 2번 선택
 버튼을 세 번 눌러 긴급 도움 요청 선택
 짧게 “1번”, “조명”, “보호자”, “긴급”이라고 말하기
-보호자가 원격으로 확인하기
+보호자가 Telegram 알림에 수동 확인 응답하기
 ```
 
 사용자가 직접 선택하기 어렵거나 일정 시간 응답이 없으면 보호자 확인 또는 안전 보류 흐름으로 넘어갈 수 있다.
@@ -292,7 +292,7 @@ TTS/Voice Output 또는 Display Output은 후보를 사용자에게 안내한다
 사용자가 “조명 켜기” 후보를 선택한다.
 → Class 1 생활 보조 요청으로 확인된다.
 → Mac mini Edge Hub가 조명 제어 흐름으로 전이한다.
-→ Lighting Actuator Node가 조명 켜기 동작을 수행한다.
+→ Lighting Control Node가 조명 켜기 동작을 수행한다.
 ```
 
 이 경우 Class 2는 최종 상태가 아니라, Class 1로 전이되기 위한 확인 단계로 동작한다.
@@ -421,7 +421,7 @@ Audit Log는 이 과정에서 발생한 주요 정보를 기록한다.
 - Bounded Input Node는 버튼 입력 횟수를 후보 선택 방식으로 사용할 수 있는가?
 - Voice Input은 사용자의 짧은 응답을 수집할 수 있는가?
 - Context Node는 사용자 위치, 조도, 점유 여부를 충분히 제공할 수 있는가?
-- Device State Reporter는 조명과 기기 상태를 최신 상태로 유지할 수 있는가?
+- Device-State Reporting Function는 조명과 기기 상태를 최신 상태로 유지할 수 있는가?
 - Mac mini Edge Hub는 정보 부족 상황을 감지하고 Class 2로 진입할 수 있는가?
 - Class 2 Clarification Manager는 후보 제시, 선택 수집, timeout 처리를 관리할 수 있는가?
 - LLM Guidance Layer는 사용자가 이해하기 쉬운 후보를 짧게 제시할 수 있는가?
