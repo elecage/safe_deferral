@@ -55,14 +55,22 @@ static bool                     s_smoke_alerted = false;
 
 static bool read_gas_ppm(float *out)
 {
-    /* Replace with MQ-2/MQ-135 ADC read. */
+    /*
+     * Replace with MQ-2/MQ-135 ADC read.
+     * ESP32-C3 Super Mini ADC-capable pins: GPIO0~GPIO4.
+     * Example: adc1_get_raw(ADC1_CHANNEL_0) on GPIO0.
+     * Note: ADC2 is not available when Wi-Fi is active on C3.
+     */
     *out = 50.0f;
     return true;
 }
 
 static bool read_smoke_obs(float *out)
 {
-    /* Replace with photoelectric smoke sensor read. */
+    /*
+     * Replace with photoelectric smoke sensor read.
+     * ESP32-C3 Super Mini: use GPIO1 (ADC1_CH1) for analog smoke sensor.
+     */
     *out = 0.02f;
     return true;
 }

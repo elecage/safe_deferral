@@ -36,10 +36,16 @@
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
 #define NODE_SOURCE_ID        "esp32.doorlock_node_01"
-#define GPIO_LOCK_RELAY       GPIO_NUM_21    /* HIGH = lock engaged */
-#define GPIO_STATUS_LED       GPIO_NUM_22
-#define LOCK_PULSE_MS         500            /* relay activation pulse */
-#define CMD_TIMEOUT_MS        5000           /* max command processing time */
+/*
+ * ESP32-C3 Super Mini pin mapping:
+ *   GPIO21 is UART0 TX (reserved for flashing).
+ *   GPIO22 does not exist on C3.
+ *   Use GPIO4 for relay output and GPIO5 for status LED.
+ */
+#define GPIO_LOCK_RELAY       GPIO_NUM_4    /* HIGH = lock engaged */
+#define GPIO_STATUS_LED       GPIO_NUM_5
+#define LOCK_PULSE_MS         500           /* relay activation pulse */
+#define CMD_TIMEOUT_MS        5000          /* max command processing time */
 #define MQTT_BROKER_URI       CONFIG_SD_MQTT_BROKER_URI
 
 /* Only this action string is accepted from actuation/command. */

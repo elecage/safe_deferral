@@ -28,7 +28,7 @@
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
 #define NODE_SOURCE_ID      "esp32.button_node_01"
-#define BUTTON_GPIO         GPIO_NUM_0     /* Boot button on most dev boards */
+#define BUTTON_GPIO         GPIO_NUM_9     /* Built-in boot button on ESP32-C3 Super Mini */
 #define DEBOUNCE_MS         50
 #define MQTT_BROKER_URI     CONFIG_SD_MQTT_BROKER_URI   /* via menuconfig */
 
@@ -182,5 +182,5 @@ void app_main(void)
 
     xTaskCreate(button_task, "button_task", 4096, NULL, 5, NULL);
 
-    ESP_LOGI(TAG, "PN-01 ready — press GPIO%d to publish context input", BUTTON_GPIO);
+    ESP_LOGI(TAG, "PN-01 ready — press GPIO%d (built-in boot btn) to publish context input", BUTTON_GPIO);
 }

@@ -161,37 +161,65 @@ Linux port examples: `/dev/ttyUSB0`, `/dev/ttyACM0`
 
 ---
 
-## 6. GPIO 핀 매핑 / GPIO Pin Mapping
+## 6. GPIO 핀 매핑 (ESP32-C3 Super Mini) / GPIO Pin Mapping
 
 **한국어**
 
+ESP32-C3 Super Mini 핀 제약:
+- `GPIO18/19`: USB D-/D+ — 출력으로 사용 불가
+- `GPIO20/21`: UART0 RX/TX — 플래싱 전용, 충돌 금지
+- `GPIO9`: 내장 Boot 버튼 (PN-01에서 활용)
+- `GPIO2/8`: 스트래핑 핀 — 사용 가능하나 boot 모드에 영향 가능
+- ADC 가능 핀: `GPIO0~GPIO4` (Wi-Fi 활성 시 ADC2 사용 불가)
+- LEDC: **Low-speed mode만 지원**
+
 | 노드 | GPIO | 역할 |
 |---|---|---|
-| PN-01 | GPIO_0 | 버튼 입력 (Active-LOW, 내부 풀업) |
-| PN-02 | GPIO_18 | living_room_light 릴레이 |
-| PN-02 | GPIO_19 | bedroom_light 릴레이 |
-| PN-04 | GPIO_4 | 도어벨 버튼 입력 |
-| PN-07 | GPIO_25 | 부저 (PWM LEDC CH0) |
-| PN-07 | GPIO_26 | 상태 LED |
-| PN-07 | GPIO_17 | TTS 모듈 UART1 TX |
-| PN-08 | GPIO_21 | 도어락 릴레이 (HIGH=잠금) |
-| PN-08 | GPIO_22 | 도어락 상태 LED |
+| PN-01 | **GPIO_9** | 내장 Boot 버튼 (Active-LOW, 내부 풀업) |
+| PN-02 | **GPIO_4** | living_room_light 릴레이 |
+| PN-02 | **GPIO_5** | bedroom_light 릴레이 |
+| PN-04 | **GPIO_3** | 도어벨 버튼 입력 |
+| PN-05 | **GPIO_0** | 가스 센서 ADC (MQ-2, ADC1_CH0) |
+| PN-05 | **GPIO_1** | 연기 센서 ADC (ADC1_CH1) |
+| PN-06 | **GPIO_8** | IMU I2C SDA (MPU-6050) |
+| PN-06 | **GPIO_10** | IMU I2C SCL |
+| PN-07 | **GPIO_6** | 부저 (PWM LEDC CH0, Low-speed) |
+| PN-07 | **GPIO_7** | 상태 LED |
+| PN-07 | **GPIO_10** | TTS 모듈 UART1 TX (GPIO matrix 재매핑) |
+| PN-08 | **GPIO_4** | 도어락 릴레이 (HIGH=잠금) |
+| PN-08 | **GPIO_5** | 도어락 상태 LED |
+
+> **주의**: PN-06(I2C SCL)과 PN-07(TTS TX)이 GPIO_10을 공유합니다. 별도 보드에서 사용하거나, PN-07 TTS TX를 GPIO_0으로 변경하세요.
 
 핀 번호는 각 `.c` 소스 파일 상단 `#define` 에서 변경할 수 있습니다.
 
 **English**
 
+ESP32-C3 Super Mini pin constraints:
+- `GPIO18/19`: USB D-/D+ — cannot be used as outputs
+- `GPIO20/21`: UART0 RX/TX — reserved for flashing, do not conflict
+- `GPIO9`: Built-in Boot button (used by PN-01)
+- `GPIO2/8`: Strapping pins — usable but may affect boot mode
+- ADC-capable: `GPIO0~GPIO4` (ADC2 unavailable when Wi-Fi is active)
+- LEDC: **Low-speed mode only** (no high-speed mode on C3)
+
 | Node | GPIO | Role |
 |---|---|---|
-| PN-01 | GPIO_0 | Button input (active-LOW, internal pull-up) |
-| PN-02 | GPIO_18 | living_room_light relay |
-| PN-02 | GPIO_19 | bedroom_light relay |
-| PN-04 | GPIO_4 | Doorbell button input |
-| PN-07 | GPIO_25 | Buzzer (PWM LEDC CH0) |
-| PN-07 | GPIO_26 | Status LED |
-| PN-07 | GPIO_17 | TTS module UART1 TX |
-| PN-08 | GPIO_21 | Doorlock relay (HIGH=locked) |
-| PN-08 | GPIO_22 | Doorlock status LED |
+| PN-01 | **GPIO_9** | Built-in Boot button (active-LOW, internal pull-up) |
+| PN-02 | **GPIO_4** | living_room_light relay |
+| PN-02 | **GPIO_5** | bedroom_light relay |
+| PN-04 | **GPIO_3** | Doorbell button input |
+| PN-05 | **GPIO_0** | Gas sensor ADC (MQ-2, ADC1_CH0) |
+| PN-05 | **GPIO_1** | Smoke sensor ADC (ADC1_CH1) |
+| PN-06 | **GPIO_8** | IMU I2C SDA (MPU-6050) |
+| PN-06 | **GPIO_10** | IMU I2C SCL |
+| PN-07 | **GPIO_6** | Buzzer (PWM LEDC CH0, low-speed) |
+| PN-07 | **GPIO_7** | Status LED |
+| PN-07 | **GPIO_10** | TTS module UART1 TX (remapped via GPIO matrix) |
+| PN-08 | **GPIO_4** | Doorlock relay (HIGH=locked) |
+| PN-08 | **GPIO_5** | Doorlock status LED |
+
+> **Note**: PN-06 (I2C SCL) and PN-07 (TTS TX) share GPIO_10. Use them on separate boards or change PN-07 TTS TX to GPIO_0.
 
 Pin numbers can be changed in the `#define` block at the top of each `.c` source file.
 

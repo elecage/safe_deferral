@@ -29,14 +29,21 @@
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
 #define NODE_SOURCE_ID      "esp32.warning_output_node_01"
-#define GPIO_BUZZER         GPIO_NUM_25
-#define GPIO_STATUS_LED     GPIO_NUM_26
+/*
+ * ESP32-C3 Super Mini pin mapping:
+ *   GPIO25/26 do not exist on C3.
+ *   GPIO17 does not exist on C3.
+ *   UART0 (GPIO20/21) is reserved for flashing — use UART1 on GPIO10.
+ *   ESP32-C3 supports LEDC low-speed mode only (no high-speed mode).
+ */
+#define GPIO_BUZZER         GPIO_NUM_6
+#define GPIO_STATUS_LED     GPIO_NUM_7
 #define UART_TTS_PORT       UART_NUM_1
-#define UART_TTS_TX_PIN     GPIO_NUM_17
+#define UART_TTS_TX_PIN     GPIO_NUM_10  /* UART1 TX via GPIO matrix */
 #define UART_TTS_BAUD       9600
 #define MQTT_BROKER_URI     CONFIG_SD_MQTT_BROKER_URI
 
-/* LEDC (PWM buzzer) config */
+/* LEDC (PWM buzzer) config — C3 supports low-speed mode only */
 #define LEDC_CHANNEL        LEDC_CHANNEL_0
 #define LEDC_TIMER          LEDC_TIMER_0
 #define LEDC_MODE           LEDC_LOW_SPEED_MODE

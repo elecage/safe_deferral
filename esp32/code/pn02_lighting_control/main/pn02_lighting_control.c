@@ -30,8 +30,12 @@
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
 #define NODE_SOURCE_ID           "esp32.lighting_node_01"
-#define GPIO_LIVING_ROOM_LIGHT   GPIO_NUM_18
-#define GPIO_BEDROOM_LIGHT       GPIO_NUM_19
+/*
+ * ESP32-C3 Super Mini: GPIO18/19 are USB D-/D+, not usable as outputs.
+ * Use GPIO4 and GPIO5 instead.
+ */
+#define GPIO_LIVING_ROOM_LIGHT   GPIO_NUM_4
+#define GPIO_BEDROOM_LIGHT       GPIO_NUM_5
 #define MQTT_BROKER_URI          CONFIG_SD_MQTT_BROKER_URI
 
 /* Allowed target devices — no other devices may be controlled. */

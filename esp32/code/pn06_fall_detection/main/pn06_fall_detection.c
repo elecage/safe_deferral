@@ -65,7 +65,14 @@ static bool                     s_event_sent     = false;
  */
 static bool read_imu_accel_magnitude(float *out_ms2)
 {
-    /* Stub: idle value ~9.8 m/s² (gravity). */
+    /*
+     * Replace with actual MPU-6050 / ICM-42688-P I2C read.
+     * ESP32-C3 Super Mini I2C pin recommendation:
+     *   SDA = GPIO8,  SCL = GPIO10
+     * (GPIO matrix allows any pin; avoid GPIO0/1 for ADC conflict)
+     * Initialize with: i2c_config_t conf = { .sda_io_num = GPIO_NUM_8,
+     *                                         .scl_io_num = GPIO_NUM_10, ... }
+     */
     *out_ms2 = 9.8f;
     return true;
 }

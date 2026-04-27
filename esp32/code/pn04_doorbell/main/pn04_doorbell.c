@@ -29,7 +29,11 @@
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
 #define NODE_SOURCE_ID    "esp32.doorbell_node_01"
-#define DOORBELL_GPIO     GPIO_NUM_4
+/*
+ * ESP32-C3 Super Mini: GPIO4 used by lighting node.
+ * Use GPIO3 for doorbell input.
+ */
+#define DOORBELL_GPIO     GPIO_NUM_3
 #define DEBOUNCE_MS       100
 #define MQTT_BROKER_URI   CONFIG_SD_MQTT_BROKER_URI
 
