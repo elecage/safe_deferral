@@ -8,7 +8,7 @@ This document completes Step 7 of
 The SVG now includes Raspberry Pi experiment-support and observation overlays:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 ## 2. Mac Mini Telemetry Source

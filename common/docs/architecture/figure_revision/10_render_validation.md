@@ -14,7 +14,7 @@ ambiguity.
 Validated figure:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 The SVG was rendered to a PNG using the bundled local image runtime so the

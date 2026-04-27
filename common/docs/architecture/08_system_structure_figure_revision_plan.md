@@ -5,7 +5,7 @@
 This document records the step-by-step plan for revising:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 The figure must be updated so it matches the current active architecture,

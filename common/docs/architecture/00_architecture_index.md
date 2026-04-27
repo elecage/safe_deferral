@@ -81,7 +81,6 @@ Current prompt categories:
 - `12_prompts_mac_mini_components.md`
 - `12_prompts_rpi_experiment_apps.md`
 - `12_prompts_physical_nodes.md`
-- `12_prompts_experiment_physical_nodes.md`
 - `12_prompts_stm32_time_sync_node.md`
 
 Older prompt files remain source notes and should not be treated as the active
@@ -104,6 +103,7 @@ not be used as the first active read path:
 - `common/docs/archive/architecture_legacy/10_install_script_structure.md`
 - `common/docs/archive/architecture_legacy/11_configuration_script_structure.md`
 - `common/docs/archive/architecture_legacy/12_prompts_core_system.md`
+- `common/docs/archive/architecture_legacy/12_prompts_experiment_physical_nodes.md`
 - `common/docs/archive/architecture_legacy/12_prompts_mqtt_payload_governance.md`
 - `common/docs/archive/architecture_legacy/12_prompts_nodes_and_evaluation.md`
 - `common/docs/archive/architecture_legacy/13_doorlock_access_control_and_caregiver_escalation.md`

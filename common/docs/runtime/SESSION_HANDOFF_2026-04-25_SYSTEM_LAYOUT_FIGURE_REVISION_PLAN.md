@@ -8,7 +8,7 @@ Status: Planning baseline before figure edits
 
 Primary SVG under review:
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 
 Primary architecture references:
 
@@ -364,7 +364,7 @@ Target final review file:
 
 Final replacement target after approval:
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 
 Final checklist:
 

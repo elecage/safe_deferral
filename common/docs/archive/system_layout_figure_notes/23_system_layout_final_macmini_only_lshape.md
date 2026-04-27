@@ -21,7 +21,7 @@ This document should be read together with:
 
 ## 2. Current final routed layout
 
-![Final Mac mini-only L-shaped system layout](../../architecture/figures/system_layout_final_macmini_only_lshape.svg)
+![Final Mac mini-only L-shaped system layout](../../architecture/figures/system_layout.svg)
 
 ---
 

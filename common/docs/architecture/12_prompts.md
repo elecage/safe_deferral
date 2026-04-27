@@ -105,6 +105,7 @@ All generated work must preserve these rules:
 The following older prompt files remain as source notes during the transition:
 
 - `common/docs/archive/architecture_legacy/12_prompts_core_system.md`
+- `common/docs/archive/architecture_legacy/12_prompts_experiment_physical_nodes.md`
 - `common/docs/archive/architecture_legacy/12_prompts_nodes_and_evaluation.md`
 - `common/docs/archive/architecture_legacy/12_prompts_mqtt_payload_governance.md`
 

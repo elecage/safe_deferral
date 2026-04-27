@@ -9,7 +9,7 @@ The SVG now includes the Class 2 and caregiver-mediated manual confirmation
 flow:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 ## 2. Arrows Added

@@ -22,7 +22,7 @@ This handoff should be used as the next-session starting point before modifying 
 The final paper architecture reference remains:
 
 - `common/docs/architecture/24_final_paper_architecture_figure.md`
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 
 The confirmed interpretation is:
 

@@ -78,6 +78,48 @@ Main objective of this subsection:
 Recommended note:
 - A single compact system figure should ideally support this subsection.
 
+Recommended figure:
+
+```text
+common/docs/architecture/figures/system_layout.svg
+```
+
+Draft caption:
+
+```text
+Figure X. Privacy-aware edge smart-home architecture with safe deferral. The
+Mac mini acts as the operational hub for context intake, local LLM-assisted
+intent recovery, policy routing, deterministic validation, low-risk dispatch,
+caregiver notification/confirmation handling, ACK collection, and audit logging.
+Actual physical nodes provide bounded input, context, emergency evidence, and
+actuation interfaces. The Raspberry Pi hosts non-authoritative experiment,
+virtual-node, dashboard, and governance-support tools, while the STM32 timing
+support path provides out-of-band measurement evidence.
+```
+
+Draft body text:
+
+```text
+Fig. X summarizes the proposed edge architecture. The Mac mini is the only
+operational hub: it receives bounded physical input and context, aggregates
+runtime state, invokes the local LLM only for candidate intent recovery, and
+passes executable candidates through policy routing and deterministic
+validation. Approved Class 1 lighting actions are dispatched through the
+low-risk path and closed with ACK and audit evidence. Ambiguous, insufficient,
+or sensitive cases enter the Class 2 clarification and safe-deferral path. When
+caregiver involvement is required, Telegram is used only as an outbound
+notification and response-collection transport; it is not a remote-control or
+direct actuator channel.
+
+The support regions in Fig. X are intentionally non-authoritative. Raspberry Pi
+tools run paper experiments, virtual nodes, fault-injection behavior,
+scenario execution, monitoring dashboards, result analysis, and MQTT/payload
+governance checks without replacing Mac mini policy, validation, dispatch, ACK,
+or audit authority. STM32 timing support is similarly out-of-band: it captures
+physical timing evidence and exports measurements for analysis, but it does not
+participate in operational routing or actuation.
+```
+
 ---
 
 ### 2.3 Local LLM-Assisted Intent Recovery

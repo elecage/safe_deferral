@@ -46,7 +46,7 @@ This document does **not** override frozen policies or schemas. If any conflict 
 
 ## 2. Final paper figure
 
-![Final paper architecture figure](./figures/system_layout_final_macmini_only_lshape.svg)
+![Final paper architecture figure](../../architecture/figures/system_layout.svg)
 
 This figure should be treated as the current active Mac-mini-centered operational architecture figure.
 

@@ -115,6 +115,10 @@ Current figure assets live under:
 - `common/docs/architecture/figures/`
 - `common/docs/architecture/figures/OV/specs/`
 
+The current paper-oriented system layout figure is:
+
+- `common/docs/architecture/figures/system_layout.svg`
+
 The figure is illustrative. If a figure conflicts with canonical policy, schema,
 MQTT, payload, or safety-boundary documents, the canonical assets and active
 architecture documents control.

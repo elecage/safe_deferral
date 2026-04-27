@@ -10,7 +10,7 @@ This addendum records the completed system-layout paper-figure revision and the 
 
 The active paper-oriented system block diagram is now:
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 
 The figure has been updated from the reviewed `paper_ready` draft and should be treated as the current active system architecture figure for paper writing and architecture discussion.
 
@@ -18,7 +18,7 @@ The figure has been updated from the reviewed `paper_ready` draft and should be 
 
 Read these together for figure interpretation:
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 - `common/docs/architecture/14_system_components_outline_v2.md`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`
@@ -49,7 +49,7 @@ Draft sequence:
 
 After review, the `paper_ready` draft was applied to:
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 
 ## 4. Completed commits
 
@@ -254,7 +254,7 @@ Updated to align with the active figure:
 
 The following files should now be treated as mutually aligned:
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 - `common/docs/architecture/14_system_components_outline_v2.md`
 - `common/docs/architecture/15_interface_matrix.md`
 - `common/docs/architecture/16_system_architecture_figure.md`

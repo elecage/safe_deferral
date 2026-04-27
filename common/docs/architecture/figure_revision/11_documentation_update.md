@@ -36,7 +36,7 @@ Updated active architecture and prompt documents:
 - `common/docs/architecture/02_safety_and_authority_boundaries.md`
 - `common/docs/architecture/12_prompts.md`
 - `common/docs/architecture/12_prompts_physical_nodes.md`
-- `common/docs/architecture/12_prompts_experiment_physical_nodes.md`
+- `common/docs/archive/architecture_legacy/12_prompts_experiment_physical_nodes.md`
 - `common/docs/architecture/figures/OV/specs/ov_node_coordinate_map.json`
 
 Updated paper-facing documents:
@@ -71,7 +71,7 @@ The system structure figure revision sequence is now complete. Future work
 should treat:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 as the current paper-oriented system layout figure.

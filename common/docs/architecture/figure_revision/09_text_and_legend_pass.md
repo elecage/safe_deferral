@@ -8,7 +8,7 @@ This document completes Step 9 of
 The SVG now includes concise local flow labels and a legend:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 ## 2. Legend Added

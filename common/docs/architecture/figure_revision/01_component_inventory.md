@@ -8,7 +8,7 @@ This document completes Step 1 of
 It compares the current SVG blocks in:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 against the current active architecture and records what should be kept,
@@ -31,7 +31,7 @@ renamed, split, removed, or added before the SVG is edited.
 | --- | --- | --- | --- |
 | User | bounded input and voice-guided interaction | Keep | Keep as external actor on the left/top-left |
 | Caregiver | approval authority for sensitive actuation | Rename | Keep as external actor, but connect through Telegram notification / confirmation |
-| ESP32 Device Layer | field-side bounded input, sensing, emergency detection, actuator interfacing | Split | Separate actual physical nodes from experiment-only physical nodes |
+| ESP32 Device Layer | field-side bounded input, sensing, emergency detection, actuator interfacing | Rename / consolidate | Use one Actual Physical Nodes area; do not create an experiment-only physical authority group |
 | Mac mini Edge Hub | local reasoning, validation, TTS, caregiver approval, ACK, audit | Keep and restructure | Keep as central operational authority, but split internal blocks more accurately |
 | Raspberry Pi 5 | monitoring, orchestration, governance, result publication | Split | Expand into current experiment app categories |
 | STM32 / timing node | not present | Add | Add out-of-band timing / measurement support area |
@@ -42,11 +42,11 @@ renamed, split, removed, or added before the SVG is edited.
 | Current SVG block | Current wording | Decision | Target block(s) |
 | --- | --- | --- | --- |
 | Bounded Input Node | button and alternative input | Keep | Actual physical node: Bounded Button Input Node |
-| Context Nodes | environment and device-state sensing | Split | Environmental Context Node; Device State Reporter |
-| Emergency Nodes | gas, smoke, fall, threshold emergency signals | Move / Split | Experiment-only gas, smoke/fire, fall nodes unless promoted; emergency evidence remains bounded input to Mac mini |
-| Actuator Interface Nodes | lighting and governed sensitive-action interface | Split | Actual Lighting Control Node; Feedback Output Node; experiment-only Doorlock-Sensitive Interface Node |
+| Context Nodes | environment and device-state sensing | Split | Environmental Context Node; device-state reporting remains a function of relevant nodes |
+| Emergency Nodes | gas, smoke, fall, threshold emergency signals | Keep in physical area | Gas / Smoke / Fire Nodes; Fall-Detection Node |
+| Actuator Interface Nodes | lighting and governed sensitive-action interface | Split | Lighting Control Node; Doorlock Interface Node |
 | Doorbell / visitor context | not explicit | Add | Actual Doorbell / Visitor Context Node |
-| Warning output | implied in actuator/emergency areas | Add | Feedback Output Node in actual nodes; Warning Experiment Node in experiment-only nodes |
+| Warning output | implied in actuator/emergency areas | Add | Warning Output Node |
 
 ## 5. Actual Physical Nodes To Show
 
@@ -57,21 +57,22 @@ The revised figure should include these actual baseline physical nodes:
 | Bounded Button Input Node | Required user input surface |
 | Environmental Context Node | Required context source |
 | Doorbell / Visitor Context Node | Required for `doorbell_detected` visitor-response interpretation |
-| Device State Reporter | Required to avoid missing/stale state ambiguity |
 | Lighting Control Node | Current autonomous Class 1 low-risk actuator target |
-| Feedback Output Node | TTS/display/buzzer/accessible feedback surface |
+| Gas / Smoke / Fire Nodes | Class 0 evidence experiments and bounded emergency evidence |
+| Fall-Detection Node | Class 0 fall evidence experiments |
+| Warning Output Node | Bounded feedback or warning surface |
+| Doorlock Interface Node | Representative governed sensitive-actuation evaluation |
 
-## 6. Experiment-Only Physical Nodes To Show
+## 6. Physical Node Grouping Decision
 
-The revised figure should include these as a separate experiment-only group:
+The final figure should not include a separate experiment-only physical-node
+group. Physical hardware used only in experiments is still shown under the same
+Actual Physical Nodes boundary, because it does not create a separate authority
+class.
 
-| Target block | Reason |
-| --- | --- |
-| Gas Sensor Experiment Node | Class 0 gas evidence experiments |
-| Smoke / Fire Experiment Node | Class 0 smoke/fire evidence experiments |
-| Fall-Detection Interface Node | Class 0 fall evidence experiments |
-| Warning Output Experiment Node | Controlled warning-output experiments |
-| Doorlock-Sensitive Interface Node | Representative sensitive-actuation evaluation |
+Device-state reporting is also not shown as a standalone node. It remains a
+behavior of the relevant physical node, such as the Lighting Control Node, or a
+future adapter if a concrete hardware constraint requires one.
 
 The revised figure should not include a physical fault-injection node. Fault
 injection should be shown in Raspberry Pi virtual behavior / fault injection
@@ -194,4 +195,3 @@ Step 2. Layout draft
 
 The layout draft should decide the canvas structure and block positions before
 any final arrow routing is attempted.
-

@@ -8,7 +8,7 @@ This document completes Step 3 of
 The SVG has been updated as a block-only layout:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 Detailed arrows are intentionally omitted in this step. They will be added in

@@ -16,7 +16,7 @@
 
 현재 논문용 최종 구조도 기준은 아래 두 파일이다.
 
-- 최종 그림: `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- 최종 그림: `common/docs/architecture/figures/system_layout.svg`
 - 최종 설명 문서: `common/docs/architecture/24_final_paper_architecture_figure.md`
 
 즉, 후속 수정이나 검토는 위 두 파일을 기준으로 해야 한다.
@@ -183,7 +183,7 @@ Mac mini 외곽선은 현재 **아래 오른쪽이 돌출된 L자형**이다.
 
 현재 다음 파일들이 이미 GitHub에 반영되어 있다.
 
-- `common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg`
+- `common/docs/architecture/figures/system_layout.svg`
 - `common/docs/architecture/24_final_paper_architecture_figure.md`
 
 이 두 파일은 현 시점의 논문용 최종 구조도 기준으로 간주한다.

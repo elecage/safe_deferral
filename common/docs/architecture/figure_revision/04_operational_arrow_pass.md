@@ -8,7 +8,7 @@ This document completes Step 4 of
 The SVG now includes only the primary operational flow arrows:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 Caregiver, Raspberry Pi experiment, STM32 measurement, and canonical-reference

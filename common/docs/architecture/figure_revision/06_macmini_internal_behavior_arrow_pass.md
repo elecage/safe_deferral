@@ -9,7 +9,7 @@ The SVG now prioritizes Mac mini internal behavior before Raspberry Pi
 experiment-host flows:
 
 ```text
-common/docs/architecture/figures/system_layout_final_macmini_only_lshape.svg
+common/docs/architecture/figures/system_layout.svg
 ```
 
 ## 2. Why This Step Comes Before RPi Flows
