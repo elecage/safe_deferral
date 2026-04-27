@@ -25,6 +25,7 @@
       .measure-area { fill: #f8fafc; stroke: #64748b; stroke-width: 2.2; stroke-dasharray: 8 6; rx: 22; ry: 22; }
       .measure-block { fill: #ffffff; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 6 4; rx: 12; ry: 12; }
       .asset-area { fill: #f9fafb; stroke: #6b7280; stroke-width: 1.8; rx: 16; ry: 16; }
+      .legend-area { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 12; ry: 12; }
       .footer { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.6; rx: 10; ry: 10; }
       .arrow { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
       .input-arrow { stroke: #334155; marker-end: url(#arrowhead-input); }
@@ -39,7 +40,8 @@
       .rpi-arrow { stroke: #2563eb; stroke-dasharray: 5 5; marker-end: url(#arrowhead-rpi); }
       .telemetry-arrow { stroke: #1d4ed8; stroke-dasharray: 9 5; marker-end: url(#arrowhead-telemetry); }
       .measure-arrow { stroke: #64748b; stroke-dasharray: 8 5; marker-end: url(#arrowhead-measure); }
-      .flow-label { font: 700 11px Arial, sans-serif; fill: #334155; }
+      .flow-label { font: 700 10px Arial, sans-serif; fill: #334155; }
+      .legend-label { font: 700 11px Arial, sans-serif; fill: #334155; }
     </style>
     <marker id="arrowhead-input" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
       <polygon points="0 0, 6 2.25, 0 4.5" fill="#334155"/>
@@ -253,7 +255,7 @@
   <text x="1080" y="1078" text-anchor="middle" class="tiny">repository-governed reference layer; not a live operational override channel</text>
 
   <path d="M380 437 H405 V226 H465" class="arrow input-arrow"/>
-  <text x="398" y="213" text-anchor="middle" class="flow-label">field input/context</text>
+  <text x="398" y="213" text-anchor="middle" class="flow-label">input/context</text>
 
   <path d="M575 262 V285" class="arrow op-arrow"/>
   <path d="M685 321 H705 V226 H720" class="arrow op-arrow"/>
@@ -262,17 +264,17 @@
   <text x="812" y="179" text-anchor="middle" class="flow-label">operational routing</text>
 
   <path d="M1175 226 H1225 V795 H400 V617 H350" class="arrow exec-arrow"/>
-  <text x="1020" y="786" text-anchor="middle" class="flow-label">approved low-risk dispatch</text>
+  <text x="1020" y="786" text-anchor="middle" class="flow-label">low-risk dispatch</text>
 
   <path d="M350 638 H405 V646 H570" class="arrow ack-arrow"/>
   <path d="M800 646 H835" class="arrow ack-arrow"/>
   <text x="492" y="666" text-anchor="middle" class="flow-label">ACK evidence</text>
 
   <path d="M940 238 H950 V423 H940" class="arrow class2-arrow"/>
-  <text x="967" y="412" text-anchor="middle" class="flow-label">Class 2 branch</text>
+  <text x="962" y="416" text-anchor="start" class="flow-label">Class 2 branch</text>
 
   <path d="M720 336 H700 V526 H720" class="arrow deferral-arrow"/>
-  <text x="690" y="506" text-anchor="middle" class="flow-label">integrity deferral</text>
+  <text x="708" y="506" text-anchor="end" class="flow-label">integrity deferral</text>
 
   <path d="M940 438 H960 V346 H975" class="arrow class2-arrow"/>
   <path d="M1175 346 H1240 V236 H1300" class="arrow care-arrow"/>
@@ -283,19 +285,19 @@
   <text x="1286" y="384" text-anchor="middle" class="flow-label">confirmation response</text>
 
   <path d="M1175 376 H1235 V977 H350" class="arrow manual-arrow"/>
-  <text x="858" y="965" text-anchor="middle" class="flow-label">governed manual dispatch after Mac mini checks</text>
+  <text x="858" y="965" text-anchor="middle" class="flow-label">manual dispatch</text>
   <path d="M1075 392 V410 H1192 V590 H990 V610" class="arrow care-arrow"/>
-  <text x="1116" y="584" text-anchor="middle" class="flow-label">confirmation audit</text>
+  <text x="1128" y="604" text-anchor="middle" class="flow-label">confirmation audit</text>
 
   <path d="M575 357 V380" class="arrow llm-arrow"/>
   <path d="M685 416 H720" class="arrow llm-arrow"/>
   <text x="641" y="373" text-anchor="middle" class="flow-label">candidate guidance</text>
 
   <path d="M830 562 V590 H910 V610" class="arrow deferral-arrow"/>
-  <text x="872" y="584" text-anchor="middle" class="flow-label">deferral record</text>
+  <text x="858" y="590" text-anchor="middle" class="flow-label">deferral record</text>
 
   <path d="M1065 646 H1075 V502" class="arrow telemetry-arrow"/>
-  <text x="1134" y="558" text-anchor="middle" class="flow-label">read-only audit/ACK view</text>
+  <text x="1138" y="535" text-anchor="middle" class="flow-label">audit/ACK view</text>
 
   <path d="M1600 597 V610 H1385 V620" class="arrow rpi-arrow"/>
   <path d="M1480 651 H1505" class="arrow rpi-arrow"/>
@@ -303,16 +305,16 @@
   <path d="M1385 682 V705" class="arrow rpi-arrow"/>
   <path d="M1600 779 V805" class="arrow rpi-arrow"/>
   <path d="M1480 836 H1505" class="arrow rpi-arrow"/>
-  <text x="1452" y="604" text-anchor="middle" class="flow-label">experiment orchestration</text>
+  <text x="1452" y="612" text-anchor="middle" class="flow-label">orchestration</text>
 
   <path d="M1290 742 H1250 V178 H575 V190" class="arrow rpi-arrow"/>
-  <text x="1236" y="528" text-anchor="middle" class="flow-label">virtual experiment input</text>
+  <text x="1234" y="706" text-anchor="middle" class="flow-label">virtual input</text>
 
   <path d="M1175 466 H1218 V566 H1290" class="arrow telemetry-arrow"/>
-  <text x="1215" y="552" text-anchor="middle" class="flow-label">read-only telemetry</text>
+  <text x="1220" y="586" text-anchor="middle" class="flow-label">telemetry view</text>
 
   <path d="M380 932 H470" class="arrow measure-arrow"/>
-  <text x="426" y="923" text-anchor="middle" class="flow-label">physical signal taps</text>
+  <text x="426" y="923" text-anchor="middle" class="flow-label">signal taps</text>
   <path d="M660 932 H700" class="arrow measure-arrow"/>
   <path d="M940 932 H980" class="arrow measure-arrow"/>
   <text x="824" y="909" text-anchor="middle" class="flow-label">timing capture</text>
@@ -320,6 +322,19 @@
   <path d="M1170 932 H1240 V836 H1290" class="arrow measure-arrow"/>
   <text x="1243" y="892" text-anchor="middle" class="flow-label">measurement export</text>
 
+  <rect x="430" y="1140" width="1300" height="55" class="legend-area"/>
+  <text x="485" y="1173" text-anchor="start" class="legend-label">Legend</text>
+  <path d="M560 1168 H615" class="arrow op-arrow"/>
+  <text x="625" y="1172" text-anchor="start" class="legend-label">Mac mini operational</text>
+  <path d="M785 1168 H840" class="arrow care-arrow"/>
+  <text x="850" y="1172" text-anchor="start" class="legend-label">Class 2 / caregiver</text>
+  <path d="M1010 1168 H1065" class="arrow manual-arrow"/>
+  <text x="1075" y="1172" text-anchor="start" class="legend-label">governed manual dispatch</text>
+  <path d="M1270 1168 H1325" class="arrow rpi-arrow"/>
+  <text x="1335" y="1172" text-anchor="start" class="legend-label">RPi experiment</text>
+  <path d="M1485 1168 H1540" class="arrow measure-arrow"/>
+  <text x="1550" y="1172" text-anchor="start" class="legend-label">STM32 measurement</text>
+
   <rect x="40" y="1245" width="1720" height="36" class="footer"/>
-  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 8 STM32 flow: timing evidence exports to RPi results only and is not part of Mac mini operational control.</text>
+  <text x="900" y="1268" text-anchor="middle" class="tiny">Mac mini retains operational authority; Telegram, RPi, and STM32 provide confirmation, experiment support, and measurement evidence only.</text>
 </svg>

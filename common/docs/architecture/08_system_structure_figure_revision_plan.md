@@ -266,6 +266,10 @@ Current output:
 Shorten labels, add line breaks, and add a concise legend for authority
 boundaries.
 
+Current output:
+
+- `figure_revision/09_text_and_legend_pass.md`
+
 ### Step 10. Render validation
 
 Render the SVG and visually inspect:

@@ -76,3 +76,7 @@ Step 9. Text and legend pass
 Step 9 should shorten labels where needed and add a concise legend for the
 different arrow semantics without turning the figure into a dense explanation
 panel.
+
+Current follow-up output:
+
+- `figure_revision/09_text_and_legend_pass.md`
