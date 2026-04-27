@@ -248,6 +248,10 @@ Current output:
 Add RPi virtual node, virtual behavior/fault injection, scenario execution,
 dashboard, telemetry observation, result store, and governance-support flows.
 
+Current output:
+
+- `figure_revision/07_rpi_experiment_arrow_pass.md`
+
 ### Step 8. STM32 timing arrow pass
 
 Add STM32 timing capture and measurement export flow without connecting it as

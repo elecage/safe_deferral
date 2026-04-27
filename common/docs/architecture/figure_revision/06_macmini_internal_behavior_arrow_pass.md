@@ -75,3 +75,7 @@ Step 7 should add RPi experiment and observation flows only as overlays that
 enter Mac mini intake or read from Mac mini telemetry. They must not bypass
 Policy Router, Deterministic Validator, caregiver handling, dispatch, ACK, or
 audit.
+
+Current follow-up output:
+
+- `figure_revision/07_rpi_experiment_arrow_pass.md`

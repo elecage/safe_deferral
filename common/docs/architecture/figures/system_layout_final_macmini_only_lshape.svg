@@ -36,6 +36,8 @@
       .manual-arrow { stroke: #7c2d12; marker-end: url(#arrowhead-manual); }
       .llm-arrow { stroke: #0f766e; stroke-dasharray: 5 4; marker-end: url(#arrowhead-llm); }
       .deferral-arrow { stroke: #9a3412; stroke-dasharray: 4 4; marker-end: url(#arrowhead-deferral); }
+      .rpi-arrow { stroke: #2563eb; stroke-dasharray: 5 5; marker-end: url(#arrowhead-rpi); }
+      .telemetry-arrow { stroke: #1d4ed8; stroke-dasharray: 9 5; marker-end: url(#arrowhead-telemetry); }
       .flow-label { font: 700 11px Arial, sans-serif; fill: #334155; }
     </style>
     <marker id="arrowhead-input" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
@@ -64,6 +66,12 @@
     </marker>
     <marker id="arrowhead-deferral" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
       <polygon points="0 0, 6 2.25, 0 4.5" fill="#9a3412"/>
+    </marker>
+    <marker id="arrowhead-rpi" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowhead-telemetry" markerWidth="6" markerHeight="4.5" refX="5.5" refY="2.25" orient="auto">
+      <polygon points="0 0, 6 2.25, 0 4.5" fill="#1d4ed8"/>
     </marker>
   </defs>
 
@@ -282,6 +290,21 @@
   <path d="M830 562 V590 H910 V610" class="arrow deferral-arrow"/>
   <text x="872" y="584" text-anchor="middle" class="flow-label">deferral record</text>
 
+  <path d="M1065 646 H1075 V502" class="arrow telemetry-arrow"/>
+  <text x="1134" y="558" text-anchor="middle" class="flow-label">read-only audit/ACK view</text>
+
+  <path d="M1600 597 V610 H1385 V620" class="arrow rpi-arrow"/>
+  <path d="M1480 651 H1505" class="arrow rpi-arrow"/>
+  <path d="M1385 682 V705" class="arrow rpi-arrow"/>
+  <path d="M1480 836 H1505" class="arrow rpi-arrow"/>
+  <text x="1452" y="604" text-anchor="middle" class="flow-label">experiment orchestration</text>
+
+  <path d="M1290 742 H1250 V178 H575 V190" class="arrow rpi-arrow"/>
+  <text x="1236" y="528" text-anchor="middle" class="flow-label">virtual experiment input</text>
+
+  <path d="M1175 466 H1218 V566 H1290" class="arrow telemetry-arrow"/>
+  <text x="1215" y="552" text-anchor="middle" class="flow-label">read-only telemetry</text>
+
   <rect x="40" y="1245" width="1720" height="36" class="footer"/>
-  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 6 Mac mini internal flow: LLM guidance and deferral records support, but do not replace, deterministic routing and validation.</text>
+  <text x="900" y="1268" text-anchor="middle" class="tiny">Step 7 RPi flow: telemetry is read-only, and virtual experiment input enters only through Mac mini intake.</text>
 </svg>
