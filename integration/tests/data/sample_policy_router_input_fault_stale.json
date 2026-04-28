@@ -2,28 +2,28 @@
   "source_node_id": "virtual_node_livingroom_01",
   "routing_metadata": {
     "audit_correlation_id": "sample_fault_stale_case_001",
-    "network_status": "online",
-    "fault_injection": {
-      "fault_type": "stale_context",
-      "intended_fault_profile": "freshness_violation",
-      "controlled_experiment_only": true
-    }
+    "ingest_timestamp_ms": 1777104000000,
+    "network_status": "online"
   },
   "pure_context_payload": {
     "trigger_event": {
-      "event_type": "sensor",
-      "event_code": "ambient_state_update"
+      "event_type": "button",
+      "event_code": "single_click",
+      "timestamp_ms": 1777103994000
     },
     "environmental_context": {
-      "temperature_c": 24.1,
-      "illuminance_lux": 95,
+      "temperature": 24.1,
+      "illuminance": 95,
       "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
       "doorbell_detected": false
     },
     "device_states": {
       "living_room_light": "off",
-      "bedroom_light": "off"
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "standby"
     }
-  },
-  "notes": "Fault-specific stale-context integration fixture. The exact freshness predicate is not defined here and must be derived from canonical policy/schema/runtime behavior. This fixture preserves schema-required doorbell_detected=false and must not imply doorlock authorization."
+  }
 }

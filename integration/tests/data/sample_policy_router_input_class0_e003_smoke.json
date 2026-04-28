@@ -2,23 +2,28 @@
   "source_node_id": "virtual_node_bedroom_01",
   "routing_metadata": {
     "audit_correlation_id": "sample_class0_e003_case_001",
+    "ingest_timestamp_ms": 1777104000000,
     "network_status": "online"
   },
   "pure_context_payload": {
     "trigger_event": {
       "event_type": "sensor",
-      "event_code": "smoke_detected"
+      "event_code": "state_changed",
+      "timestamp_ms": 1777103999900
     },
     "environmental_context": {
-      "temperature_c": 22.0,
+      "temperature": 22.0,
+      "illuminance": 80,
+      "occupancy_detected": true,
       "smoke_detected": true,
       "gas_detected": false,
       "doorbell_detected": false
     },
     "device_states": {
       "living_room_light": "off",
-      "bedroom_light": "off"
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "off"
     }
-  },
-  "notes": "Sample emergency-aligned integration fixture intended to represent an E003-type state-trigger case (smoke detected). Device-state naming is kept consistent with the current implemented light scope. Exact trigger semantics remain defined by the canonical policy table. doorbell_detected=false because this is not a visitor-response scenario and doorbell context is not emergency evidence."
+  }
 }

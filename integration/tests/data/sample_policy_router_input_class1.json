@@ -2,23 +2,28 @@
   "source_node_id": "virtual_node_livingroom_01",
   "routing_metadata": {
     "audit_correlation_id": "sample_class1_case_001",
+    "ingest_timestamp_ms": 1777104000000,
     "network_status": "online"
   },
   "pure_context_payload": {
     "trigger_event": {
-      "event_type": "sensor",
-      "event_code": "ambient_state_update"
+      "event_type": "button",
+      "event_code": "single_click",
+      "timestamp_ms": 1777103999900
     },
     "environmental_context": {
-      "temperature_c": 24.1,
-      "illuminance_lux": 95,
+      "temperature": 22.5,
+      "illuminance": 30,
       "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
       "doorbell_detected": false
     },
     "device_states": {
       "living_room_light": "off",
-      "bedroom_light": "off"
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "standby"
     }
-  },
-  "notes": "Sample integration fixture only. Current authoritative low-risk scope in required_experiments.md is limited to living_room_light and bedroom_light on/off behavior. Field meanings and admissibility must remain aligned with the canonical policy/schema baseline. doorbell_detected=false because this is not a visitor-response scenario."
+  }
 }

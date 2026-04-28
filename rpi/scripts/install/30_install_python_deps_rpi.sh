@@ -28,7 +28,6 @@ else
     echo "  [INFO] ${ENV_FILE} not found. Optional dashboard/export checks default to disabled."
 fi
 
-ENABLE_RPI_DASHBOARD_BACKEND="${ENABLE_RPI_DASHBOARD_BACKEND:-false}"
 ENABLE_RPI_RESULT_EXPORT="${ENABLE_RPI_RESULT_EXPORT:-false}"
 
 # 3. 가상환경 활성화 및 기본 도구 업데이트
@@ -96,15 +95,15 @@ check_required_dist "paho-mqtt" "paho.mqtt.client"
 check_required_dist "pytest" "pytest"
 check_required_dist "PyYAML" "yaml"
 check_required_dist "jsonschema" "jsonschema"
+check_required_dist "python-dotenv" "dotenv"
+check_required_dist "fastapi" "fastapi"
+check_required_dist "uvicorn" "uvicorn"
 
 # 6. 선택 패키지 검증: 기능 flag가 켜진 경우에만 Hard-fail
 echo "  [INFO] Optional dashboard/export package checks:"
-check_optional_dist "fastapi" "fastapi" "${ENABLE_RPI_DASHBOARD_BACKEND}" "ENABLE_RPI_DASHBOARD_BACKEND"
-check_optional_dist "uvicorn" "uvicorn" "${ENABLE_RPI_DASHBOARD_BACKEND}" "ENABLE_RPI_DASHBOARD_BACKEND"
 check_optional_dist "pandas" "pandas" "${ENABLE_RPI_RESULT_EXPORT}" "ENABLE_RPI_RESULT_EXPORT"
 
 echo "  [INFO] Feature flags:"
-echo "    - ENABLE_RPI_DASHBOARD_BACKEND=${ENABLE_RPI_DASHBOARD_BACKEND}"
 echo "    - ENABLE_RPI_RESULT_EXPORT=${ENABLE_RPI_RESULT_EXPORT}"
 
 echo "==> [PASS] Python dependencies installed and verified successfully."

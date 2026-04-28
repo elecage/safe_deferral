@@ -2,23 +2,28 @@
   "source_node_id": "virtual_node_kitchen_01",
   "routing_metadata": {
     "audit_correlation_id": "sample_class0_e001_case_001",
+    "ingest_timestamp_ms": 1777104000000,
     "network_status": "online"
   },
   "pure_context_payload": {
     "trigger_event": {
       "event_type": "sensor",
-      "event_code": "temperature_alert"
+      "event_code": "threshold_exceeded",
+      "timestamp_ms": 1777103999900
     },
     "environmental_context": {
-      "temperature_c": 120.0,
+      "temperature": 52.0,
+      "illuminance": 200,
+      "occupancy_detected": true,
       "smoke_detected": false,
       "gas_detected": false,
       "doorbell_detected": false
     },
     "device_states": {
-      "living_room_light": "off",
-      "bedroom_light": "off"
+      "living_room_light": "on",
+      "bedroom_light": "off",
+      "living_room_blind": "open",
+      "tv_main": "off"
     }
-  },
-  "notes": "Sample emergency-aligned integration fixture intended to represent an E001-type threshold-crossing case. Device-state naming is kept consistent with the current implemented light scope in required_experiments.md. Exact trigger semantics remain defined by the canonical policy table. doorbell_detected=false because this is not a visitor-response scenario and doorbell context is not emergency evidence."
+  }
 }
