@@ -141,6 +141,59 @@ class TelemetryAdapter:
         self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)
         return snapshot
 
+    def publish_ack_only(self, record: "DispatchRecord") -> TelemetrySnapshot:
+        """Publish an isolated ACK snapshot without touching shared adapter state.
+
+        Used for late-arriving ACKs and ACK timeout events that arrive outside
+        of a handle_context() call — prevents mixing ACK data with a different
+        event's route/validation fields.
+        """
+        ack = AckTelemetry(
+            dispatch_status=record.dispatch_status.value,
+            action=record.action,
+            target_device=record.target_device,
+            timestamp_ms=record.ack_received_at_ms or record.published_at_ms,
+        )
+        snapshot = TelemetrySnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            generated_at_ms=int(time.time() * 1000),
+            ack=ack,
+            audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
+        )
+        self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)
+        return snapshot
+
+    def publish_c205_snapshot(
+        self,
+        class2_result: "Class2Result",
+        esc_result: "EscalationResult",
+    ) -> TelemetrySnapshot:
+        """Publish an isolated C205 snapshot without touching shared adapter state.
+
+        Used by the ACK timeout sweep's _escalate_c205() path.
+        """
+        unresolved = class2_result.clarification_record.get("unresolved_reason")
+        class2 = Class2Telemetry(
+            transition_target=class2_result.transition_target.value,
+            should_notify_caregiver=class2_result.should_notify_caregiver,
+            unresolved_reason=unresolved,
+            timestamp_ms=int(time.time() * 1000),
+        )
+        escalation = EscalationTelemetry(
+            escalation_status=esc_result.escalation_status.value,
+            notification_channel=esc_result.notification_record.notification_channel,
+            timestamp_ms=esc_result.notification_record.sent_at_ms,
+        )
+        snapshot = TelemetrySnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            generated_at_ms=int(time.time() * 1000),
+            class2=class2,
+            escalation=escalation,
+            audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
+        )
+        self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)
+        return snapshot
+
     def reset(self) -> None:
         """Clear all accumulated state (useful between experiment runs)."""
         self._route = None
