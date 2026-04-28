@@ -198,7 +198,6 @@ class Pipeline:
             event_summary=f"긴급 상황 감지: {route_result.trigger_id}",
             context_summary="CLASS_0 emergency trigger — immediate caregiver notification.",
             unresolved_reason="emergency_event",
-            exception_trigger_id=route_result.trigger_id or "E001",
             audit_id=route_result.audit_correlation_id,
         )
         self._caregiver.send_notification(notification)
@@ -288,11 +287,11 @@ class Pipeline:
         else:
             notification = _build_notification(
                 event_summary=f"Class 2 진입: {trigger_id}",
-                context_summary="",
+                context_summary="컨텍스트 정보 없음",
                 unresolved_reason=class2_result.clarification_record.unresolved_reason
                     if class2_result.clarification_record else "insufficient_context",
-                exception_trigger_id=trigger_id,
                 audit_id=route_result.audit_correlation_id,
+                exception_trigger_id=trigger_id,
             )
             esc_result = self._caregiver.send_notification(notification)
             self._telemetry.update_escalation(esc_result)
@@ -346,10 +345,10 @@ class Pipeline:
         else:
             notification = _build_notification(
                 event_summary="Class 2 진입: C205 (actuation_ack_timeout)",
-                context_summary="",
+                context_summary="액추에이션 ACK 미수신",
                 unresolved_reason="actuation_ack_timeout",
-                exception_trigger_id="C205",
                 audit_id=audit_correlation_id,
+                exception_trigger_id="C205",
             )
             esc_result = self._caregiver.send_notification(notification)
         self._telemetry.update_escalation(esc_result)
@@ -362,10 +361,10 @@ def _build_notification(
     event_summary: str,
     context_summary: str,
     unresolved_reason: str,
-    exception_trigger_id: str,
     audit_id: str,
+    exception_trigger_id: Optional[str] = None,
 ) -> dict:
-    return {
+    payload: dict = {
         "event_summary": event_summary,
         "context_summary": context_summary,
         "unresolved_reason": unresolved_reason,
@@ -373,9 +372,11 @@ def _build_notification(
         "audit_correlation_id": audit_id,
         "timestamp_ms": int(time.time() * 1000),
         "notification_channel": "telegram",
-        "source_layer": "mac_mini_pipeline",
-        "exception_trigger_id": exception_trigger_id,
+        "source_layer": "system",
     }
+    if exception_trigger_id is not None:
+        payload["exception_trigger_id"] = exception_trigger_id
+    return payload
 
 
 # ---------------------------------------------------------------------------
