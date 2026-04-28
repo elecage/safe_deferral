@@ -26,7 +26,6 @@ class TestSessionCreation:
         ("C205", "actuation_ack_timeout"),
         ("C206", "insufficient_context"),
         ("C207", "timeout_or_no_response"),
-        ("deferral_timeout", "timeout_or_no_response"),
     ])
     def test_trigger_id_mapped_to_unresolved_reason(self, manager, trigger_id, expected_reason):
         session = manager.start_session(trigger_id, AUDIT_ID)
@@ -252,6 +251,19 @@ class TestNotificationPayload:
             session = manager.start_session(trigger_id, AUDIT_ID)
             result = manager.handle_timeout(session, trigger_id=trigger_id)
             assert result.notification_payload["exception_trigger_id"] == trigger_id
+
+    def test_non_canonical_trigger_omits_exception_trigger_id(self, manager):
+        """Non-canonical trigger must not produce exception_trigger_id: None in payload."""
+        session = manager.start_session("C207", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="deferral_timeout")
+        n = result.notification_payload
+        assert n is not None
+        assert "exception_trigger_id" not in n
+
+    def test_unknown_trigger_omits_exception_trigger_id(self, manager):
+        session = manager.start_session("C206", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="UNKNOWN_INTERNAL")
+        assert "exception_trigger_id" not in result.notification_payload
 
     def test_notification_not_emitted_on_class1_selection(self, manager):
         session = manager.start_session("C206", AUDIT_ID)

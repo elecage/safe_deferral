@@ -49,8 +49,6 @@ _TRIGGER_TO_REASON: dict[str, str] = {
     "C205": "actuation_ack_timeout",
     "C206": "insufficient_context",
     "C207": "timeout_or_no_response",
-    # internal label used when MM-05 escalates
-    "deferral_timeout": "timeout_or_no_response",
 }
 
 # Event summary strings for notification payload
@@ -62,7 +60,6 @@ _TRIGGER_SUMMARY: dict[str, str] = {
     "C205": "액추에이터 ACK 타임아웃으로 Class 2 진입",
     "C206": "의도 해석 불충분으로 Class 2 진입",
     "C207": "사용자 선택 타임아웃 또는 무응답으로 Class 2 진입",
-    "deferral_timeout": "안전 유예 핸들러 타임아웃으로 Class 2 진입",
 }
 
 # Default bounded candidate sets per unresolved_reason
@@ -239,8 +236,8 @@ class Class2ClarificationManager:
     ) -> ClarificationSession:
         """Initialise a Class 2 clarification session.
 
-        trigger_id may be C201-C207 (from Policy Router / Validator) or
-        'deferral_timeout' (from Safe Deferral Handler escalation).
+        trigger_id must be a canonical C201-C207 identifier.
+        Safe Deferral Handler escalation uses C207 (mapped before calling).
         candidate_choices may be supplied by the LLM adapter (MM-02);
         if None, falls back to defaults for the resolved unresolved_reason.
         """
@@ -429,7 +426,9 @@ class Class2ClarificationManager:
             "timestamp_ms": int(time.time() * 1000),
             "notification_channel": "telegram",
             "source_layer": "class2_clarification_manager",
-            "exception_trigger_id": trigger_id if trigger_id in (
-                "C201", "C202", "C203", "C204", "C205", "C206", "C207"
-            ) else None,
+            **(
+                {"exception_trigger_id": trigger_id}
+                if trigger_id in ("C201", "C202", "C203", "C204", "C205", "C206", "C207")
+                else {}
+            ),
         }
