@@ -63,7 +63,7 @@ from local_llm_adapter.adapter import LocalLlmAdapter
 from local_llm_adapter.llm_client import OllamaClient, MockLlmClient
 from low_risk_dispatcher.ack_handler import AckHandler
 from low_risk_dispatcher.dispatcher import LowRiskDispatcher
-from low_risk_dispatcher.models import DispatchRecord
+from low_risk_dispatcher.models import AckStatus, DispatchRecord
 from policy_router.models import RouteClass
 from policy_router.router import PolicyRouter
 from safe_deferral_handler.handler import SafeDeferralHandler
@@ -311,6 +311,10 @@ class Pipeline:
         ack_result = self._ack_handler.handle_ack(record, ack_payload)
         self._telemetry.publish_ack_only(record)
         log.info("ACK resolved: command_id=%s status=%s", command_id, ack_result.ack_status.value)
+        if ack_result.ack_status == AckStatus.FAILURE:
+            log.warning("ACK failure — escalating C205: command_id=%s audit=%s",
+                        command_id, record.audit_correlation_id)
+            self._escalate_c205(record.audit_correlation_id)
 
     # ------------------------------------------------------------------
     # ACK timeout sweep (C205 escalation path)
