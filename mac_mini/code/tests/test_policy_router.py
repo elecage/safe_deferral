@@ -178,6 +178,47 @@ class TestClass2Staleness:
         assert result.route_class == RouteClass.CLASS_2
         assert result.trigger_id == "C204"
 
+    # -- future timestamp checks --
+
+    def test_future_timestamp_routes_c204(self):
+        """trigger_ts far in the future must be rejected as C204."""
+        router = PolicyRouter()
+        result = router.route(_base_input(
+            trigger_ts=FRESH_INGEST_TS + 10_000,  # 10 s ahead of ingest
+            ingest_ts=FRESH_INGEST_TS,
+        ))
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C204"
+        assert result.unresolved_reason == "sensor_staleness_detected"
+
+    def test_future_timestamp_one_ms_over_skew_routes_c204(self):
+        """trigger_ts = ingest_ts + tolerance + 1 must be rejected."""
+        router = PolicyRouter()
+        result = router.route(_base_input(
+            trigger_ts=FRESH_INGEST_TS + 501,  # 1 ms past 500 ms tolerance
+            ingest_ts=FRESH_INGEST_TS,
+        ))
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C204"
+
+    def test_future_timestamp_within_skew_tolerance_is_fresh(self):
+        """trigger_ts = ingest_ts + tolerance is allowed (clock skew boundary)."""
+        router = PolicyRouter()
+        result = router.route(_base_input(
+            trigger_ts=FRESH_INGEST_TS + 500,  # exactly at tolerance — not rejected
+            ingest_ts=FRESH_INGEST_TS,
+        ))
+        assert result.route_class == RouteClass.CLASS_1
+
+    def test_future_timestamp_slightly_ahead_within_skew_is_fresh(self):
+        """Small clock skew (< tolerance) must not trigger C204."""
+        router = PolicyRouter()
+        result = router.route(_base_input(
+            trigger_ts=FRESH_INGEST_TS + 200,  # 200 ms ahead — within 500 ms tolerance
+            ingest_ts=FRESH_INGEST_TS,
+        ))
+        assert result.route_class == RouteClass.CLASS_1
+
 
 # ------------------------------------------------------------------
 # CLASS_2 — schema / missing fields

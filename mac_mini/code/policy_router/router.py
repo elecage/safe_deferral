@@ -28,6 +28,7 @@ class PolicyRouter:
         policy = loader.load_policy_table()
         gc = policy["global_constraints"]
         self._freshness_threshold_ms: int = gc["freshness_threshold_ms"]
+        self._clock_skew_tolerance_ms: int = gc.get("clock_skew_tolerance_ms", 500)
 
         self._emergency_triggers: list = (
             policy["routing_policies"]["class_0_emergency"]["triggers"]
@@ -62,8 +63,21 @@ class PolicyRouter:
 
         routed_at = int(time.time() * 1000)
 
-        # Step 2: staleness check (C204)
+        # Step 2: staleness check (C204) — past AND future
         trigger_ts: int = trigger["timestamp_ms"]
+        if trigger_ts > ingest_ts + self._clock_skew_tolerance_ms:
+            return PolicyRouterResult(
+                route_class=RouteClass.CLASS_2,
+                trigger_id="C204",
+                llm_invocation_allowed=False,
+                candidate_generation_allowed=True,
+                unresolved_reason="sensor_staleness_detected",
+                source_node_id=source_node_id,
+                audit_correlation_id=audit_id,
+                network_status=network_status,
+                routed_at_ms=routed_at,
+                pure_context_payload=ctx,
+            )
         if (ingest_ts - trigger_ts) > self._freshness_threshold_ms:
             return PolicyRouterResult(
                 route_class=RouteClass.CLASS_2,
