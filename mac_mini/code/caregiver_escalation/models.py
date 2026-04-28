@@ -7,6 +7,7 @@ from typing import Optional
 
 class EscalationStatus(str, Enum):
     PENDING = "pending"           # notification sent, awaiting response
+    SEND_FAILED = "send_failed"   # live delivery failed after retries; no caregiver notified
     ACKNOWLEDGED = "acknowledged" # caregiver acknowledged, no action taken
     APPROVED = "approved"         # caregiver approved the described action
     DENIED = "denied"             # caregiver denied / intervened
@@ -88,7 +89,11 @@ class EscalationResult:
         return self.escalation_status == EscalationStatus.PENDING
 
     @property
+    def is_send_failed(self) -> bool:
+        return self.escalation_status == EscalationStatus.SEND_FAILED
+
+    @property
     def is_resolved(self) -> bool:
         return self.escalation_status not in (
-            EscalationStatus.PENDING, EscalationStatus.EXPIRED
+            EscalationStatus.PENDING, EscalationStatus.SEND_FAILED, EscalationStatus.EXPIRED
         )

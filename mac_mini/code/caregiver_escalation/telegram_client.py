@@ -14,7 +14,12 @@ without network access.
 """
 
 import html
+import time
 from typing import Optional, Protocol
+
+
+class TelegramSendError(Exception):
+    """Raised by HttpTelegramSender when delivery fails after all retries."""
 
 
 class TelegramSender(Protocol):
@@ -26,12 +31,19 @@ class TelegramSender(Protocol):
         text: str,
         parse_mode: str = "HTML",
     ) -> Optional[int]:
-        """Return the Telegram message_id on success, None on failure."""
+        """Return the Telegram message_id on success, None on dry-run.
+
+        Raise TelegramSendError on live-delivery failure.
+        """
         ...
 
 
 class _NoOpTelegramSender:
-    """Used when no real Telegram client is injected (test / dry-run)."""
+    """Used when no real Telegram client is injected (test / dry-run).
+
+    Returns None rather than raising — PENDING is the correct status for
+    dry-run/test mode where delivery is intentionally skipped.
+    """
 
     def send_message(
         self,
@@ -46,12 +58,15 @@ class HttpTelegramSender:
     """Production sender — calls the Telegram Bot API over HTTP.
 
     Requires `requests` package.  Instantiate with bot_token from environment.
+    Raises TelegramSendError after all retries are exhausted so the backend
+    can distinguish a live-delivery failure from a dry-run None return.
     """
 
     _API_BASE = "https://api.telegram.org/bot{token}/sendMessage"
 
-    def __init__(self, bot_token: str) -> None:
+    def __init__(self, bot_token: str, max_retries: int = 1) -> None:
         self._token = bot_token
+        self._max_retries = max_retries
 
     def send_message(
         self,
@@ -62,17 +77,24 @@ class HttpTelegramSender:
         import requests  # imported lazily so unit tests never need it
 
         url = self._API_BASE.format(token=self._token)
-        try:
-            resp = requests.post(
-                url,
-                json={"chat_id": chat_id, "text": text, "parse_mode": parse_mode},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("result", {}).get("message_id")
-        except Exception:
-            return None
+        last_exc: Exception = Exception("no attempts made")
+        for attempt in range(self._max_retries + 1):
+            if attempt > 0:
+                time.sleep(1)
+            try:
+                resp = requests.post(
+                    url,
+                    json={"chat_id": chat_id, "text": text, "parse_mode": parse_mode},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("result", {}).get("message_id")
+            except Exception as exc:
+                last_exc = exc
+        raise TelegramSendError(
+            f"Telegram delivery failed after {self._max_retries + 1} attempt(s)"
+        ) from last_exc
 
 
 def format_notification_message(notification_payload: dict) -> str:

@@ -28,6 +28,7 @@ from caregiver_escalation.models import (
     NotificationRecord,
 )
 from caregiver_escalation.telegram_client import (
+    TelegramSendError,
     TelegramSender,
     _NoOpTelegramSender,
     format_notification_message,
@@ -96,7 +97,16 @@ class CaregiverEscalationBackend:
         target_chat = chat_id or self._chat_id
 
         message_text = format_notification_message(notification_payload)
-        message_id = self._sender.send_message(target_chat, message_text)
+        send_failed = False
+        message_id: Optional[int] = None
+        try:
+            message_id = self._sender.send_message(target_chat, message_text)
+        except TelegramSendError:
+            send_failed = True
+
+        escalation_status = (
+            EscalationStatus.SEND_FAILED if send_failed else EscalationStatus.PENDING
+        )
 
         record = NotificationRecord(
             confirmation_id=cid,
@@ -105,13 +115,14 @@ class CaregiverEscalationBackend:
             notification_payload=notification_payload,
             sent_at_ms=ts,
             telegram_message_id=message_id,
+            escalation_status=escalation_status,
         )
 
         self._publisher.publish(ESCALATION_TOPIC, notification_payload, qos=1)
 
         return EscalationResult(
             confirmation_id=cid,
-            escalation_status=EscalationStatus.PENDING,
+            escalation_status=escalation_status,
             audit_correlation_id=audit_id,
             notification_record=record,
         )
