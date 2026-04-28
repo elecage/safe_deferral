@@ -20,7 +20,8 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_PHASE1_FIXTURE_BOM_UPDATE.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_CODE_REVIEW_BUGFIX_UPDATE.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_PHASE1_FIXTURE_BOM_UPDATE.md`
 2. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_ENTRYPOINT_AND_RUN_DOC_UPDATE.md`
 2. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_IMPLEMENTATION_COMPLETE_UPDATE.md`
 3. `common/docs/runtime/SESSION_HANDOFF_2026-04-26_DOCUMENTATION_CONTRACT_CLEANUP_UPDATE.md`
