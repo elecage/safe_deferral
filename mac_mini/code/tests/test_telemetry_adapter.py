@@ -322,6 +322,35 @@ class TestPublish:
         assert adapter.get_snapshot().route is not None
         assert adapter.get_snapshot().route.route_class == "CLASS_0"
 
+    def test_publish_ack_only_contains_command_id_and_audit_id(self):
+        """ACK-only snapshot must carry command_id and audit_correlation_id for traceability."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_ack_only(_dispatch_record())
+        payload = pub.calls[0]["payload"]
+        assert payload["ack"]["command_id"] == "cmd-tel-001"
+        assert payload["ack"]["audit_correlation_id"] == AUDIT_ID
+
+    def test_publish_c205_snapshot_carries_audit_correlation_id(self):
+        """C205 snapshot must carry audit_correlation_id for traceability."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C205", AUDIT_ID)
+        class2_result = mgr.handle_timeout(session, trigger_id="C205")
+
+        backend = CaregiverEscalationBackend()
+        esc_result = backend.send_notification({
+            "event_summary": "Class 2 진입: C205 (actuation_ack_timeout)",
+            "context_summary": "액추에이션 ACK 미수신",
+            "unresolved_reason": "actuation_ack_timeout",
+            "manual_confirmation_path": "caregiver_telegram_response",
+        })
+        adapter.publish_c205_snapshot(class2_result, esc_result, audit_correlation_id=AUDIT_ID)
+        payload = pub.calls[0]["payload"]
+        assert payload["audit_correlation_id"] == AUDIT_ID
+
     def test_publish_c205_snapshot_has_class2_and_escalation_no_route(self):
         """C205 snapshot must not carry route/validation from shared state."""
         pub = _RecordingPublisher()
@@ -339,7 +368,7 @@ class TestPublish:
             "unresolved_reason": "actuation_ack_timeout",
             "manual_confirmation_path": "caregiver_telegram_response",
         })
-        adapter.publish_c205_snapshot(class2_result, esc_result)
+        adapter.publish_c205_snapshot(class2_result, esc_result, audit_correlation_id=AUDIT_ID)
 
         payload = pub.calls[0]["payload"]
         assert payload["class2"] is not None
@@ -468,9 +497,9 @@ class TestCrossEventIsolation:
 class TestSnapshotToDict:
     def test_to_dict_has_required_keys(self, adapter):
         d = adapter.get_snapshot().to_dict()
-        for key in ("snapshot_id", "generated_at_ms", "route", "validation",
-                    "ack", "class2", "escalation", "audit_event_count",
-                    "authority_note"):
+        for key in ("snapshot_id", "generated_at_ms", "audit_correlation_id",
+                    "route", "validation", "ack", "class2", "escalation",
+                    "audit_event_count", "authority_note"):
             assert key in d, f"missing: {key}"
 
     def test_to_dict_route_none_when_not_set(self, adapter):
