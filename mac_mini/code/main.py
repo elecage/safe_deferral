@@ -201,7 +201,8 @@ class Pipeline:
             unresolved_reason="emergency_event",
             audit_id=route_result.audit_correlation_id,
         )
-        self._caregiver.send_notification(notification)
+        esc_result = self._caregiver.send_notification(notification)
+        self._telemetry.update_escalation(esc_result)
 
     # ------------------------------------------------------------------
     # CLASS_1 — LLM → Validator → Dispatcher
