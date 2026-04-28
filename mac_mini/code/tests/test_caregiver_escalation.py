@@ -9,6 +9,7 @@ from caregiver_escalation.models import (
     CaregiverDecision,
     EscalationStatus,
 )
+from caregiver_escalation.telegram_client import TelegramSendError
 
 
 # ------------------------------------------------------------------
@@ -72,6 +73,20 @@ class _RecordingTelegramSender:
     def send_message(self, chat_id, text, parse_mode="HTML"):
         self.calls.append({"chat_id": chat_id, "text": text})
         return self._message_id
+
+
+class _FailingTelegramSender:
+    """Simulates a live sender whose HTTP call fails — raises TelegramSendError."""
+
+    def __init__(self, attempts_before_fail: int = 0):
+        self.call_count = 0
+        self._attempts_before_fail = attempts_before_fail
+
+    def send_message(self, chat_id, text, parse_mode="HTML"):
+        self.call_count += 1
+        if self.call_count > self._attempts_before_fail:
+            raise TelegramSendError("simulated HTTP failure")
+        return 99  # would succeed on earlier attempts
 
 
 class _RecordingPublisher:
@@ -239,6 +254,59 @@ class TestTelegramSender:
         text = sender.calls[0]["text"]
         assert "<script>" not in text
         assert "&lt;script&gt;" in text
+
+
+# ------------------------------------------------------------------
+# Send failure (live sender raises TelegramSendError)
+# ------------------------------------------------------------------
+
+class TestSendFailure:
+    def test_send_failure_gives_send_failed_status(self):
+        b = CaregiverEscalationBackend(telegram_sender=_FailingTelegramSender())
+        result = b.send_notification(_valid_payload())
+        assert result.escalation_status == EscalationStatus.SEND_FAILED
+
+    def test_send_failure_is_send_failed_property(self):
+        b = CaregiverEscalationBackend(telegram_sender=_FailingTelegramSender())
+        result = b.send_notification(_valid_payload())
+        assert result.is_send_failed
+
+    def test_send_failure_notification_record_status_is_send_failed(self):
+        b = CaregiverEscalationBackend(telegram_sender=_FailingTelegramSender())
+        result = b.send_notification(_valid_payload())
+        assert result.notification_record.escalation_status == EscalationStatus.SEND_FAILED
+
+    def test_send_failure_message_id_is_none(self):
+        b = CaregiverEscalationBackend(telegram_sender=_FailingTelegramSender())
+        result = b.send_notification(_valid_payload())
+        assert result.notification_record.telegram_message_id is None
+
+    def test_send_failure_is_not_pending(self):
+        b = CaregiverEscalationBackend(telegram_sender=_FailingTelegramSender())
+        result = b.send_notification(_valid_payload())
+        assert not result.is_pending
+
+    def test_send_failure_is_not_resolved(self):
+        """SEND_FAILED is a terminal failure state, not a caregiver resolution."""
+        b = CaregiverEscalationBackend(telegram_sender=_FailingTelegramSender())
+        result = b.send_notification(_valid_payload())
+        assert not result.is_resolved
+
+    def test_send_failure_still_publishes_to_mqtt(self):
+        """Dashboard must still observe the send failure via MQTT."""
+        pub = _RecordingPublisher()
+        b = CaregiverEscalationBackend(
+            telegram_sender=_FailingTelegramSender(), mqtt_publisher=pub
+        )
+        b.send_notification(_valid_payload())
+        topics = [c["topic"] for c in pub.calls]
+        assert "safe_deferral/escalation/class2" in topics
+
+    def test_noop_sender_gives_pending_not_send_failed(self):
+        """Dry-run / test mode: None return without raising → PENDING, not SEND_FAILED."""
+        b = CaregiverEscalationBackend()  # uses _NoOpTelegramSender
+        result = b.send_notification(_valid_payload())
+        assert result.escalation_status == EscalationStatus.PENDING
 
 
 # ------------------------------------------------------------------
@@ -426,6 +494,31 @@ class TestBuildNotificationSchemaCompliance:
             exception_trigger_id="C205",
         )
         b.send_notification(payload)
+
+    def test_deferral_timeout_mapped_to_c207_passes_schema(self):
+        """deferral_timeout must be sent as C207, not the raw internal string."""
+        b = CaregiverEscalationBackend()
+        payload = _build_notification(
+            event_summary="Class 2 진입: C207 (deferral_timeout)",
+            context_summary="사용자 응답 없음으로 safe deferral 만료",
+            unresolved_reason="user_selection_timeout",
+            audit_id="audit-c207-deferral-test",
+            exception_trigger_id="C207",
+        )
+        b.send_notification(payload)  # must not raise ValidationError
+
+    def test_deferral_timeout_raw_string_raises_validation_error(self):
+        """Confirm that passing the raw 'deferral_timeout' string would fail schema."""
+        b = CaregiverEscalationBackend()
+        bad_payload = _build_notification(
+            event_summary="Class 2 진입: deferral_timeout",
+            context_summary="test",
+            unresolved_reason="user_selection_timeout",
+            audit_id="audit-bad-deferral",
+            exception_trigger_id="deferral_timeout",
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            b.send_notification(bad_payload)
 
     def test_e_series_trigger_id_raises_validation_error(self):
         """Confirm that passing an E-series ID would fail schema — so omitting it is correct."""
