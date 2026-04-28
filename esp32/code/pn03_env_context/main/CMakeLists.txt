@@ -1,0 +1,21 @@
+idf_component_register(
+    SRCS
+        "pn03_env_context.c"
+        "../../shared/sd_payload.c"
+        "../../shared/sd_provision.c"
+    INCLUDE_DIRS
+        "."
+        "../../shared"
+    REQUIRES
+        driver
+        esp_timer
+        mqtt
+        esp_event
+        log
+        freertos
+        esp_wifi
+        esp_http_server
+        nvs_flash
+        esp_netif
+        lwip
+)
