@@ -66,6 +66,7 @@ class TelemetryAdapter:
     ) -> None:
         self._publisher: MqttPublisher = mqtt_publisher or _NoOpPublisher()
         self._audit_reader: Optional[AuditReader] = audit_reader
+        self._audit_correlation_id: str = ""
         self._route: Optional[RouteTelemetry] = None
         self._validation: Optional[ValidationTelemetry] = None
         self._ack: Optional[AckTelemetry] = None
@@ -77,6 +78,7 @@ class TelemetryAdapter:
     # ------------------------------------------------------------------
 
     def update_route(self, result: PolicyRouterResult) -> None:
+        self._audit_correlation_id = result.audit_correlation_id
         self._route = RouteTelemetry(
             route_class=result.route_class.value,
             trigger_id=result.trigger_id,
@@ -96,6 +98,8 @@ class TelemetryAdapter:
             action=record.action,
             target_device=record.target_device,
             timestamp_ms=record.ack_received_at_ms or record.published_at_ms,
+            command_id=record.command_id,
+            audit_correlation_id=record.audit_correlation_id,
         )
 
     def update_class2(self, result: Class2Result) -> None:
@@ -127,6 +131,7 @@ class TelemetryAdapter:
         return TelemetrySnapshot(
             snapshot_id=str(uuid.uuid4()),
             generated_at_ms=int(time.time() * 1000),
+            audit_correlation_id=self._audit_correlation_id,
             route=self._route,
             validation=self._validation,
             ack=self._ack,
@@ -200,6 +205,7 @@ class TelemetryAdapter:
 
     def reset(self) -> None:
         """Clear all accumulated state (useful between experiment runs)."""
+        self._audit_correlation_id = ""
         self._route = None
         self._validation = None
         self._ack = None
