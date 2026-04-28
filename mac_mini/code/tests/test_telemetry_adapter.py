@@ -292,6 +292,37 @@ class TestPublish:
         assert "authority_note" in payload
         assert "read-only" in payload["authority_note"].lower()
 
+    def test_c205_path_publishes_class2_and_escalation(self):
+        """After ACK timeout, class2+escalation snapshot must be published separately."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+
+        # Simulate sweep: publishes ACK snapshot first
+        adapter.update_ack(_dispatch_record())
+        adapter.publish()
+        assert len(pub.calls) == 1
+
+        # Simulate _escalate_c205: update class2+escalation then publish again
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C205", AUDIT_ID)
+        adapter.update_class2(mgr.handle_timeout(session, trigger_id="C205"))
+
+        backend = CaregiverEscalationBackend()
+        esc_result = backend.send_notification({
+            "event_summary": "Class 2 진입: C205 (actuation_ack_timeout)",
+            "context_summary": "액추에이션 ACK 미수신",
+            "unresolved_reason": "actuation_ack_timeout",
+            "manual_confirmation_path": "caregiver_telegram_response",
+        })
+        adapter.update_escalation(esc_result)
+        adapter.publish()  # this is the call that was missing
+
+        assert len(pub.calls) == 2
+        second_snapshot = pub.calls[1]["payload"]
+        assert second_snapshot["class2"] is not None
+        assert second_snapshot["escalation"] is not None
+        assert second_snapshot["escalation"]["escalation_status"] == "pending"
+
 
 # ------------------------------------------------------------------
 # reset
