@@ -192,6 +192,27 @@ class TestTelegramSender:
         b.send_notification(_valid_payload(audit_id="audit-check-001"))
         assert "audit-check-001" in sender.calls[0]["text"]
 
+    def test_html_special_chars_are_escaped(self):
+        """Sensor-originated strings with HTML chars must not appear raw."""
+        sender = _RecordingTelegramSender()
+        b = CaregiverEscalationBackend(telegram_sender=sender)
+        payload = _valid_payload(context_summary="temp=52°C & smoke<threshold>")
+        b.send_notification(payload)
+        text = sender.calls[0]["text"]
+        assert "<threshold>" not in text
+        assert "&amp;" in text or "&#x27;" in text or "&lt;" in text
+        assert "temp=52°C" in text  # non-HTML chars pass through unchanged
+
+    def test_html_in_event_summary_is_escaped(self):
+        sender = _RecordingTelegramSender()
+        b = CaregiverEscalationBackend(telegram_sender=sender)
+        payload = _valid_payload()
+        payload["event_summary"] = "<script>alert(1)</script>"
+        b.send_notification(payload)
+        text = sender.calls[0]["text"]
+        assert "<script>" not in text
+        assert "&lt;script&gt;" in text
+
 
 # ------------------------------------------------------------------
 # MQTT publishing

@@ -13,6 +13,7 @@ TelegramSender is injected as a protocol so the backend can be unit-tested
 without network access.
 """
 
+import html
 from typing import Optional, Protocol
 
 
@@ -76,12 +77,12 @@ class HttpTelegramSender:
 
 def format_notification_message(notification_payload: dict) -> str:
     """Convert a class2_notification_payload dict to a Telegram HTML string."""
-    event = notification_payload.get("event_summary", "")
-    reason = notification_payload.get("unresolved_reason", "")
-    context = notification_payload.get("context_summary", "")
-    path = notification_payload.get("manual_confirmation_path", "")
-    trigger = notification_payload.get("exception_trigger_id") or "—"
-    audit_id = notification_payload.get("audit_correlation_id", "")
+    event   = html.escape(notification_payload.get("event_summary", ""))
+    reason  = html.escape(notification_payload.get("unresolved_reason", ""))
+    context = html.escape(notification_payload.get("context_summary", ""))
+    path    = html.escape(notification_payload.get("manual_confirmation_path", ""))
+    trigger = html.escape(notification_payload.get("exception_trigger_id") or "—")
+    audit_id = html.escape(notification_payload.get("audit_correlation_id", ""))
 
     lines = [
         "🔔 <b>보호자 에스컬레이션 알림</b>",
