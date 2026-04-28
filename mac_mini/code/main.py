@@ -167,8 +167,16 @@ class Pipeline:
             log.warning("Intake %s: %s", intake_result.status.value, intake_result.rejection_reason)
             return
 
-        # 2. Route
-        route_result = self._router.route(intake_result.raw_payload)
+        # 2. Route — override ingest_timestamp_ms with locally observed time so
+        # the staleness check cannot be spoofed via the payload field.
+        payload_to_route = {
+            **intake_result.raw_payload,
+            "routing_metadata": {
+                **intake_result.raw_payload["routing_metadata"],
+                "ingest_timestamp_ms": intake_result.ingest_timestamp_ms,
+            },
+        }
+        route_result = self._router.route(payload_to_route)
         self._telemetry.update_route(route_result)
         log.info("Route: %s (trigger=%s)", route_result.route_class.value, route_result.trigger_id)
 
