@@ -313,6 +313,79 @@ class TestReset:
         adapter.reset()
         assert adapter.get_snapshot().ack is None
 
+    def test_reset_clears_class2(self, adapter):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", AUDIT_ID)
+        adapter.update_class2(mgr.handle_timeout(session))
+        adapter.reset()
+        assert adapter.get_snapshot().class2 is None
+
+    def test_reset_clears_escalation(self, adapter):
+        backend = CaregiverEscalationBackend()
+        result = backend.send_notification({
+            "event_summary": "test",
+            "context_summary": "test ctx",
+            "unresolved_reason": "insufficient_context",
+            "manual_confirmation_path": "path",
+        })
+        adapter.update_escalation(result)
+        adapter.reset()
+        assert adapter.get_snapshot().escalation is None
+
+    def test_reset_clears_all_fields_at_once(self, adapter):
+        """Simulate CLASS_1 event, then reset: all fields must be None."""
+        adapter.update_route(_router_result(RouteClass.CLASS_1))
+        adapter.update_validation(_validator_result(ValidationStatus.APPROVED))
+        adapter.update_ack(_dispatch_record())
+        adapter.reset()
+        snap = adapter.get_snapshot()
+        assert snap.route is None
+        assert snap.validation is None
+        assert snap.ack is None
+        assert snap.class2 is None
+        assert snap.escalation is None
+
+
+class TestCrossEventIsolation:
+    """Snapshot must not carry state from a previous event into the next."""
+
+    def test_class1_validation_not_visible_after_class0_reset(self, adapter):
+        """After CLASS_1 event, reset, then CLASS_0 route: validation must be None."""
+        # Simulate CLASS_1 completion
+        adapter.update_route(_router_result(RouteClass.CLASS_1))
+        adapter.update_validation(_validator_result(ValidationStatus.APPROVED))
+        adapter.update_ack(_dispatch_record())
+
+        # New event starts — reset happens first
+        adapter.reset()
+        adapter.update_route(_router_result(RouteClass.CLASS_0, trigger_id="E001"))
+
+        snap = adapter.get_snapshot()
+        assert snap.route.route_class == "CLASS_0"
+        assert snap.validation is None  # must NOT carry CLASS_1 approved state
+        assert snap.ack is None         # must NOT carry CLASS_1 published state
+
+    def test_class0_escalation_not_visible_after_class1_reset(self, adapter):
+        """After CLASS_0 escalation, reset, then CLASS_1 route: escalation must be None."""
+        backend = CaregiverEscalationBackend()
+        esc_result = backend.send_notification({
+            "event_summary": "긴급 상황 감지",
+            "context_summary": "CLASS_0 emergency",
+            "unresolved_reason": "emergency_event",
+            "manual_confirmation_path": "path",
+        })
+        adapter.update_route(_router_result(RouteClass.CLASS_0, trigger_id="E001"))
+        adapter.update_escalation(esc_result)
+
+        # New event starts — reset happens first
+        adapter.reset()
+        adapter.update_route(_router_result(RouteClass.CLASS_1))
+        adapter.update_validation(_validator_result(ValidationStatus.APPROVED))
+
+        snap = adapter.get_snapshot()
+        assert snap.route.route_class == "CLASS_1"
+        assert snap.escalation is None  # must NOT carry CLASS_0 escalation state
+
 
 # ------------------------------------------------------------------
 # TelemetrySnapshot.to_dict schema shape

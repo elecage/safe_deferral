@@ -161,6 +161,7 @@ class Pipeline:
     # Context input path
     # ------------------------------------------------------------------
     def handle_context(self, raw: dict) -> None:
+        self._telemetry.reset()
         # 1. Intake
         intake_result = self._intake.process(raw)
         if intake_result.status != IntakeStatus.ACCEPTED:
