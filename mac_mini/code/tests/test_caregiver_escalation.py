@@ -427,6 +427,31 @@ class TestBuildNotificationSchemaCompliance:
         )
         b.send_notification(payload)
 
+    def test_deferral_timeout_mapped_to_c207_passes_schema(self):
+        """deferral_timeout must be sent as C207, not the raw internal string."""
+        b = CaregiverEscalationBackend()
+        payload = _build_notification(
+            event_summary="Class 2 진입: C207 (deferral_timeout)",
+            context_summary="사용자 응답 없음으로 safe deferral 만료",
+            unresolved_reason="user_selection_timeout",
+            audit_id="audit-c207-deferral-test",
+            exception_trigger_id="C207",
+        )
+        b.send_notification(payload)  # must not raise ValidationError
+
+    def test_deferral_timeout_raw_string_raises_validation_error(self):
+        """Confirm that passing the raw 'deferral_timeout' string would fail schema."""
+        b = CaregiverEscalationBackend()
+        bad_payload = _build_notification(
+            event_summary="Class 2 진입: deferral_timeout",
+            context_summary="test",
+            unresolved_reason="user_selection_timeout",
+            audit_id="audit-bad-deferral",
+            exception_trigger_id="deferral_timeout",
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            b.send_notification(bad_payload)
+
     def test_e_series_trigger_id_raises_validation_error(self):
         """Confirm that passing an E-series ID would fail schema — so omitting it is correct."""
         b = CaregiverEscalationBackend()

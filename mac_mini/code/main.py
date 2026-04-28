@@ -264,7 +264,7 @@ class Pipeline:
         )
         deferral_result = self._deferral.handle_timeout(session)
         if deferral_result.should_escalate_to_class2:
-            self._handle_class2("deferral_timeout", route_result)
+            self._handle_class2("C207", route_result)
 
     # ------------------------------------------------------------------
     # CLASS_2 — clarification manager → caregiver
