@@ -201,12 +201,17 @@ class Pipeline:
         log.info("LLM candidate: action=%s target=%s fallback=%s",
                  llm_result.proposed_action, llm_result.target_device, llm_result.is_fallback)
 
-        candidate = {
+        candidate: dict = {
             "proposed_action": llm_result.proposed_action,
-            "target_device": llm_result.target_device,
-            "deferral_reason": llm_result.deferral_reason or "insufficient_context",
-            "rationale_summary": llm_result.rationale_summary or "",
+            "target_device":   llm_result.target_device,
         }
+        rationale = llm_result.candidate.get("rationale_summary", "")
+        if rationale:
+            candidate["rationale_summary"] = rationale
+        if llm_result.is_safe_deferral:
+            candidate["deferral_reason"] = (
+                llm_result.candidate.get("deferral_reason") or "insufficient_context"
+            )
 
         # Validate
         val_result = self._validator.validate(candidate, audit_correlation_id=audit_id)
