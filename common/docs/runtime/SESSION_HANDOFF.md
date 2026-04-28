@@ -16,9 +16,12 @@ If older wording in the legacy master handoff conflicts with newer dated addenda
 
 ## Current priority read order
 
-For current architecture, policy/schema, dashboard, experiment, scenario alignment, scenario data-flow matrix work, OV figure development, Class 2 clarification/transition, frozen-baseline audit, doorbell, doorlock-sensitive, MQTT, payload, governance, interface-matrix, Mac mini install/configure/verify, Raspberry Pi install/configure/verify, ESP32 install/configure/verify, paper figure revision, and architecture-document-structure work, read in this order:
+For current implementation status, experiment readiness, hardware validation,
+setup documentation, and all prior architecture/policy/schema/MQTT work, read
+in this order:
 
-1. `common/docs/runtime/SESSION_HANDOFF_2026-04-26_DOCUMENTATION_CONTRACT_CLEANUP_UPDATE.md`
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_IMPLEMENTATION_COMPLETE_UPDATE.md`
+2. `common/docs/runtime/SESSION_HANDOFF_2026-04-26_DOCUMENTATION_CONTRACT_CLEANUP_UPDATE.md`
 2. `common/docs/runtime/SESSION_HANDOFF_2026-04-26_PAYLOAD_EXAMPLES_AND_SCENARIO_ALIGNMENT_MERGE_UPDATE.md`
 3. `common/docs/runtime/SESSION_HANDOFF_2026-04-26_CLASS2_POLICY_SCHEMA_INTERFACE_ALIGNMENT_MERGE_UPDATE.md`
 4. `common/docs/runtime/SESSION_HANDOFF_2026-04-26_CLASS2_ARCHITECTURE_DOC_ALIGNMENT_UPDATE.md`
