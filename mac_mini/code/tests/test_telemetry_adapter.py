@@ -292,20 +292,45 @@ class TestPublish:
         assert "authority_note" in payload
         assert "read-only" in payload["authority_note"].lower()
 
-    def test_c205_path_publishes_class2_and_escalation(self):
-        """After ACK timeout, class2+escalation snapshot must be published separately."""
+    def test_publish_ack_only_sends_to_observation_topic(self):
         pub = _RecordingPublisher()
         adapter = TelemetryAdapter(mqtt_publisher=pub)
-
-        # Simulate sweep: publishes ACK snapshot first
-        adapter.update_ack(_dispatch_record())
-        adapter.publish()
+        adapter.publish_ack_only(_dispatch_record())
         assert len(pub.calls) == 1
+        assert pub.calls[0]["topic"] == "safe_deferral/dashboard/observation"
 
-        # Simulate _escalate_c205: update class2+escalation then publish again
+    def test_publish_ack_only_snapshot_has_ack_no_route(self):
+        """ACK-only snapshot must not carry route/validation from shared state."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        # Simulate leftover route state from a previous CLASS_0 event
+        adapter.update_route(_router_result(RouteClass.CLASS_0, trigger_id="E001"))
+        # Late ACK arrives — must publish isolated snapshot
+        adapter.publish_ack_only(_dispatch_record())
+        payload = pub.calls[0]["payload"]
+        assert payload["ack"] is not None
+        assert payload["ack"]["action"] == "light_on"
+        assert payload["route"] is None       # must NOT carry CLASS_0 route
+        assert payload["validation"] is None
+
+    def test_publish_ack_only_does_not_modify_shared_state(self):
+        """publish_ack_only must not mutate the adapter's shared fields."""
+        adapter = TelemetryAdapter()
+        adapter.update_route(_router_result(RouteClass.CLASS_0))
+        adapter.publish_ack_only(_dispatch_record())
+        # Shared route state must be unchanged
+        assert adapter.get_snapshot().route is not None
+        assert adapter.get_snapshot().route.route_class == "CLASS_0"
+
+    def test_publish_c205_snapshot_has_class2_and_escalation_no_route(self):
+        """C205 snapshot must not carry route/validation from shared state."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.update_route(_router_result(RouteClass.CLASS_1))
+
         mgr = Class2ClarificationManager()
         session = mgr.start_session("C205", AUDIT_ID)
-        adapter.update_class2(mgr.handle_timeout(session, trigger_id="C205"))
+        class2_result = mgr.handle_timeout(session, trigger_id="C205")
 
         backend = CaregiverEscalationBackend()
         esc_result = backend.send_notification({
@@ -314,14 +339,14 @@ class TestPublish:
             "unresolved_reason": "actuation_ack_timeout",
             "manual_confirmation_path": "caregiver_telegram_response",
         })
-        adapter.update_escalation(esc_result)
-        adapter.publish()  # this is the call that was missing
+        adapter.publish_c205_snapshot(class2_result, esc_result)
 
-        assert len(pub.calls) == 2
-        second_snapshot = pub.calls[1]["payload"]
-        assert second_snapshot["class2"] is not None
-        assert second_snapshot["escalation"] is not None
-        assert second_snapshot["escalation"]["escalation_status"] == "pending"
+        payload = pub.calls[0]["payload"]
+        assert payload["class2"] is not None
+        assert payload["escalation"] is not None
+        assert payload["escalation"]["escalation_status"] == "pending"
+        assert payload["route"] is None       # must NOT carry CLASS_1 route
+        assert payload["validation"] is None
 
 
 # ------------------------------------------------------------------

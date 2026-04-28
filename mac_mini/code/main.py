@@ -308,8 +308,7 @@ class Pipeline:
             log.warning("ACK received for unknown command_id=%s", command_id)
             return
         ack_result = self._ack_handler.handle_ack(record, ack_payload)
-        self._telemetry.update_ack(record)
-        self._telemetry.publish()
+        self._telemetry.publish_ack_only(record)
         log.info("ACK resolved: command_id=%s status=%s", command_id, ack_result.ack_status.value)
 
     # ------------------------------------------------------------------
@@ -329,8 +328,7 @@ class Pipeline:
                 log.warning("ACK timeout: command_id=%s audit=%s",
                             record.command_id, record.audit_correlation_id)
                 self._ack_handler.handle_ack_timeout(record)
-                self._telemetry.update_ack(record)
-                self._telemetry.publish()
+                self._telemetry.publish_ack_only(record)
                 self._escalate_c205(record.audit_correlation_id)
 
     def _escalate_c205(self, audit_correlation_id: str) -> None:
@@ -340,7 +338,6 @@ class Pipeline:
             audit_correlation_id=audit_correlation_id,
         )
         class2_result = self._class2.handle_timeout(session=session, trigger_id="C205")
-        self._telemetry.update_class2(class2_result)
         if class2_result.notification_payload:
             esc_result = self._caregiver.send_notification(class2_result.notification_payload)
         else:
@@ -352,8 +349,7 @@ class Pipeline:
                 exception_trigger_id="C205",
             )
             esc_result = self._caregiver.send_notification(notification)
-        self._telemetry.update_escalation(esc_result)
-        self._telemetry.publish()
+        self._telemetry.publish_c205_snapshot(class2_result, esc_result)
 
 
 # ---------------------------------------------------------------------------
