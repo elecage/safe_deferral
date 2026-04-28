@@ -1,4 +1,4 @@
-# SESSION_HANDOFF — 2026-04-28 Telemetry / Notification 버그픽스 (PR #22~#26)
+# SESSION_HANDOFF — 2026-04-28 Telemetry / Notification 버그픽스 (PR #22~#26, #28~#29)
 
 ## 1. 이 addendum이 다루는 범위
 
@@ -133,10 +133,58 @@ self._telemetry.update_escalation(esc_result)
 | `mac_mini/code/telemetry_adapter/adapter.py` | Fix 8: `publish_ack_only()`, `publish_c205_snapshot()` 추가 |
 | `mac_mini/code/tests/test_caregiver_escalation.py` | Fix 5: `TestBuildNotificationSchemaCompliance` 추가 (6케이스) |
 | `mac_mini/code/tests/test_telemetry_adapter.py` | Fix 6~9: 테스트 다수 추가 |
+| `mac_mini/code/telemetry_adapter/models.py` | Fix 10: `AckTelemetry`에 `command_id`, `audit_correlation_id` 필드 추가; `TelemetrySnapshot`에 `audit_correlation_id` 상위 필드 추가; `to_dict()` 반영 |
+| `mac_mini/code/telemetry_adapter/adapter.py` | Fix 10~11: `_audit_correlation_id` 내부 상태 추가; `update_route()`에서 캡처; `update_ack()`에서 `command_id`/`audit_correlation_id` 전달; `get_snapshot()`/`reset()`에서 처리; `publish_ack_only()`/`publish_c205_snapshot()` — correlation 필드 채움 |
+| `mac_mini/code/tests/test_telemetry_adapter.py` | Fix 10~11: `TestUpdateAck`, `TestUpdateRoute`, `TestReset`, `TestPublish` 케이스 추가 |
 
 ---
 
-## 8. 머지된 PR 목록 (이 세션)
+## 8. Fix 10 — Isolated snapshot에서 correlation 정보 누락 (PR #28)
+
+### 문제
+
+`publish_ack_only()`와 `publish_c205_snapshot()`이 생성한 격리 snapshot에
+`AckTelemetry.command_id`, `AckTelemetry.audit_correlation_id`,
+`TelemetrySnapshot.audit_correlation_id` 필드가 빠져 있었다.
+dashboard에서 어떤 명령/이벤트와 연관된 ACK/C205인지 추적 불가.
+
+### 수정
+
+- `AckTelemetry` dataclass에 `command_id: str = ""`, `audit_correlation_id: str = ""` 추가
+- `TelemetrySnapshot` dataclass에 `audit_correlation_id: str = ""` 상위 필드 추가
+- `TelemetrySnapshot.to_dict()`에 `"audit_correlation_id"` 포함
+- `publish_ack_only(record)`: `command_id=record.command_id`, `audit_correlation_id=record.audit_correlation_id` 전달
+- `publish_c205_snapshot(class2_result, esc_result, audit_correlation_id="")`: `audit_correlation_id` 파라미터 추가, snapshot에 반영
+
+---
+
+## 8b. Fix 11 — Context-path snapshot에 correlation 필드 미채움 (PR #29)
+
+### 문제
+
+`get_snapshot()`이 `TelemetrySnapshot`의 `audit_correlation_id` 상위 필드를 채우지 않아
+CLASS_0/1/2 context-path 이벤트의 snapshot에서도 correlation 정보가 빠졌다.
+`update_ack()`도 `command_id`/`audit_correlation_id`를 `AckTelemetry`에 전달하지 않았다.
+
+### 수정
+
+- `TelemetryAdapter.__init__()`: `self._audit_correlation_id: str = ""` 내부 상태 추가
+- `update_route(result)`: `self._audit_correlation_id = result.audit_correlation_id` 로 캡처
+- `update_ack(record)`: `command_id=record.command_id`, `audit_correlation_id=record.audit_correlation_id` 전달
+- `get_snapshot()`: `audit_correlation_id=self._audit_correlation_id` 전달
+- `reset()`: `self._audit_correlation_id = ""` 추가
+
+### snapshot correlation 필드 채움 매트릭스 (수정 후)
+
+| 발행 경로 | `TelemetrySnapshot.audit_correlation_id` | `AckTelemetry.command_id` | `AckTelemetry.audit_correlation_id` |
+|-----------|------------------------------------------|--------------------------|-------------------------------------|
+| context-path (`handle_context()`) | ✅ (route에서 캡처) | N/A | N/A |
+| `publish_ack_only()` | — (빈 문자열) | ✅ | ✅ |
+| `publish_c205_snapshot()` | ✅ (파라미터) | N/A | N/A |
+
+---
+
+## 9. 머지된 PR 목록 (이 세션)
 
 | PR | 제목 | 상태 |
 |----|------|------|
@@ -145,27 +193,29 @@ self._telemetry.update_escalation(esc_result)
 | #24 | fix: publish telemetry after C205 class2/escalation update | ✅ merged |
 | #25 | fix: isolate ACK/C205 telemetry snapshots from context event state | ✅ merged |
 | #26 | fix: reflect CLASS_0 caregiver escalation in telemetry snapshot | ✅ merged |
+| #28 | feat: add command_id and audit_correlation_id to isolated ACK/C205 snapshots | ✅ merged |
+| #29 | feat: populate audit_correlation_id in context-path snapshots | ✅ merged |
 
-누적 버그픽스 PR: #17~#26 (총 10건).
+누적 버그픽스 PR: #17~#26, #28~#29 (총 12건).
 
 ---
 
-## 9. 현재 테스트 현황
+## 10. 현재 테스트 현황
 
 | 테스트 파일 | 케이스 수 |
 |------------|---------|
 | `test_caregiver_escalation.py` | 48 |
-| `test_telemetry_adapter.py` | 43 |
+| `test_telemetry_adapter.py` | 50 |
 | 기타 (audit, intake, router, validator, dispatcher 등) | 각 파일 기존 케이스 유지 |
 
 ---
 
-## 10. 현재 WORK_PLAN 상태
+## 11. 현재 WORK_PLAN 상태
 
 | 항목 | 상태 |
 |------|------|
-| Mac mini 라이브러리 코드 (MM-01~10) | ✅ 완료 + 버그픽스 10건 반영 |
-| Mac mini 진입점 (`main.py`) | ✅ 완료 + 버그픽스 10건 반영 |
+| Mac mini 라이브러리 코드 (MM-01~10) | ✅ 완료 + 버그픽스 12건 반영 |
+| Mac mini 진입점 (`main.py`) | ✅ 완료 + 버그픽스 12건 반영 |
 | RPi 라이브러리 코드 (RPI-01~10) | ✅ 완료 |
 | RPi 진입점 (`main.py`) | ✅ 완료 |
 | ESP32 노드 펌웨어 (PN-01~08) | ✅ 완료 (하드웨어 검증 대기) |
@@ -179,7 +229,7 @@ self._telemetry.update_escalation(esc_result)
 
 ---
 
-## 11. 다음 세션 진입점
+## 12. 다음 세션 진입점
 
 코드 측 미결 사항 없음. 추가 코드 리뷰가 있으면 이 addendum 이후에 이어서 수정.
 
