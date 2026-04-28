@@ -20,6 +20,13 @@ from typing import Optional
 
 from low_risk_dispatcher.models import AckResult, AckStatus, DispatchRecord, DispatchStatus
 
+# Maps action name to the observed_state value that constitutes closed-loop success.
+# Only canonical Class 1 actions are listed; unlisted actions skip the state check.
+_EXPECTED_OBSERVED_STATE: dict = {
+    "light_on": "on",
+    "light_off": "off",
+}
+
 
 class AckHandler:
 
@@ -35,20 +42,34 @@ class AckHandler:
     ) -> AckResult:
         """Process an incoming ACK payload.
 
-        Accepts any ack_status string from the payload; maps "success" to
-        AckStatus.SUCCESS and everything else to AckStatus.FAILURE.  A
-        command_id mismatch is treated as a failure.
+        For success, the ACK must pass four checks in order:
+          1. command_id matches the dispatched record.
+          2. target_device matches the dispatched record.
+          3. audit_correlation_id matches when the ACK includes a non-empty value.
+          4. observed_state matches the expected post-action state for known actions.
+        Any mismatch produces AckStatus.FAILURE regardless of ack_status.
         """
         ts = timestamp_ms or int(time.time() * 1000)
 
-        incoming_command_id = ack_payload.get("command_id", "")
-        if incoming_command_id != record.command_id:
+        if ack_payload.get("command_id", "") != record.command_id:
+            return self._resolve(record, AckStatus.FAILURE, ts, observed_state=None)
+
+        if ack_payload.get("target_device", "") != record.target_device:
+            return self._resolve(record, AckStatus.FAILURE, ts, observed_state=None)
+
+        ack_audit_id = ack_payload.get("audit_correlation_id", "")
+        if ack_audit_id and ack_audit_id != record.audit_correlation_id:
             return self._resolve(record, AckStatus.FAILURE, ts, observed_state=None)
 
         raw_status = ack_payload.get("ack_status", "")
-        ack_status = AckStatus.SUCCESS if raw_status == "success" else AckStatus.FAILURE
         observed_state = ack_payload.get("observed_state")
 
+        if raw_status == "success":
+            expected = _EXPECTED_OBSERVED_STATE.get(record.action)
+            if expected is not None and observed_state != expected:
+                return self._resolve(record, AckStatus.FAILURE, ts, observed_state)
+
+        ack_status = AckStatus.SUCCESS if raw_status == "success" else AckStatus.FAILURE
         return self._resolve(record, ack_status, ts, observed_state)
 
     def handle_ack_timeout(

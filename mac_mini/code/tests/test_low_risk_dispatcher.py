@@ -176,8 +176,9 @@ class TestAckSuccess:
 
     def test_ack_success_updates_dispatch_record(self, dispatcher, ack_handler):
         result = dispatcher.dispatch(_approved_result(), command_id="cmd-ack-002")
-        ack_payload = {"command_id": "cmd-ack-002", "ack_status": "success",
-                       "observed_state": "on", "audit_correlation_id": AUDIT_ID}
+        ack_payload = {"command_id": "cmd-ack-002", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on",
+                       "audit_correlation_id": AUDIT_ID}
         ack_handler.handle_ack(result.dispatch_record, ack_payload)
         assert result.dispatch_record.dispatch_status == DispatchStatus.ACK_SUCCESS
         assert result.dispatch_record.ack_status == AckStatus.SUCCESS
@@ -185,14 +186,16 @@ class TestAckSuccess:
 
     def test_ack_result_audit_id_preserved(self, dispatcher, ack_handler):
         result = dispatcher.dispatch(_approved_result(), command_id="cmd-ack-003")
-        ack_payload = {"command_id": "cmd-ack-003", "ack_status": "success",
-                       "observed_state": "on"}
+        ack_payload = {"command_id": "cmd-ack-003", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on",
+                       "audit_correlation_id": AUDIT_ID}
         ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
         assert ack.audit_correlation_id == AUDIT_ID
 
     def test_ack_result_command_id_matches(self, dispatcher, ack_handler):
         result = dispatcher.dispatch(_approved_result(), command_id="cmd-ack-004")
-        ack_payload = {"command_id": "cmd-ack-004", "ack_status": "success"}
+        ack_payload = {"command_id": "cmd-ack-004", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on"}
         ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
         assert ack.command_id == "cmd-ack-004"
 
@@ -225,6 +228,50 @@ class TestAckFailure:
     def test_unknown_ack_status_string_is_failure(self, dispatcher, ack_handler):
         result = dispatcher.dispatch(_approved_result(), command_id="cmd-fail-004")
         ack_payload = {"command_id": "cmd-fail-004", "ack_status": "unknown_state"}
+        ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
+        assert ack.ack_status == AckStatus.FAILURE
+
+    def test_mismatched_target_device_treated_as_failure(self, dispatcher, ack_handler):
+        result = dispatcher.dispatch(_approved_result(), command_id="cmd-fail-005")
+        ack_payload = {"command_id": "cmd-fail-005", "target_device": "bedroom_light",
+                       "ack_status": "success", "observed_state": "on"}
+        ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
+        assert ack.ack_status == AckStatus.FAILURE
+
+    def test_mismatched_audit_correlation_id_treated_as_failure(self, dispatcher, ack_handler):
+        result = dispatcher.dispatch(_approved_result(), command_id="cmd-fail-006")
+        ack_payload = {"command_id": "cmd-fail-006", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on",
+                       "audit_correlation_id": "WRONG_AUDIT_ID"}
+        ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
+        assert ack.ack_status == AckStatus.FAILURE
+
+    def test_success_with_wrong_observed_state_treated_as_failure(self, dispatcher, ack_handler):
+        result = dispatcher.dispatch(_approved_result(), command_id="cmd-fail-007")
+        ack_payload = {"command_id": "cmd-fail-007", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "off"}
+        ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
+        assert ack.ack_status == AckStatus.FAILURE
+
+    def test_success_with_missing_observed_state_treated_as_failure(self, dispatcher, ack_handler):
+        result = dispatcher.dispatch(_approved_result(), command_id="cmd-fail-008")
+        ack_payload = {"command_id": "cmd-fail-008", "target_device": "living_room_light",
+                       "ack_status": "success"}
+        ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
+        assert ack.ack_status == AckStatus.FAILURE
+
+    def test_absent_audit_id_in_ack_does_not_fail(self, dispatcher, ack_handler):
+        """audit_correlation_id check is skipped when the ACK omits the field."""
+        result = dispatcher.dispatch(_approved_result(), command_id="cmd-fail-009")
+        ack_payload = {"command_id": "cmd-fail-009", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on"}
+        ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
+        assert ack.ack_status == AckStatus.SUCCESS
+
+    def test_light_off_success_requires_observed_off(self, dispatcher, ack_handler):
+        result = dispatcher.dispatch(_approved_result(action="light_off"), command_id="cmd-fail-010")
+        ack_payload = {"command_id": "cmd-fail-010", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on"}
         ack = ack_handler.handle_ack(result.dispatch_record, ack_payload)
         assert ack.ack_status == AckStatus.FAILURE
 
@@ -276,8 +323,8 @@ class TestDispatchRecordSchema:
 
     def test_to_dict_after_success_ack(self, dispatcher, ack_handler):
         result = dispatcher.dispatch(_approved_result(), command_id="cmd-dict-001")
-        ack_payload = {"command_id": "cmd-dict-001", "ack_status": "success",
-                       "observed_state": "on"}
+        ack_payload = {"command_id": "cmd-dict-001", "target_device": "living_room_light",
+                       "ack_status": "success", "observed_state": "on"}
         ack_handler.handle_ack(result.dispatch_record, ack_payload)
         d = result.dispatch_record.to_dict()
         assert d["dispatch_status"] == "ack_success"
