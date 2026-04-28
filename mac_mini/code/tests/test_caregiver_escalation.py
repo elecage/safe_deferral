@@ -1,5 +1,6 @@
 """Tests for CaregiverEscalationBackend (MM-08)."""
 
+import time
 import pytest
 import jsonschema
 
@@ -8,6 +9,32 @@ from caregiver_escalation.models import (
     CaregiverDecision,
     EscalationStatus,
 )
+
+
+# ------------------------------------------------------------------
+# Helpers mirroring _build_notification() in main.py
+# ------------------------------------------------------------------
+
+def _build_notification(
+    event_summary: str,
+    context_summary: str,
+    unresolved_reason: str,
+    audit_id: str,
+    exception_trigger_id=None,
+) -> dict:
+    payload = {
+        "event_summary": event_summary,
+        "context_summary": context_summary,
+        "unresolved_reason": unresolved_reason,
+        "manual_confirmation_path": "caregiver_telegram_response",
+        "audit_correlation_id": audit_id,
+        "timestamp_ms": int(time.time() * 1000),
+        "notification_channel": "telegram",
+        "source_layer": "system",
+    }
+    if exception_trigger_id is not None:
+        payload["exception_trigger_id"] = exception_trigger_id
+    return payload
 
 AUDIT_ID = "test_audit_mm08"
 
@@ -339,3 +366,76 @@ class TestConfirmationRecordSchema:
         result = backend.send_notification(_valid_payload())
         cr = backend.record_response(result, CaregiverDecision.DENIED)
         assert isinstance(cr.to_dict()["decision"], str)
+
+
+# ------------------------------------------------------------------
+# _build_notification schema compliance
+# ------------------------------------------------------------------
+
+class TestBuildNotificationSchemaCompliance:
+    """Verify that _build_notification() outputs pass schema validation."""
+
+    def test_class0_emergency_payload_passes_schema(self):
+        """CLASS_0 path: no exception_trigger_id, source_layer='system'."""
+        b = CaregiverEscalationBackend()
+        payload = _build_notification(
+            event_summary="긴급 상황 감지: E002",
+            context_summary="CLASS_0 emergency trigger — immediate caregiver notification.",
+            unresolved_reason="emergency_event",
+            audit_id="audit-e002-test",
+        )
+        b.send_notification(payload)  # must not raise ValidationError
+
+    def test_class0_source_layer_is_system(self):
+        payload = _build_notification(
+            event_summary="긴급 상황 감지: E001",
+            context_summary="test",
+            unresolved_reason="emergency_event",
+            audit_id="audit-e001-test",
+        )
+        assert payload["source_layer"] == "system"
+
+    def test_class0_no_exception_trigger_id(self):
+        payload = _build_notification(
+            event_summary="긴급 상황 감지: E003",
+            context_summary="test",
+            unresolved_reason="emergency_event",
+            audit_id="audit-e003-test",
+        )
+        assert "exception_trigger_id" not in payload
+
+    def test_class2_c206_payload_passes_schema(self):
+        """CLASS_2 path: C-series trigger ID included."""
+        b = CaregiverEscalationBackend()
+        payload = _build_notification(
+            event_summary="Class 2 진입: C206",
+            context_summary="insufficient context",
+            unresolved_reason="insufficient_context",
+            audit_id="audit-c206-test",
+            exception_trigger_id="C206",
+        )
+        b.send_notification(payload)
+
+    def test_class2_c205_payload_passes_schema(self):
+        b = CaregiverEscalationBackend()
+        payload = _build_notification(
+            event_summary="Class 2 진입: C205 (actuation_ack_timeout)",
+            context_summary="액추에이션 ACK 미수신",
+            unresolved_reason="actuation_ack_timeout",
+            audit_id="audit-c205-test",
+            exception_trigger_id="C205",
+        )
+        b.send_notification(payload)
+
+    def test_e_series_trigger_id_raises_validation_error(self):
+        """Confirm that passing an E-series ID would fail schema — so omitting it is correct."""
+        b = CaregiverEscalationBackend()
+        bad_payload = _build_notification(
+            event_summary="긴급",
+            context_summary="test",
+            unresolved_reason="emergency_event",
+            audit_id="audit-bad",
+            exception_trigger_id="E002",
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            b.send_notification(bad_payload)
