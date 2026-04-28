@@ -118,6 +118,15 @@ class TestUpdateRoute:
         snap = adapter.get_snapshot()
         assert snap.route.route_class == "CLASS_1"
 
+    def test_audit_correlation_id_set_from_route(self, adapter):
+        adapter.update_route(_router_result())
+        assert adapter.get_snapshot().audit_correlation_id == AUDIT_ID
+
+    def test_audit_correlation_id_in_to_dict(self, adapter):
+        adapter.update_route(_router_result())
+        d = adapter.get_snapshot().to_dict()
+        assert d["audit_correlation_id"] == AUDIT_ID
+
     def test_class2_route_stored(self, adapter):
         adapter.update_route(_router_result(RouteClass.CLASS_2, trigger_id="C204"))
         snap = adapter.get_snapshot()
@@ -175,6 +184,14 @@ class TestUpdateAck:
         adapter.update_ack(record)
         snap = adapter.get_snapshot()
         assert snap.ack.target_device == "living_room_light"
+
+    def test_ack_command_id_stored(self, adapter):
+        adapter.update_ack(_dispatch_record())
+        assert adapter.get_snapshot().ack.command_id == "cmd-tel-001"
+
+    def test_ack_audit_correlation_id_stored(self, adapter):
+        adapter.update_ack(_dispatch_record())
+        assert adapter.get_snapshot().ack.audit_correlation_id == AUDIT_ID
 
 
 # ------------------------------------------------------------------
@@ -417,6 +434,11 @@ class TestReset:
         adapter.reset()
         assert adapter.get_snapshot().escalation is None
 
+    def test_reset_clears_audit_correlation_id(self, adapter):
+        adapter.update_route(_router_result())
+        adapter.reset()
+        assert adapter.get_snapshot().audit_correlation_id == ""
+
     def test_reset_clears_all_fields_at_once(self, adapter):
         """Simulate CLASS_1 event, then reset: all fields must be None."""
         adapter.update_route(_router_result(RouteClass.CLASS_1))
@@ -424,6 +446,7 @@ class TestReset:
         adapter.update_ack(_dispatch_record())
         adapter.reset()
         snap = adapter.get_snapshot()
+        assert snap.audit_correlation_id == ""
         assert snap.route is None
         assert snap.validation is None
         assert snap.ack is None
