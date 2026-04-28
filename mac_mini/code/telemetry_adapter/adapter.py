@@ -153,6 +153,8 @@ class TelemetryAdapter:
             action=record.action,
             target_device=record.target_device,
             timestamp_ms=record.ack_received_at_ms or record.published_at_ms,
+            command_id=record.command_id,
+            audit_correlation_id=record.audit_correlation_id,
         )
         snapshot = TelemetrySnapshot(
             snapshot_id=str(uuid.uuid4()),
@@ -167,6 +169,7 @@ class TelemetryAdapter:
         self,
         class2_result: "Class2Result",
         esc_result: "EscalationResult",
+        audit_correlation_id: str = "",
     ) -> TelemetrySnapshot:
         """Publish an isolated C205 snapshot without touching shared adapter state.
 
@@ -189,6 +192,7 @@ class TelemetryAdapter:
             generated_at_ms=int(time.time() * 1000),
             class2=class2,
             escalation=escalation,
+            audit_correlation_id=audit_correlation_id,
             audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
         )
         self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)

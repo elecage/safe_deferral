@@ -350,7 +350,7 @@ class Pipeline:
                 exception_trigger_id="C205",
             )
             esc_result = self._caregiver.send_notification(notification)
-        self._telemetry.publish_c205_snapshot(class2_result, esc_result)
+        self._telemetry.publish_c205_snapshot(class2_result, esc_result, audit_correlation_id)
 
 
 # ---------------------------------------------------------------------------

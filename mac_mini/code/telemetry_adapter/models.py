@@ -27,6 +27,8 @@ class AckTelemetry:
     action: str
     target_device: str
     timestamp_ms: int
+    command_id: str = ""
+    audit_correlation_id: str = ""
 
 
 @dataclass
@@ -62,6 +64,7 @@ class TelemetrySnapshot:
     ack: Optional[AckTelemetry] = None
     class2: Optional[Class2Telemetry] = None
     escalation: Optional[EscalationTelemetry] = None
+    audit_correlation_id: str = ""
     audit_event_count: int = 0
     authority_note: str = (
         "Telemetry is read-only experiment visibility data. "
@@ -78,6 +81,7 @@ class TelemetrySnapshot:
         return {
             "snapshot_id": self.snapshot_id,
             "generated_at_ms": self.generated_at_ms,
+            "audit_correlation_id": self.audit_correlation_id,
             "route": _as(self.route),
             "validation": _as(self.validation),
             "ack": _as(self.ack),
