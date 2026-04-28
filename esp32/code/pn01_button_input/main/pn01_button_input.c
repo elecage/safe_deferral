@@ -22,15 +22,16 @@
 #include "esp_sntp.h"
 #include "mqtt_client.h"
 
+#include "nvs_flash.h"
 #include "../../shared/sd_mqtt_topics.h"
 #include "../../shared/sd_payload.h"
+#include "../../shared/sd_provision.h"
 
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
 #define NODE_SOURCE_ID      "esp32.button_node_01"
 #define BUTTON_GPIO         GPIO_NUM_9     /* Built-in boot button on ESP32-C3 Super Mini */
 #define DEBOUNCE_MS         50
-#define MQTT_BROKER_URI     CONFIG_SD_MQTT_BROKER_URI   /* via menuconfig */
 
 static const char *TAG = "pn01_button";
 
@@ -157,16 +158,16 @@ static void gpio_init(void)
 
 /* ── MQTT init ──────────────────────────────────────────────────────────── */
 
-static void mqtt_init(void)
+static void mqtt_init(const char *broker_uri)
 {
     esp_mqtt_client_config_t cfg = {
-        .broker.address.uri = MQTT_BROKER_URI,
+        .broker.address.uri = broker_uri,
         .credentials.client_id = NODE_SOURCE_ID,
     };
     s_mqtt = esp_mqtt_client_init(&cfg);
     esp_mqtt_client_register_event(s_mqtt, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(s_mqtt);
-    ESP_LOGI(TAG, "MQTT client started, broker=%s", MQTT_BROKER_URI);
+    ESP_LOGI(TAG, "MQTT client started, broker=%s", broker_uri);
 }
 
 /* ── app_main ───────────────────────────────────────────────────────────── */
@@ -175,10 +176,26 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "PN-01 Button Input Node starting, source_id=%s", NODE_SOURCE_ID);
 
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    sd_prov_config_t prov_cfg;
+    if (!sd_prov_load(&prov_cfg) || !sd_prov_wifi_connect(&prov_cfg, 30)) {
+        ESP_LOGW(TAG, "WiFi not configured or connect failed — starting provisioning");
+        sd_prov_start(&prov_cfg);   /* does not return */
+    }
+    ESP_LOGI(TAG, "WiFi connected, broker=%s", prov_cfg.mqtt_broker_uri);
+
     s_btn_queue = xQueueCreate(8, sizeof(btn_event_t));
 
     gpio_init();
-    mqtt_init();
+    mqtt_init(prov_cfg.mqtt_broker_uri);
 
     xTaskCreate(button_task, "button_task", 4096, NULL, 5, NULL);
 

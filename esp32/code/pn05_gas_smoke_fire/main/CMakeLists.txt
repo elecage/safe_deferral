@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "pn05_gas_smoke_fire.c"
         "../../shared/sd_payload.c"
+        "../../shared/sd_provision.c"
     INCLUDE_DIRS
         "."
         "../../shared"
@@ -13,4 +14,9 @@ idf_component_register(
         log
         freertos
         json
+        esp_wifi
+        esp_http_server
+        nvs_flash
+        esp_netif
+        lwip
 )

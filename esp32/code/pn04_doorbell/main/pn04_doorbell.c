@@ -23,8 +23,10 @@
 #include "esp_timer.h"
 #include "mqtt_client.h"
 
+#include "nvs_flash.h"
 #include "../../shared/sd_mqtt_topics.h"
 #include "../../shared/sd_payload.h"
+#include "../../shared/sd_provision.h"
 
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
@@ -35,7 +37,6 @@
  */
 #define DOORBELL_GPIO     GPIO_NUM_3
 #define DEBOUNCE_MS       100
-#define MQTT_BROKER_URI   CONFIG_SD_MQTT_BROKER_URI
 
 static const char *TAG = "pn04_doorbell";
 
@@ -125,6 +126,22 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "PN-04 Doorbell Node starting, source_id=%s", NODE_SOURCE_ID);
 
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    sd_prov_config_t prov_cfg;
+    if (!sd_prov_load(&prov_cfg) || !sd_prov_wifi_connect(&prov_cfg, 30)) {
+        ESP_LOGW(TAG, "WiFi not configured or connect failed — starting provisioning");
+        sd_prov_start(&prov_cfg);   /* does not return */
+    }
+    ESP_LOGI(TAG, "WiFi connected, broker=%s", prov_cfg.mqtt_broker_uri);
+
     s_bell_queue = xQueueCreate(4, sizeof(int64_t));
 
     gpio_config_t cfg = {
@@ -138,7 +155,7 @@ void app_main(void)
     gpio_isr_handler_add(DOORBELL_GPIO, doorbell_isr, NULL);
 
     esp_mqtt_client_config_t mcfg = {
-        .broker.address.uri    = MQTT_BROKER_URI,
+        .broker.address.uri    = prov_cfg.mqtt_broker_uri,
         .credentials.client_id = NODE_SOURCE_ID,
     };
     s_mqtt = esp_mqtt_client_init(&mcfg);

@@ -30,8 +30,10 @@
 #include "mqtt_client.h"
 #include "cJSON.h"
 
+#include "nvs_flash.h"
 #include "../../shared/sd_mqtt_topics.h"
 #include "../../shared/sd_payload.h"
+#include "../../shared/sd_provision.h"
 
 /* ── Configuration ─────────────────────────────────────────────────────── */
 
@@ -46,7 +48,6 @@
 #define GPIO_STATUS_LED       GPIO_NUM_5
 #define LOCK_PULSE_MS         500           /* relay activation pulse */
 #define CMD_TIMEOUT_MS        5000          /* max command processing time */
-#define MQTT_BROKER_URI       CONFIG_SD_MQTT_BROKER_URI
 
 /* Only this action string is accepted from actuation/command. */
 #define GOVERNED_ACTION       "door_unlock"
@@ -199,10 +200,26 @@ void app_main(void)
     ESP_LOGI(TAG, "PN-08 Doorlock Interface Node starting, source_id=%s", NODE_SOURCE_ID);
     ESP_LOGI(TAG, "IMPORTANT: autonomous Class 1 unlock is BLOCKED by design");
 
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    sd_prov_config_t prov_cfg;
+    if (!sd_prov_load(&prov_cfg) || !sd_prov_wifi_connect(&prov_cfg, 30)) {
+        ESP_LOGW(TAG, "WiFi not configured or connect failed — starting provisioning");
+        sd_prov_start(&prov_cfg);   /* does not return */
+    }
+    ESP_LOGI(TAG, "WiFi connected, broker=%s", prov_cfg.mqtt_broker_uri);
+
     gpio_init_lock();
 
     esp_mqtt_client_config_t mcfg = {
-        .broker.address.uri    = MQTT_BROKER_URI,
+        .broker.address.uri    = prov_cfg.mqtt_broker_uri,
         .credentials.client_id = NODE_SOURCE_ID,
     };
     s_mqtt = esp_mqtt_client_init(&mcfg);

@@ -69,48 +69,51 @@ source ./export.sh
 
 ---
 
-## 4. MQTT 브로커 URI 설정 / MQTT Broker URI Configuration
+## 4. WiFi 프로비저닝 (최초 설정) / WiFi Provisioning (First-Time Setup)
 
 **한국어**  
-각 노드는 `CONFIG_SD_MQTT_BROKER_URI`를 `idf.py menuconfig`로 설정합니다.
+각 노드는 최초 부팅 시 저장된 WiFi 자격증명이 없으면 자동으로 SoftAP + 캡티브 포털 프로비저닝 모드로 진입합니다. 별도의 menuconfig 설정 없이 스마트폰으로 설정할 수 있습니다.
 
-```bash
-cd esp32/code/<node_directory>
+**프로비저닝 절차:**
 
-# ESP-IDF 환경 활성화
-source ~/esp/esp-idf/export.sh
+1. 펌웨어를 플래시하고 노드를 부팅합니다.
+2. 스마트폰의 WiFi 설정에서 `sd-XXXXXX` (마지막 3바이트 MAC 주소 기반) 네트워크에 접속합니다.
+3. 캡티브 포털 브라우저 팝업이 자동으로 나타납니다 (나타나지 않으면 `http://192.168.4.1` 직접 접속).
+4. 설정 페이지에서 다음을 입력합니다:
+   - **WiFi SSID**: 연결할 공유기 네트워크 이름
+   - **WiFi 비밀번호**: 네트워크 비밀번호 (오픈 네트워크이면 빈칸)
+   - **MQTT 브로커 주소**: 예) `mqtt://192.168.1.100:1883`
+5. **저장 / Save** 버튼을 누르면 설정이 NVS에 저장되고 노드가 자동 재시작됩니다.
+6. 재시작 후 노드는 입력한 WiFi에 연결하여 MQTT 통신을 시작합니다.
 
-# menuconfig 실행
-idf.py menuconfig
-# → Component config → safe_deferral → MQTT Broker URI
-# 예: mqtt://192.168.1.100:1883
-```
-
-또는 `sdkconfig.defaults` 파일로 사전 설정:
-```
-# esp32/code/<node>/sdkconfig.defaults
-CONFIG_SD_MQTT_BROKER_URI="mqtt://192.168.1.100:1883"
+재프로비저닝이 필요한 경우 (예: 공유기 교체):
+```c
+// app_main 시작 시 sd_prov_erase()를 호출하거나
+// 노드 소스에서 한 번 실행 후 재플래시
+sd_prov_erase();
+esp_restart();
 ```
 
 **English**  
-Each node reads `CONFIG_SD_MQTT_BROKER_URI` set via `idf.py menuconfig`.
+On first boot, each node automatically enters SoftAP + Captive Portal provisioning mode if no saved WiFi credentials exist. No menuconfig setup required — configure directly from your smartphone.
 
-```bash
-cd esp32/code/<node_directory>
+**Provisioning procedure:**
 
-# Activate ESP-IDF environment
-source ~/esp/esp-idf/export.sh
+1. Flash the firmware and boot the node.
+2. On your phone's WiFi settings, connect to the `sd-XXXXXX` network (last 3 bytes of MAC address).
+3. A captive portal browser pop-up will appear automatically (if not, navigate to `http://192.168.4.1` directly).
+4. On the configuration page, enter:
+   - **WiFi SSID**: Your router's network name
+   - **WiFi Password**: Network password (leave blank for open networks)
+   - **MQTT Broker URI**: e.g. `mqtt://192.168.1.100:1883`
+5. Press **저장 / Save** — settings are saved to NVS and the node restarts automatically.
+6. After restart, the node connects to the specified WiFi and begins MQTT communication.
 
-# Open menuconfig
-idf.py menuconfig
-# → Component config → safe_deferral → MQTT Broker URI
-# e.g. mqtt://192.168.1.100:1883
-```
-
-Or pre-configure with `sdkconfig.defaults`:
-```
-# esp32/code/<node>/sdkconfig.defaults
-CONFIG_SD_MQTT_BROKER_URI="mqtt://192.168.1.100:1883"
+To re-provision (e.g. after router change):
+```c
+// Call sd_prov_erase() at app_main startup once, then reflash
+sd_prov_erase();
+esp_restart();
 ```
 
 ---
