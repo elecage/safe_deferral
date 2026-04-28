@@ -442,6 +442,24 @@ class TestCrossEventIsolation:
         assert snap.route.route_class == "CLASS_1"
         assert snap.escalation is None  # must NOT carry CLASS_0 escalation state
 
+    def test_class0_escalation_visible_in_same_event_snapshot(self, adapter):
+        """CLASS_0 escalation must be reflected in the same event's snapshot."""
+        backend = CaregiverEscalationBackend()
+        esc_result = backend.send_notification({
+            "event_summary": "긴급 상황 감지: E002",
+            "context_summary": "CLASS_0 emergency trigger — immediate caregiver notification.",
+            "unresolved_reason": "emergency_event",
+            "manual_confirmation_path": "caregiver_telegram_response",
+        })
+        adapter.update_route(_router_result(RouteClass.CLASS_0, trigger_id="E002"))
+        adapter.update_escalation(esc_result)
+
+        snap = adapter.get_snapshot()
+        assert snap.route.route_class == "CLASS_0"
+        assert snap.escalation is not None
+        assert snap.escalation.escalation_status == "pending"
+        assert snap.escalation.notification_channel == "telegram"
+
 
 # ------------------------------------------------------------------
 # TelemetrySnapshot.to_dict schema shape
