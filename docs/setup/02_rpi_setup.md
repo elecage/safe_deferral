@@ -32,13 +32,35 @@ Installation is divided into three phases, all handled by scripts under `rpi/scr
 - Raspberry Pi OS (64-bit) Bookworm 또는 Bullseye
 - Python 3.11 이상
 - Mac mini와 동일한 LAN에 연결
-- Mac mini의 LAN IP 주소를 미리 확인 (configure 단계에서 필요)
+- Mac mini의 호스트명 확인 (configure 단계에서 필요 — 아래 참조)
+
+> **Mac mini 주소 확인 방법**  
+> macOS는 Bonjour(mDNS)를 통해 `<호스트명>.local`로 자동 노출됩니다.  
+> Mac mini 터미널에서 실행:
+> ```bash
+> scutil --get LocalHostName
+> # 예시 출력: mac-mini
+> # → RPi에서 mac-mini.local 로 접속 가능
+> ```
+> RPi에서 `ping mac-mini.local`로 통신 여부를 확인합니다.  
+> mDNS가 동작하지 않으면 IP 직접 입력: `ipconfig getifaddr en0`
 
 **English**
 - Raspberry Pi OS (64-bit) Bookworm or Bullseye
 - Python 3.11 or later
 - Connected to the same LAN as the Mac mini
-- Mac mini's LAN IP address on hand (required in the configure phase)
+- Mac mini hostname on hand (required in the configure phase — see below)
+
+> **How to find the Mac mini address**  
+> macOS advertises itself via Bonjour (mDNS) as `<hostname>.local`.  
+> Run on the Mac mini terminal:
+> ```bash
+> scutil --get LocalHostName
+> # Example output: mac-mini
+> # → RPi can reach it as mac-mini.local
+> ```
+> Verify from the RPi with `ping mac-mini.local`.  
+> If mDNS does not work, use the IP directly: `ipconfig getifaddr en0`
 
 ---
 
@@ -174,13 +196,16 @@ nano ~/smarthome_workspace/.env
 ```
 
 필수 입력 항목:
-| 키 | 설명 | 예시 |
-|---|---|---|
-| `MAC_MINI_HOST` | Mac mini의 LAN IP 주소 | `192.168.1.100` |
-| `MQTT_HOST` | MQTT 브로커 주소 (Mac mini와 동일) | `192.168.1.100` |
-| `MQTT_PORT` | MQTT 포트 | `1883` |
+| 키 | 설명 | 기본값 | 예시 |
+|---|---|---|---|
+| `MAC_MINI_HOST` | Mac mini 호스트명 또는 IP | `mac-mini.local` | `mac-mini.local` 또는 `192.168.1.100` |
+| `MQTT_HOST` | MQTT 브로커 주소 (Mac mini와 동일) | `$MAC_MINI_HOST` | 위와 동일 |
+| `MQTT_PORT` | MQTT 포트 | `1883` | `1883` |
 
-> **주의**: `MAC_MINI_HOST`가 placeholder(`192.168.1.100`)인 상태로 후속 스크립트를 실행하면 오류가 발생합니다. 반드시 실제 IP로 변경하세요.
+> **스크립트 기본값**: `MAC_MINI_HOST=mac-mini.local`  
+> macOS Bonjour가 동작하는 환경에서는 기본값 그대로 사용 가능합니다.  
+> 동일 LAN에서 `ping mac-mini.local`이 응답하면 변경 불필요.  
+> mDNS가 동작하지 않는 경우 `ipconfig getifaddr en0`으로 확인한 IP로 변경하세요.
 
 ### 4-2. Mac mini 런타임 asset 동기화
 
@@ -239,13 +264,16 @@ nano ~/smarthome_workspace/.env
 ```
 
 Required values:
-| Key | Description | Example |
-|---|---|---|
-| `MAC_MINI_HOST` | Mac mini LAN IP address | `192.168.1.100` |
-| `MQTT_HOST` | MQTT broker address (same as Mac mini) | `192.168.1.100` |
-| `MQTT_PORT` | MQTT port | `1883` |
+| Key | Description | Default | Example |
+|---|---|---|---|
+| `MAC_MINI_HOST` | Mac mini hostname or IP | `mac-mini.local` | `mac-mini.local` or `192.168.1.100` |
+| `MQTT_HOST` | MQTT broker address (same as Mac mini) | `$MAC_MINI_HOST` | same as above |
+| `MQTT_PORT` | MQTT port | `1883` | `1883` |
 
-> **Note**: Subsequent scripts fail if `MAC_MINI_HOST` still contains the placeholder `192.168.1.100`. Replace with the actual IP before proceeding.
+> **Script default**: `MAC_MINI_HOST=mac-mini.local`  
+> If macOS Bonjour is active on the same LAN, the default works without change.  
+> Verify with `ping mac-mini.local` from the RPi.  
+> If mDNS does not resolve, replace with the IP from `ipconfig getifaddr en0` on the Mac mini.
 
 ### 4-2. Sync Mac mini runtime assets
 

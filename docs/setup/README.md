@@ -11,3 +11,4 @@ Each document contains both Korean and English.
 | [02_rpi_setup.md](02_rpi_setup.md) | Raspberry Pi 실험 앱 (대시보드, 거버넌스 UI) / RPi experiment apps |
 | [03_esp32_setup.md](03_esp32_setup.md) | ESP32 물리 노드 펌웨어 빌드·플래시 / ESP32 physical node firmware |
 | [04_stm32_setup.md](04_stm32_setup.md) | STM32 타이밍 측정 노드 / STM32 timing measurement node |
+| [05_integration_run.md](05_integration_run.md) | 전체 시스템 통합 실행 절차 / Full system integration run procedure |
