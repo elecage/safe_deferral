@@ -149,6 +149,12 @@ class Pipeline:
         self._pending_acks: dict[str, DispatchRecord] = {}
         self._ack_lock = threading.Lock()
 
+        threading.Thread(
+            target=self._sweep_ack_timeouts,
+            daemon=True,
+            name="ack-timeout-sweep",
+        ).start()
+
         log.info("Pipeline ready.")
 
     # ------------------------------------------------------------------
@@ -297,6 +303,48 @@ class Pipeline:
         self._telemetry.update_ack(record)
         self._telemetry.publish()
         log.info("ACK resolved: command_id=%s status=%s", command_id, ack_result.ack_status.value)
+
+    # ------------------------------------------------------------------
+    # ACK timeout sweep (C205 escalation path)
+    # ------------------------------------------------------------------
+    def _sweep_ack_timeouts(self) -> None:
+        """Background thread: detect timed-out pending ACKs and escalate C205."""
+        while True:
+            time.sleep(1)
+            now_ms = int(time.time() * 1000)
+            timed_out = []
+            with self._ack_lock:
+                for command_id, record in list(self._pending_acks.items()):
+                    if now_ms - record.published_at_ms > record.ack_timeout_ms:
+                        timed_out.append(self._pending_acks.pop(command_id))
+            for record in timed_out:
+                log.warning("ACK timeout: command_id=%s audit=%s",
+                            record.command_id, record.audit_correlation_id)
+                self._ack_handler.handle_ack_timeout(record)
+                self._telemetry.update_ack(record)
+                self._telemetry.publish()
+                self._escalate_c205(record.audit_correlation_id)
+
+    def _escalate_c205(self, audit_correlation_id: str) -> None:
+        """Trigger C205 (actuation_ack_timeout) Class 2 escalation."""
+        session = self._class2.start_session(
+            trigger_id="C205",
+            audit_correlation_id=audit_correlation_id,
+        )
+        class2_result = self._class2.handle_timeout(session=session, trigger_id="C205")
+        self._telemetry.update_class2(class2_result)
+        if class2_result.notification_payload:
+            esc_result = self._caregiver.send_notification(class2_result.notification_payload)
+        else:
+            notification = _build_notification(
+                event_summary="Class 2 진입: C205 (actuation_ack_timeout)",
+                context_summary="",
+                unresolved_reason="actuation_ack_timeout",
+                exception_trigger_id="C205",
+                audit_id=audit_correlation_id,
+            )
+            esc_result = self._caregiver.send_notification(notification)
+        self._telemetry.update_escalation(esc_result)
 
 
 # ---------------------------------------------------------------------------
