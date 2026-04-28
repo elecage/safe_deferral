@@ -353,6 +353,7 @@ class Pipeline:
             )
             esc_result = self._caregiver.send_notification(notification)
         self._telemetry.update_escalation(esc_result)
+        self._telemetry.publish()
 
 
 # ---------------------------------------------------------------------------
