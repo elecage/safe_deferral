@@ -100,7 +100,7 @@ fi
 
 echo "  [OK] Profile separation and dynamic reference JSONPath contract verified."
 
-if ! jq -e '.. | objects | has("doorbell_detected")' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
+if ! jq -e 'any(.. | objects; has("doorbell_detected"))' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
     echo "  [FATAL] context schema does not contain doorbell_detected."
     exit 1
 fi
