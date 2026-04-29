@@ -2,6 +2,7 @@
 
 import threading
 from collections import deque
+from typing import Optional
 
 
 class ObservationStore:
@@ -21,3 +22,16 @@ class ObservationStore:
     def clear(self) -> None:
         with self._lock:
             self._buf.clear()
+
+    def find_by_correlation_id(self, correlation_id: str) -> Optional[dict]:
+        """Return the most recent observation whose audit_correlation_id matches.
+
+        Searches the ring buffer from newest to oldest so the latest matching
+        observation is returned first.
+        """
+        with self._lock:
+            items = list(self._buf)
+        for item in reversed(items):
+            if item.get("audit_correlation_id") == correlation_id:
+                return item
+        return None
