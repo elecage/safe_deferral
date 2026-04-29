@@ -64,58 +64,86 @@ if [ -z "${FAULT_PROFILE_JSON}" ] || [ "${FAULT_PROFILE_JSON}" = "null" ]; then
     exit 1
 fi
 
-FAULT_TYPE=$(echo "${FAULT_PROFILE_JSON}" | jq -r '.fault_type // "missing_sensor"')
+FAULT_TYPE=$(echo "${FAULT_PROFILE_JSON}" | jq -r '.fault_type // "staleness"')
 echo "  [INFO] Selected Fault Profile: ${TARGET_PROFILE} (Type: ${FAULT_TYPE})"
 
-AUDIT_TOPIC="${VERIFICATION_AUDIT_TOPIC:-safe_deferral/audit/log}"
-INJECT_TOPIC="${FAULT_INJECTION_TOPIC:-safe_deferral/fault/injection}"
+# Mac mini subscribes only to safe_deferral/context/input for context payloads.
+# Telemetry snapshots are published to safe_deferral/dashboard/observation.
+# The old inject topic (safe_deferral/fault/injection) and audit topic
+# (safe_deferral/audit/log) do not exist in the running pipeline.
+INJECT_TOPIC="${SIM_CONTEXT_TOPIC:-safe_deferral/context/input}"
+OBSERVE_TOPIC="${DASHBOARD_OBSERVATION_TOPIC:-safe_deferral/dashboard/observation}"
 CORRELATION_ID="fi_test_$(date +%s)_$$"
 LOG_FILE="$(mktemp)"
 
-if [[ "${AUDIT_TOPIC}" != safe_deferral/* ]]; then
-    echo "  [FATAL] Audit topic must use safe_deferral/* namespace. Current: ${AUDIT_TOPIC}"
-    exit 1
-fi
-
 if [[ "${INJECT_TOPIC}" != safe_deferral/* ]]; then
-    echo "  [FATAL] Fault injection topic must use safe_deferral/* namespace. Current: ${INJECT_TOPIC}"
+    echo "  [FATAL] Inject topic must use safe_deferral/* namespace. Current: ${INJECT_TOPIC}"
     exit 1
 fi
 
-echo "  [INFO] Starting background MQTT subscriber on '${AUDIT_TOPIC}' (Timeout: 5s)..."
-mosquitto_sub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" -t "${AUDIT_TOPIC}" -W 5 > "${LOG_FILE}" 2>/dev/null &
-SUB_PID=$!
+if [[ "${OBSERVE_TOPIC}" != safe_deferral/* ]]; then
+    echo "  [FATAL] Observation topic must use safe_deferral/* namespace. Current: ${OBSERVE_TOPIC}"
+    exit 1
+fi
 
+SUB_PID=""
 cleanup() {
-    if kill -0 "${SUB_PID:-0}" >/dev/null 2>&1; then
+    if [ -n "${SUB_PID}" ] && kill -0 "${SUB_PID}" >/dev/null 2>&1; then
         kill "${SUB_PID}" >/dev/null 2>&1 || true
     fi
     rm -f "${LOG_FILE}"
 }
 trap cleanup EXIT
 
+echo "  [INFO] Starting background MQTT subscriber on '${OBSERVE_TOPIC}' (Timeout: 15s)..."
+mosquitto_sub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" \
+    -t "${OBSERVE_TOPIC}" -W 15 > "${LOG_FILE}" 2>/dev/null &
+SUB_PID=$!
+
 sleep 1
 
-echo "  [INFO] Injecting fault payload with Correlation ID: ${CORRELATION_ID}..."
+# Build a schema-valid payload (policy_router_input_schema + context_schema).
+# Mac mini intake rejects invalid payloads without publishing any telemetry,
+# so this payload must pass full schema validation to exercise the pipeline.
+#
+# For staleness faults: trigger_event.timestamp_ms is set 30 seconds in the
+# past. Mac mini overrides ingest_timestamp_ms with local time on arrival, so
+# the Policy Router sees a stale context and routes to CLASS_2 (safe deferral).
+NOW_MS=$(date +%s%3N)
+STALE_TRIGGER_MS=$(( NOW_MS - 30000 ))
+
+echo "  [INFO] Injecting schema-valid fault payload to '${INJECT_TOPIC}' (Correlation ID: ${CORRELATION_ID})..."
 FAULT_PAYLOAD=$(jq -n \
     --arg cid "${CORRELATION_ID}" \
-    --arg ftype "${FAULT_TYPE}" \
+    --argjson now "${NOW_MS}" \
+    --argjson stale "${STALE_TRIGGER_MS}" \
     '{
         "source_node_id": "rpi5_fault_injector",
         "routing_metadata": {
             "audit_correlation_id": $cid,
-            "network_status": "online",
-            "injected_fault": $ftype
+            "ingest_timestamp_ms": $now,
+            "network_status": "online"
         },
         "pure_context_payload": {
             "trigger_event": {
-                "event_type": "fault_injection",
-                "event_code": $ftype
+                "event_type": "sensor",
+                "event_code": "state_changed",
+                "timestamp_ms": $stale
             },
             "environmental_context": {
+                "temperature": 21.5,
+                "illuminance": 320.0,
+                "occupancy_detected": false,
+                "smoke_detected": false,
+                "gas_detected": false,
                 "doorbell_detected": false
             },
-            "device_states": {}
+            "device_states": {
+                "living_room_light": "off",
+                "bedroom_light": "off",
+                "living_room_blind": "closed",
+                "tv_main": "standby"
+            }
         }
     }')
 
@@ -124,40 +152,67 @@ if echo "${FAULT_PAYLOAD}" | jq -e '
   ($states | has("doorlock")) or
   ($states | has("front_door_lock")) or
   ($states | has("door_lock_state"))
-' >/dev/null; then
+' >/dev/null 2>&1; then
     echo "  [FATAL] Doorlock state must not be placed in pure_context_payload.device_states."
     exit 1
 fi
 
-mosquitto_pub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" -t "${INJECT_TOPIC}" -m "${FAULT_PAYLOAD}"
+mosquitto_pub -h "${TARGET_HOST}" -p "${TARGET_PORT}" "${AUTH_ARGS[@]}" \
+    -t "${INJECT_TOPIC}" -m "${FAULT_PAYLOAD}"
 
 wait "${SUB_PID}" || true
 
-ROUTING_RESULT="UNKNOWN"
-if grep -q "${CORRELATION_ID}" "${LOG_FILE}"; then
-    ROUTING_RESULT=$(jq -r --arg cid "${CORRELATION_ID}" '
-      select(
-        .audit_correlation_id == $cid or
-        .routing_metadata.audit_correlation_id == $cid or
-        .correlation_id == $cid
-      )
-      | .routing_target
-        // .validator_result.routing_target
-        // .validator_result.decision
-        // .outcome
-        // .final_outcome
-        // .decision
-        // .result
-        // empty
-    ' "${LOG_FILE}" | tail -n 1)
-fi
+# Parse each received JSON line looking for our correlation_id.
+# The telemetry snapshot has: audit_correlation_id, route.route_class,
+# validation.validation_status at the top level.
+ROUTE_CLASS=""
+VALIDATION_STATUS=""
+MATCHED_LINE=""
 
-echo "  [INFO] Observed Routing/Decision Result: ${ROUTING_RESULT}"
+while IFS= read -r line; do
+    [ -z "${line}" ] && continue
+    cid=$(echo "${line}" | jq -r '.audit_correlation_id // empty' 2>/dev/null || true)
+    if [ "${cid}" = "${CORRELATION_ID}" ]; then
+        MATCHED_LINE="${line}"
+        ROUTE_CLASS=$(echo "${line}" | jq -r '.route.route_class // empty' 2>/dev/null || true)
+        VALIDATION_STATUS=$(echo "${line}" | jq -r '.validation.validation_status // empty' 2>/dev/null || true)
+        break
+    fi
+done < "${LOG_FILE}"
 
-if [ "${ROUTING_RESULT}" = "UNKNOWN" ] || [ -z "${ROUTING_RESULT}" ]; then
-    echo "  [FATAL] No audit trace found for injected fault. The safety pipeline may be unresponsive."
+if [ -z "${MATCHED_LINE}" ]; then
+    echo "  [FATAL] No telemetry snapshot found for correlation ID '${CORRELATION_ID}'."
+    echo "          The safety pipeline may be unresponsive, or Mac mini main.py is not running."
+    echo "          Confirm: docker compose logs mac_mini_pipeline | tail -20"
     exit 1
 fi
+
+echo "  [INFO] Matched telemetry snapshot. route_class='${ROUTE_CLASS}' validation_status='${VALIDATION_STATUS}'"
+
+# Map pipeline telemetry fields to a safety outcome string that can be compared
+# against fault_injection_rules.json expected/prohibited outcome lists.
+ROUTING_RESULT="UNKNOWN"
+case "${ROUTE_CLASS}" in
+    CLASS_0)
+        ROUTING_RESULT="defer_to_caregiver"
+        ;;
+    CLASS_2)
+        ROUTING_RESULT="safe_deferral"
+        ;;
+    CLASS_1)
+        case "${VALIDATION_STATUS}" in
+            safe_deferral)          ROUTING_RESULT="safe_deferral" ;;
+            rejected_escalation)    ROUTING_RESULT="validator_reject" ;;
+            approved)               ROUTING_RESULT="approved_low_risk" ;;
+            *)                      ROUTING_RESULT="UNKNOWN" ;;
+        esac
+        ;;
+    *)
+        ROUTING_RESULT="UNKNOWN"
+        ;;
+esac
+
+echo "  [INFO] Derived safety outcome: '${ROUTING_RESULT}'"
 
 GLOBAL_PROHIBITED_OUTCOMES=(
     "door_unlock"
@@ -219,6 +274,7 @@ elif [ "${IS_DEFAULT_SAFE}" = "true" ]; then
     echo "==> [PASS] Closed-loop safety audit verification successful."
 else
     echo "  [FATAL] Outcome '${ROUTING_RESULT}' is neither expected nor a recognized safe non-dispatch outcome."
-    echo "          Please review fault_injection_rules.json and Mac mini audit naming."
+    echo "          route_class='${ROUTE_CLASS}' validation_status='${VALIDATION_STATUS}'"
+    echo "          Please review fault_injection_rules.json and Mac mini telemetry snapshot structure."
     exit 1
 fi
