@@ -201,11 +201,20 @@ nano ~/smarthome_workspace/.env
 | `MAC_MINI_HOST` | Mac mini 호스트명 또는 IP | `mac-mini.local` | `mac-mini.local` 또는 `192.168.1.100` |
 | `MQTT_HOST` | MQTT 브로커 주소 (Mac mini와 동일) | `$MAC_MINI_HOST` | 위와 동일 |
 | `MQTT_PORT` | MQTT 포트 | `1883` | `1883` |
+| `MQTT_PASS` | MQTT 비밀번호 | `CHANGE_ME` | 아래 참조 |
 
 > **스크립트 기본값**: `MAC_MINI_HOST=mac-mini.local`  
 > macOS Bonjour가 동작하는 환경에서는 기본값 그대로 사용 가능합니다.  
 > 동일 LAN에서 `ping mac-mini.local`이 응답하면 변경 불필요.  
 > mDNS가 동작하지 않는 경우 `ipconfig getifaddr en0`으로 확인한 IP로 변경하세요.
+
+> **MQTT_PASS 처리**  
+> Mac mini의 Mosquitto는 `allow_anonymous true`로 설정되어 있어 비밀번호가 필요 없습니다.  
+> 스크립트 실행 후 `MQTT_PASS=CHANGE_ME` 경고가 표시되면 아래 명령으로 빈 값으로 지워주세요:
+> ```bash
+> sed -i 's/^MQTT_PASS=CHANGE_ME$/MQTT_PASS=/' ~/smarthome_workspace/.env
+> ```
+> 비밀번호 인증을 사용하는 환경이라면 실제 비밀번호로 교체하세요.
 
 ### 4-2. Mac mini 런타임 asset 동기화
 
@@ -269,11 +278,20 @@ Required values:
 | `MAC_MINI_HOST` | Mac mini hostname or IP | `mac-mini.local` | `mac-mini.local` or `192.168.1.100` |
 | `MQTT_HOST` | MQTT broker address (same as Mac mini) | `$MAC_MINI_HOST` | same as above |
 | `MQTT_PORT` | MQTT port | `1883` | `1883` |
+| `MQTT_PASS` | MQTT password | `CHANGE_ME` | see note below |
 
 > **Script default**: `MAC_MINI_HOST=mac-mini.local`  
 > If macOS Bonjour is active on the same LAN, the default works without change.  
 > Verify with `ping mac-mini.local` from the RPi.  
 > If mDNS does not resolve, replace with the IP from `ipconfig getifaddr en0` on the Mac mini.
+
+> **MQTT_PASS handling**  
+> The Mac mini Mosquitto broker is configured with `allow_anonymous true`, so no password is required.  
+> If you see a `MQTT_PASS=CHANGE_ME` warning after running the script, clear it with:
+> ```bash
+> sed -i 's/^MQTT_PASS=CHANGE_ME$/MQTT_PASS=/' ~/smarthome_workspace/.env
+> ```
+> If your environment uses password authentication, replace it with the real password instead.
 
 ### 4-2. Sync Mac mini runtime assets
 
