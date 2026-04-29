@@ -409,47 +409,171 @@
     <div class="modal-title" id="modal-title">노드 추가</div>
     <input type="hidden" id="edit-node-id">
 
+    <!-- 노드 타입 -->
     <div class="form-group">
       <label class="form-label">노드 타입</label>
       <select class="form-control" id="node-type" onchange="onNodeTypeChange(this.value)">
-        <option value="context_node">context_node — 컨텍스트 입력</option>
-        <option value="device_state_reporter">device_state_reporter — 디바이스 상태</option>
+        <option value="context_node">context_node — 컨텍스트 입력 (버튼/센서)</option>
+        <option value="device_state_reporter">device_state_reporter — 기기 상태 보고</option>
         <option value="emergency_event_node">emergency_event_node — 긴급 이벤트</option>
-        <option value="doorbell_visitor_context">doorbell_visitor_context — 도어벨</option>
-        <option value="actuator_observer">actuator_observer — 액추에이터 관찰</option>
+        <option value="doorbell_visitor_context">doorbell_visitor_context — 도어벨 방문자</option>
+        <option value="actuator_simulator">actuator_simulator — 조명/기기 시뮬레이터 (자동 ACK)</option>
+        <option value="actuator_observer">actuator_observer — 액추에이터 관찰만</option>
       </select>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Source Node ID <span class="text-dim">(rpi. / esp32.virtual_ / test. 로 시작)</span></label>
-      <input type="text" class="form-control" id="node-source-id" placeholder="rpi.virtual_context_node">
+    <!-- ── 컨텍스트 폼 (context_node / device_state_reporter / doorbell_visitor_context) ── -->
+    <div id="form-context">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">트리거 이벤트</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">이벤트 타입</label>
+            <select class="form-control" id="ctx-event-type" onchange="updateEventCodes()">
+              <option value="button">button — 버튼 누름</option>
+              <option value="sensor">sensor — 센서 감지</option>
+              <option value="system">system — 시스템</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">이벤트 코드</label>
+            <select class="form-control" id="ctx-event-code"></select>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">현재 기기 상태</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">거실 조명</label>
+            <select class="form-control" id="ctx-living-light">
+              <option value="off">꺼짐 (off)</option>
+              <option value="on">켜짐 (on)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">침실 조명</label>
+            <select class="form-control" id="ctx-bedroom-light">
+              <option value="off">꺼짐 (off)</option>
+              <option value="on">켜짐 (on)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">거실 블라인드</label>
+            <select class="form-control" id="ctx-blind">
+              <option value="closed">닫힘 (closed)</option>
+              <option value="open">열림 (open)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">TV</label>
+            <select class="form-control" id="ctx-tv">
+              <option value="off">꺼짐 (off)</option>
+              <option value="standby">대기 (standby)</option>
+              <option value="on">켜짐 (on)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">환경 정보</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">재실 감지</label>
+            <select class="form-control" id="ctx-occupancy">
+              <option value="true">감지됨</option>
+              <option value="false">없음</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">온도 (°C)</label>
+            <input type="number" class="form-control" id="ctx-temp" value="22.5" step="0.5">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">조도 (lux)</label>
+            <input type="number" class="form-control" id="ctx-illuminance" value="150" min="0">
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">발행 토픽</label>
-      <select class="form-control" id="node-topic">
-        <option value="safe_deferral/context/input">safe_deferral/context/input</option>
-        <option value="safe_deferral/emergency/event">safe_deferral/emergency/event</option>
-        <option value="safe_deferral/actuation/ack">safe_deferral/actuation/ack</option>
-      </select>
+    <!-- ── 긴급 이벤트 폼 ── -->
+    <div id="form-emergency" style="display:none">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">긴급 이벤트 설정</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">이벤트 종류</label>
+            <select class="form-control" id="emg-type">
+              <option value="smoke_detected">smoke_detected — 화재 감지</option>
+              <option value="gas_detected">gas_detected — 가스 감지</option>
+              <option value="fall_detected">fall_detected — 낙상 감지</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">심각도</label>
+            <select class="form-control" id="emg-severity">
+              <option value="high">high — 높음</option>
+              <option value="medium">medium — 중간</option>
+              <option value="low">low — 낮음</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">발생 위치</label>
+            <select class="form-control" id="emg-location">
+              <option value="living_room">거실</option>
+              <option value="bedroom">침실</option>
+              <option value="kitchen">주방</option>
+              <option value="bathroom">욕실</option>
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">발행 간격 (ms)</label>
-      <input type="number" class="form-control" id="node-interval" value="1000" min="100" style="width:140px">
+    <!-- ── 액추에이터 시뮬레이터 폼 ── -->
+    <div id="form-simulator" style="display:none">
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--accent);margin-bottom:8px;font-weight:600">⚡ 자동 ACK 시뮬레이터</div>
+        <div style="font-size:12px;color:var(--text-dim)">RUNNING 상태에서 Mac mini의 actuation command를 수신하면 선택된 기기에 대해 자동으로 ACK를 발행합니다.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">시뮬레이션할 기기</label>
+        <select class="form-control" id="sim-device" style="width:280px">
+          <option value="living_room_light">거실 조명 (living_room_light)</option>
+          <option value="bedroom_light">침실 조명 (bedroom_light)</option>
+          <option value="living_room_blind">거실 블라인드 (living_room_blind)</option>
+          <option value="tv_main">TV (tv_main)</option>
+        </select>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">반복 횟수 <span class="text-dim">(0 = 무한)</span></label>
-      <input type="number" class="form-control" id="node-repeat" value="1" min="0" style="width:140px">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">페이로드 템플릿 (JSON)
-        <span style="color:var(--accent); font-weight:400; margin-left:6px; cursor:pointer" onclick="onNodeTypeChange(document.getElementById('node-type').value)">↺ 예시 채우기</span>
-      </label>
-      <textarea class="form-control" id="node-payload" placeholder='{"key": "value"}' style="min-height:180px; font-size:12px"></textarea>
-      <div style="margin-top:4px; font-size:11px; color:var(--text-dim)">노드 타입에 맞는 예시가 자동으로 채워집니다. 값을 직접 수정해도 됩니다.</div>
+    <!-- ── 공통: Source Node ID / 토픽 / 간격 ── -->
+    <div id="form-common-fields">
+      <div class="form-group">
+        <label class="form-label">Source Node ID <span class="text-dim">(rpi. / esp32.virtual_ / test. 로 시작)</span></label>
+        <input type="text" class="form-control" id="node-source-id" placeholder="rpi.virtual_context_node">
+      </div>
+      <div id="topic-group" class="form-group">
+        <label class="form-label">발행 토픽</label>
+        <select class="form-control" id="node-topic">
+          <option value="safe_deferral/context/input">safe_deferral/context/input</option>
+          <option value="safe_deferral/emergency/event">safe_deferral/emergency/event</option>
+          <option value="safe_deferral/actuation/ack">safe_deferral/actuation/ack</option>
+        </select>
+      </div>
+      <div id="interval-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">발행 간격 (ms)</label>
+          <input type="number" class="form-control" id="node-interval" value="1000" min="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">반복 횟수 <span class="text-dim">(0 = 무한)</span></label>
+          <input type="number" class="form-control" id="node-repeat" value="1" min="0">
+        </div>
+      </div>
     </div>
 
     <div id="modal-error" style="color:var(--red); font-size:12px; margin-bottom:8px; display:none"></div>
@@ -586,6 +710,10 @@ function deriveRequiredNodes(scenario) {
     const mapped = ACTION_MAP[step.action];
     if (mapped) types.add(mapped);
   }
+  // CLASS_1 produces actuation commands that need a simulated actuator to ACK
+  if ((scenario.expected_outcomes || {}).route_class === 'CLASS_1') {
+    types.add('actuator_simulator');
+  }
   return [...types];
 }
 
@@ -636,20 +764,27 @@ function renderNodes(nodes) {
     const stateLabel = { created: '대기', running: '실행 중', stopped: '정지' }[n.state] || n.state;
     const canStart = n.state === 'created' || n.state === 'stopped';
     const canStop = n.state === 'running';
+    const isSim = n.node_type === 'actuator_simulator';
+    const deviceInfo = isSim && n.device_target
+      ? `<div class="node-info-item">기기<br><span>${DEVICE_LABELS[n.device_target] || n.device_target}</span></div>`
+      : `<div class="node-info-item">토픽<br><span>${n.publish_topic.replace('safe_deferral/', '')}</span></div>`;
+    const autoAckBadge = isSim
+      ? `<span style="font-size:10px;color:var(--accent);background:rgba(99,102,241,0.15);padding:2px 7px;border-radius:10px;margin-left:4px">자동ACK</span>`
+      : '';
     return `<div class="node-card">
       <div class="node-header">
-        <div class="node-type">${nodeTypeLabel(n.node_type)}</div>
+        <div class="node-type">${nodeTypeLabel(n.node_type)}${autoAckBadge}</div>
         <span class="badge ${stateClass}">${stateLabel}</span>
       </div>
       <div class="node-id">${n.source_node_id}</div>
       <div class="node-info">
-        <div class="node-info-item">토픽<br><span>${n.publish_topic.replace('safe_deferral/', '')}</span></div>
+        ${deviceInfo}
         <div class="node-info-item">발행<br><span>${n.published_count}회</span></div>
       </div>
       <div class="node-actions">
         ${canStart ? `<button class="btn btn-success" onclick="nodeAction('${n.node_id}','start')">▶ 시작</button>` : ''}
-        ${canStop ? `<button class="btn btn-warning" onclick="nodeAction('${n.node_id}','stop')">⏸ 정지</button>` : ''}
-        ${canStop ? `<button class="btn btn-ghost" onclick="nodePublish('${n.node_id}')">📤 1회 발행</button>` : ''}
+        ${canStop  ? `<button class="btn btn-warning" onclick="nodeAction('${n.node_id}','stop')">⏸ 정지</button>` : ''}
+        ${canStop && !isSim ? `<button class="btn btn-ghost" onclick="nodePublish('${n.node_id}')">📤 1회 발행</button>` : ''}
         <button class="btn btn-ghost" onclick="openNodeModal('${n.node_id}')">✏ 수정</button>
         <button class="btn btn-danger" onclick="deleteNode('${n.node_id}')">✕ 삭제</button>
       </div>
@@ -675,12 +810,20 @@ function renderTopo(nodes) {
 function nodeTypeLabel(t) {
   return {
     context_node: '컨텍스트 노드',
-    device_state_reporter: '디바이스 상태',
+    device_state_reporter: '기기 상태 보고',
     emergency_event_node: '긴급 이벤트',
     doorbell_visitor_context: '도어벨',
+    actuator_simulator: '액추에이터 시뮬레이터',
     actuator_observer: '액추에이터 관찰',
   }[t] || t;
 }
+
+const DEVICE_LABELS = {
+  living_room_light: '거실 조명',
+  bedroom_light: '침실 조명',
+  living_room_blind: '거실 블라인드',
+  tv_main: 'TV',
+};
 
 async function nodeAction(nodeId, action) {
   await fetch(`/nodes/${nodeId}/${action}`, { method: 'POST' });
@@ -718,13 +861,17 @@ function openNodeModal(nodeId) {
   if (nodeId) {
     document.getElementById('modal-title').textContent = '노드 수정';
     document.getElementById('edit-node-id').value = nodeId;
-    // Pre-fill from existing node data in DOM
     fetch('/nodes').then(r => r.json()).then(nodes => {
       const n = nodes.find(x => x.node_id === nodeId);
       if (!n) return;
       document.getElementById('node-type').value = n.node_type;
       document.getElementById('node-source-id').value = n.source_node_id;
       document.getElementById('node-topic').value = n.publish_topic;
+      onNodeTypeChange(n.node_type);
+      // Restore simulator device target
+      if (n.node_type === 'actuator_simulator' && n.device_target) {
+        document.getElementById('sim-device').value = n.device_target;
+      }
     });
   } else {
     document.getElementById('modal-title').textContent = '노드 추가';
@@ -738,115 +885,145 @@ function openNodeModal(nodeId) {
 }
 
 // ─────────────────────────────────────────────
-// Node type defaults (topic + payload template)
+// Node type defaults — form section visibility
 // ─────────────────────────────────────────────
+const EVENT_CODES = {
+  button: ['single_click', 'double_click', 'long_press', 'triple_hit'],
+  sensor: ['doorbell_pressed', 'smoke_detected', 'gas_detected', 'motion_detected', 'state_changed'],
+  system: ['startup', 'periodic_report'],
+};
+
+function updateEventCodes() {
+  const type = document.getElementById('ctx-event-type').value;
+  const sel = document.getElementById('ctx-event-code');
+  sel.innerHTML = (EVENT_CODES[type] || []).map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
 function onNodeTypeChange(type) {
-  const now = Date.now();
-  const topicEl = document.getElementById('node-topic');
-  const payloadEl = document.getElementById('node-payload');
-  const sourceEl = document.getElementById('node-source-id');
+  const isContext = ['context_node', 'device_state_reporter'].includes(type);
+  const isDoorbell = type === 'doorbell_visitor_context';
+  const isEmergency = type === 'emergency_event_node';
+  const isSim = type === 'actuator_simulator';
 
-  const contextPayload = (doorbell) => ({
-    routing_metadata: {
-      audit_correlation_id: `test-${now}`,
-      ingest_timestamp_ms: now,
-      network_status: "online"
-    },
-    pure_context_payload: {
-      trigger_event: {
-        event_type: doorbell ? "sensor" : "button",
-        event_code: doorbell ? "doorbell_pressed" : "single_click",
-        timestamp_ms: now
-      },
-      environmental_context: {
-        temperature: 22.5,
-        illuminance: 150,
-        occupancy_detected: true,
-        smoke_detected: false,
-        gas_detected: false,
-        doorbell_detected: doorbell
-      },
-      device_states: {
-        living_room_light: "off",
-        bedroom_light: "off",
-        living_room_blind: "closed",
-        tv_main: "off"
-      }
-    }
-  });
+  document.getElementById('form-context').style.display   = (isContext || isDoorbell) ? '' : 'none';
+  document.getElementById('form-emergency').style.display = isEmergency ? '' : 'none';
+  document.getElementById('form-simulator').style.display = isSim ? '' : 'none';
+  document.getElementById('topic-group').style.display    = isSim ? 'none' : '';
+  document.getElementById('interval-group').style.display = isSim ? 'none' : '';
 
-  const templates = {
-    context_node: {
-      topic: 'safe_deferral/context/input',
-      sourceHint: 'rpi.virtual_context_node',
-      payload: contextPayload(false)
-    },
-    device_state_reporter: {
-      topic: 'safe_deferral/context/input',
-      sourceHint: 'rpi.virtual_device_state',
-      payload: contextPayload(false)
-    },
-    emergency_event_node: {
-      topic: 'safe_deferral/emergency/event',
-      sourceHint: 'rpi.virtual_emergency',
-      payload: {
-        event_type: "smoke_detected",
-        severity: "high",
-        timestamp_ms: now,
-        location: "living_room",
-        details: {}
-      }
-    },
-    doorbell_visitor_context: {
-      topic: 'safe_deferral/context/input',
-      sourceHint: 'rpi.virtual_doorbell',
-      payload: contextPayload(true)
-    },
-    actuator_observer: {
-      topic: 'safe_deferral/actuation/ack',
-      sourceHint: 'rpi.virtual_actuator_obs',
-      payload: {
-        command_id: `cmd-${now}`,
-        action: "light_on",
-        target: "living_room_light",
-        status: "executed",
-        timestamp_ms: now
-      }
-    }
+  const topicEl   = document.getElementById('node-topic');
+  const sourceEl  = document.getElementById('node-source-id');
+
+  const topicMap = {
+    context_node:            'safe_deferral/context/input',
+    device_state_reporter:   'safe_deferral/context/input',
+    doorbell_visitor_context:'safe_deferral/context/input',
+    emergency_event_node:    'safe_deferral/emergency/event',
+    actuator_observer:       'safe_deferral/actuation/ack',
+    actuator_simulator:      'safe_deferral/actuation/ack',
+  };
+  const sourceMap = {
+    context_node:            'rpi.virtual_context_node',
+    device_state_reporter:   'rpi.virtual_device_state',
+    doorbell_visitor_context:'rpi.virtual_doorbell',
+    emergency_event_node:    'rpi.virtual_emergency',
+    actuator_observer:       'rpi.virtual_actuator_obs',
+    actuator_simulator:      'rpi.mock_actuator_controlled_mode',
   };
 
-  const cfg = templates[type];
-  if (!cfg) return;
-  topicEl.value = cfg.topic;
-  if (!sourceEl.value) sourceEl.placeholder = cfg.sourceHint;
-  payloadEl.value = JSON.stringify(cfg.payload, null, 2);
+  topicEl.value = topicMap[type] || 'safe_deferral/context/input';
+  if (!sourceEl.value) {
+    sourceEl.placeholder = sourceMap[type] || 'rpi.virtual_node';
+    if (isSim) sourceEl.value = 'rpi.mock_actuator_controlled_mode';
+  }
+
+  // For doorbell: fix event type to sensor + doorbell_pressed
+  if (isDoorbell) {
+    document.getElementById('ctx-event-type').value = 'sensor';
+    updateEventCodes();
+    document.getElementById('ctx-event-code').value = 'doorbell_pressed';
+    document.getElementById('ctx-event-type').disabled = true;
+    document.getElementById('ctx-event-code').disabled = true;
+  } else {
+    if (document.getElementById('ctx-event-type')) {
+      document.getElementById('ctx-event-type').disabled = false;
+      document.getElementById('ctx-event-code').disabled = false;
+      updateEventCodes();
+    }
+  }
 }
 
 function closeNodeModal() {
   document.getElementById('node-modal-overlay').classList.remove('open');
 }
 
+function buildPayloadFromForm(type) {
+  const now = Date.now();
+  if (type === 'actuator_simulator') return {};
+
+  if (type === 'emergency_event_node') {
+    return {
+      event_type: document.getElementById('emg-type').value,
+      severity: document.getElementById('emg-severity').value,
+      timestamp_ms: now,
+      location: document.getElementById('emg-location').value,
+      details: {},
+    };
+  }
+
+  // context / device_state_reporter / doorbell_visitor_context
+  const isDoorbell = type === 'doorbell_visitor_context';
+  return {
+    routing_metadata: {
+      audit_correlation_id: `test-${now}`,
+      ingest_timestamp_ms: now,
+      network_status: 'online',
+    },
+    pure_context_payload: {
+      trigger_event: {
+        event_type: document.getElementById('ctx-event-type').value,
+        event_code: document.getElementById('ctx-event-code').value,
+        timestamp_ms: now,
+      },
+      environmental_context: {
+        temperature: parseFloat(document.getElementById('ctx-temp').value) || 22.5,
+        illuminance: parseInt(document.getElementById('ctx-illuminance').value) || 150,
+        occupancy_detected: document.getElementById('ctx-occupancy').value === 'true',
+        smoke_detected: false,
+        gas_detected: false,
+        doorbell_detected: isDoorbell,
+      },
+      device_states: {
+        living_room_light: document.getElementById('ctx-living-light').value,
+        bedroom_light: document.getElementById('ctx-bedroom-light').value,
+        living_room_blind: document.getElementById('ctx-blind').value,
+        tv_main: document.getElementById('ctx-tv').value,
+      },
+    },
+  };
+}
+
 async function saveNode() {
   const errEl = document.getElementById('modal-error');
   errEl.style.display = 'none';
 
-  let payloadTemplate;
-  try {
-    payloadTemplate = JSON.parse(document.getElementById('node-payload').value || '{}');
-  } catch {
-    errEl.textContent = '페이로드 JSON 형식이 잘못되었습니다.';
-    errEl.style.display = 'block';
-    return;
-  }
+  const type = document.getElementById('node-type').value;
+  const isSim = type === 'actuator_simulator';
+  const payloadTemplate = buildPayloadFromForm(type);
 
   const body = {
-    node_type: document.getElementById('node-type').value,
+    node_type: type,
     source_node_id: document.getElementById('node-source-id').value || undefined,
     publish_topic: document.getElementById('node-topic').value,
-    publish_interval_ms: parseInt(document.getElementById('node-interval').value),
-    repeat_count: parseInt(document.getElementById('node-repeat').value),
+    publish_interval_ms: parseInt(document.getElementById('node-interval').value) || 1000,
+    repeat_count: parseInt(document.getElementById('node-repeat').value) || 1,
     payload_template: payloadTemplate,
   };
+
+  if (isSim) {
+    body.device_target = document.getElementById('sim-device').value;
+    body.publish_topic = 'safe_deferral/actuation/ack';
+  }
 
   const editId = document.getElementById('edit-node-id').value;
   const url = editId ? `/nodes/${editId}` : '/nodes';

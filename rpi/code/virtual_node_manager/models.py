@@ -11,6 +11,31 @@ class VirtualNodeType(str, Enum):
     EMERGENCY_EVENT_NODE = "emergency_event_node"
     DOORBELL_VISITOR_CONTEXT = "doorbell_visitor_context"
     ACTUATOR_OBSERVER = "actuator_observer"
+    ACTUATOR_SIMULATOR = "actuator_simulator"
+
+
+# Devices that actuator_simulator nodes can target
+ACTUATOR_DEVICES = [
+    "living_room_light",
+    "bedroom_light",
+    "living_room_blind",
+    "tv_main",
+]
+
+# Observed state reported in ACK per device after a successful command
+_DEVICE_POST_STATE = {
+    "living_room_light": "on",
+    "bedroom_light": "on",
+    "living_room_blind": "open",
+    "tv_main": "on",
+}
+
+
+def device_post_state(device: str, action: str) -> str:
+    """Return the observed state after executing action on device."""
+    if "off" in action or "close" in action:
+        return "off" if "blind" not in device else "closed"
+    return _DEVICE_POST_STATE.get(device, "on")
 
 
 class VirtualNodeState(str, Enum):
@@ -39,9 +64,10 @@ class VirtualNode:
     state: VirtualNodeState = VirtualNodeState.CREATED
     published_count: int = 0
     created_at_ms: Optional[int] = None
+    device_target: Optional[str] = None  # actuator_simulator: which device this node simulates
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "node_id": self.node_id,
             "node_type": self.node_type.value,
             "source_node_id": self.source_node_id,
@@ -50,3 +76,6 @@ class VirtualNode:
             "state": self.state.value,
             "published_count": self.published_count,
         }
+        if self.device_target is not None:
+            d["device_target"] = self.device_target
+        return d

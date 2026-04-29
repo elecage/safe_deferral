@@ -168,6 +168,7 @@ def main() -> None:
         mqtt_monitor.set_broker_reachable(False)
 
     _OBS_TOPIC = "safe_deferral/dashboard/observation"
+    _CMD_TOPIC = "safe_deferral/actuation/command"
 
     def on_message(c, userdata, msg):
         try:
@@ -175,6 +176,11 @@ def main() -> None:
             mqtt_monitor.observe_message(msg.topic)
             if msg.topic == _OBS_TOPIC:
                 obs_store.add(payload)
+            elif msg.topic == _CMD_TOPIC:
+                acks = vnm.handle_command(payload)
+                if acks:
+                    log.info("Actuator simulator: auto-ACK for %s (%d node(s))",
+                             payload.get("target_device"), len(acks))
             log.debug("Monitor received [%s]", msg.topic)
         except Exception as exc:
             log.error("MQTT parse error on %s: %s", msg.topic, exc)

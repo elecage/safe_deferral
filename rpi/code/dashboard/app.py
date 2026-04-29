@@ -30,7 +30,9 @@ from result_store.store import ResultStore
 from scenario_manager.manager import ScenarioManager
 from mqtt_status.monitor import MqttStatusMonitor
 from virtual_node_manager.manager import VirtualNodeManager
-from virtual_node_manager.models import VirtualNodeProfile, VirtualNodeState, VirtualNodeType
+from virtual_node_manager.models import (
+    VirtualNodeProfile, VirtualNodeState, VirtualNodeType, ACTUATOR_DEVICES,
+)
 
 _STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
@@ -222,6 +224,10 @@ def create_app(
     def list_nodes():
         return [n.to_dict() for n in _vnm.list_nodes()]
 
+    @app.get("/nodes/actuator_devices", summary="List valid actuator device targets")
+    def list_actuator_devices():
+        return {"devices": ACTUATOR_DEVICES}
+
     @app.post("/nodes", summary="Create a virtual node")
     def create_node(body: dict):
         try:
@@ -229,7 +235,11 @@ def create_app(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid node_type")
 
-        publish_topic = body.get("publish_topic", "safe_deferral/context/input")
+        is_simulator = node_type == VirtualNodeType.ACTUATOR_SIMULATOR
+        publish_topic = body.get(
+            "publish_topic",
+            "safe_deferral/actuation/ack" if is_simulator else "safe_deferral/context/input",
+        )
         profile = VirtualNodeProfile(
             profile_id=body.get("profile_id", f"profile_{node_type.value}"),
             payload_template=body.get("payload_template", {}),
@@ -237,9 +247,18 @@ def create_app(
             publish_interval_ms=int(body.get("publish_interval_ms", 1000)),
             repeat_count=int(body.get("repeat_count", 1)),
         )
-        source_node_id = body.get("source_node_id") or f"rpi.virtual_{node_type.value}"
+        source_node_id = (
+            body.get("source_node_id")
+            or ("rpi.mock_actuator_controlled_mode" if is_simulator
+                else f"rpi.virtual_{node_type.value}")
+        )
+        device_target = body.get("device_target") or None
         try:
-            node = _vnm.create_node(node_type, profile, source_node_id=source_node_id)
+            node = _vnm.create_node(
+                node_type, profile,
+                source_node_id=source_node_id,
+                device_target=device_target,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         return node.to_dict()
@@ -266,6 +285,11 @@ def create_app(
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc))
             node.source_node_id = body["source_node_id"]
+        if "device_target" in body:
+            dt = body["device_target"] or None
+            if dt is not None and dt not in ACTUATOR_DEVICES:
+                raise HTTPException(status_code=400, detail=f"Invalid device_target: {dt}")
+            node.device_target = dt
         return node.to_dict()
 
     @app.delete("/nodes/{node_id}", summary="Delete a virtual node")
