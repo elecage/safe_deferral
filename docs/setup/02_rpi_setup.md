@@ -243,7 +243,31 @@ bash rpi/scripts/configure/20_sync_runtime_assets_rpi.sh
 ```
 
 Mac mini에서 정책·스키마·MQTT·페이로드 reference asset을 rsync로 동기화합니다.  
-> SSH 키 또는 비밀번호로 Mac mini에 접근 가능해야 합니다.
+스크립트는 `-o BatchMode=yes`(비밀번호 입력 없는 키 전용 모드)로 rsync를 실행하므로,
+**사전에 SSH 키 기반 접속이 설정되어 있어야 합니다.**
+
+> **SSH 키 설정 방법**
+>
+> 1. RPi에 키가 있는지 확인:
+>    ```bash
+>    ls ~/.ssh/id_*.pub
+>    ```
+>    파일이 있으면 2번으로 넘어갑니다. 없으면 키를 생성합니다:
+>    ```bash
+>    ssh-keygen -t ed25519 -C "rpi-sync" -N "" -f ~/.ssh/id_ed25519
+>    ```
+>    (`ed25519`는 SSH 인증에 사용하는 암호화 알고리즘입니다. 현재 가장 권장되는 방식입니다.)
+>
+> 2. Mac mini에 공개키 등록 (Mac mini 비밀번호를 한 번 입력):
+>    ```bash
+>    ssh-copy-id <MAC_MINI_USER>@<MAC_MINI_HOST>
+>    # 예: ssh-copy-id elecage@mac-mini.local
+>    ```
+>
+> 3. 키 접속 확인 (비밀번호 없이 OK가 출력되면 성공):
+>    ```bash
+>    ssh -o BatchMode=yes <MAC_MINI_USER>@<MAC_MINI_HOST> echo OK
+>    ```
 
 **결과 확인:** `[PASS] Runtime assets synced`
 
@@ -339,7 +363,31 @@ bash rpi/scripts/configure/20_sync_runtime_assets_rpi.sh
 ```
 
 Rsyncs policy, schema, MQTT, and payload reference assets from the Mac mini.  
-> SSH key or password access to the Mac mini is required.
+The script uses `-o BatchMode=yes` (key-only, no password prompt), so
+**SSH key-based access must be configured before running this step.**
+
+> **SSH key setup**
+>
+> 1. Check if a key already exists on the RPi:
+>    ```bash
+>    ls ~/.ssh/id_*.pub
+>    ```
+>    If a file is listed, skip to step 2. Otherwise generate a key:
+>    ```bash
+>    ssh-keygen -t ed25519 -C "rpi-sync" -N "" -f ~/.ssh/id_ed25519
+>    ```
+>    (`ed25519` is the encryption algorithm used for SSH authentication — the current recommended option.)
+>
+> 2. Register the public key on the Mac mini (enter the Mac mini password once):
+>    ```bash
+>    ssh-copy-id <MAC_MINI_USER>@<MAC_MINI_HOST>
+>    # e.g. ssh-copy-id elecage@mac-mini.local
+>    ```
+>
+> 3. Verify key-based access (OK printed without a password prompt means success):
+>    ```bash
+>    ssh -o BatchMode=yes <MAC_MINI_USER>@<MAC_MINI_HOST> echo OK
+>    ```
 
 **Success:** `[PASS] Runtime assets synced`
 
