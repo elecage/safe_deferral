@@ -89,7 +89,7 @@ MQTT_PASS = os.environ.get("MQTT_PASS", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
 AUDIT_DB_PATH = os.environ.get(
     "AUDIT_DB_PATH",
     str(Path.home() / "smarthome_workspace" / "audit.db"),

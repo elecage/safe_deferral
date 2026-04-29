@@ -42,10 +42,18 @@ echo "  [INFO] Ensuring Ollama service is running..."
 docker compose up -d ollama > /dev/null
 echo "  [OK] Ollama service is up."
 
-# 5. Ollama API 기동 상태 확인
-echo "  [INFO] Checking if Ollama API is reachable..."
-if ! curl -s -f -o /dev/null "${OLLAMA_HOST}/api/tags"; then
-    echo "  [FATAL] Ollama API is not reachable at ${OLLAMA_HOST}."
+# 5. Ollama API 기동 대기 (최대 30초)
+echo "  [INFO] Waiting for Ollama API to become reachable..."
+READY=0
+for i in $(seq 1 30); do
+    if curl -s -f -o /dev/null "${OLLAMA_HOST}/api/tags"; then
+        READY=1
+        break
+    fi
+    sleep 1
+done
+if [ "${READY}" -eq 0 ]; then
+    echo "  [FATAL] Ollama API is not reachable at ${OLLAMA_HOST} after 30s."
     echo "          Please check Docker logs: docker compose logs ollama"
     exit 1
 fi
