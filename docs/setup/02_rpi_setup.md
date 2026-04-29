@@ -195,22 +195,42 @@ bash rpi/scripts/configure/10_write_env_files_rpi.sh
 nano ~/smarthome_workspace/.env
 ```
 
-필수 입력 항목:
-| 키 | 설명 | 기본값 | 예시 |
+확인 및 수정이 필요한 항목:
+| 키 | 설명 | 기본값 | 조치 |
 |---|---|---|---|
-| `MAC_MINI_HOST` | Mac mini 호스트명 또는 IP | `mac-mini.local` | `mac-mini.local` 또는 `192.168.1.100` |
-| `MQTT_HOST` | MQTT 브로커 주소 (Mac mini와 동일) | `$MAC_MINI_HOST` | 위와 동일 |
-| `MQTT_PORT` | MQTT 포트 | `1883` | `1883` |
+| `MAC_MINI_HOST` | Mac mini 호스트명 또는 IP | `mac-mini.local` | Bonjour 동작 시 기본값 유지, 불가 시 IP로 교체 |
+| `MAC_MINI_USER` | Mac mini SSH 사용자명 | 현재 RPi 로그인 사용자 | asset 동기화에 사용하는 Mac mini 계정명으로 수정 |
+| `MQTT_HOST` | MQTT 브로커 주소 | `$MAC_MINI_HOST` | MAC_MINI_HOST와 동일하게 자동 참조됨 |
+| `MQTT_PORT` | MQTT 포트 | `1883` | 변경 불필요 |
 | `MQTT_PASS` | MQTT 비밀번호 | `CHANGE_ME` | 아래 참조 |
 
-> **스크립트 기본값**: `MAC_MINI_HOST=mac-mini.local`  
-> macOS Bonjour가 동작하는 환경에서는 기본값 그대로 사용 가능합니다.  
+스크립트 실행 후 항상 아래 경고가 출력됩니다 — 정상입니다:
+```
+[WARNING] ACTION REQUIRED: Please verify MAC_MINI_HOST, MAC_MINI_USER, MQTT_HOST, and MQTT_PASS manually in .env
+```
+이 경고는 자동으로 사라지지 않으므로, `.env`를 직접 열어 값을 확인·수정한 뒤 다음 단계로 진행합니다.
+
+추가로 아래 경고 중 해당하는 항목이 있으면 함께 수정합니다:
+
+```
+[WARNING] Placeholder or legacy values must be fixed before sync/verification
+```
+
+| 경고 메시지 | 원인 | 해결 방법 |
+|---|---|---|
+| `Placeholder IP 192.168.1.100 remains` | `MAC_MINI_HOST` 또는 `MQTT_HOST`가 `192.168.1.100` | 실제 호스트명 또는 IP로 교체 |
+| `Placeholder MAC_MINI_USER=mac_user remains` | `MAC_MINI_USER`가 `mac_user` | 실제 Mac mini 사용자명으로 교체 |
+| `MQTT_PASS is still CHANGE_ME` | `MQTT_PASS=CHANGE_ME` 그대로 | 아래 참조 |
+| `Legacy smarthome/* topic values remain` | `.env`에 `smarthome/` 포함된 토픽 | 해당 줄 삭제 또는 `safe_deferral/`로 교체 |
+
+> **MAC_MINI_HOST 확인 방법**  
+> macOS Bonjour가 동작하는 환경에서는 기본값(`mac-mini.local`) 그대로 사용 가능합니다.  
 > 동일 LAN에서 `ping mac-mini.local`이 응답하면 변경 불필요.  
-> mDNS가 동작하지 않는 경우 `ipconfig getifaddr en0`으로 확인한 IP로 변경하세요.
+> mDNS가 동작하지 않는 경우 Mac mini에서 `ipconfig getifaddr en0`으로 IP를 확인하세요.
 
 > **MQTT_PASS 처리**  
 > Mac mini의 Mosquitto는 `allow_anonymous true`로 설정되어 있어 비밀번호가 필요 없습니다.  
-> 스크립트 실행 후 `MQTT_PASS=CHANGE_ME` 경고가 표시되면 아래 명령으로 빈 값으로 지워주세요:
+> `MQTT_PASS=CHANGE_ME` 경고가 표시되면 아래 명령으로 빈 값으로 지워주세요:
 > ```bash
 > sed -i 's/^MQTT_PASS=CHANGE_ME$/MQTT_PASS=/' ~/smarthome_workspace/.env
 > ```
@@ -272,22 +292,41 @@ Creates `~/smarthome_workspace/.env`. After running, edit the file with real val
 nano ~/smarthome_workspace/.env
 ```
 
-Required values:
-| Key | Description | Default | Example |
+Values to verify and update:
+| Key | Description | Default | Action |
 |---|---|---|---|
-| `MAC_MINI_HOST` | Mac mini hostname or IP | `mac-mini.local` | `mac-mini.local` or `192.168.1.100` |
-| `MQTT_HOST` | MQTT broker address (same as Mac mini) | `$MAC_MINI_HOST` | same as above |
-| `MQTT_PORT` | MQTT port | `1883` | `1883` |
-| `MQTT_PASS` | MQTT password | `CHANGE_ME` | see note below |
+| `MAC_MINI_HOST` | Mac mini hostname or IP | `mac-mini.local` | Keep default if Bonjour works, replace with IP otherwise |
+| `MAC_MINI_USER` | Mac mini SSH username | Current RPi login user | Set to the Mac mini account used for asset sync |
+| `MQTT_HOST` | MQTT broker address | `$MAC_MINI_HOST` | Automatically references MAC_MINI_HOST |
+| `MQTT_PORT` | MQTT port | `1883` | No change needed |
+| `MQTT_PASS` | MQTT password | `CHANGE_ME` | See note below |
 
-> **Script default**: `MAC_MINI_HOST=mac-mini.local`  
-> If macOS Bonjour is active on the same LAN, the default works without change.  
+The script always prints the following warning — this is expected:
+```
+[WARNING] ACTION REQUIRED: Please verify MAC_MINI_HOST, MAC_MINI_USER, MQTT_HOST, and MQTT_PASS manually in .env
+```
+This warning does not clear automatically. Open `.env`, verify each value, then proceed to the next step.
+
+If any placeholder is still present, you will also see:
+```
+[WARNING] Placeholder or legacy values must be fixed before sync/verification
+```
+
+| Warning message | Cause | Fix |
+|---|---|---|
+| `Placeholder IP 192.168.1.100 remains` | `MAC_MINI_HOST` or `MQTT_HOST` is `192.168.1.100` | Replace with real hostname or IP |
+| `Placeholder MAC_MINI_USER=mac_user remains` | `MAC_MINI_USER` is `mac_user` | Replace with actual Mac mini username |
+| `MQTT_PASS is still CHANGE_ME` | `MQTT_PASS=CHANGE_ME` unchanged | See note below |
+| `Legacy smarthome/* topic values remain` | `.env` contains `smarthome/` topics | Delete the line or replace with `safe_deferral/` |
+
+> **MAC_MINI_HOST**  
+> If macOS Bonjour is active on the same LAN, the default (`mac-mini.local`) works without change.  
 > Verify with `ping mac-mini.local` from the RPi.  
-> If mDNS does not resolve, replace with the IP from `ipconfig getifaddr en0` on the Mac mini.
+> If mDNS does not resolve, use the IP from `ipconfig getifaddr en0` on the Mac mini.
 
 > **MQTT_PASS handling**  
 > The Mac mini Mosquitto broker is configured with `allow_anonymous true`, so no password is required.  
-> If you see a `MQTT_PASS=CHANGE_ME` warning after running the script, clear it with:
+> If you see a `MQTT_PASS=CHANGE_ME` warning, clear it with:
 > ```bash
 > sed -i 's/^MQTT_PASS=CHANGE_ME$/MQTT_PASS=/' ~/smarthome_workspace/.env
 > ```
