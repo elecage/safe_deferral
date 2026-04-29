@@ -43,7 +43,9 @@ if [ -d "${WORKSPACE_DIR}/docker" ]; then
             docker compose restart homeassistant > /dev/null 2>&1
             echo "  [OK] Home Assistant container restarted successfully."
         else
-            echo "  [WARNING] 'homeassistant' service is not found or not created yet. Configuration will apply on first start."
+            echo "  [INFO] 'homeassistant' service not yet created. Starting now..."
+            docker compose up -d homeassistant > /dev/null 2>&1
+            echo "  [OK] Home Assistant container started successfully."
         fi
     else
         echo "  [WARNING] docker-compose stack file not found in ${WORKSPACE_DIR}/docker. Skipping restart."
