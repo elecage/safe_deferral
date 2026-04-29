@@ -22,6 +22,7 @@ try:
 except ImportError:
     _FASTAPI_AVAILABLE = False
 
+from observation_store import ObservationStore
 from experiment_manager.manager import ExperimentManager
 from experiment_manager.models import ExperimentFamily, RunParameters, RunState
 from preflight.readiness import PreflightManager
@@ -41,6 +42,7 @@ def create_app(
     preflight_manager: Optional[PreflightManager] = None,
     mqtt_monitor: Optional[MqttStatusMonitor] = None,
     virtual_node_manager: Optional[VirtualNodeManager] = None,
+    observation_store: Optional[ObservationStore] = None,
 ) -> "FastAPI":
     if not _FASTAPI_AVAILABLE:
         raise ImportError("fastapi is required for the dashboard app")
@@ -64,6 +66,7 @@ def create_app(
     _pm = preflight_manager or PreflightManager()
     _mm = mqtt_monitor or MqttStatusMonitor()
     _vnm = virtual_node_manager or VirtualNodeManager()
+    _obs = observation_store or ObservationStore()
 
     # ------------------------------------------------------------------
     # Root — serve dashboard UI
@@ -197,6 +200,19 @@ def create_app(
     @app.get("/mqtt/status", summary="Get MQTT interface health report")
     def get_mqtt_status():
         return _mm.build_report().to_dict()
+
+    # ------------------------------------------------------------------
+    # Observations (dashboard/observation telemetry from Mac mini)
+    # ------------------------------------------------------------------
+
+    @app.get("/observations", summary="List recent dashboard observation payloads")
+    def list_observations(limit: int = 50):
+        return _obs.list_recent(limit=limit)
+
+    @app.delete("/observations", summary="Clear observation buffer")
+    def clear_observations():
+        _obs.clear()
+        return {"cleared": True}
 
     # ------------------------------------------------------------------
     # Virtual nodes
