@@ -47,8 +47,6 @@ class LowRiskDispatcher:
         ack_result = ack_handler.handle_ack(result.dispatch_record, ack_payload)
     """
 
-    COMMAND_TOPIC = "safe_deferral/actuation/command"
-
     def __init__(
         self,
         mqtt_publisher: Optional[MqttPublisher] = None,
@@ -58,6 +56,7 @@ class LowRiskDispatcher:
         policy = loader.load_policy_table()
         gc = policy["global_constraints"]
         self._ack_timeout_ms: int = gc["actuation_ack_timeout_ms"]
+        self._command_topic: str = loader.get_topic("safe_deferral/actuation/command")
         self._publisher: MqttPublisher = mqtt_publisher or _NoOpPublisher()
 
     # ------------------------------------------------------------------
@@ -114,7 +113,7 @@ class LowRiskDispatcher:
             ack_timeout_ms=self._ack_timeout_ms,
         )
 
-        self._publisher.publish(self.COMMAND_TOPIC, command_payload, qos=1)
+        self._publisher.publish(self._command_topic, command_payload, qos=1)
         record.dispatch_status = DispatchStatus.PUBLISHED
 
         return DispatchResult(

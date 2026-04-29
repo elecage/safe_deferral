@@ -255,3 +255,37 @@ class TestAuditFields:
         result = router.route(_base_input())
         after = int(time.time() * 1000)
         assert before <= result.routed_at_ms <= after
+
+
+# ------------------------------------------------------------------
+# _compare() — TypeError defence (FIX-B)
+# ------------------------------------------------------------------
+
+class TestCompareTypeDefence:
+    def test_string_temperature_value_does_not_raise(self, router):
+        """Threshold comparison against incompatible type must return CLASS_1/CLASS_2,
+        never raise TypeError."""
+        inp = _base_input()
+        inp["pure_context_payload"]["environmental_context"]["temperature"] = "hot"
+        # Should not raise — _compare() now catches TypeError
+        result = router.route(inp)
+        assert result.route_class in (RouteClass.CLASS_1, RouteClass.CLASS_2)
+
+    def test_none_sensor_value_does_not_match_threshold(self, router):
+        """None actual value must always return False from _compare(), never raise."""
+        from policy_router.router import PolicyRouter
+        assert PolicyRouter._compare(None, ">=", 50) is False
+
+    def test_type_mismatch_does_not_match(self, router):
+        """TypeError in comparison must result in False, not an exception."""
+        from policy_router.router import PolicyRouter
+        assert PolicyRouter._compare("hot", ">=", 50) is False
+        assert PolicyRouter._compare("hot", ">", 50) is False
+        assert PolicyRouter._compare("hot", "==", 50) is False
+
+    def test_numeric_comparison_still_works(self, router):
+        """Ensure existing numeric comparison is not broken by the try-except."""
+        from policy_router.router import PolicyRouter
+        assert PolicyRouter._compare(55.0, ">=", 50) is True
+        assert PolicyRouter._compare(49.9, ">=", 50) is False
+        assert PolicyRouter._compare(25, "==", 25) is True

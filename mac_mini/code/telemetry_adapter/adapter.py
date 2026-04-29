@@ -20,6 +20,7 @@ import uuid
 from typing import Optional, Protocol
 
 from audit_logger.logger import AuditReader
+from shared.asset_loader import AssetLoader
 from caregiver_escalation.models import EscalationResult
 from class2_clarification_manager.models import Class2Result
 from deterministic_validator.models import ValidatorResult
@@ -33,9 +34,6 @@ from telemetry_adapter.models import (
     TelemetrySnapshot,
     ValidationTelemetry,
 )
-
-OBSERVATION_TOPIC = "safe_deferral/dashboard/observation"
-
 
 class MqttPublisher(Protocol):
     def publish(self, topic: str, payload: dict, qos: int = 1) -> None: ...
@@ -63,7 +61,10 @@ class TelemetryAdapter:
         self,
         mqtt_publisher: Optional[MqttPublisher] = None,
         audit_reader: Optional[AuditReader] = None,
+        asset_loader: Optional[AssetLoader] = None,
     ) -> None:
+        loader = asset_loader or AssetLoader()
+        self._observation_topic: str = loader.get_topic("safe_deferral/dashboard/observation")
         self._publisher: MqttPublisher = mqtt_publisher or _NoOpPublisher()
         self._audit_reader: Optional[AuditReader] = audit_reader
         self._audit_correlation_id: str = ""
@@ -143,7 +144,7 @@ class TelemetryAdapter:
     def publish(self) -> TelemetrySnapshot:
         """Build snapshot and publish to safe_deferral/dashboard/observation."""
         snapshot = self.get_snapshot()
-        self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
         return snapshot
 
     def publish_ack_only(self, record: "DispatchRecord") -> TelemetrySnapshot:
@@ -167,7 +168,7 @@ class TelemetryAdapter:
             ack=ack,
             audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
         )
-        self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
         return snapshot
 
     def publish_c205_snapshot(
@@ -200,7 +201,7 @@ class TelemetryAdapter:
             audit_correlation_id=audit_correlation_id,
             audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
         )
-        self._publisher.publish(OBSERVATION_TOPIC, snapshot.to_dict(), qos=1)
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
         return snapshot
 
     def reset(self) -> None:

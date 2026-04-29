@@ -23,6 +23,24 @@ class AssetLoader:
     def load_schema(self, name: str) -> dict:
         return self._load_json(f"common/schemas/{name}")
 
+    def load_topic_registry(self) -> dict:
+        return self._load_json("common/mqtt/topic_registry.json")
+
+    def get_topic(self, topic: str) -> str:
+        """Return topic string after validating it exists in the registry.
+
+        Raises KeyError at startup if the topic has drifted out of the registry,
+        making topic drift visible immediately rather than silently at runtime.
+        """
+        registry = self.load_topic_registry()
+        known = {t["topic"] for t in registry["topics"]}
+        if topic not in known:
+            raise KeyError(
+                f"Topic '{topic}' not found in topic_registry.json. "
+                f"Update the registry or correct the topic string."
+            )
+        return topic
+
     def make_schema_resolver(self) -> jsonschema.RefResolver:
         """Returns a RefResolver that resolves $ref paths within common/schemas/."""
         schemas_dir = self.repo_root / "common/schemas"
