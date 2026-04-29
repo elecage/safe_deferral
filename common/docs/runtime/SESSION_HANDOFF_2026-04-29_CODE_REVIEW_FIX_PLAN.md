@@ -186,10 +186,13 @@ High 항목(FIX-A, FIX-B)을 먼저 수정해 안전성을 확보한 뒤 Medium/
 
 | 항목 | 상태 |
 |------|------|
-| FIX-A | ⬜ 미시작 |
-| FIX-B | ⬜ 미시작 |
-| FIX-C | ⬜ 미시작 |
-| FIX-D | ⬜ 미시작 |
-| FIX-E | ⬜ 미시작 |
-| FIX-F | ⬜ 미시작 |
-| FIX-G | ⬜ 미시작 |
+| FIX-A | ✅ 완료 (커밋 03207eb) |
+| FIX-B | ✅ 완료 (커밋 03207eb) |
+| FIX-C | ✅ 완료 (커밋 03207eb) |
+| FIX-D | ✅ 완료 (커밋 03207eb) |
+| FIX-E | ✅ 완료 (커밋 03207eb) |
+| FIX-F | ✅ 완료 (커밋 03207eb) |
+| FIX-G | ✅ 완료 (커밋 03207eb) |
+
+→ 전체 완료. 완료 핸드오프:
+`common/docs/runtime/SESSION_HANDOFF_2026-04-29_CODE_REVIEW_FIX_COMPLETE.md`
