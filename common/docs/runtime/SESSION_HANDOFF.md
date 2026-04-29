@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-29_OLLAMA_SETUP_BUGFIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-29_CODE_REVIEW_FIX_COMPLETE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-29_CODE_REVIEW_FIX_PLAN.md`
 2. `common/docs/runtime/SESSION_HANDOFF_2026-04-28_TELEMETRY_NOTIFICATION_BUGFIX_UPDATE.md`
