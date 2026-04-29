@@ -215,6 +215,75 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
   }
   .type-labels b { color: var(--text); }
+
+  /* Package A~G cards */
+  .pkg-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+  }
+  .pkg-card {
+    background: var(--surface2); border: 2px solid var(--border);
+    border-radius: 10px; padding: 16px; cursor: pointer; transition: all 0.15s;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .pkg-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .pkg-card.selected { border-color: var(--accent); background: rgba(99,102,241,0.1); }
+  .pkg-card .pkg-id {
+    font-size: 28px; font-weight: 800; color: var(--accent); line-height: 1;
+  }
+  .pkg-card .pkg-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .pkg-card .pkg-metrics { font-size: 11px; color: var(--text-dim); flex: 1; }
+  .pkg-card .pkg-tables { font-size: 10px; color: var(--purple); margin-top: 4px; font-weight: 600; }
+  .pkg-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 700;
+  }
+  .pkg-badge.required { background: rgba(239,68,68,0.2); color: var(--red); }
+  .pkg-badge.optional { background: rgba(100,116,139,0.2); color: #94a3b8; }
+
+  /* Package detail panel */
+  .pkg-detail {
+    background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.25);
+    border-radius: 10px; padding: 20px; margin-bottom: 20px;
+  }
+  .pkg-detail-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .pkg-detail-section { margin-bottom: 14px; }
+  .pkg-detail-section-label {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
+  }
+
+  /* Fault profile tags */
+  .fault-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fault-tag {
+    padding: 6px 12px; border-radius: 8px; font-size: 11px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-dim); transition: all 0.15s; user-select: none;
+  }
+  .fault-tag:hover { border-color: var(--accent); color: var(--text); }
+  .fault-tag.selected {
+    background: rgba(99,102,241,0.2); border-color: var(--accent); color: var(--text);
+  }
+  .fault-tag .ft-name { font-weight: 600; display: block; }
+  .fault-tag .ft-sub { color: var(--text-dim); font-size: 10px; }
+  .fault-tag.selected .ft-sub { color: var(--accent); }
+
+  /* Comparison condition chips */
+  .cond-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cond-chip {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .cond-chip:hover { border-color: var(--accent); color: var(--text); }
+  .cond-chip.selected { background: rgba(99,102,241,0.2); border-color: var(--accent); color: var(--text); }
+
+  /* Scenario grid with filter state */
+  .scenario-card.dimmed { opacity: 0.4; pointer-events: none; }
+
+  /* Fault tags that are not recommended by selected package */
+  .fault-tag.dimmed-optional { opacity: 0.55; }
+  .fault-tag.dimmed-optional:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -231,28 +300,78 @@
 <div class="layout">
   <nav>
     <div class="nav-item active" id="nav-scenario" onclick="gotoSection('scenario')">
-      <div class="nav-step">1</div> 시나리오 선택
+      <div class="nav-step">1</div> 패키지 선택
     </div>
     <div class="nav-item" id="nav-nodes" onclick="gotoSection('nodes')">
-      <div class="nav-step">2</div> 노드 관리
+      <div class="nav-step">2</div> 노드 설정
     </div>
     <div class="nav-item" id="nav-run" onclick="gotoSection('run')">
       <div class="nav-step">3</div> 실험 실행
     </div>
     <div class="nav-item" id="nav-results" onclick="gotoSection('results')">
-      <div class="nav-step">4</div> 결과 확인
+      <div class="nav-step">4</div> 결과 분석
     </div>
   </nav>
 
   <main>
 
-    <!-- ① 시나리오 선택 -->
+    <!-- ① 패키지 선택 -->
     <div class="section active" id="section-scenario">
-      <div class="section-title">① 시나리오 선택</div>
-      <div class="section-desc">실행할 실험 시나리오를 선택하세요.</div>
+      <div class="section-title">① 패키지 선택</div>
+      <div class="section-desc">논문 측정 실험 패키지를 선택하세요. 패키지마다 권장 시나리오, 폴트 프로파일, 지표가 다릅니다.</div>
+
+      <!-- Package A~G grid -->
+      <div id="pkg-grid" class="pkg-grid">
+        <div class="empty"><div class="empty-icon">📦</div>패키지를 불러오는 중…</div>
+      </div>
+
+      <!-- Package detail panel (shown after selection) -->
+      <div id="pkg-detail-panel" class="pkg-detail" style="display:none">
+        <div class="pkg-detail-title" id="pkg-detail-title">패키지 A — 정책 분기 정확성 및 안전성</div>
+
+        <!-- Scenarios in this package -->
+        <div class="pkg-detail-section">
+          <div class="pkg-detail-section-label">권장 시나리오</div>
+          <div id="pkg-scenario-tags" class="fault-tags"></div>
+        </div>
+
+        <!-- Fault profiles (Package C only, but shown for all with recommended list) -->
+        <div class="pkg-detail-section" id="pkg-fault-section">
+          <div class="pkg-detail-section-label">폴트 프로파일
+            <span style="font-weight:400;font-size:10px;color:var(--text-dim);margin-left:6px">클릭하여 선택 (패키지 C용)</span>
+          </div>
+          <div id="pkg-fault-tags" class="fault-tags"></div>
+        </div>
+
+        <!-- Comparison conditions (Package A only) -->
+        <div class="pkg-detail-section" id="pkg-cond-section" style="display:none">
+          <div class="pkg-detail-section-label">비교 조건 (Intent Recovery — Table 5)</div>
+          <div id="pkg-cond-chips" class="cond-chips"></div>
+        </div>
+
+        <!-- Required node types -->
+        <div class="pkg-detail-section">
+          <div class="pkg-detail-section-label">필요 노드 타입</div>
+          <div id="pkg-node-types" class="fault-tags"></div>
+        </div>
+
+        <!-- Metrics this package measures -->
+        <div class="pkg-detail-section">
+          <div class="pkg-detail-section-label">측정 지표</div>
+          <div id="pkg-metrics-list" style="font-size:12px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+      </div>
+
+      <!-- Scenario grid (filtered to recommended if package selected) -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="card-title" style="margin:0">시나리오 선택</div>
+        <span id="sc-filter-note" style="font-size:11px;color:var(--text-dim)"></span>
+        <button class="btn btn-ghost" style="padding:3px 10px;font-size:11px;margin-left:auto" id="btn-show-all-sc" onclick="showAllScenarios()" style="display:none">전체 보기</button>
+      </div>
       <div id="scenario-list" class="scenario-grid">
         <div class="empty"><div class="empty-icon">📋</div>시나리오를 불러오는 중…</div>
       </div>
+
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button class="btn btn-primary btn-lg" onclick="gotoSection('nodes')" id="btn-next-nodes" disabled>
           다음: 노드 설정 →
@@ -260,14 +379,17 @@
       </div>
     </div>
 
-    <!-- ② 노드 관리 -->
+    <!-- ② 노드 설정 -->
     <div class="section" id="section-nodes">
-      <div class="section-title">② 노드 관리</div>
+      <div class="section-title">② 노드 설정</div>
       <div class="section-desc">실험에 사용할 가상 노드를 생성·관리합니다. 실제 ESP32 노드는 전원을 켜면 자동 연결됩니다.</div>
 
-      <!-- 필요 노드 체크리스트 -->
+      <!-- 필요 노드 체크리스트 (패키지+시나리오 통합) -->
       <div id="required-nodes-panel" class="card mb-20" style="display:none">
-        <div class="card-title">선택된 시나리오의 필요 노드</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="card-title" style="margin:0">필요 노드 체크리스트</div>
+          <span id="req-node-source-label" style="font-size:11px;color:var(--text-dim)"></span>
+        </div>
         <div id="required-nodes-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px"></div>
       </div>
 
@@ -594,6 +716,14 @@ let refreshTimer = null;
 let routeChart = null;
 let outcomeChart = null;
 
+// Package state
+let selectedPackage = null;       // PackageDefinition dict
+let allPackages = [];
+let allFaultProfiles = [];
+let allScenarioFiles = [];        // all filenames from /scenarios
+let selectedFaultProfileIds = []; // for package C multi-select
+let selectedComparisonCondition = null; // for package A
+
 // ─────────────────────────────────────────────
 // Navigation
 // ─────────────────────────────────────────────
@@ -656,23 +786,251 @@ async function loadScenarios() {
   try {
     const r = await fetch('/scenarios');
     const d = await r.json();
-    const list = d.scenarios || [];
-    const container = document.getElementById('scenario-list');
-    if (list.length === 0) {
-      container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>사용 가능한 시나리오가 없습니다.</div>';
-      return;
-    }
-    container.innerHTML = list.map(sc => {
-      const name = sc.replace(/\.json$/, '').replace(/_/g, ' ');
-      const sel = selectedScenario === sc ? 'selected' : '';
-      return `<div class="scenario-card ${sel}" onclick="selectScenario('${sc}', this)">
-        <div class="sc-name">${name}</div>
-        <div class="sc-id">${sc}</div>
-      </div>`;
-    }).join('');
+    allScenarioFiles = d.scenarios || [];
+    renderScenarioGrid(allScenarioFiles);
   } catch {
     document.getElementById('scenario-list').innerHTML = '<div class="empty">시나리오 불러오기 실패</div>';
   }
+}
+
+function renderScenarioGrid(list, recommended) {
+  const container = document.getElementById('scenario-list');
+  const filterNote = document.getElementById('sc-filter-note');
+  const btnAll = document.getElementById('btn-show-all-sc');
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>사용 가능한 시나리오가 없습니다.</div>';
+    return;
+  }
+
+  const recSet = recommended ? new Set(recommended) : null;
+  if (recSet) {
+    filterNote.textContent = `패키지 권장 ${recSet.size}개 시나리오 표시 중`;
+    btnAll.style.display = '';
+  } else {
+    filterNote.textContent = '';
+    btnAll.style.display = 'none';
+  }
+
+  container.innerHTML = list.map(sc => {
+    const name = sc.replace(/\.json$/, '').replace(/_/g, ' ');
+    const sel = selectedScenario === sc ? 'selected' : '';
+    const dimmed = recSet && !recSet.has(sc) ? 'dimmed' : '';
+    return `<div class="scenario-card ${sel} ${dimmed}" onclick="selectScenario('${sc}', this)">
+      <div class="sc-name">${name}</div>
+      <div class="sc-id">${sc}</div>
+    </div>`;
+  }).join('');
+}
+
+function showAllScenarios() {
+  renderScenarioGrid(allScenarioFiles);
+}
+
+// ─────────────────────────────────────────────
+// Package A~G
+// ─────────────────────────────────────────────
+async function loadPackages() {
+  try {
+    const [pkgR, fpR] = await Promise.all([fetch('/packages'), fetch('/fault_profiles')]);
+    allPackages = await pkgR.json();
+    allFaultProfiles = await fpR.json();
+    renderPackageGrid(allPackages);
+  } catch {
+    document.getElementById('pkg-grid').innerHTML = '<div class="empty">패키지 불러오기 실패</div>';
+  }
+}
+
+function renderPackageGrid(packages) {
+  const container = document.getElementById('pkg-grid');
+  const METRIC_LABELS = {
+    class_routing_accuracy: 'Routing Accuracy',
+    emergency_miss_rate: 'Emergency Miss Rate',
+    uar: 'UAR',
+    sdr: 'SDR',
+    class2_handoff_correctness: 'Class2 Handoff',
+    latency_by_class: 'Latency p50/p95',
+    safe_fallback_rate: 'Safe Fallback Rate',
+    uar_under_faults: 'UAR under Faults',
+    misrouting_under_faults: 'Misrouting',
+    emergency_protection_preservation: 'Emergency Protection',
+    payload_completeness_rate: 'Payload Completeness',
+    missing_field_rate: 'Missing Field Rate',
+    governance_pass_rate: 'Governance Pass Rate',
+    topic_drift_detection_rate: 'Topic Drift Detection',
+  };
+  container.innerHTML = packages.map(p => {
+    const sel = selectedPackage && selectedPackage.package_id === p.package_id ? 'selected' : '';
+    const badge = p.required
+      ? '<span class="pkg-badge required">필수</span>'
+      : '<span class="pkg-badge optional">선택</span>';
+    const tables = p.paper_tables.length ? p.paper_tables.join(', ') : '';
+    const metrics = p.required_metrics.slice(0, 2).map(m => METRIC_LABELS[m] || m).join(' · ');
+    return `<div class="pkg-card ${sel}" onclick="selectPackage('${p.package_id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div class="pkg-id">Pkg ${p.package_id}</div>
+        ${badge}
+      </div>
+      <div class="pkg-name">${p.name_ko}</div>
+      <div class="pkg-metrics">${metrics}</div>
+      ${tables ? `<div class="pkg-tables">📄 ${tables}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectPackage(pkgId) {
+  selectedPackage = allPackages.find(p => p.package_id === pkgId) || null;
+  if (!selectedPackage) return;
+
+  // Re-render cards to show selection
+  renderPackageGrid(allPackages);
+
+  // Show detail panel
+  const panel = document.getElementById('pkg-detail-panel');
+  panel.style.display = '';
+  document.getElementById('pkg-detail-title').textContent =
+    `패키지 ${pkgId} — ${selectedPackage.name_ko}`;
+
+  // Scenario tags
+  const scTags = document.getElementById('pkg-scenario-tags');
+  scTags.innerHTML = selectedPackage.recommended_scenarios.map(sc => {
+    const name = sc.replace(/\.json$/, '').replace(/_skeleton$/, '').replace(/_/g, ' ');
+    const isSel = selectedScenario === sc;
+    return `<span class="fault-tag ${isSel ? 'selected' : ''}" onclick="quickSelectScenario('${sc}', this)">
+      <span class="ft-name">${name}</span>
+    </span>`;
+  }).join('') || '<span style="color:var(--text-dim);font-size:12px">지정 없음</span>';
+
+  // Fault profile tags (all profiles; highlight recommended)
+  const recFaults = new Set(selectedPackage.recommended_fault_profiles);
+  const fpEl = document.getElementById('pkg-fault-tags');
+  const FAULT_SHORT = {
+    FAULT_EMERGENCY_01_TEMP: '고온 E001',
+    FAULT_EMERGENCY_02_BUTTON_TRIPLE_HIT: '버튼 3회 E002',
+    FAULT_EMERGENCY_03_SMOKE: '연기 E003',
+    FAULT_EMERGENCY_04_GAS: '가스 E004',
+    FAULT_EMERGENCY_05_FALL: '낙상 E005',
+    FAULT_CONFLICT_01_GHOST_PRESS: '충돌 Ghost',
+    FAULT_STALENESS_01: '스테일 C204',
+    FAULT_MISSING_CONTEXT_01: '누락 C202',
+    FAULT_CONTRACT_DRIFT_01: '계약위반',
+  };
+  if (allFaultProfiles.length > 0) {
+    fpEl.innerHTML = allFaultProfiles.map(fp => {
+      const isRec = recFaults.has(fp.profile_id);
+      const isSel = selectedFaultProfileIds.includes(fp.profile_id);
+      const shortName = FAULT_SHORT[fp.profile_id] || fp.profile_id;
+      return `<span class="fault-tag ${isSel ? 'selected' : ''} ${isRec ? '' : 'dimmed-optional'}"
+        onclick="toggleFaultProfile('${fp.profile_id}', this)"
+        title="${fp.description}">
+        <span class="ft-name">${shortName}</span>
+        <span class="ft-sub">${fp.expected_outcome.replace('class_', 'C').replace('_escalation','').replace('_emergency','🚨').replace('governance_verification_fail_no_runtime_authority','거버넌스')}</span>
+      </span>`;
+    }).join('');
+  } else {
+    fpEl.innerHTML = '<span style="color:var(--text-dim);font-size:12px">폴트 프로파일 없음</span>';
+  }
+
+  // Comparison conditions (Package A only)
+  const condSection = document.getElementById('pkg-cond-section');
+  const condChips = document.getElementById('pkg-cond-chips');
+  if (selectedPackage.comparison_conditions.length > 0) {
+    condSection.style.display = '';
+    const COND_LABELS = {
+      direct_mapping: 'Direct Mapping',
+      rule_only: 'Rule-only',
+      llm_assisted: 'LLM-assisted',
+    };
+    condChips.innerHTML = selectedPackage.comparison_conditions.map(c => {
+      const isSel = selectedComparisonCondition === c;
+      return `<span class="cond-chip ${isSel ? 'selected' : ''}" onclick="selectCondition('${c}', this)">
+        ${COND_LABELS[c] || c}
+      </span>`;
+    }).join('');
+  } else {
+    condSection.style.display = 'none';
+  }
+
+  // Required node types
+  const nodeTypesEl = document.getElementById('pkg-node-types');
+  nodeTypesEl.innerHTML = selectedPackage.required_node_types.map(t =>
+    `<span class="fault-tag" style="cursor:default">
+      <span class="ft-name">${nodeTypeLabel(t)}</span>
+      <span class="ft-sub">${t}</span>
+    </span>`
+  ).join('') || '<span style="color:var(--text-dim);font-size:12px">제한 없음</span>';
+
+  // Metrics
+  const metricsEl = document.getElementById('pkg-metrics-list');
+  metricsEl.innerHTML = selectedPackage.required_metrics.map(m =>
+    `<span style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--accent)">${m}</span>`
+  ).join('');
+
+  // Filter scenario grid to recommended
+  renderScenarioGrid(allScenarioFiles, selectedPackage.recommended_scenarios);
+
+  // Auto-select first recommended scenario if none selected
+  if (!selectedScenario && selectedPackage.recommended_scenarios.length > 0) {
+    const first = selectedPackage.recommended_scenarios[0];
+    if (allScenarioFiles.includes(first)) {
+      selectedScenario = first;
+      document.getElementById('btn-next-nodes').disabled = false;
+      document.getElementById('nav-scenario').classList.add('done');
+      renderScenarioGrid(allScenarioFiles, selectedPackage.recommended_scenarios);
+      fetchRequiredNodes(first);
+    }
+  }
+
+  // Update required nodes from package
+  updateCombinedRequiredNodes();
+}
+
+function quickSelectScenario(sc, el) {
+  // Select scenario from package scenario tag
+  selectedScenario = sc;
+  document.getElementById('btn-next-nodes').disabled = false;
+  document.getElementById('nav-scenario').classList.add('done');
+  // Re-render scenario tags
+  selectPackage(selectedPackage.package_id);
+  renderScenarioGrid(allScenarioFiles, selectedPackage.recommended_scenarios);
+  fetchRequiredNodes(sc);
+}
+
+function toggleFaultProfile(profileId, el) {
+  const idx = selectedFaultProfileIds.indexOf(profileId);
+  if (idx >= 0) {
+    selectedFaultProfileIds.splice(idx, 1);
+    el.classList.remove('selected');
+  } else {
+    selectedFaultProfileIds.push(profileId);
+    el.classList.add('selected');
+  }
+}
+
+function selectCondition(cond, el) {
+  selectedComparisonCondition = selectedComparisonCondition === cond ? null : cond;
+  document.querySelectorAll('.cond-chip').forEach(c => c.classList.remove('selected'));
+  if (selectedComparisonCondition) el.classList.add('selected');
+}
+
+// Merge required node types from package + scenario
+function updateCombinedRequiredNodes() {
+  const merged = new Set(requiredNodeTypes);
+  if (selectedPackage) {
+    selectedPackage.required_node_types.forEach(t => merged.add(t));
+  }
+  requiredNodeTypes = [...merged];
+  // Refresh panel if nodes are loaded
+  fetch('/nodes').then(r => r.json()).then(nodes => {
+    renderRequiredNodesPanel(requiredNodeTypes, nodes);
+    const label = document.getElementById('req-node-source-label');
+    if (label) {
+      const sources = [];
+      if (selectedPackage) sources.push(`패키지 ${selectedPackage.package_id}`);
+      if (selectedScenario) sources.push('시나리오');
+      label.textContent = sources.length ? `(${sources.join(' + ')})` : '';
+    }
+  }).catch(() => {});
 }
 
 let requiredNodeTypes = [];
@@ -692,8 +1050,7 @@ async function fetchRequiredNodes(filename) {
     if (!r.ok) return;
     const sc = await r.json();
     requiredNodeTypes = deriveRequiredNodes(sc);
-    const nodes = await (await fetch('/nodes')).json();
-    renderRequiredNodesPanel(requiredNodeTypes, nodes);
+    updateCombinedRequiredNodes();
   } catch {}
 }
 
@@ -1313,6 +1670,7 @@ async function loadRunResult() {
 // ─────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   refreshAll();
+  loadPackages();
   loadScenarios();
   setInterval(refreshAll, 10000);
   setInterval(() => {
