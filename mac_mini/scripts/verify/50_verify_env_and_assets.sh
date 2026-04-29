@@ -13,9 +13,10 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "  [FATAL] 'python3' command is not available."
-    echo "          Please ensure Python is installed and the Mac venv has been prepared."
+VENV_PYTHON="${HOME}/smarthome_workspace/.venv-mac/bin/python"
+if [ ! -x "${VENV_PYTHON}" ]; then
+    echo "  [FATAL] Mac mini venv not found at ${VENV_PYTHON}."
+    echo "          Please run mac_mini/scripts/install/30_setup_python_venv_mac.sh first."
     exit 1
 fi
 
@@ -211,7 +212,7 @@ if [ "${MISSING_REFERENCED_EXAMPLES}" -ne 0 ]; then
 fi
 
 echo "  [INFO] Validating schema-governed payload examples..."
-python3 - "${SCHEMA_DIR}" "${PAYLOAD_EXAMPLES_DIR}" <<'PY'
+"${VENV_PYTHON}" - "${SCHEMA_DIR}" "${PAYLOAD_EXAMPLES_DIR}" <<'PY'
 import json
 import sys
 from pathlib import Path
