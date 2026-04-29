@@ -670,7 +670,7 @@ function onNodeTypeChange(type) {
     pure_context_payload: {
       trigger_event: {
         event_type: doorbell ? "sensor" : "button",
-        event_code: doorbell ? "doorbell_pressed" : "button_press_living_room",
+        event_code: doorbell ? "doorbell_pressed" : "single_click",
         timestamp_ms: now
       },
       environmental_context: {
