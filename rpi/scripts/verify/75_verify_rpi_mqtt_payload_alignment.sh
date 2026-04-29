@@ -144,7 +144,7 @@ else
 fi
 
 echo "  [INFO] Checking context schema for required doorbell context signal..."
-if ! jq -e '.. | objects | has("doorbell_detected")' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
+if ! jq -e 'any(.. | objects; has("doorbell_detected"))' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
     echo "  [FATAL] context schema does not contain doorbell_detected."
     FAILURES=1
 else

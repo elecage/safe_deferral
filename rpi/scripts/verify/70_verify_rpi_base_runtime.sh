@@ -185,7 +185,7 @@ echo "  [OK] Policy/schema authority mirrors and MQTT/payload reference assets a
 
 CONTEXT_SCHEMA="${SCHEMA_DIR}/context_schema.json"
 echo "  [INFO] Verifying context schema alignment for doorbell context..."
-if ! jq -e '.. | objects | has("doorbell_detected")' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
+if ! jq -e 'any(.. | objects; has("doorbell_detected"))' "${CONTEXT_SCHEMA}" >/dev/null 2>&1; then
     echo "  [FATAL] context schema does not contain doorbell_detected. Re-sync schema runtime assets."
     exit 1
 fi
