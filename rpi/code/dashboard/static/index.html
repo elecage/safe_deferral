@@ -265,6 +265,12 @@
       <div class="section-title">② 노드 관리</div>
       <div class="section-desc">실험에 사용할 가상 노드를 생성·관리합니다. 실제 ESP32 노드는 전원을 켜면 자동 연결됩니다.</div>
 
+      <!-- 필요 노드 체크리스트 -->
+      <div id="required-nodes-panel" class="card mb-20" style="display:none">
+        <div class="card-title">선택된 시나리오의 필요 노드</div>
+        <div id="required-nodes-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px"></div>
+      </div>
+
       <!-- 연결 토폴로지 -->
       <div class="topo mb-20">
         <div class="card-title" style="margin-bottom:12px">연결 상태</div>
@@ -518,12 +524,63 @@ async function loadScenarios() {
   }
 }
 
+let requiredNodeTypes = [];
+
 function selectScenario(sc, el) {
   selectedScenario = sc;
   document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('btn-next-nodes').disabled = false;
   document.getElementById('nav-scenario').classList.add('done');
+  fetchRequiredNodes(sc);
+}
+
+async function fetchRequiredNodes(filename) {
+  try {
+    const r = await fetch(`/scenarios/${encodeURIComponent(filename)}`);
+    if (!r.ok) return;
+    const sc = await r.json();
+    requiredNodeTypes = deriveRequiredNodes(sc);
+    const nodes = await (await fetch('/nodes')).json();
+    renderRequiredNodesPanel(requiredNodeTypes, nodes);
+  } catch {}
+}
+
+function deriveRequiredNodes(scenario) {
+  const ACTION_MAP = {
+    publish_context_payload: 'context_node',
+    publish_ambiguous_context_payload: 'context_node',
+    publish_fault_injected_context_payload: 'context_node',
+    publish_emergency_event_payload: 'emergency_event_node',
+    publish_visitor_or_doorlock_sensitive_context: 'doorbell_visitor_context',
+  };
+  const types = new Set();
+  for (const step of (scenario.steps || [])) {
+    const mapped = ACTION_MAP[step.action];
+    if (mapped) types.add(mapped);
+  }
+  return [...types];
+}
+
+function renderRequiredNodesPanel(required, nodes) {
+  const panel = document.getElementById('required-nodes-panel');
+  const list = document.getElementById('required-nodes-list');
+  if (required.length === 0) { panel.style.display = 'none'; return; }
+
+  const existingTypes = new Set(nodes.map(n => n.node_type));
+  panel.style.display = 'block';
+  list.innerHTML = required.map(type => {
+    const ok = existingTypes.has(type);
+    const color = ok ? 'var(--green)' : 'var(--red)';
+    const icon = ok ? '✅' : '❌';
+    const label = nodeTypeLabel(type);
+    return `<div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid ${ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'};border-radius:8px;padding:8px 14px;font-size:13px">
+      <span>${icon}</span>
+      <span style="color:${color};font-weight:600">${label}</span>
+      <span style="color:var(--text-dim);font-size:11px;font-family:monospace">${type}</span>
+      ${!ok ? `<button class="btn btn-primary" style="padding:3px 10px;font-size:11px;margin-left:4px" onclick="openNodeModal();document.getElementById('node-type').value='${type}';onNodeTypeChange('${type}')">+ 추가</button>` : ''}
+    </div>`;
+  }).join('');
 }
 
 // ─────────────────────────────────────────────
@@ -535,6 +592,7 @@ async function loadNodes() {
     const nodes = await r.json();
     renderNodes(nodes);
     renderTopo(nodes);
+    if (requiredNodeTypes.length > 0) renderRequiredNodesPanel(requiredNodeTypes, nodes);
   } catch {
     document.getElementById('node-list').innerHTML = '<div class="empty">노드 불러오기 실패</div>';
   }

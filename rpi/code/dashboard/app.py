@@ -181,6 +181,15 @@ def create_app(
     def get_scenario_markdown():
         return _sm.export_markdown_report()
 
+    @app.get("/scenarios/{filename}", summary="Get scenario contract content")
+    def get_scenario(filename: str):
+        try:
+            return _sm.load_scenario(filename)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail=f"Scenario {filename} not found")
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
     # ------------------------------------------------------------------
     # MQTT / interface status
     # ------------------------------------------------------------------
