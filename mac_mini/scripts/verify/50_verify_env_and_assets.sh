@@ -228,6 +228,14 @@ except Exception as exc:  # pragma: no cover - shell-facing diagnostic
 schema_dir = Path(sys.argv[1])
 payload_dir = Path(sys.argv[2])
 
+# Build a RefResolver so $ref: "context_schema.json#" resolves correctly
+base_uri = schema_dir.as_uri() + "/"
+store = {}
+for p in schema_dir.glob("*.json"):
+    with p.open(encoding="utf-8") as f:
+        store[base_uri + p.name] = json.load(f)
+resolver = jsonschema.RefResolver(base_uri=base_uri, referrer={}, store=store)
+
 checks = [
     (
         "policy_router_input_schema.json",
@@ -269,7 +277,7 @@ for schema_name, payload_rel, label in checks:
     with payload_path.open("r", encoding="utf-8") as f:
         instance = json.load(f)
     try:
-        jsonschema.Draft7Validator(schema).validate(instance)
+        jsonschema.Draft7Validator(schema, resolver=resolver).validate(instance)
     except jsonschema.ValidationError as exc:
         print(f"  [FATAL] Schema validation failed for {label}: {exc.message}")
         print(f"          schema={schema_path}")
