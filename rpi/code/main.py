@@ -140,6 +140,7 @@ def main() -> None:
         result_store=result_store,
         preflight_manager=preflight,
         mqtt_monitor=mqtt_monitor,
+        virtual_node_manager=vnm,
     )
     _start_fastapi(dashboard_app, DASHBOARD_PORT, "dashboard")
 

@@ -10,11 +10,14 @@ Authority boundary:
   - All create/update/run/export actions call backend service objects.
 """
 
+import pathlib
 from typing import Optional
 
 try:
     from fastapi import FastAPI, HTTPException
-    from fastapi.responses import JSONResponse, PlainTextResponse
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse
+    from fastapi.staticfiles import StaticFiles
     _FASTAPI_AVAILABLE = True
 except ImportError:
     _FASTAPI_AVAILABLE = False
@@ -25,6 +28,10 @@ from preflight.readiness import PreflightManager
 from result_store.store import ResultStore
 from scenario_manager.manager import ScenarioManager
 from mqtt_status.monitor import MqttStatusMonitor
+from virtual_node_manager.manager import VirtualNodeManager
+from virtual_node_manager.models import VirtualNodeProfile, VirtualNodeState, VirtualNodeType
+
+_STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
 
 def create_app(
@@ -33,14 +40,22 @@ def create_app(
     scenario_manager: Optional[ScenarioManager] = None,
     preflight_manager: Optional[PreflightManager] = None,
     mqtt_monitor: Optional[MqttStatusMonitor] = None,
+    virtual_node_manager: Optional[VirtualNodeManager] = None,
 ) -> "FastAPI":
     if not _FASTAPI_AVAILABLE:
         raise ImportError("fastapi is required for the dashboard app")
 
     app = FastAPI(
         title="safe_deferral Experiment Dashboard",
-        description="Read-only experiment monitoring dashboard for RPi support layer.",
+        description="Experiment monitoring dashboard for RPi support layer.",
         version="1.0.0",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     _em = experiment_manager or ExperimentManager()
@@ -48,6 +63,18 @@ def create_app(
     _sm = scenario_manager or ScenarioManager()
     _pm = preflight_manager or PreflightManager()
     _mm = mqtt_monitor or MqttStatusMonitor()
+    _vnm = virtual_node_manager or VirtualNodeManager()
+
+    # ------------------------------------------------------------------
+    # Root — serve dashboard UI
+    # ------------------------------------------------------------------
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def serve_ui():
+        index = _STATIC_DIR / "index.html"
+        if index.exists():
+            return HTMLResponse(content=index.read_text(encoding="utf-8"))
+        return HTMLResponse(content="<h1>Dashboard UI not found</h1>", status_code=404)
 
     # ------------------------------------------------------------------
     # Preflight
@@ -161,5 +188,101 @@ def create_app(
     @app.get("/mqtt/status", summary="Get MQTT interface health report")
     def get_mqtt_status():
         return _mm.build_report().to_dict()
+
+    # ------------------------------------------------------------------
+    # Virtual nodes
+    # ------------------------------------------------------------------
+
+    @app.get("/nodes", summary="List all virtual nodes")
+    def list_nodes():
+        return [n.to_dict() for n in _vnm.list_nodes()]
+
+    @app.post("/nodes", summary="Create a virtual node")
+    def create_node(body: dict):
+        try:
+            node_type = VirtualNodeType(body.get("node_type", "context_node"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid node_type")
+
+        publish_topic = body.get("publish_topic", "safe_deferral/context/input")
+        profile = VirtualNodeProfile(
+            profile_id=body.get("profile_id", f"profile_{node_type.value}"),
+            payload_template=body.get("payload_template", {}),
+            publish_topic=publish_topic,
+            publish_interval_ms=int(body.get("publish_interval_ms", 1000)),
+            repeat_count=int(body.get("repeat_count", 1)),
+        )
+        source_node_id = body.get("source_node_id") or f"rpi.virtual_{node_type.value}"
+        try:
+            node = _vnm.create_node(node_type, profile, source_node_id=source_node_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return node.to_dict()
+
+    @app.put("/nodes/{node_id}", summary="Update a virtual node profile")
+    def update_node(node_id: str, body: dict):
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        if node.state == VirtualNodeState.RUNNING:
+            raise HTTPException(status_code=409, detail="Stop the node before updating")
+
+        publish_topic = body.get("publish_topic", node.profile.publish_topic)
+        node.profile = VirtualNodeProfile(
+            profile_id=body.get("profile_id", node.profile.profile_id),
+            payload_template=body.get("payload_template", node.profile.payload_template),
+            publish_topic=publish_topic,
+            publish_interval_ms=int(body.get("publish_interval_ms", node.profile.publish_interval_ms)),
+            repeat_count=int(body.get("repeat_count", node.profile.repeat_count)),
+        )
+        if "source_node_id" in body:
+            try:
+                _vnm._validate_source_id(body["source_node_id"])
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+            node.source_node_id = body["source_node_id"]
+        return node.to_dict()
+
+    @app.delete("/nodes/{node_id}", summary="Delete a virtual node")
+    def delete_node(node_id: str):
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        _vnm.delete_node(node_id)
+        return {"deleted": node_id}
+
+    @app.post("/nodes/{node_id}/start", summary="Start a virtual node")
+    def start_node(node_id: str):
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        _vnm.start_node(node)
+        return node.to_dict()
+
+    @app.post("/nodes/{node_id}/stop", summary="Stop a virtual node")
+    def stop_node(node_id: str):
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        _vnm.stop_node(node)
+        return node.to_dict()
+
+    @app.post("/nodes/{node_id}/publish", summary="Publish one message from a node")
+    def publish_node(node_id: str):
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        try:
+            payload = _vnm.publish_once(node)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        return {"published": True, "payload": payload, "published_count": node.published_count}
+
+    # ------------------------------------------------------------------
+    # Static files (after all routes so /docs still works)
+    # ------------------------------------------------------------------
+
+    if _STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     return app
