@@ -30,14 +30,10 @@ from caregiver_escalation.models import (
 from caregiver_escalation.telegram_client import (
     TelegramSendError,
     TelegramSender,
-    _NoOpTelegramSender,
+    NoOpTelegramSender,
     format_notification_message,
 )
 from shared.asset_loader import AssetLoader
-
-ESCALATION_TOPIC = "safe_deferral/escalation/class2"
-CONFIRMATION_TOPIC = "safe_deferral/caregiver/confirmation"
-
 
 class MqttPublisher(Protocol):
     def publish(self, topic: str, payload: dict, qos: int = 1) -> None: ...
@@ -67,7 +63,9 @@ class CaregiverEscalationBackend:
         loader = asset_loader or AssetLoader()
         self._schema = loader.load_schema("class2_notification_payload_schema.json")
         self._resolver = loader.make_schema_resolver()
-        self._sender: TelegramSender = telegram_sender or _NoOpTelegramSender()
+        self._escalation_topic: str = loader.get_topic("safe_deferral/escalation/class2")
+        self._confirmation_topic: str = loader.get_topic("safe_deferral/caregiver/confirmation")
+        self._sender: TelegramSender = telegram_sender or NoOpTelegramSender()
         self._publisher: MqttPublisher = mqtt_publisher or _NoOpPublisher()
         self._chat_id = telegram_chat_id
 
@@ -118,7 +116,7 @@ class CaregiverEscalationBackend:
             escalation_status=escalation_status,
         )
 
-        self._publisher.publish(ESCALATION_TOPIC, notification_payload, qos=1)
+        self._publisher.publish(self._escalation_topic, notification_payload, qos=1)
 
         return EscalationResult(
             confirmation_id=cid,
@@ -155,7 +153,7 @@ class CaregiverEscalationBackend:
             decision.value
         )
 
-        self._publisher.publish(CONFIRMATION_TOPIC, confirmation.to_dict(), qos=1)
+        self._publisher.publish(self._confirmation_topic, confirmation.to_dict(), qos=1)
 
         return confirmation
 

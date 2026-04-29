@@ -14,8 +14,12 @@ without network access.
 """
 
 import html
+import logging
+import threading
 import time
 from typing import Optional, Protocol
+
+log = logging.getLogger("sd.telegram")
 
 
 class TelegramSendError(Exception):
@@ -31,14 +35,16 @@ class TelegramSender(Protocol):
         text: str,
         parse_mode: str = "HTML",
     ) -> Optional[int]:
-        """Return the Telegram message_id on success, None on dry-run.
+        """Return the Telegram message_id on success, or None.
 
-        Raise TelegramSendError on live-delivery failure.
+        May raise TelegramSendError on synchronous delivery failure
+        (e.g. test mocks).  HttpTelegramSender never raises — it sends
+        asynchronously and logs failures in the background thread.
         """
         ...
 
 
-class _NoOpTelegramSender:
+class NoOpTelegramSender:
     """Used when no real Telegram client is injected (test / dry-run).
 
     Returns None rather than raising — PENDING is the correct status for
@@ -57,9 +63,11 @@ class _NoOpTelegramSender:
 class HttpTelegramSender:
     """Production sender — calls the Telegram Bot API over HTTP.
 
-    Requires `requests` package.  Instantiate with bot_token from environment.
-    Raises TelegramSendError after all retries are exhausted so the backend
-    can distinguish a live-delivery failure from a dry-run None return.
+    send_message() fires the HTTP call in a daemon thread and returns None
+    immediately so the pipeline worker thread is never blocked.  Delivery
+    failures are logged by the background thread.
+
+    Requires `requests` package.
     """
 
     _API_BASE = "https://api.telegram.org/bot{token}/sendMessage"
@@ -74,7 +82,17 @@ class HttpTelegramSender:
         text: str,
         parse_mode: str = "HTML",
     ) -> Optional[int]:
-        import requests  # imported lazily so unit tests never need it
+        """Launch the HTTP send in a daemon thread; return None immediately."""
+        threading.Thread(
+            target=self._send_with_retry,
+            args=(chat_id, text, parse_mode),
+            daemon=True,
+            name="telegram-sender",
+        ).start()
+        return None  # EscalationStatus stays PENDING; background thread logs failure
+
+    def _send_with_retry(self, chat_id: str, text: str, parse_mode: str) -> None:
+        import requests  # lazy import so unit tests never need it
 
         url = self._API_BASE.format(token=self._token)
         last_exc: Exception = Exception("no attempts made")
@@ -88,13 +106,13 @@ class HttpTelegramSender:
                     timeout=10,
                 )
                 resp.raise_for_status()
-                data = resp.json()
-                return data.get("result", {}).get("message_id")
+                return
             except Exception as exc:
                 last_exc = exc
-        raise TelegramSendError(
-            f"Telegram delivery failed after {self._max_retries + 1} attempt(s)"
-        ) from last_exc
+        log.warning(
+            "Telegram delivery failed after %d attempt(s): %s",
+            self._max_retries + 1, last_exc,
+        )
 
 
 def format_notification_message(notification_payload: dict) -> str:

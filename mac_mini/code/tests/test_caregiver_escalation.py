@@ -1,5 +1,6 @@
 """Tests for CaregiverEscalationBackend (MM-08)."""
 
+import threading
 import time
 import pytest
 import jsonschema
@@ -304,7 +305,7 @@ class TestSendFailure:
 
     def test_noop_sender_gives_pending_not_send_failed(self):
         """Dry-run / test mode: None return without raising → PENDING, not SEND_FAILED."""
-        b = CaregiverEscalationBackend()  # uses _NoOpTelegramSender
+        b = CaregiverEscalationBackend()  # uses NoOpTelegramSender
         result = b.send_notification(_valid_payload())
         assert result.escalation_status == EscalationStatus.PENDING
 
@@ -532,3 +533,69 @@ class TestBuildNotificationSchemaCompliance:
         )
         with pytest.raises(jsonschema.ValidationError):
             b.send_notification(bad_payload)
+
+
+# ------------------------------------------------------------------
+# HttpTelegramSender — fire-and-forget (FIX-C)
+# ------------------------------------------------------------------
+
+class TestHttpTelegramSenderAsync:
+    def test_send_message_returns_none_immediately(self):
+        """send_message() must return None without blocking (FIX-C)."""
+        from caregiver_escalation.telegram_client import HttpTelegramSender
+
+        sender = HttpTelegramSender(bot_token="test-token")
+
+        blocked = threading.Event()
+        released = threading.Event()
+
+        def slow_retry(*args, **kwargs):
+            blocked.set()
+            released.wait(timeout=2)
+
+        sender._send_with_retry = slow_retry
+
+        start = time.monotonic()
+        result = sender.send_message("chat-id", "hello")
+        elapsed = time.monotonic() - start
+
+        blocked.wait(timeout=1)  # confirm background thread started
+        released.set()           # unblock it
+
+        assert result is None
+        assert elapsed < 0.5, f"send_message blocked for {elapsed:.2f}s — should be near-instant"
+
+    def test_send_message_launches_daemon_thread(self):
+        """The background thread must be a daemon so it does not prevent process exit."""
+        from caregiver_escalation.telegram_client import HttpTelegramSender
+
+        sender = HttpTelegramSender(bot_token="test-token")
+
+        launched: list = []
+        done = threading.Event()
+
+        def recording_retry(*args, **kwargs):
+            t = threading.current_thread()
+            launched.append(t.daemon)
+            done.set()
+
+        sender._send_with_retry = recording_retry
+        sender.send_message("chat-id", "hello")
+        done.wait(timeout=1)
+
+        assert launched, "background thread did not start"
+        assert launched[0] is True, "background thread must be a daemon"
+
+    def test_http_sender_gives_pending_status_in_backend(self):
+        """`HttpTelegramSender` returns None → backend status must be PENDING."""
+        from caregiver_escalation.backend import CaregiverEscalationBackend
+        from caregiver_escalation.models import EscalationStatus
+        from caregiver_escalation.telegram_client import HttpTelegramSender
+
+        sender = HttpTelegramSender(bot_token="test-token")
+        sender._send_with_retry = lambda *a, **kw: None  # suppress real HTTP
+
+        b = CaregiverEscalationBackend(telegram_sender=sender)
+        result = b.send_notification(_valid_payload())
+
+        assert result.escalation_status == EscalationStatus.PENDING

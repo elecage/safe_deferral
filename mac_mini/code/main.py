@@ -53,7 +53,7 @@ import paho.mqtt.client as mqtt
 from audit_logger.logger import AuditLogger
 from audit_logger.models import AuditEvent, EventGroup
 from caregiver_escalation.backend import CaregiverEscalationBackend
-from caregiver_escalation.telegram_client import HttpTelegramSender, _NoOpTelegramSender
+from caregiver_escalation.telegram_client import HttpTelegramSender, NoOpTelegramSender
 from class2_clarification_manager.manager import Class2ClarificationManager
 from context_intake.intake import ContextIntake
 from context_intake.models import IntakeStatus
@@ -63,10 +63,11 @@ from local_llm_adapter.adapter import LocalLlmAdapter
 from local_llm_adapter.llm_client import OllamaClient, MockLlmClient
 from low_risk_dispatcher.ack_handler import AckHandler
 from low_risk_dispatcher.dispatcher import LowRiskDispatcher
-from low_risk_dispatcher.models import DispatchRecord
+from low_risk_dispatcher.models import AckStatus, DispatchRecord
 from policy_router.models import RouteClass
 from policy_router.router import PolicyRouter
 from safe_deferral_handler.handler import SafeDeferralHandler
+from shared.asset_loader import AssetLoader
 from telemetry_adapter.adapter import TelemetryAdapter
 
 # ---------------------------------------------------------------------------
@@ -94,9 +95,6 @@ AUDIT_DB_PATH = os.environ.get(
     str(Path.home() / "smarthome_workspace" / "audit.db"),
 )
 
-TOPIC_CONTEXT_INPUT = "safe_deferral/context/input"
-TOPIC_ACK = "safe_deferral/actuation/ack"
-
 
 # ---------------------------------------------------------------------------
 # MQTT publisher adapter
@@ -116,6 +114,10 @@ class Pipeline:
     def __init__(self, mqtt_publisher) -> None:
         log.info("Initialising pipeline components …")
 
+        _loader = AssetLoader()
+        self.topic_context_input: str = _loader.get_topic("safe_deferral/context/input")
+        self.topic_ack: str = _loader.get_topic("safe_deferral/actuation/ack")
+
         self._audit = AuditLogger(db_path=AUDIT_DB_PATH)
 
         self._intake = ContextIntake(audit_logger=self._audit)
@@ -128,7 +130,7 @@ class Pipeline:
         )
         self._llm = LocalLlmAdapter(llm_client=llm_client)
         self._validator = DeterministicValidator()
-        self._dispatcher = LowRiskDispatcher(mqtt_publisher=mqtt_publisher)
+        self._dispatcher = LowRiskDispatcher(mqtt_publisher=mqtt_publisher, asset_loader=_loader)
         self._ack_handler = AckHandler()
         self._deferral = SafeDeferralHandler()
         self._class2 = Class2ClarificationManager()
@@ -136,14 +138,15 @@ class Pipeline:
         telegram = (
             HttpTelegramSender(TELEGRAM_TOKEN)
             if TELEGRAM_TOKEN
-            else _NoOpTelegramSender()
+            else NoOpTelegramSender()
         )
         self._caregiver = CaregiverEscalationBackend(
             telegram_sender=telegram,
             mqtt_publisher=mqtt_publisher,
             telegram_chat_id=TELEGRAM_CHAT_ID,
+            asset_loader=_loader,
         )
-        self._telemetry = TelemetryAdapter(mqtt_publisher=mqtt_publisher)
+        self._telemetry = TelemetryAdapter(mqtt_publisher=mqtt_publisher, asset_loader=_loader)
 
         # Pending ACK records: command_id → DispatchRecord
         self._pending_acks: dict[str, DispatchRecord] = {}
@@ -256,15 +259,7 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _handle_deferral(self, val_result, route_result) -> None:
         log.info("Safe deferral: %s", val_result.deferral_reason)
-        # Build a minimal deferral session and immediately escalate to Class 2.
-        # (Interactive user-selection requires a separate UI integration.)
-        session = self._deferral.start_clarification(
-            deferral_reason=val_result.deferral_reason or "insufficient_context",
-            audit_correlation_id=route_result.audit_correlation_id,
-        )
-        deferral_result = self._deferral.handle_timeout(session)
-        if deferral_result.should_escalate_to_class2:
-            self._handle_class2("C207", route_result)
+        self._handle_class2("C207", route_result)
 
     # ------------------------------------------------------------------
     # CLASS_2 — clarification manager → caregiver
@@ -311,6 +306,9 @@ class Pipeline:
         ack_result = self._ack_handler.handle_ack(record, ack_payload)
         self._telemetry.publish_ack_only(record)
         log.info("ACK resolved: command_id=%s status=%s", command_id, ack_result.ack_status.value)
+        if ack_result.ack_status == AckStatus.FAILURE:
+            log.warning("ACK failure command_id=%s — escalating C205", command_id)
+            self._escalate_c205(record.audit_correlation_id)
 
     # ------------------------------------------------------------------
     # ACK timeout sweep (C205 escalation path)
@@ -399,8 +397,8 @@ def main() -> None:
     def on_connect(c, userdata, flags, rc):
         if rc == 0:
             log.info("MQTT connected to %s:%s", MQTT_HOST, MQTT_PORT)
-            c.subscribe(TOPIC_CONTEXT_INPUT, qos=1)
-            c.subscribe(TOPIC_ACK, qos=1)
+            c.subscribe(pipeline.topic_context_input, qos=1)
+            c.subscribe(pipeline.topic_ack, qos=1)
         else:
             log.error("MQTT connect failed rc=%d", rc)
 
@@ -418,9 +416,9 @@ def main() -> None:
         while True:
             topic, payload = work_queue.get()
             try:
-                if topic == TOPIC_CONTEXT_INPUT:
+                if topic == pipeline.topic_context_input:
                     pipeline.handle_context(payload)
-                elif topic == TOPIC_ACK:
+                elif topic == pipeline.topic_ack:
                     pipeline.handle_ack(payload)
             except Exception as exc:
                 log.exception("Pipeline error [%s]: %s", topic, exc)

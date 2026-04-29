@@ -165,9 +165,12 @@ class PolicyRouter:
     def _compare(actual, operator: str, value) -> bool:
         if actual is None:
             return False
-        ops = {">=": actual >= value, ">": actual > value,
-               "<=": actual <= value, "<": actual < value, "==": actual == value}
-        return ops.get(operator, False)
+        try:
+            ops = {">=": actual >= value, ">": actual > value,
+                   "<=": actual <= value, "<": actual < value, "==": actual == value}
+            return ops.get(operator, False)
+        except TypeError:
+            return False
 
     def _class2(self, raw_input: dict, trigger_id: str, reason: str) -> PolicyRouterResult:
         meta = raw_input.get("routing_metadata", {})
