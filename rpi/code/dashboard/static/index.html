@@ -379,7 +379,7 @@
 
     <div class="form-group">
       <label class="form-label">노드 타입</label>
-      <select class="form-control" id="node-type">
+      <select class="form-control" id="node-type" onchange="onNodeTypeChange(this.value)">
         <option value="context_node">context_node — 컨텍스트 입력</option>
         <option value="device_state_reporter">device_state_reporter — 디바이스 상태</option>
         <option value="emergency_event_node">emergency_event_node — 긴급 이벤트</option>
@@ -413,8 +413,11 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">페이로드 템플릿 (JSON)</label>
-      <textarea class="form-control" id="node-payload" placeholder='{"key": "value"}'>{}</textarea>
+      <label class="form-label">페이로드 템플릿 (JSON)
+        <span style="color:var(--accent); font-weight:400; margin-left:6px; cursor:pointer" onclick="onNodeTypeChange(document.getElementById('node-type').value)">↺ 예시 채우기</span>
+      </label>
+      <textarea class="form-control" id="node-payload" placeholder='{"key": "value"}' style="min-height:180px; font-size:12px"></textarea>
+      <div style="margin-top:4px; font-size:11px; color:var(--text-dim)">노드 타입에 맞는 예시가 자동으로 채워집니다. 값을 직접 수정해도 됩니다.</div>
     </div>
 
     <div id="modal-error" style="color:var(--red); font-size:12px; margin-bottom:8px; display:none"></div>
@@ -643,11 +646,95 @@ function openNodeModal(nodeId) {
     document.getElementById('edit-node-id').value = '';
     document.getElementById('node-type').value = 'context_node';
     document.getElementById('node-source-id').value = '';
-    document.getElementById('node-topic').value = 'safe_deferral/context/input';
     document.getElementById('node-interval').value = '1000';
     document.getElementById('node-repeat').value = '1';
-    document.getElementById('node-payload').value = '{}';
+    onNodeTypeChange('context_node');
   }
+}
+
+// ─────────────────────────────────────────────
+// Node type defaults (topic + payload template)
+// ─────────────────────────────────────────────
+function onNodeTypeChange(type) {
+  const now = Date.now();
+  const topicEl = document.getElementById('node-topic');
+  const payloadEl = document.getElementById('node-payload');
+  const sourceEl = document.getElementById('node-source-id');
+
+  const contextPayload = (doorbell) => ({
+    routing_metadata: {
+      audit_correlation_id: `test-${now}`,
+      ingest_timestamp_ms: now,
+      network_status: "normal"
+    },
+    pure_context_payload: {
+      trigger_event: {
+        event_type: doorbell ? "sensor" : "button",
+        event_code: doorbell ? "doorbell_pressed" : "button_press_living_room",
+        timestamp_ms: now
+      },
+      environmental_context: {
+        temperature: 22.5,
+        illuminance: 150,
+        occupancy_detected: true,
+        smoke_detected: false,
+        gas_detected: false,
+        doorbell_detected: doorbell
+      },
+      device_states: {
+        living_room_light: "off",
+        bedroom_light: "off",
+        living_room_blind: "closed",
+        tv_main: "off"
+      }
+    }
+  });
+
+  const templates = {
+    context_node: {
+      topic: 'safe_deferral/context/input',
+      sourceHint: 'rpi.virtual_context_node',
+      payload: contextPayload(false)
+    },
+    device_state_reporter: {
+      topic: 'safe_deferral/context/input',
+      sourceHint: 'rpi.virtual_device_state',
+      payload: contextPayload(false)
+    },
+    emergency_event_node: {
+      topic: 'safe_deferral/emergency/event',
+      sourceHint: 'rpi.virtual_emergency',
+      payload: {
+        event_type: "smoke_detected",
+        severity: "high",
+        timestamp_ms: now,
+        location: "living_room",
+        details: {}
+      }
+    },
+    doorbell_visitor_context: {
+      topic: 'safe_deferral/context/input',
+      sourceHint: 'rpi.virtual_doorbell',
+      payload: contextPayload(true)
+    },
+    actuator_observer: {
+      topic: 'safe_deferral/actuation/ack',
+      sourceHint: 'rpi.virtual_actuator_obs',
+      payload: {
+        command_id: `cmd-${now}`,
+        action: "light_on",
+        target: "living_room_light",
+        status: "executed",
+        timestamp_ms: now
+      }
+    }
+  };
+
+  const cfg = templates[type];
+  if (!cfg) return;
+  topicEl.value = cfg.topic;
+  if (!sourceEl.value) sourceEl.placeholder = cfg.sourceHint;
+  payloadEl.value = JSON.stringify(cfg.payload, null, 2);
 }
 
 function closeNodeModal() {
