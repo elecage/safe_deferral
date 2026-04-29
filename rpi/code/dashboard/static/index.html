@@ -565,20 +565,108 @@
       </div>
     </div>
 
-    <!-- ④ 결과 확인 -->
+    <!-- ④ 결과 분석 -->
     <div class="section" id="section-results">
-      <div class="section-title">④ 결과 확인</div>
-      <div class="section-desc">완료된 실험의 결과를 확인하고 내보냅니다.</div>
+      <div class="section-title">④ 결과 분석</div>
+      <div class="section-desc">완료된 패키지 런의 지표를 확인하고 논문 테이블/그림을 생성합니다.</div>
 
-      <div class="flex gap-8 mb-20">
-        <select class="form-control" id="result-run-select" style="width:320px" onchange="loadRunResult()">
-          <option value="">실험 선택…</option>
-        </select>
-        <button class="btn btn-ghost" onclick="loadResultRuns()">새로고침</button>
+      <!-- Run selector -->
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px">
+        <div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">패키지 런 선택</div>
+          <div style="display:flex;gap:8px">
+            <select class="form-control" id="pkg-run-select" style="width:340px" onchange="loadPkgRunResult()">
+              <option value="">패키지 런 선택…</option>
+            </select>
+            <button class="btn btn-ghost" onclick="loadResultRuns()">새로고침</button>
+          </div>
+        </div>
+        <div style="margin-left:auto">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">일반 실험 런 선택</div>
+          <div style="display:flex;gap:8px">
+            <select class="form-control" id="result-run-select" style="width:240px" onchange="loadRunResult()">
+              <option value="">선택…</option>
+            </select>
+          </div>
+        </div>
       </div>
 
+      <!-- Package metrics view -->
+      <div id="pkg-result-content" style="display:none">
+
+        <!-- Run summary bar -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px" id="pkg-result-summary-bar"></div>
+
+        <!-- Package A view -->
+        <div id="view-pkg-A" style="display:none">
+          <div class="card mb-20">
+            <div class="card-title">Table 1 — Policy-routing Results (패키지 A)</div>
+            <div id="pkg-a-metrics-grid" class="metrics-grid" style="margin-bottom:16px"></div>
+            <div style="overflow-x:auto">
+              <table id="pkg-a-table">
+                <thead><tr>
+                  <th>#</th><th>시나리오</th><th>폴트</th><th>조건</th>
+                  <th>기대</th><th>관찰</th><th>지연(ms)</th><th>Pass</th>
+                </tr></thead>
+                <tbody id="pkg-a-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package B view -->
+        <div id="view-pkg-B" style="display:none">
+          <div class="card mb-20">
+            <div class="card-title">Figure 1 — Class-wise Latency Distribution (패키지 B)</div>
+            <div id="pkg-b-stats" class="metrics-grid" style="margin-bottom:16px"></div>
+            <div class="charts-grid">
+              <div class="chart-card"><h3>CLASS_0 (응급)</h3><canvas id="chart-b-c0" height="160"></canvas></div>
+              <div class="chart-card"><h3>CLASS_1 (자율 실행)</h3><canvas id="chart-b-c1" height="160"></canvas></div>
+              <div class="chart-card"><h3>CLASS_2 (에스컬레이션)</h3><canvas id="chart-b-c2" height="160"></canvas></div>
+              <div class="chart-card"><h3>p50 / p95 요약</h3><canvas id="chart-b-bar" height="160"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package C view -->
+        <div id="view-pkg-C" style="display:none">
+          <div class="card mb-20">
+            <div class="card-title">Table 2 — Fault Injection Results (패키지 C)</div>
+            <div id="pkg-c-metrics-grid" class="metrics-grid" style="margin-bottom:16px"></div>
+            <div style="overflow-x:auto">
+              <table id="pkg-c-table">
+                <thead><tr>
+                  <th>폴트 프로파일</th><th>기대 결과</th><th>관찰 클래스</th>
+                  <th>통과</th><th>실패</th><th>Pass Rate</th>
+                </tr></thead>
+                <tbody id="pkg-c-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generic package view (D/E/F/G) -->
+        <div id="view-pkg-generic" style="display:none">
+          <div class="card mb-20">
+            <div class="card-title" id="view-generic-title">패키지 지표</div>
+            <div id="pkg-generic-content"></div>
+          </div>
+        </div>
+
+        <!-- Export -->
+        <div class="card mb-20" id="pkg-export-card" style="display:none">
+          <div class="card-title">내보내기</div>
+          <div class="flex gap-8">
+            <a class="btn btn-ghost" id="pkg-export-json" href="#" target="_blank">JSON</a>
+            <a class="btn btn-ghost" id="pkg-export-csv" href="#" target="_blank">CSV</a>
+            <a class="btn btn-ghost" id="pkg-export-md" href="#" target="_blank">Markdown</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy run result -->
       <div id="result-content">
-        <div class="empty"><div class="empty-icon">📊</div>결과를 확인할 실험을 선택하세요.</div>
+        <div class="empty"><div class="empty-icon">📊</div>런을 선택하면 결과가 표시됩니다.</div>
       </div>
     </div>
 
@@ -1657,14 +1745,255 @@ function stateLabel(s) {
 }
 
 // ─────────────────────────────────────────────
-// Results
+// Results (section ④)
 // ─────────────────────────────────────────────
+let latencyCharts = {};  // chart instances for cleanup
+
 async function loadResultRuns() {
-  const r = await fetch('/runs');
-  const runs = await r.json();
-  const sel = document.getElementById('result-run-select');
-  sel.innerHTML = '<option value="">실험 선택…</option>' +
-    runs.map(r => `<option value="${r.run_id}">[${stateLabel(r.state)}] ${r.experiment_family} — ${r.run_id.slice(0,8)}</option>`).join('');
+  // Package runs
+  try {
+    const pkgRuns = await (await fetch('/package_runs')).json();
+    const pkgSel = document.getElementById('pkg-run-select');
+    pkgSel.innerHTML = '<option value="">패키지 런 선택…</option>' +
+      pkgRuns.map(r => `<option value="${r.run_id}">[Pkg ${r.package_id}] ${r.status} — ${r.run_id.slice(0,10)}</option>`).join('');
+
+    // Auto-select current run
+    if (currentPackageRunId) {
+      pkgSel.value = currentPackageRunId;
+      await loadPkgRunResult();
+    }
+  } catch {}
+
+  // Legacy runs
+  try {
+    const runs = await (await fetch('/runs')).json();
+    const sel = document.getElementById('result-run-select');
+    sel.innerHTML = '<option value="">선택…</option>' +
+      runs.map(r => `<option value="${r.run_id}">[${stateLabel(r.state)}] ${r.experiment_family} — ${r.run_id.slice(0,8)}</option>`).join('');
+  } catch {}
+}
+
+async function loadPkgRunResult() {
+  const runId = document.getElementById('pkg-run-select').value;
+  if (!runId) {
+    document.getElementById('pkg-result-content').style.display = 'none';
+    return;
+  }
+
+  // Destroy existing charts
+  Object.values(latencyCharts).forEach(c => { try { c.destroy(); } catch {} });
+  latencyCharts = {};
+
+  const [runR, metricsR] = await Promise.all([
+    fetch(`/package_runs/${runId}`),
+    fetch(`/package_runs/${runId}/metrics`),
+  ]);
+  const runData = await runR.json();
+  const metrics = await metricsR.json();
+  const pkgId = runData.package_id;
+  const trials = runData.trials || [];
+
+  document.getElementById('pkg-result-content').style.display = '';
+
+  // Summary bar
+  const completed = trials.filter(t => t.status === 'completed').length;
+  const passed = trials.filter(t => t.pass_).length;
+  const summaryBar = document.getElementById('pkg-result-summary-bar');
+  summaryBar.innerHTML = `
+    <div class="run-status-box"><div class="rs-label">패키지</div><div class="rs-value" style="color:var(--accent)">Pkg ${pkgId}</div></div>
+    <div class="run-status-box"><div class="rs-label">트라이얼</div><div class="rs-value">${trials.length}</div></div>
+    <div class="run-status-box"><div class="rs-label">완료</div><div class="rs-value">${completed}</div></div>
+    <div class="run-status-box"><div class="rs-label">Pass</div><div class="rs-value" style="color:var(--green)">${passed}</div></div>
+    <div class="run-status-box"><div class="rs-label">Fail</div><div class="rs-value" style="color:var(--red)">${completed - passed}</div></div>
+    ${metrics.error ? `<div style="color:var(--yellow);padding:14px;font-size:12px">⚠ ${metrics.error}</div>` : ''}
+  `;
+
+  // Hide all views
+  ['A','B','C','generic'].forEach(v => {
+    document.getElementById(`view-pkg-${v}`).style.display = 'none';
+  });
+
+  if (pkgId === 'A') renderPkgA(metrics, trials);
+  else if (pkgId === 'B') renderPkgB(metrics, trials);
+  else if (pkgId === 'C') renderPkgC(metrics, trials);
+  else renderPkgGeneric(metrics, pkgId);
+
+  // Export links
+  document.getElementById('pkg-export-card').style.display = '';
+  document.getElementById('pkg-export-json').href = `/package_runs/${runId}/export/json`;
+  document.getElementById('pkg-export-csv').href = `/package_runs/${runId}/export/csv`;
+  document.getElementById('pkg-export-md').href = `/package_runs/${runId}/export/markdown`;
+}
+
+// ── Package A ──────────────────────────────
+function renderPkgA(metrics, trials) {
+  document.getElementById('view-pkg-A').style.display = '';
+
+  // Metric cards
+  const grid = document.getElementById('pkg-a-metrics-grid');
+  const pct = v => v != null ? (v * 100).toFixed(1) + '%' : '—';
+  grid.innerHTML = `
+    <div class="metric-box"><div class="metric-value">${pct(metrics.class_routing_accuracy)}</div><div class="metric-label">Routing Accuracy</div></div>
+    <div class="metric-box"><div class="metric-value" style="color:${metrics.uar > 0 ? 'var(--red)' : 'var(--green)'}">${pct(metrics.uar)}</div><div class="metric-label">UAR (Unsafe Actuation)</div></div>
+    <div class="metric-box"><div class="metric-value">${pct(metrics.sdr)}</div><div class="metric-label">SDR (Safe Deferral)</div></div>
+    <div class="metric-box"><div class="metric-value" style="color:${metrics.emergency_miss_rate > 0 ? 'var(--red)' : 'var(--green)'}">${pct(metrics.emergency_miss_rate)}</div><div class="metric-label">Emergency Miss Rate</div></div>
+    <div class="metric-box"><div class="metric-value">${pct(metrics.class2_handoff_correctness)}</div><div class="metric-label">Class2 Handoff</div></div>
+    <div class="metric-box"><div class="metric-value">${metrics.total || 0}</div><div class="metric-label">총 트라이얼</div></div>
+  `;
+
+  // Trial table
+  const tbody = document.getElementById('pkg-a-tbody');
+  tbody.innerHTML = trials.map((t, i) => {
+    const passIcon = t.status === 'pending' ? '⏳' : t.pass_ ? '✅' : '❌';
+    const expColor = ROUTE_COLORS[t.expected_route_class] || 'var(--text)';
+    const obsColor = ROUTE_COLORS[t.observed_route_class] || 'var(--text-dim)';
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-size:11px">${(t.scenario_id||'').replace(/\.json$/,'').replace(/_skeleton$/,'').slice(0,20)}</td>
+      <td style="font-size:11px;color:var(--yellow)">${t.fault_profile_id ? (FAULT_SHORT_LABEL[t.fault_profile_id]||t.fault_profile_id) : '—'}</td>
+      <td style="font-size:11px;color:var(--text-dim)">${t.comparison_condition||'—'}</td>
+      <td style="color:${expColor};font-weight:700">${t.expected_route_class}</td>
+      <td style="color:${obsColor};font-weight:700">${t.observed_route_class||'…'}</td>
+      <td style="font-family:monospace">${t.latency_ms != null ? Math.round(t.latency_ms)+'ms' : '—'}</td>
+      <td>${passIcon}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+}
+
+// ── Package B ──────────────────────────────
+function renderPkgB(metrics, trials) {
+  document.getElementById('view-pkg-B').style.display = '';
+
+  const byClass = metrics.latency_by_class || {};
+  const statsEl = document.getElementById('pkg-b-stats');
+  statsEl.innerHTML = ['CLASS_0','CLASS_1','CLASS_2'].map(cls => {
+    const d = byClass[cls] || {};
+    return `<div class="metric-box">
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">${cls}</div>
+      <div style="font-size:18px;font-weight:700;color:${ROUTE_COLORS[cls]}">${d.p50 != null ? Math.round(d.p50)+'ms' : '—'}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">p50</div>
+      <div style="font-size:13px;font-weight:600;margin-top:4px">${d.p95 != null ? Math.round(d.p95)+'ms' : '—'}</div>
+      <div style="font-size:11px;color:var(--text-dim)">p95 (n=${d.count||0})</div>
+    </div>`;
+  }).join('');
+
+  // Bar chart: p50 vs p95 per class
+  const barCtx = document.getElementById('chart-b-bar');
+  if (barCtx) {
+    latencyCharts['b-bar'] = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: ['CLASS_0','CLASS_1','CLASS_2'],
+        datasets: [
+          {
+            label: 'p50 (ms)',
+            data: ['CLASS_0','CLASS_1','CLASS_2'].map(c => byClass[c]?.p50 || 0),
+            backgroundColor: ['rgba(239,68,68,0.6)','rgba(34,197,94,0.6)','rgba(234,179,8,0.6)'],
+            borderWidth: 0,
+          },
+          {
+            label: 'p95 (ms)',
+            data: ['CLASS_0','CLASS_1','CLASS_2'].map(c => byClass[c]?.p95 || 0),
+            backgroundColor: ['rgba(239,68,68,0.3)','rgba(34,197,94,0.3)','rgba(234,179,8,0.3)'],
+            borderWidth: 1,
+            borderColor: ['rgba(239,68,68,0.8)','rgba(34,197,94,0.8)','rgba(234,179,8,0.8)'],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#8892a4', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#8892a4' }, grid: { color: '#2e3347' } },
+          y: { ticks: { color: '#8892a4' }, grid: { color: '#2e3347' }, title: { display: true, text: 'ms', color: '#8892a4' } },
+        },
+      },
+    });
+  }
+
+  // Individual latency scatter per class
+  ['CLASS_0','CLASS_1','CLASS_2'].map((cls, idx) => {
+    const chartId = `chart-b-c${idx}`;
+    const ctx = document.getElementById(chartId);
+    if (!ctx) return;
+    const clsTrials = trials.filter(t => (t.observed_route_class || t.expected_route_class) === cls && t.latency_ms != null);
+    const clsColor = ['rgba(239,68,68,0.7)','rgba(34,197,94,0.7)','rgba(234,179,8,0.7)'][idx];
+    latencyCharts[chartId] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: clsTrials.map((_, i) => `T${i+1}`),
+        datasets: [{
+          label: `${cls} latency (ms)`,
+          data: clsTrials.map(t => Math.round(t.latency_ms)),
+          backgroundColor: clsColor,
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#8892a4', maxTicksLimit: 8 }, grid: { color: '#2e3347' } },
+          y: { ticks: { color: '#8892a4' }, grid: { color: '#2e3347' }, beginAtZero: true },
+        },
+      },
+    });
+  });
+}
+
+// ── Package C ──────────────────────────────
+function renderPkgC(metrics, trials) {
+  document.getElementById('view-pkg-C').style.display = '';
+
+  const pct = v => v != null ? (v * 100).toFixed(1) + '%' : '—';
+  const grid = document.getElementById('pkg-c-metrics-grid');
+  grid.innerHTML = `
+    <div class="metric-box"><div class="metric-value" style="color:var(--green)">${pct(metrics.safe_fallback_rate)}</div><div class="metric-label">Safe Fallback Rate</div></div>
+    <div class="metric-box"><div class="metric-value" style="color:${metrics.uar_under_faults > 0 ? 'var(--red)' : 'var(--green)'}">${pct(metrics.uar_under_faults)}</div><div class="metric-label">UAR under Faults</div></div>
+    <div class="metric-box"><div class="metric-value" style="color:${metrics.misrouting_under_faults > 0 ? 'var(--yellow)' : 'var(--green)'}">${pct(metrics.misrouting_under_faults)}</div><div class="metric-label">Misrouting</div></div>
+    <div class="metric-box"><div class="metric-value">${pct(metrics.emergency_protection_preservation)}</div><div class="metric-label">Emergency Protection</div></div>
+    <div class="metric-box"><div class="metric-value">${metrics.total_fault_trials || 0}</div><div class="metric-label">폴트 트라이얼</div></div>
+    <div class="metric-box"><div class="metric-value">${metrics.total || 0}</div><div class="metric-label">총 트라이얼</div></div>
+  `;
+
+  const byProfile = metrics.by_profile || {};
+  const tbody = document.getElementById('pkg-c-tbody');
+  tbody.innerHTML = Object.entries(byProfile).map(([pid, d]) => {
+    const fp = allFaultProfiles.find(f => f.profile_id === pid);
+    const expOutcome = fp ? fp.expected_outcome.replace('class_','C').replace('_escalation','').replace('_emergency','🚨') : '—';
+    const obsClasses = [...new Set(d.observed_outcomes || [])].join(', ') || '—';
+    const total = d.pass_count + d.fail_count;
+    const rate = total > 0 ? ((d.pass_count / total) * 100).toFixed(1) + '%' : '—';
+    return `<tr>
+      <td style="font-weight:600;font-size:12px">${FAULT_SHORT_LABEL[pid] || pid}</td>
+      <td style="font-size:11px;color:var(--text-dim)">${expOutcome}</td>
+      <td style="font-size:12px">${obsClasses}</td>
+      <td style="color:var(--green)">${d.pass_count}</td>
+      <td style="color:var(--red)">${d.fail_count}</td>
+      <td style="font-weight:700;color:${parseFloat(rate) >= 80 ? 'var(--green)' : 'var(--red)'}">${rate}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim)">데이터 없음</td></tr>';
+}
+
+// ── Generic (D/E/F/G) ──────────────────────
+function renderPkgGeneric(metrics, pkgId) {
+  document.getElementById('view-pkg-generic').style.display = '';
+  const pkg = allPackages.find(p => p.package_id === pkgId);
+  document.getElementById('view-generic-title').textContent =
+    `패키지 ${pkgId} 지표 — ${pkg ? pkg.name_ko : ''}`;
+  const el = document.getElementById('pkg-generic-content');
+  if (metrics.error) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div>${metrics.error}</div>`;
+    return;
+  }
+  // Render metrics as a grid
+  const entries = Object.entries(metrics).filter(([k]) => !['package_id','total'].includes(k));
+  el.innerHTML = `<div class="metrics-grid">` +
+    `<div class="metric-box"><div class="metric-value">${metrics.total||0}</div><div class="metric-label">총 트라이얼</div></div>` +
+    entries.map(([k, v]) => {
+      const display = typeof v === 'number' ? (v <= 1 ? (v*100).toFixed(1)+'%' : v.toFixed(1)) : JSON.stringify(v);
+      return `<div class="metric-box"><div class="metric-value" style="font-size:20px">${display}</div><div class="metric-label">${k}</div></div>`;
+    }).join('') + `</div>`;
 }
 
 async function loadRunResult() {
