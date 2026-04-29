@@ -115,10 +115,12 @@ Expected: `[PASS] All aggregated verification steps completed successfully`
 
 **한국어**
 
+> **중요**: `.env` 를 먼저 source 해야 합니다. 생략하면 `$MAC_MINI_HOST` 등 환경변수가 문자 그대로 출력되며 MQTT 연결에 실패합니다.
+
 ```bash
+source ~/smarthome_workspace/.env
 cd /path/to/safe_deferral_claude
-source ~/smarthome_workspace/.venv-mac/bin/activate
-python mac_mini/code/main.py
+~/smarthome_workspace/.venv-mac/bin/python mac_mini/code/main.py
 ```
 
 정상 기동 시 로그 출력 예시:
@@ -128,7 +130,7 @@ python mac_mini/code/main.py
 [INFO] sd.main — MQTT broker: localhost:1883
 [INFO] sd.main — Audit DB: /Users/<user>/smarthome_workspace/audit.db
 [INFO] sd.main — Telegram: configured          ← TELEGRAM_TOKEN 설정 시
-[INFO] sd.main — LLM: llama3.2 @ http://localhost:11434/api/generate
+[INFO] sd.main — LLM: llama3.1 @ http://localhost:11434/api/generate
 [INFO] sd.main — Initialising pipeline components …
 [INFO] sd.main — Pipeline ready.
 [INFO] sd.main — MQTT connected to localhost:1883
@@ -139,10 +141,12 @@ python mac_mini/code/main.py
 
 **English**
 
+> **Important**: Source `.env` first. Without it, variables like `$MAC_MINI_HOST` are passed as literal strings and the MQTT connection will fail.
+
 ```bash
+source ~/smarthome_workspace/.env
 cd /path/to/safe_deferral_claude
-source ~/smarthome_workspace/.venv-mac/bin/activate
-python mac_mini/code/main.py
+~/smarthome_workspace/.venv-mac/bin/python mac_mini/code/main.py
 ```
 
 Expected startup log:
@@ -152,7 +156,7 @@ Expected startup log:
 [INFO] sd.main — MQTT broker: localhost:1883
 [INFO] sd.main — Audit DB: /Users/<user>/smarthome_workspace/audit.db
 [INFO] sd.main — Telegram: configured          ← if TELEGRAM_TOKEN is set
-[INFO] sd.main — LLM: llama3.2 @ http://localhost:11434/api/generate
+[INFO] sd.main — LLM: llama3.1 @ http://localhost:11434/api/generate
 [INFO] sd.main — Initialising pipeline components …
 [INFO] sd.main — Pipeline ready.
 [INFO] sd.main — MQTT connected to localhost:1883
@@ -193,10 +197,12 @@ If `ping` fails, refer to section 4-1 of `02_rpi_setup.md` for Mac mini address 
 
 **한국어**
 
+> **중요**: `.env` 를 먼저 source 해야 합니다.
+
 ```bash
+source ~/smarthome_workspace/.env
 cd /path/to/safe_deferral_claude
-source ~/smarthome_workspace/.venv-rpi/bin/activate
-python rpi/code/main.py
+~/smarthome_workspace/.venv-rpi/bin/python rpi/code/main.py
 ```
 
 정상 기동 시 로그 출력 예시:
@@ -219,10 +225,12 @@ python rpi/code/main.py
 
 **English**
 
+> **Important**: Source `.env` first.
+
 ```bash
+source ~/smarthome_workspace/.env
 cd /path/to/safe_deferral_claude
-source ~/smarthome_workspace/.venv-rpi/bin/activate
-python rpi/code/main.py
+~/smarthome_workspace/.venv-rpi/bin/python rpi/code/main.py
 ```
 
 Expected startup log:
@@ -450,6 +458,7 @@ docker compose stop
 | 증상 / Symptom | 원인 / Cause | 조치 / Action |
 |---|---|---|
 | Mac mini `MQTT connected` 미출력 | Mosquitto 미기동 | `docker compose ps` 확인, `docker compose up -d` |
+| `Could not connect to MQTT broker at $MAC_MINI_HOST` | `.env` 미source — 변수가 문자 그대로 전달됨 | `source ~/smarthome_workspace/.env` 후 재실행 |
 | RPi `Could not connect to MQTT broker` | `MQTT_HOST` 오설정 또는 Mac mini 미기동 | `ping mac-mini.local` 확인, `.env`의 `MQTT_HOST` 검토 |
 | RPi 대시보드 포트 접근 불가 | uvicorn 미설치 | `pip install uvicorn fastapi` |
 | ESP32 SoftAP가 나타나지 않음 | 이미 WiFi 설정됨 또는 플래시 필요 | `sd_prov_erase()` 호출 또는 펌웨어 재플래시 |
