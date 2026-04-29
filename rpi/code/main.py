@@ -47,6 +47,7 @@ except ImportError:
 import paho.mqtt.client as mqtt
 
 from dashboard.app import create_app
+from observation_store import ObservationStore
 from experiment_manager.manager import ExperimentManager
 from governance.backend import GovernanceBackend
 from governance.ui_app import create_governance_app
@@ -132,6 +133,7 @@ def main() -> None:
     scenario_mgr = ScenarioManager()
     vnm = VirtualNodeManager(mqtt_publisher=publisher)
     governance_backend = GovernanceBackend()
+    obs_store = ObservationStore()
 
     # --- Dashboard (port 8888) ---
     dashboard_app = create_app(
@@ -141,6 +143,7 @@ def main() -> None:
         preflight_manager=preflight,
         mqtt_monitor=mqtt_monitor,
         virtual_node_manager=vnm,
+        observation_store=obs_store,
     )
     _start_fastapi(dashboard_app, DASHBOARD_PORT, "dashboard")
 
@@ -164,10 +167,14 @@ def main() -> None:
         log.warning("MQTT disconnected rc=%d — will auto-reconnect", rc)
         mqtt_monitor.set_broker_reachable(False)
 
+    _OBS_TOPIC = "safe_deferral/dashboard/observation"
+
     def on_message(c, userdata, msg):
         try:
             payload = json.loads(msg.payload.decode())
             mqtt_monitor.observe_message(msg.topic)
+            if msg.topic == _OBS_TOPIC:
+                obs_store.add(payload)
             log.debug("Monitor received [%s]", msg.topic)
         except Exception as exc:
             log.error("MQTT parse error on %s: %s", msg.topic, exc)
