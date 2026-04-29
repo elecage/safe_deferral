@@ -180,6 +180,18 @@ class Pipeline:
         route_result = self._router.route(payload_to_route)
         self._telemetry.update_route(route_result)
         log.info("Route: %s (trigger=%s)", route_result.route_class.value, route_result.trigger_id)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.ROUTING,
+            event_type="policy_router_decision",
+            audit_correlation_id=route_result.audit_correlation_id,
+            summary=f"Routed to {route_result.route_class.value} (trigger={route_result.trigger_id})",
+            payload={
+                "route_class": route_result.route_class.value,
+                "trigger_id": route_result.trigger_id,
+                "network_status": route_result.network_status,
+                "llm_invocation_allowed": route_result.llm_invocation_allowed,
+            },
+        ))
 
         if route_result.route_class == RouteClass.CLASS_0:
             self._handle_emergency(route_result)
@@ -195,6 +207,13 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _handle_emergency(self, route_result) -> None:
         log.warning("CLASS_0 emergency: %s", route_result.trigger_id)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.ESCALATION,
+            event_type="emergency_caregiver_notification",
+            audit_correlation_id=route_result.audit_correlation_id,
+            summary=f"CLASS_0 emergency escalation: {route_result.trigger_id}",
+            payload={"trigger_id": route_result.trigger_id},
+        ))
         notification = _build_notification(
             event_summary=f"긴급 상황 감지: {route_result.trigger_id}",
             context_summary="CLASS_0 emergency trigger — immediate caregiver notification.",
@@ -215,6 +234,19 @@ class Pipeline:
         llm_result = self._llm.generate_candidate(ctx, audit_correlation_id=audit_id)
         log.info("LLM candidate: action=%s target=%s fallback=%s",
                  llm_result.proposed_action, llm_result.target_device, llm_result.is_fallback)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.LLM,
+            event_type="llm_candidate_generated",
+            audit_correlation_id=audit_id,
+            summary=f"LLM proposed {llm_result.proposed_action} on {llm_result.target_device}"
+                    + (" [fallback]" if llm_result.is_fallback else ""),
+            payload={
+                "proposed_action": llm_result.proposed_action,
+                "target_device": llm_result.target_device,
+                "is_fallback": llm_result.is_fallback,
+                "is_safe_deferral": llm_result.is_safe_deferral,
+            },
+        ))
 
         candidate: dict = {
             "proposed_action": llm_result.proposed_action,
@@ -233,6 +265,18 @@ class Pipeline:
         self._telemetry.update_validation(val_result)
         log.info("Validation: %s (target=%s)", val_result.validation_status.value,
                  val_result.routing_target.value)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.VALIDATION,
+            event_type="deterministic_validator_decision",
+            audit_correlation_id=audit_id,
+            summary=f"Validator: {val_result.validation_status.value} → {val_result.routing_target.value}",
+            payload={
+                "validation_status": val_result.validation_status.value,
+                "routing_target": val_result.routing_target.value,
+                "exception_trigger_id": val_result.exception_trigger_id,
+                "deferral_reason": val_result.deferral_reason,
+            },
+        ))
 
         if val_result.validation_status == ValidationStatus.APPROVED:
             dispatch_result = self._dispatcher.dispatch(val_result)
@@ -242,6 +286,18 @@ class Pipeline:
                 )
             self._telemetry.update_ack(dispatch_result.dispatch_record)
             log.info("Dispatched command_id=%s", dispatch_result.dispatch_record.command_id)
+            self._audit.log(AuditEvent(
+                event_group=EventGroup.DISPATCH,
+                event_type="actuator_command_dispatched",
+                audit_correlation_id=audit_id,
+                summary=f"Dispatched {dispatch_result.dispatch_record.action} → {dispatch_result.dispatch_record.target_device}",
+                payload={
+                    "command_id": dispatch_result.dispatch_record.command_id,
+                    "action": dispatch_result.dispatch_record.action,
+                    "target_device": dispatch_result.dispatch_record.target_device,
+                    "dispatch_status": dispatch_result.dispatch_record.dispatch_status.value,
+                },
+            ))
 
         elif val_result.validation_status == ValidationStatus.SAFE_DEFERRAL:
             self._handle_deferral(val_result, route_result)
@@ -256,6 +312,13 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _handle_deferral(self, val_result, route_result) -> None:
         log.info("Safe deferral: %s", val_result.deferral_reason)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.DEFERRAL,
+            event_type="safe_deferral_triggered",
+            audit_correlation_id=route_result.audit_correlation_id,
+            summary=f"Safe deferral: {val_result.deferral_reason or 'insufficient_context'}",
+            payload={"deferral_reason": val_result.deferral_reason or "insufficient_context"},
+        ))
         # Build a minimal deferral session and immediately escalate to Class 2.
         # (Interactive user-selection requires a separate UI integration.)
         session = self._deferral.start_clarification(
@@ -271,6 +334,13 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _handle_class2(self, trigger_id: str, route_result) -> None:
         log.info("CLASS_2: trigger=%s", trigger_id)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.CLARIFICATION,
+            event_type="class2_clarification_triggered",
+            audit_correlation_id=route_result.audit_correlation_id,
+            summary=f"CLASS_2 clarification triggered: {trigger_id}",
+            payload={"trigger_id": trigger_id},
+        ))
         session = self._class2.start_session(
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
@@ -297,6 +367,17 @@ class Pipeline:
             )
             esc_result = self._caregiver.send_notification(notification)
             self._telemetry.update_escalation(esc_result)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.ESCALATION,
+            event_type="class2_caregiver_notification",
+            audit_correlation_id=route_result.audit_correlation_id,
+            summary=f"Class 2 caregiver notification: {trigger_id} status={esc_result.escalation_status.value}",
+            payload={
+                "trigger_id": trigger_id,
+                "escalation_status": esc_result.escalation_status.value,
+                "escalation_id": esc_result.escalation_id,
+            },
+        ))
 
     # ------------------------------------------------------------------
     # ACK path
@@ -311,6 +392,17 @@ class Pipeline:
         ack_result = self._ack_handler.handle_ack(record, ack_payload)
         self._telemetry.publish_ack_only(record)
         log.info("ACK resolved: command_id=%s status=%s", command_id, ack_result.ack_status.value)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.ACK,
+            event_type="actuation_ack_received",
+            audit_correlation_id=record.audit_correlation_id,
+            summary=f"ACK {ack_result.ack_status.value}: command_id={command_id}",
+            payload={
+                "command_id": command_id,
+                "ack_status": ack_result.ack_status.value,
+                "observed_state": ack_result.observed_state,
+            },
+        ))
         if ack_result.ack_status == AckStatus.FAILURE:
             log.warning("ACK failure — escalating C205: command_id=%s audit=%s",
                         command_id, record.audit_correlation_id)
@@ -334,6 +426,18 @@ class Pipeline:
                             record.command_id, record.audit_correlation_id)
                 self._ack_handler.handle_ack_timeout(record)
                 self._telemetry.publish_ack_only(record)
+                self._audit.log(AuditEvent(
+                    event_group=EventGroup.TIMEOUT,
+                    event_type="actuation_ack_timeout",
+                    audit_correlation_id=record.audit_correlation_id,
+                    summary=f"ACK timeout: command_id={record.command_id}",
+                    payload={
+                        "command_id": record.command_id,
+                        "action": record.action,
+                        "target_device": record.target_device,
+                        "ack_timeout_ms": record.ack_timeout_ms,
+                    },
+                ))
                 self._escalate_c205(record.audit_correlation_id)
 
     def _escalate_c205(self, audit_correlation_id: str) -> None:
@@ -354,6 +458,17 @@ class Pipeline:
                 exception_trigger_id="C205",
             )
             esc_result = self._caregiver.send_notification(notification)
+        self._audit.log(AuditEvent(
+            event_group=EventGroup.ESCALATION,
+            event_type="c205_caregiver_notification",
+            audit_correlation_id=audit_correlation_id,
+            summary=f"C205 escalation: status={esc_result.escalation_status.value}",
+            payload={
+                "trigger_id": "C205",
+                "escalation_status": esc_result.escalation_status.value,
+                "escalation_id": esc_result.escalation_id,
+            },
+        ))
         self._telemetry.publish_c205_snapshot(class2_result, esc_result, audit_correlation_id)
 
 
