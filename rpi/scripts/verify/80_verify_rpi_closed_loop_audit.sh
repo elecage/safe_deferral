@@ -69,9 +69,9 @@ echo "  [INFO] Selected Fault Profile: ${TARGET_PROFILE} (Type: ${FAULT_TYPE})"
 
 # Mac mini subscribes only to safe_deferral/context/input for context payloads.
 # Telemetry snapshots are published to safe_deferral/dashboard/observation.
-# The old inject topic (safe_deferral/fault/injection) and audit topic
-# (safe_deferral/audit/log) do not exist in the running pipeline.
-INJECT_TOPIC="${SIM_CONTEXT_TOPIC:-safe_deferral/context/input}"
+# SIM_CONTEXT_TOPIC (safe_deferral/sim/context) is the RPi simulation topic and
+# is NOT subscribed to by main.py — inject must go to context/input directly.
+INJECT_TOPIC="safe_deferral/context/input"
 OBSERVE_TOPIC="${DASHBOARD_OBSERVATION_TOPIC:-safe_deferral/dashboard/observation}"
 CORRELATION_ID="fi_test_$(date +%s)_$$"
 LOG_FILE="$(mktemp)"
