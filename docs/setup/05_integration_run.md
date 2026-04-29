@@ -169,27 +169,65 @@ Expected startup log:
 
 ## 3. Raspberry Pi 기동 / Raspberry Pi Startup
 
-### 3-1. Mac mini 연결 확인
+### 3-1. .env IP 설정 확인 및 Mac mini 연결 확인
 
-**한국어**  
-RPi에서 Mac mini 브로커에 접근 가능한지 먼저 확인합니다:
+**한국어**
 
-```bash
-ping -c 3 mac-mini.local
-mosquitto_sub -h mac-mini.local -p 1883 -t "safe_deferral/#" -C 1 --quiet
-```
-
-`ping`이 응답하지 않으면 `02_rpi_setup.md` 4-1절의 Mac mini 주소 확인 방법을 참조하세요.
-
-**English**  
-Verify the RPi can reach the Mac mini broker before starting:
+먼저 `.env` 의 IP 관련 항목 3개가 모두 같은 Mac mini LAN IP 로 되어 있는지 확인합니다.  
+`mac-mini.local` 은 mDNS 가 지원되는 환경에서만 동작하므로, 확실하지 않으면 IP 로 직접 입력합니다.
 
 ```bash
-ping -c 3 mac-mini.local
-mosquitto_sub -h mac-mini.local -p 1883 -t "safe_deferral/#" -C 1 --quiet
+grep -E "^(MAC_MINI_HOST|MQTT_HOST|TIME_SYNC_HOST)=" ~/smarthome_workspace/.env
 ```
 
-If `ping` fails, refer to section 4-1 of `02_rpi_setup.md` for Mac mini address discovery.
+세 항목이 모두 같은 IP(또는 동일한 hostname)가 아니면 `.env` 를 직접 수정합니다:
+
+```bash
+# 예: Mac mini LAN IP 가 192.168.1.50 인 경우
+nano ~/smarthome_workspace/.env
+# MAC_MINI_HOST=192.168.1.50
+# MQTT_HOST=192.168.1.50
+# TIME_SYNC_HOST=192.168.1.50
+```
+
+이후 MQTT 연결을 확인합니다:
+
+```bash
+source ~/smarthome_workspace/.env
+ping -c 3 "${MQTT_HOST}"
+mosquitto_pub -h "${MQTT_HOST}" -p 1883 -t "safe_deferral/test" -m "ping"
+```
+
+`mosquitto_pub` 이 아무 출력 없이 종료되면 정상입니다.
+
+**English**
+
+First verify that all three IP-related entries in `.env` point to the same Mac mini LAN IP.  
+`mac-mini.local` only works when mDNS is available — if unsure, use the IP directly.
+
+```bash
+grep -E "^(MAC_MINI_HOST|MQTT_HOST|TIME_SYNC_HOST)=" ~/smarthome_workspace/.env
+```
+
+If they differ, update `.env`:
+
+```bash
+# Example: Mac mini LAN IP is 192.168.1.50
+nano ~/smarthome_workspace/.env
+# MAC_MINI_HOST=192.168.1.50
+# MQTT_HOST=192.168.1.50
+# TIME_SYNC_HOST=192.168.1.50
+```
+
+Then verify MQTT connectivity:
+
+```bash
+source ~/smarthome_workspace/.env
+ping -c 3 "${MQTT_HOST}"
+mosquitto_pub -h "${MQTT_HOST}" -p 1883 -t "safe_deferral/test" -m "ping"
+```
+
+`mosquitto_pub` exiting with no output means success.
 
 ---
 
@@ -459,7 +497,8 @@ docker compose stop
 |---|---|---|
 | Mac mini `MQTT connected` 미출력 | Mosquitto 미기동 | `docker compose ps` 확인, `docker compose up -d` |
 | `Could not connect to MQTT broker at $MAC_MINI_HOST` | `.env` 미source — 변수가 문자 그대로 전달됨 | `source ~/smarthome_workspace/.env` 후 재실행 |
-| RPi `Could not connect to MQTT broker` | `MQTT_HOST` 오설정 또는 Mac mini 미기동 | `ping mac-mini.local` 확인, `.env`의 `MQTT_HOST` 검토 |
+| RPi `Could not connect to MQTT broker` / `[Errno -2]` | `MQTT_HOST` 가 hostname 인데 mDNS 미지원, 또는 Mac mini 미기동 | `.env` 의 `MQTT_HOST`, `MAC_MINI_HOST`, `TIME_SYNC_HOST` 를 LAN IP 로 변경 |
+| 80번 verify — `No telemetry snapshot found` | Mac mini `main.py` 미실행 또는 git pull 미완료 | Mac mini 에서 `git pull` 후 `.env` source → `main.py` 재실행 |
 | RPi 대시보드 포트 접근 불가 | uvicorn 미설치 | `pip install uvicorn fastapi` |
 | ESP32 SoftAP가 나타나지 않음 | 이미 WiFi 설정됨 또는 플래시 필요 | `sd_prov_erase()` 호출 또는 펌웨어 재플래시 |
 | `TELEGRAM_TOKEN not set` 로그 | 토큰 미설정 | Mac mini `.env`에 `TELEGRAM_TOKEN=<token>` 추가 |
