@@ -441,66 +441,126 @@
     <!-- ③ 실험 실행 -->
     <div class="section" id="section-run">
       <div class="section-title">③ 실험 실행</div>
-      <div class="section-desc">선택된 시나리오와 노드 설정을 확인하고 실험을 시작합니다.</div>
+      <div class="section-desc">패키지 런을 생성하고 트라이얼을 실행합니다. 각 트라이얼의 결과가 실시간으로 기록됩니다.</div>
 
+      <!-- 실험 설정 요약 -->
       <div class="card mb-20">
         <div class="card-title">실험 설정 요약</div>
-        <div id="run-summary" style="color:var(--text-dim); font-size:13px">시나리오를 먼저 선택하세요.</div>
+        <div id="run-summary" style="font-size:13px; color:var(--text-dim)">패키지와 시나리오를 먼저 선택하세요.</div>
       </div>
 
-      <div class="card mb-20">
+      <!-- 패키지 런 생성 (패키지 선택 시) / 일반 실험 실행 (패키지 없을 시) -->
+      <div id="pkg-run-panel" class="card mb-20" style="display:none">
+        <div class="card-title">패키지 런 설정</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">트라이얼 횟수</label>
+            <input type="number" class="form-control" id="pkg-trial-count" value="5" min="1" max="200" style="width:100px">
+          </div>
+          <div class="form-group">
+            <label class="form-label">선택된 폴트 프로파일</label>
+            <div id="run-fault-summary" style="font-size:12px;color:var(--text-dim);padding-top:6px">없음 (정상 실행)</div>
+          </div>
+          <div class="form-group" id="run-cond-group" style="display:none">
+            <label class="form-label">비교 조건</label>
+            <div id="run-cond-value" style="font-size:12px;color:var(--accent);padding-top:6px">—</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+          <button class="btn btn-primary btn-lg" id="btn-create-pkg-run" onclick="createPackageRun()">
+            📦 패키지 런 생성
+          </button>
+          <span id="pkg-run-id-display" style="font-size:11px;font-family:monospace;color:var(--text-dim)"></span>
+        </div>
+      </div>
+
+      <!-- 일반 실험 실행 (패키지 없을 때) -->
+      <div id="legacy-run-panel" class="card mb-20">
         <div class="card-title">실행 파라미터</div>
-        <div class="form-group">
-          <label class="form-label">실험 반복 횟수</label>
-          <input type="number" class="form-control" id="trial-count" value="1" min="1" max="100" style="width:120px">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">반복 횟수</label>
+            <input type="number" class="form-control" id="trial-count" value="1" min="1" max="100" style="width:100px">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">실험 패밀리</label>
+            <select class="form-control" id="exp-family" style="width:260px">
+              <option value="class1_baseline">CLASS_1 기본선</option>
+              <option value="class2_clarification">CLASS_2 명확화</option>
+              <option value="class0_emergency">CLASS_0 긴급</option>
+              <option value="fault_injection">폴트 주입</option>
+              <option value="caregiver_escalation">보호자 에스컬레이션</option>
+              <option value="mqtt_governance">MQTT 거버넌스</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-start" onclick="startRun()">▶ 실험 시작</button>
+          <span id="run-msg" style="font-size:12px;color:var(--text-dim)"></span>
         </div>
-        <div class="form-group">
-          <label class="form-label">실험 패밀리</label>
-          <select class="form-control" id="exp-family" style="width:280px">
-            <option value="class1_baseline">CLASS_1 기본선 (class1_baseline)</option>
-            <option value="class2_clarification">CLASS_2 명확화 (class2_clarification)</option>
-            <option value="class0_emergency">CLASS_0 긴급 (class0_emergency)</option>
-            <option value="fault_injection">폴트 주입 (fault_injection)</option>
-            <option value="caregiver_escalation">보호자 에스컬레이션 (caregiver_escalation)</option>
-            <option value="mqtt_governance">MQTT 거버넌스 (mqtt_governance)</option>
-          </select>
+        <div id="current-run-status" style="display:none;margin-top:12px">
+          <div class="run-status" id="run-status-boxes"></div>
+          <button class="btn btn-danger" style="margin-top:8px" id="btn-abort" onclick="abortRun()">⏹ 중단</button>
         </div>
-      </div>
-
-      <div id="current-run-status" style="display:none" class="mb-20">
-        <div class="card-title">실행 중인 실험</div>
-        <div class="run-status" id="run-status-boxes"></div>
-        <button class="btn btn-danger" id="btn-abort" onclick="abortRun()">⏹ 중단</button>
-      </div>
-
-      <div style="display:flex; gap:12px; align-items:center" class="mb-20">
-        <button class="btn btn-primary btn-lg" id="btn-start" onclick="startRun()">▶ 실험 시작</button>
-        <span id="run-msg" style="color:var(--text-dim); font-size:13px"></span>
       </div>
 
       <!-- 노드 트리거 패널 -->
       <div class="card mb-20">
-        <div class="card-title" style="margin-bottom:12px">노드 트리거
-          <span style="font-size:11px; color:var(--text-dim); font-weight:400; margin-left:8px">가상 노드에서 MQTT 페이로드를 발행합니다</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin:0">노드 트리거
+            <span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:8px">MQTT 페이로드 발행</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="loadRunNodes()">새로고침</button>
+            <button class="btn btn-primary" id="btn-run-one-trial" style="font-size:11px;padding:4px 12px;display:none" onclick="runOneTrial()">▶ 트라이얼 1회 실행</button>
+          </div>
         </div>
         <div id="run-node-list" style="display:flex; flex-wrap:wrap; gap:8px">
-          <span class="text-dim" style="font-size:13px">노드가 없습니다. 노드 관리에서 먼저 추가하세요.</span>
+          <span class="text-dim" style="font-size:13px">노드가 없습니다. 노드 설정에서 먼저 추가하세요.</span>
         </div>
       </div>
 
-      <!-- 실시간 관찰 피드 -->
-      <div class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px">
-          <div class="card-title" style="margin:0">Mac mini 응답 피드
-            <span style="font-size:11px; color:var(--text-dim); font-weight:400; margin-left:8px">safe_deferral/dashboard/observation</span>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center">
-            <span id="obs-count" style="font-size:11px; color:var(--text-dim)"></span>
-            <button class="btn btn-ghost" style="padding:4px 10px; font-size:11px" onclick="clearObservations()">지우기</button>
+      <!-- 실시간 트라이얼 결과 테이블 (패키지 런) -->
+      <div class="card mb-20" id="trial-table-panel" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin:0">트라이얼 결과 실시간 테이블</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="trial-count-badge" style="font-size:11px;color:var(--text-dim)"></span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="pollTrialTable()">새로고침</button>
           </div>
         </div>
-        <div id="obs-feed" style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px">
-          <div class="text-dim" style="font-size:13px; text-align:center; padding:20px">노드를 트리거하면 Mac mini 응답이 여기 나타납니다.</div>
+        <div style="overflow-x:auto">
+          <table id="trial-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>시나리오</th>
+                <th>폴트 프로파일</th>
+                <th>기대</th>
+                <th>관찰</th>
+                <th>지연</th>
+                <th>상태</th>
+                <th>Pass</th>
+              </tr>
+            </thead>
+            <tbody id="trial-tbody">
+              <tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px">트라이얼 실행 대기 중…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mac mini 관찰 피드 -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin:0">Mac mini 응답 피드
+            <span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:8px">safe_deferral/dashboard/observation</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="obs-count" style="font-size:11px;color:var(--text-dim)"></span>
+            <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px" onclick="clearObservations()">지우기</button>
+          </div>
+        </div>
+        <div id="obs-feed" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <div class="text-dim" style="font-size:13px;text-align:center;padding:20px">노드를 트리거하면 Mac mini 응답이 여기 나타납니다.</div>
         </div>
       </div>
     </div>
@@ -733,8 +793,8 @@ function gotoSection(name) {
   document.getElementById('section-' + name).classList.add('active');
   document.getElementById('nav-' + name).classList.add('active');
   if (name === 'nodes') { loadNodes(); updateTopoMqtt(); }
-  if (name === 'run') { updateRunSummary(); loadRunStatus(); loadRunNodes(); startObsFeed(); }
-  if (name !== 'run') { stopObsFeed(); }
+  if (name === 'run') { updateRunSummary(); loadRunStatus(); loadRunNodes(); startObsFeed(); if (currentPackageRunId) startTrialPoll(); }
+  if (name !== 'run') { stopObsFeed(); stopTrialPoll(); }
   if (name === 'results') { loadResultRuns(); }
 }
 
@@ -1407,11 +1467,23 @@ async function saveNode() {
 // ─────────────────────────────────────────────
 function updateRunSummary() {
   const el = document.getElementById('run-summary');
-  if (!selectedScenario) {
-    el.innerHTML = '<span style="color:var(--yellow)">⚠ 시나리오를 먼저 선택하세요.</span>';
-    return;
+  const parts = [];
+  if (selectedPackage) {
+    parts.push(`<span style="color:var(--accent);font-weight:700">패키지 ${selectedPackage.package_id}</span> — ${selectedPackage.name_ko}`);
   }
-  el.innerHTML = `<b>시나리오:</b> ${selectedScenario}`;
+  if (selectedScenario) {
+    parts.push(`<b>시나리오:</b> ${selectedScenario.replace(/\.json$/, '').replace(/_/g, ' ')}`);
+  } else {
+    parts.push('<span style="color:var(--yellow)">⚠ 시나리오를 먼저 선택하세요.</span>');
+  }
+  if (selectedFaultProfileIds.length > 0) {
+    parts.push(`<b>폴트:</b> ${selectedFaultProfileIds.map(f => FAULT_SHORT_LABEL[f] || f).join(', ')}`);
+  }
+  if (selectedComparisonCondition) {
+    parts.push(`<b>조건:</b> ${selectedComparisonCondition}`);
+  }
+  el.innerHTML = parts.join(' &nbsp;|&nbsp; ');
+  updateRunSectionForPackage();
 }
 
 async function startRun() {
@@ -1663,6 +1735,216 @@ async function loadRunResult() {
   } else {
     document.getElementById('chart-outcome').parentElement.innerHTML += '<div class="text-dim" style="text-align:center;font-size:12px">데이터 없음</div>';
   }
+}
+
+// ─────────────────────────────────────────────
+// Package run & trial execution (section ③)
+// ─────────────────────────────────────────────
+let currentPackageRunId = null;
+let trialPollTimer = null;
+let lastTrialCount = 0;
+let selectedNodeId = null;  // node to use for trial trigger
+
+function updateRunSectionForPackage() {
+  const hasPkg = !!selectedPackage;
+  document.getElementById('pkg-run-panel').style.display = hasPkg ? '' : 'none';
+  document.getElementById('legacy-run-panel').style.display = hasPkg ? 'none' : '';
+
+  if (hasPkg) {
+    // Fault summary
+    const fpEl = document.getElementById('run-fault-summary');
+    fpEl.textContent = selectedFaultProfileIds.length
+      ? selectedFaultProfileIds.join(', ')
+      : '없음 (정상 실행)';
+    fpEl.style.color = selectedFaultProfileIds.length ? 'var(--yellow)' : 'var(--text-dim)';
+
+    // Condition
+    const condGroup = document.getElementById('run-cond-group');
+    if (selectedComparisonCondition) {
+      condGroup.style.display = '';
+      document.getElementById('run-cond-value').textContent = selectedComparisonCondition;
+    } else {
+      condGroup.style.display = 'none';
+    }
+  }
+}
+
+async function createPackageRun() {
+  if (!selectedPackage) return;
+  const btn = document.getElementById('btn-create-pkg-run');
+  btn.disabled = true;
+  try {
+    const body = {
+      package_id: selectedPackage.package_id,
+      scenario_ids: selectedScenario ? [selectedScenario] : selectedPackage.recommended_scenarios,
+      fault_profile_ids: selectedFaultProfileIds,
+      trial_count: parseInt(document.getElementById('pkg-trial-count').value) || 5,
+      comparison_condition: selectedComparisonCondition || null,
+    };
+    const r = await fetch('/package_runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const run = await r.json();
+    currentPackageRunId = run.run_id;
+    document.getElementById('pkg-run-id-display').textContent = `런 ID: ${run.run_id.slice(0, 12)}…`;
+
+    // Show trial table and trial trigger button
+    document.getElementById('trial-table-panel').style.display = '';
+    document.getElementById('btn-run-one-trial').style.display = '';
+    lastTrialCount = 0;
+    startTrialPoll();
+  } catch (e) {
+    alert('패키지 런 생성 실패: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runOneTrial() {
+  if (!currentPackageRunId) {
+    alert('먼저 패키지 런을 생성하세요.');
+    return;
+  }
+  // Pick the first RUNNING node
+  const nodes = await (await fetch('/nodes')).json();
+  const runningNodes = nodes.filter(n => n.state === 'running');
+  if (runningNodes.length === 0) {
+    alert('실행 중인 노드가 없습니다. 노드를 먼저 시작(▶)하세요.');
+    return;
+  }
+  const node = runningNodes[0];
+
+  // Determine expected_route_class from selected scenario or package
+  let expectedRouteClass = 'CLASS_1';
+  if (selectedScenario) {
+    try {
+      const sc = await (await fetch(`/scenarios/${encodeURIComponent(selectedScenario)}`)).json();
+      const rc = (sc.expected_outcomes || {}).route_class || 'CLASS_1';
+      expectedRouteClass = rc;
+    } catch {}
+  }
+
+  // Pick a fault profile (cycle through selected ones)
+  const fpId = selectedFaultProfileIds.length > 0
+    ? selectedFaultProfileIds[lastTrialCount % selectedFaultProfileIds.length]
+    : null;
+
+  // If fault is applied, adjust expected class from profile
+  let expectedValidation = 'approved';
+  if (fpId) {
+    const fp = allFaultProfiles.find(f => f.profile_id === fpId);
+    if (fp) {
+      if (fp.expected_outcome.includes('class_0')) expectedRouteClass = 'CLASS_0';
+      else if (fp.expected_outcome.includes('class_2') || fp.expected_outcome === 'safe_deferral') {
+        expectedRouteClass = 'CLASS_2';
+        expectedValidation = fp.expected_outcome === 'safe_deferral' ? 'safe_deferral' : 'rejected_escalation';
+      }
+    }
+  }
+
+  const btn = document.getElementById('btn-run-one-trial');
+  btn.disabled = true;
+  btn.textContent = '실행 중…';
+  try {
+    const body = {
+      node_id: node.node_id,
+      scenario_id: selectedScenario || '',
+      fault_profile_id: fpId,
+      comparison_condition: selectedComparisonCondition || null,
+      expected_route_class: expectedRouteClass,
+      expected_validation: expectedValidation,
+    };
+    const r = await fetch(`/package_runs/${currentPackageRunId}/trial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    lastTrialCount++;
+    await pollTrialTable();
+  } catch (e) {
+    alert('트라이얼 실행 실패: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ 트라이얼 1회 실행';
+  }
+}
+
+function startTrialPoll() {
+  stopTrialPoll();
+  pollTrialTable();
+  trialPollTimer = setInterval(pollTrialTable, 2500);
+}
+function stopTrialPoll() {
+  if (trialPollTimer) { clearInterval(trialPollTimer); trialPollTimer = null; }
+}
+
+async function pollTrialTable() {
+  if (!currentPackageRunId) return;
+  try {
+    const r = await fetch(`/package_runs/${currentPackageRunId}`);
+    const data = await r.json();
+    renderTrialTable(data.trials || []);
+  } catch {}
+}
+
+const FAULT_SHORT_LABEL = {
+  FAULT_EMERGENCY_01_TEMP: '고온',
+  FAULT_EMERGENCY_02_BUTTON_TRIPLE_HIT: '버튼3회',
+  FAULT_EMERGENCY_03_SMOKE: '연기',
+  FAULT_EMERGENCY_04_GAS: '가스',
+  FAULT_EMERGENCY_05_FALL: '낙상',
+  FAULT_CONFLICT_01_GHOST_PRESS: '충돌',
+  FAULT_STALENESS_01: '스테일',
+  FAULT_MISSING_CONTEXT_01: '누락',
+  FAULT_CONTRACT_DRIFT_01: '계약위반',
+};
+const ROUTE_COLORS = { CLASS_0: 'var(--red)', CLASS_1: 'var(--green)', CLASS_2: 'var(--yellow)' };
+const STATUS_ICONS = { pending: '⏳', completed: '', timeout: '⏱' };
+
+function renderTrialTable(trials) {
+  const tbody = document.getElementById('trial-tbody');
+  const badge = document.getElementById('trial-count-badge');
+  const completed = trials.filter(t => t.status === 'completed').length;
+  const pending = trials.filter(t => t.status === 'pending').length;
+  badge.textContent = `${trials.length}건 (완료 ${completed}${pending > 0 ? `, 대기 ${pending}` : ''})`;
+
+  if (trials.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px">트라이얼 실행 대기 중…</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = [...trials].reverse().map((t, idx) => {
+    const num = trials.length - idx;
+    const fpLabel = t.fault_profile_id ? (FAULT_SHORT_LABEL[t.fault_profile_id] || t.fault_profile_id) : '—';
+    const obsClass = t.observed_route_class || '…';
+    const obsColor = ROUTE_COLORS[t.observed_route_class] || 'var(--text-dim)';
+    const expColor = ROUTE_COLORS[t.expected_route_class] || 'var(--text)';
+    const latency = t.latency_ms != null ? `${Math.round(t.latency_ms)}ms` : '—';
+    const statusIcon = STATUS_ICONS[t.status] || '';
+    const passIcon = t.status === 'pending'
+      ? '<span style="color:var(--text-dim)">⏳</span>'
+      : t.status === 'timeout'
+        ? '<span style="color:var(--yellow)" title="타임아웃">⏱</span>'
+        : t.pass_
+          ? '<span style="color:var(--green)">✅</span>'
+          : '<span style="color:var(--red)">❌</span>';
+    const scName = (t.scenario_id || '').replace(/\.json$/, '').replace(/_skeleton$/, '').replace(/_/g, ' ').slice(0, 22);
+    const rowStyle = t.status === 'pending' ? 'opacity:0.7' : '';
+    return `<tr style="${rowStyle}">
+      <td style="color:var(--text-dim)">${num}</td>
+      <td title="${t.scenario_id}" style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${scName}</td>
+      <td style="font-size:11px;color:${t.fault_profile_id ? 'var(--yellow)' : 'var(--text-dim)'}">${fpLabel}</td>
+      <td style="color:${expColor};font-weight:600;font-size:12px">${t.expected_route_class}</td>
+      <td style="color:${obsColor};font-weight:600;font-size:12px">${statusIcon}${obsClass}</td>
+      <td style="font-family:monospace;font-size:12px">${latency}</td>
+      <td style="font-size:11px;color:var(--text-dim)">${t.status}</td>
+      <td>${passIcon}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ─────────────────────────────────────────────
