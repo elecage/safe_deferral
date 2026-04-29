@@ -10,6 +10,7 @@
   ],
   "global_constraints": {
     "freshness_threshold_ms": 3000,
+    "clock_skew_tolerance_ms": 500,
     "default_context_integrity_safe_deferral_timeout_ms": 15000,
     "actuation_ack_timeout_ms": 5000,
     "max_context_integrity_safe_deferral_attempts": 2,
