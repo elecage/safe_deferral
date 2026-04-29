@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safe Deferral — 실험 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #252836;
+    --border: #2e3347;
+    --text: #e2e8f0;
+    --text-dim: #8892a4;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --accent: #6366f1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 16px; font-weight: 600; color: var(--text); }
+  header h1 span { color: var(--accent); }
+  .status-bar { display: flex; gap: 16px; align-items: center; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--surface2); font-size: 12px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+  .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  /* Layout */
+  .layout { display: flex; height: calc(100vh - 53px); }
+  nav {
+    width: 200px; min-width: 200px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; cursor: pointer;
+    color: var(--text-dim); font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--text); border-left-color: var(--accent); background: var(--surface2); }
+  .nav-step {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--border); color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .nav-item.active .nav-step { background: var(--accent); color: white; }
+  .nav-item.done .nav-step { background: var(--green); color: white; }
+
+  main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* Section */
+  .section { display: none; }
+  .section.active { display: block; }
+  .section-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .section-desc { color: var(--text-dim); margin-bottom: 20px; font-size: 13px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Scenario list */
+  .scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .scenario-card {
+    background: var(--surface2); border: 2px solid var(--border);
+    border-radius: 8px; padding: 14px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .scenario-card:hover { border-color: var(--accent); }
+  .scenario-card.selected { border-color: var(--accent); background: rgba(99,102,241,0.1); }
+  .scenario-card .sc-name { font-weight: 600; margin-bottom: 4px; }
+  .scenario-card .sc-id { font-size: 11px; color: var(--text-dim); font-family: monospace; }
+
+  /* Connection topology */
+  .topo { background: var(--surface2); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .topo-inner { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; }
+  .topo-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; text-align: center; min-width: 120px;
+  }
+  .topo-box .tb-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .topo-box .tb-name { font-weight: 600; font-size: 13px; }
+  .topo-arrow { color: var(--border); font-size: 20px; padding: 0 8px; }
+  .topo-nodes { display: flex; flex-direction: column; gap: 6px; }
+  .topo-node {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; display: flex;
+    align-items: center; gap: 8px; font-size: 12px;
+  }
+
+  /* Node cards */
+  .node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .node-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+  }
+  .node-card .node-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .node-card .node-type { font-weight: 600; font-size: 13px; }
+  .node-card .node-id { font-size: 11px; color: var(--text-dim); font-family: monospace; margin-bottom: 8px; word-break: break-all; }
+  .node-card .node-info { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px; }
+  .node-card .node-info-item { font-size: 11px; color: var(--text-dim); }
+  .node-card .node-info-item span { color: var(--text); font-weight: 500; }
+  .node-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* State badges */
+  .badge {
+    padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .badge.created { background: rgba(59,130,246,0.2); color: var(--blue); }
+  .badge.running { background: rgba(34,197,94,0.2); color: var(--green); }
+  .badge.stopped { background: rgba(100,116,139,0.2); color: #94a3b8; }
+
+  /* Buttons */
+  .btn {
+    padding: 6px 14px; border-radius: 6px; border: none;
+    cursor: pointer; font-size: 12px; font-weight: 500;
+    transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+  .btn-success { background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .btn-success:hover:not(:disabled) { background: rgba(34,197,94,0.3); }
+  .btn-warning { background: rgba(234,179,8,0.2); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .btn-warning:hover:not(:disabled) { background: rgba(234,179,8,0.3); }
+  .btn-danger { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.3); }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover:not(:disabled) { background: var(--border); }
+  .btn-lg { padding: 10px 28px; font-size: 14px; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; width: 560px; max-width: 95vw;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  .form-control {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px;
+  }
+  .form-control:focus { outline: none; border-color: var(--accent); }
+  textarea.form-control { min-height: 100px; font-family: monospace; resize: vertical; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Results */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: var(--surface2); border-radius: 8px; padding: 16px; }
+  .chart-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-dim); }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .metric-box { background: var(--surface2); border-radius: 8px; padding: 14px; text-align: center; }
+  .metric-box .metric-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .metric-box .metric-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--surface2); padding: 8px 12px; text-align: left; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: var(--surface2); }
+
+  /* Run status */
+  .run-status { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .run-status-box { background: var(--surface2); border-radius: 8px; padding: 14px 20px; }
+  .run-status-box .rs-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .run-status-box .rs-value { font-size: 18px; font-weight: 700; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px; color: var(--text-dim); }
+  .empty .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* Util */
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-20 { margin-bottom: 20px; }
+  .text-dim { color: var(--text-dim); }
+  .type-labels {
+    background: var(--surface2); border-radius: 6px; padding: 10px 14px;
+    font-size: 11px; color: var(--text-dim); margin-bottom: 16px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  }
+  .type-labels b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Safe Deferral — <span>실험 대시보드</span></h1>
+  <div class="status-bar">
+    <div class="status-pill"><div class="dot" id="dot-mqtt"></div><span id="lbl-mqtt">MQTT 확인 중…</span></div>
+    <div class="status-pill"><div class="dot" id="dot-system"></div><span id="lbl-system">시스템 확인 중…</span></div>
+    <div class="status-pill" style="cursor:pointer" onclick="refreshAll()">🔄 새로고침</div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav>
+    <div class="nav-item active" id="nav-scenario" onclick="gotoSection('scenario')">
+      <div class="nav-step">1</div> 시나리오 선택
+    </div>
+    <div class="nav-item" id="nav-nodes" onclick="gotoSection('nodes')">
+      <div class="nav-step">2</div> 노드 관리
+    </div>
+    <div class="nav-item" id="nav-run" onclick="gotoSection('run')">
+      <div class="nav-step">3</div> 실험 실행
+    </div>
+    <div class="nav-item" id="nav-results" onclick="gotoSection('results')">
+      <div class="nav-step">4</div> 결과 확인
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ① 시나리오 선택 -->
+    <div class="section active" id="section-scenario">
+      <div class="section-title">① 시나리오 선택</div>
+      <div class="section-desc">실행할 실험 시나리오를 선택하세요.</div>
+      <div id="scenario-list" class="scenario-grid">
+        <div class="empty"><div class="empty-icon">📋</div>시나리오를 불러오는 중…</div>
+      </div>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary btn-lg" onclick="gotoSection('nodes')" id="btn-next-nodes" disabled>
+          다음: 노드 설정 →
+        </button>
+      </div>
+    </div>
+
+    <!-- ② 노드 관리 -->
+    <div class="section" id="section-nodes">
+      <div class="section-title">② 노드 관리</div>
+      <div class="section-desc">실험에 사용할 가상 노드를 생성·관리합니다. 실제 ESP32 노드는 전원을 켜면 자동 연결됩니다.</div>
+
+      <!-- 연결 토폴로지 -->
+      <div class="topo mb-20">
+        <div class="card-title" style="margin-bottom:12px">연결 상태</div>
+        <div class="topo-inner">
+          <div class="topo-box">
+            <div class="tb-label">MQTT 브로커</div>
+            <div class="tb-name">Mac mini</div>
+            <div style="margin-top:6px"><span class="dot green" id="topo-dot-mqtt" style="display:inline-block"></span></div>
+          </div>
+          <div class="topo-arrow">←────</div>
+          <div class="topo-box">
+            <div class="tb-label">실험 허브</div>
+            <div class="tb-name">Raspberry Pi</div>
+          </div>
+          <div class="topo-arrow">←────</div>
+          <div class="topo-nodes" id="topo-nodes">
+            <div class="topo-node text-dim" style="font-size:11px">노드 없음</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 노드 타입 안내 -->
+      <div class="type-labels mb-12">
+        <div><b>context_node</b> — 컨텍스트 입력</div>
+        <div><b>device_state_reporter</b> — 디바이스 상태 보고</div>
+        <div><b>emergency_event_node</b> — 긴급 이벤트</div>
+        <div><b>doorbell_visitor_context</b> — 도어벨 방문자</div>
+        <div><b>actuator_observer</b> — 액추에이터 관찰</div>
+      </div>
+
+      <div class="flex gap-8 mb-12">
+        <button class="btn btn-primary" onclick="openNodeModal()">＋ 노드 추가</button>
+        <button class="btn btn-ghost" onclick="loadNodes()">새로고침</button>
+      </div>
+
+      <div id="node-list" class="node-grid">
+        <div class="empty"><div class="empty-icon">🤖</div>노드가 없습니다. 추가하세요.</div>
+      </div>
+
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary btn-lg" onclick="gotoSection('run')">다음: 실험 실행 →</button>
+      </div>
+    </div>
+
+    <!-- ③ 실험 실행 -->
+    <div class="section" id="section-run">
+      <div class="section-title">③ 실험 실행</div>
+      <div class="section-desc">선택된 시나리오와 노드 설정을 확인하고 실험을 시작합니다.</div>
+
+      <div class="card mb-20">
+        <div class="card-title">실험 설정 요약</div>
+        <div id="run-summary" style="color:var(--text-dim); font-size:13px">시나리오를 먼저 선택하세요.</div>
+      </div>
+
+      <div class="card mb-20">
+        <div class="card-title">실행 파라미터</div>
+        <div class="form-group">
+          <label class="form-label">실험 반복 횟수</label>
+          <input type="number" class="form-control" id="trial-count" value="1" min="1" max="100" style="width:120px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">실험 패밀리</label>
+          <select class="form-control" id="exp-family" style="width:280px">
+            <option value="class1_baseline">CLASS_1 기본선 (class1_baseline)</option>
+            <option value="class2_clarification">CLASS_2 명확화 (class2_clarification)</option>
+            <option value="class0_emergency">CLASS_0 긴급 (class0_emergency)</option>
+            <option value="fault_injection">폴트 주입 (fault_injection)</option>
+            <option value="caregiver_escalation">보호자 에스컬레이션 (caregiver_escalation)</option>
+            <option value="mqtt_governance">MQTT 거버넌스 (mqtt_governance)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="current-run-status" style="display:none" class="mb-20">
+        <div class="card-title">실행 중인 실험</div>
+        <div class="run-status" id="run-status-boxes"></div>
+        <button class="btn btn-danger" id="btn-abort" onclick="abortRun()">⏹ 중단</button>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center">
+        <button class="btn btn-primary btn-lg" id="btn-start" onclick="startRun()">▶ 실험 시작</button>
+        <span id="run-msg" style="color:var(--text-dim); font-size:13px"></span>
+      </div>
+    </div>
+
+    <!-- ④ 결과 확인 -->
+    <div class="section" id="section-results">
+      <div class="section-title">④ 결과 확인</div>
+      <div class="section-desc">완료된 실험의 결과를 확인하고 내보냅니다.</div>
+
+      <div class="flex gap-8 mb-20">
+        <select class="form-control" id="result-run-select" style="width:320px" onchange="loadRunResult()">
+          <option value="">실험 선택…</option>
+        </select>
+        <button class="btn btn-ghost" onclick="loadResultRuns()">새로고침</button>
+      </div>
+
+      <div id="result-content">
+        <div class="empty"><div class="empty-icon">📊</div>결과를 확인할 실험을 선택하세요.</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- 노드 추가/수정 모달 -->
+<div class="modal-overlay" id="node-modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">노드 추가</div>
+    <input type="hidden" id="edit-node-id">
+
+    <div class="form-group">
+      <label class="form-label">노드 타입</label>
+      <select class="form-control" id="node-type">
+        <option value="context_node">context_node — 컨텍스트 입력</option>
+        <option value="device_state_reporter">device_state_reporter — 디바이스 상태</option>
+        <option value="emergency_event_node">emergency_event_node — 긴급 이벤트</option>
+        <option value="doorbell_visitor_context">doorbell_visitor_context — 도어벨</option>
+        <option value="actuator_observer">actuator_observer — 액추에이터 관찰</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Source Node ID <span class="text-dim">(rpi. / esp32.virtual_ / test. 로 시작)</span></label>
+      <input type="text" class="form-control" id="node-source-id" placeholder="rpi.virtual_context_node">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">발행 토픽</label>
+      <select class="form-control" id="node-topic">
+        <option value="safe_deferral/context/input">safe_deferral/context/input</option>
+        <option value="safe_deferral/emergency/event">safe_deferral/emergency/event</option>
+        <option value="safe_deferral/actuation/ack">safe_deferral/actuation/ack</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">발행 간격 (ms)</label>
+      <input type="number" class="form-control" id="node-interval" value="1000" min="100" style="width:140px">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">반복 횟수 <span class="text-dim">(0 = 무한)</span></label>
+      <input type="number" class="form-control" id="node-repeat" value="1" min="0" style="width:140px">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">페이로드 템플릿 (JSON)</label>
+      <textarea class="form-control" id="node-payload" placeholder='{"key": "value"}'>{}</textarea>
+    </div>
+
+    <div id="modal-error" style="color:var(--red); font-size:12px; margin-bottom:8px; display:none"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeNodeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveNode()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+let selectedScenario = null;
+let currentRunId = null;
+let refreshTimer = null;
+let routeChart = null;
+let outcomeChart = null;
+
+// ─────────────────────────────────────────────
+// Navigation
+// ─────────────────────────────────────────────
+function gotoSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'nodes') { loadNodes(); updateTopoMqtt(); }
+  if (name === 'run') { updateRunSummary(); loadRunStatus(); }
+  if (name === 'results') { loadResultRuns(); }
+}
+
+// ─────────────────────────────────────────────
+// Header status
+// ─────────────────────────────────────────────
+async function refreshAll() {
+  await Promise.all([checkMqtt(), checkPreflight()]);
+}
+
+async function checkMqtt() {
+  try {
+    const r = await fetch('/mqtt/status');
+    const d = await r.json();
+    const ok = d.broker_reachable === true;
+    setDot('dot-mqtt', ok ? 'green' : 'red');
+    document.getElementById('lbl-mqtt').textContent = 'MQTT ' + (ok ? '연결됨' : '끊김');
+    setDot('topo-dot-mqtt', ok ? 'green' : 'red');
+  } catch {
+    setDot('dot-mqtt', 'red');
+    document.getElementById('lbl-mqtt').textContent = 'MQTT 오류';
+  }
+}
+
+async function checkPreflight() {
+  try {
+    const r = await fetch('/preflight');
+    const d = await r.json();
+    const ok = d.overall === 'ready';
+    const warn = d.overall === 'degraded';
+    setDot('dot-system', ok ? 'green' : warn ? 'yellow' : 'red');
+    document.getElementById('lbl-system').textContent = '시스템 ' + (d.overall || '확인 불가');
+  } catch {
+    setDot('dot-system', 'red');
+    document.getElementById('lbl-system').textContent = '시스템 오류';
+  }
+}
+
+function setDot(id, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'dot ' + cls;
+}
+
+// ─────────────────────────────────────────────
+// Scenarios
+// ─────────────────────────────────────────────
+async function loadScenarios() {
+  try {
+    const r = await fetch('/scenarios');
+    const d = await r.json();
+    const list = d.scenarios || [];
+    const container = document.getElementById('scenario-list');
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>사용 가능한 시나리오가 없습니다.</div>';
+      return;
+    }
+    container.innerHTML = list.map(sc => {
+      const name = sc.replace(/\.json$/, '').replace(/_/g, ' ');
+      const sel = selectedScenario === sc ? 'selected' : '';
+      return `<div class="scenario-card ${sel}" onclick="selectScenario('${sc}', this)">
+        <div class="sc-name">${name}</div>
+        <div class="sc-id">${sc}</div>
+      </div>`;
+    }).join('');
+  } catch {
+    document.getElementById('scenario-list').innerHTML = '<div class="empty">시나리오 불러오기 실패</div>';
+  }
+}
+
+function selectScenario(sc, el) {
+  selectedScenario = sc;
+  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next-nodes').disabled = false;
+  document.getElementById('nav-scenario').classList.add('done');
+}
+
+// ─────────────────────────────────────────────
+// Nodes
+// ─────────────────────────────────────────────
+async function loadNodes() {
+  try {
+    const r = await fetch('/nodes');
+    const nodes = await r.json();
+    renderNodes(nodes);
+    renderTopo(nodes);
+  } catch {
+    document.getElementById('node-list').innerHTML = '<div class="empty">노드 불러오기 실패</div>';
+  }
+}
+
+function renderNodes(nodes) {
+  const container = document.getElementById('node-list');
+  if (nodes.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">🤖</div>노드가 없습니다. 추가하세요.</div>';
+    return;
+  }
+  container.innerHTML = nodes.map(n => {
+    const stateClass = n.state;
+    const stateLabel = { created: '대기', running: '실행 중', stopped: '정지' }[n.state] || n.state;
+    const canStart = n.state === 'created' || n.state === 'stopped';
+    const canStop = n.state === 'running';
+    return `<div class="node-card">
+      <div class="node-header">
+        <div class="node-type">${nodeTypeLabel(n.node_type)}</div>
+        <span class="badge ${stateClass}">${stateLabel}</span>
+      </div>
+      <div class="node-id">${n.source_node_id}</div>
+      <div class="node-info">
+        <div class="node-info-item">토픽<br><span>${n.publish_topic.replace('safe_deferral/', '')}</span></div>
+        <div class="node-info-item">발행<br><span>${n.published_count}회</span></div>
+      </div>
+      <div class="node-actions">
+        ${canStart ? `<button class="btn btn-success" onclick="nodeAction('${n.node_id}','start')">▶ 시작</button>` : ''}
+        ${canStop ? `<button class="btn btn-warning" onclick="nodeAction('${n.node_id}','stop')">⏸ 정지</button>` : ''}
+        ${canStop ? `<button class="btn btn-ghost" onclick="nodePublish('${n.node_id}')">📤 1회 발행</button>` : ''}
+        <button class="btn btn-ghost" onclick="openNodeModal('${n.node_id}')">✏ 수정</button>
+        <button class="btn btn-danger" onclick="deleteNode('${n.node_id}')">✕ 삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTopo(nodes) {
+  const container = document.getElementById('topo-nodes');
+  if (nodes.length === 0) {
+    container.innerHTML = '<div class="topo-node text-dim" style="font-size:11px">노드 없음</div>';
+    return;
+  }
+  container.innerHTML = nodes.map(n => {
+    const color = { running: 'green', created: 'blue', stopped: '' }[n.state] || '';
+    return `<div class="topo-node">
+      <div class="dot ${color}"></div>
+      <span style="font-size:11px">${nodeTypeLabel(n.node_type)}</span>
+    </div>`;
+  }).join('');
+}
+
+function nodeTypeLabel(t) {
+  return {
+    context_node: '컨텍스트 노드',
+    device_state_reporter: '디바이스 상태',
+    emergency_event_node: '긴급 이벤트',
+    doorbell_visitor_context: '도어벨',
+    actuator_observer: '액추에이터 관찰',
+  }[t] || t;
+}
+
+async function nodeAction(nodeId, action) {
+  await fetch(`/nodes/${nodeId}/${action}`, { method: 'POST' });
+  await loadNodes();
+}
+
+async function nodePublish(nodeId) {
+  const r = await fetch(`/nodes/${nodeId}/publish`, { method: 'POST' });
+  if (!r.ok) { const d = await r.json(); alert(d.detail); }
+  await loadNodes();
+}
+
+async function deleteNode(nodeId) {
+  if (!confirm('이 노드를 삭제하시겠습니까?')) return;
+  await fetch(`/nodes/${nodeId}`, { method: 'DELETE' });
+  await loadNodes();
+}
+
+async function updateTopoMqtt() {
+  try {
+    const r = await fetch('/mqtt/status');
+    const d = await r.json();
+    setDot('topo-dot-mqtt', d.broker_reachable ? 'green' : 'red');
+  } catch {}
+}
+
+// ─────────────────────────────────────────────
+// Node modal
+// ─────────────────────────────────────────────
+function openNodeModal(nodeId) {
+  const overlay = document.getElementById('node-modal-overlay');
+  overlay.classList.add('open');
+  document.getElementById('modal-error').style.display = 'none';
+
+  if (nodeId) {
+    document.getElementById('modal-title').textContent = '노드 수정';
+    document.getElementById('edit-node-id').value = nodeId;
+    // Pre-fill from existing node data in DOM
+    fetch('/nodes').then(r => r.json()).then(nodes => {
+      const n = nodes.find(x => x.node_id === nodeId);
+      if (!n) return;
+      document.getElementById('node-type').value = n.node_type;
+      document.getElementById('node-source-id').value = n.source_node_id;
+      document.getElementById('node-topic').value = n.publish_topic;
+    });
+  } else {
+    document.getElementById('modal-title').textContent = '노드 추가';
+    document.getElementById('edit-node-id').value = '';
+    document.getElementById('node-type').value = 'context_node';
+    document.getElementById('node-source-id').value = '';
+    document.getElementById('node-topic').value = 'safe_deferral/context/input';
+    document.getElementById('node-interval').value = '1000';
+    document.getElementById('node-repeat').value = '1';
+    document.getElementById('node-payload').value = '{}';
+  }
+}
+
+function closeNodeModal() {
+  document.getElementById('node-modal-overlay').classList.remove('open');
+}
+
+async function saveNode() {
+  const errEl = document.getElementById('modal-error');
+  errEl.style.display = 'none';
+
+  let payloadTemplate;
+  try {
+    payloadTemplate = JSON.parse(document.getElementById('node-payload').value || '{}');
+  } catch {
+    errEl.textContent = '페이로드 JSON 형식이 잘못되었습니다.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const body = {
+    node_type: document.getElementById('node-type').value,
+    source_node_id: document.getElementById('node-source-id').value || undefined,
+    publish_topic: document.getElementById('node-topic').value,
+    publish_interval_ms: parseInt(document.getElementById('node-interval').value),
+    repeat_count: parseInt(document.getElementById('node-repeat').value),
+    payload_template: payloadTemplate,
+  };
+
+  const editId = document.getElementById('edit-node-id').value;
+  const url = editId ? `/nodes/${editId}` : '/nodes';
+  const method = editId ? 'PUT' : 'POST';
+
+  try {
+    const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) {
+      const d = await r.json();
+      errEl.textContent = d.detail || '저장 실패';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeNodeModal();
+    await loadNodes();
+  } catch (e) {
+    errEl.textContent = '오류: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Run
+// ─────────────────────────────────────────────
+function updateRunSummary() {
+  const el = document.getElementById('run-summary');
+  if (!selectedScenario) {
+    el.innerHTML = '<span style="color:var(--yellow)">⚠ 시나리오를 먼저 선택하세요.</span>';
+    return;
+  }
+  el.innerHTML = `<b>시나리오:</b> ${selectedScenario}`;
+}
+
+async function startRun() {
+  if (!selectedScenario) {
+    document.getElementById('run-msg').textContent = '시나리오를 먼저 선택하세요.';
+    return;
+  }
+  const body = {
+    experiment_family: document.getElementById('exp-family').value,
+    scenario_ids: [selectedScenario],
+    trial_count: parseInt(document.getElementById('trial-count').value),
+    fault_profile_ids: [],
+  };
+  try {
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('run-msg').textContent = '시작 중…';
+    const r = await fetch('/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    currentRunId = d.run_id;
+    document.getElementById('run-msg').textContent = '';
+    document.getElementById('current-run-status').style.display = 'block';
+    startStatusPoll();
+  } catch (e) {
+    document.getElementById('run-msg').textContent = '오류: ' + e.message;
+    document.getElementById('btn-start').disabled = false;
+  }
+}
+
+async function abortRun() {
+  if (!currentRunId) return;
+  await fetch(`/runs/${currentRunId}/abort`, { method: 'POST' });
+  stopStatusPoll();
+  loadRunStatus();
+}
+
+async function loadRunStatus() {
+  if (!currentRunId) return;
+  try {
+    const r = await fetch(`/runs/${currentRunId}`);
+    const d = await r.json();
+    const boxes = document.getElementById('run-status-boxes');
+    boxes.innerHTML = `
+      <div class="run-status-box"><div class="rs-label">상태</div><div class="rs-value" style="color:${stateColor(d.state)}">${stateLabel(d.state)}</div></div>
+      <div class="run-status-box"><div class="rs-label">시나리오</div><div class="rs-value" style="font-size:13px">${(d.scenario_ids || []).join(', ') || '-'}</div></div>
+      <div class="run-status-box"><div class="rs-label">시행 횟수</div><div class="rs-value">${d.trial_count || '-'}</div></div>
+    `;
+    const done = ['completed', 'failed', 'aborted'].includes(d.state);
+    if (done) {
+      stopStatusPoll();
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-abort').style.display = 'none';
+    }
+  } catch {}
+}
+
+function startStatusPoll() {
+  stopStatusPoll();
+  loadRunStatus();
+  refreshTimer = setInterval(loadRunStatus, 3000);
+}
+function stopStatusPoll() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+function stateColor(s) {
+  return { running: 'var(--green)', completed: 'var(--blue)', failed: 'var(--red)', aborted: 'var(--yellow)' }[s] || 'var(--text)';
+}
+function stateLabel(s) {
+  return { pending: '대기', running: '실행 중', completed: '완료', failed: '실패', aborted: '중단', paused: '일시정지' }[s] || s;
+}
+
+// ─────────────────────────────────────────────
+// Results
+// ─────────────────────────────────────────────
+async function loadResultRuns() {
+  const r = await fetch('/runs');
+  const runs = await r.json();
+  const sel = document.getElementById('result-run-select');
+  sel.innerHTML = '<option value="">실험 선택…</option>' +
+    runs.map(r => `<option value="${r.run_id}">[${stateLabel(r.state)}] ${r.experiment_family} — ${r.run_id.slice(0,8)}</option>`).join('');
+}
+
+async function loadRunResult() {
+  const runId = document.getElementById('result-run-select').value;
+  if (!runId) return;
+
+  const [runR, metricsR] = await Promise.all([fetch(`/runs/${runId}`), fetch(`/runs/${runId}/metrics`)]);
+  const run = await runR.json();
+  const metrics = await metricsR.json();
+
+  const content = document.getElementById('result-content');
+
+  const totalTrials = metrics.total_trials || 0;
+  const routeDist = metrics.route_class_distribution || {};
+  const outcomeDist = metrics.fault_outcome_distribution || {};
+  const latency = metrics.latency_stats || {};
+
+  content.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-box"><div class="metric-value">${totalTrials}</div><div class="metric-label">총 시행 횟수</div></div>
+      <div class="metric-box"><div class="metric-value" style="color:${stateColor(run.state)}">${stateLabel(run.state)}</div><div class="metric-label">실험 상태</div></div>
+      ${latency.mean_ms !== undefined ? `<div class="metric-box"><div class="metric-value">${Math.round(latency.mean_ms)}</div><div class="metric-label">평균 지연 (ms)</div></div>` : ''}
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card"><h3>라우팅 클래스 분포</h3><canvas id="chart-route" height="200"></canvas></div>
+      <div class="chart-card"><h3>결과 분포</h3><canvas id="chart-outcome" height="200"></canvas></div>
+    </div>
+
+    <div class="card mb-20">
+      <div class="card-title">내보내기</div>
+      <div class="flex gap-8">
+        <a class="btn btn-ghost" href="/runs/${runId}/export/json" target="_blank">JSON</a>
+        <a class="btn btn-ghost" href="/runs/${runId}/export/csv" target="_blank">CSV</a>
+        <a class="btn btn-ghost" href="/runs/${runId}/export/markdown" target="_blank">Markdown</a>
+      </div>
+    </div>
+  `;
+
+  // Charts
+  const palette = ['#6366f1','#22c55e','#eab308','#ef4444','#3b82f6','#a855f7','#f97316'];
+  const makeChart = (id, labels, values) => {
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    return new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: palette.slice(0, labels.length), borderWidth: 0 }]
+      },
+      options: {
+        plugins: { legend: { position: 'bottom', labels: { color: '#8892a4', font: { size: 11 } } } },
+        cutout: '60%',
+      }
+    });
+  };
+
+  if (routeChart) routeChart.destroy();
+  if (outcomeChart) outcomeChart.destroy();
+
+  if (Object.keys(routeDist).length > 0) {
+    routeChart = makeChart('chart-route', Object.keys(routeDist), Object.values(routeDist));
+  } else {
+    document.getElementById('chart-route').parentElement.innerHTML += '<div class="text-dim" style="text-align:center;font-size:12px">데이터 없음</div>';
+  }
+  if (Object.keys(outcomeDist).length > 0) {
+    outcomeChart = makeChart('chart-outcome', Object.keys(outcomeDist), Object.values(outcomeDist));
+  } else {
+    document.getElementById('chart-outcome').parentElement.innerHTML += '<div class="text-dim" style="text-align:center;font-size:12px">데이터 없음</div>';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  refreshAll();
+  loadScenarios();
+  setInterval(refreshAll, 10000);
+  setInterval(() => {
+    if (document.getElementById('section-nodes').classList.contains('active')) loadNodes();
+  }, 3000);
+});
+</script>
+</body>
+</html>
