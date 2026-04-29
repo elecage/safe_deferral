@@ -47,7 +47,7 @@ append_env_var "RPI_ROLE" "simulation_verification_node" "Raspberry Pi role boun
 append_env_var "MAC_MINI_HOST" "mac-mini.local" "Mac mini Edge Hub Information (Authoritative Source)"
 append_env_var "MAC_MINI_USER" "${USER}" "Mac mini SSH Sync Settings"
 
-append_env_var "MQTT_HOST" "\$MAC_MINI_HOST" "MQTT Broker Settings"
+append_env_var "MQTT_HOST" "mac-mini.local" "MQTT Broker host — set to the same IP as MAC_MINI_HOST"
 append_env_var "MQTT_PORT" "1883"
 append_env_var "MQTT_USER" "simulator_node" "Optional MQTT Authentication Settings"
 append_env_var "MQTT_PASS" "CHANGE_ME"
@@ -75,7 +75,7 @@ append_env_var "PUBLISH_INTERVAL_MS" "1000"
 
 append_env_var "SCENARIO_PROFILE" "NON_EMERGENCY_RANDOM" "Fault injection and time sync settings"
 append_env_var "FAULT_PROFILE" "FAULT_STALENESS_01"
-append_env_var "TIME_SYNC_HOST" "\$MAC_MINI_HOST"
+append_env_var "TIME_SYNC_HOST" "mac-mini.local" "set to same IP as MAC_MINI_HOST"
 append_env_var "TIME_SYNC_MAX_OFFSET_MS" "50"
 append_env_var "TIME_SYNC_TARGET_BOUND_MS" "15"
 
@@ -101,7 +101,8 @@ if grep -q 'smarthome/' "${ENV_FILE}"; then
     PLACEHOLDER_WARNINGS=1
 fi
 
-echo "  [WARNING] ACTION REQUIRED: Please verify MAC_MINI_HOST, MAC_MINI_USER, MQTT_HOST, and MQTT_PASS manually in ${ENV_FILE}."
+echo "  [WARNING] ACTION REQUIRED: Set MAC_MINI_HOST, MQTT_HOST, and TIME_SYNC_HOST to the Mac mini's LAN IP in ${ENV_FILE}."
+echo "            All three must use the same IP address. Default 'mac-mini.local' only works if mDNS resolves correctly."
 if [ "${PLACEHOLDER_WARNINGS}" -ne 0 ]; then
     echo "  [WARNING] Placeholder or legacy values must be fixed before sync/verification."
 else
