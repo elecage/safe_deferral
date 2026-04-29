@@ -25,6 +25,10 @@ except ImportError:
 from observation_store import ObservationStore
 from experiment_manager.manager import ExperimentManager
 from experiment_manager.models import ExperimentFamily, RunParameters, RunState
+from experiment_package.definitions import PACKAGES, PackageId
+from experiment_package.fault_profiles import FAULT_PROFILES
+from experiment_package.trial_store import TrialStore, compute_metrics
+from experiment_package.runner import PackageRunner
 from preflight.readiness import PreflightManager
 from result_store.store import ResultStore
 from scenario_manager.manager import ScenarioManager
@@ -45,6 +49,8 @@ def create_app(
     mqtt_monitor: Optional[MqttStatusMonitor] = None,
     virtual_node_manager: Optional[VirtualNodeManager] = None,
     observation_store: Optional[ObservationStore] = None,
+    trial_store: Optional[TrialStore] = None,
+    package_runner: Optional[PackageRunner] = None,
 ) -> "FastAPI":
     if not _FASTAPI_AVAILABLE:
         raise ImportError("fastapi is required for the dashboard app")
@@ -69,6 +75,8 @@ def create_app(
     _mm = mqtt_monitor or MqttStatusMonitor()
     _vnm = virtual_node_manager or VirtualNodeManager()
     _obs = observation_store or ObservationStore()
+    _ts = trial_store or TrialStore()
+    _pr = package_runner or PackageRunner(vnm=_vnm, obs_store=_obs, trial_store=_ts)
 
     # ------------------------------------------------------------------
     # Root — serve dashboard UI
@@ -326,6 +334,194 @@ def create_app(
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         return {"published": True, "payload": payload, "published_count": node.published_count}
+
+    # ------------------------------------------------------------------
+    # Experiment packages (A~G definitions)
+    # ------------------------------------------------------------------
+
+    @app.get("/packages", summary="List experiment package definitions (A~G)")
+    def list_packages():
+        return [pkg.to_dict() for pkg in PACKAGES.values()]
+
+    @app.get("/packages/{package_id}", summary="Get a single package definition")
+    def get_package(package_id: str):
+        try:
+            pid = PackageId(package_id.upper())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Unknown package_id: {package_id!r}")
+        pkg = PACKAGES.get(pid)
+        if pkg is None:
+            raise HTTPException(status_code=404, detail=f"Package {package_id} not found")
+        return pkg.to_dict()
+
+    # ------------------------------------------------------------------
+    # Fault profiles
+    # ------------------------------------------------------------------
+
+    @app.get("/fault_profiles", summary="List all deterministic fault profiles")
+    def list_fault_profiles():
+        return [fp.to_dict() for fp in FAULT_PROFILES.values()]
+
+    @app.get("/fault_profiles/{profile_id}", summary="Get a single fault profile")
+    def get_fault_profile(profile_id: str):
+        fp = FAULT_PROFILES.get(profile_id)
+        if fp is None:
+            raise HTTPException(status_code=404, detail=f"Fault profile {profile_id!r} not found")
+        return fp.to_dict()
+
+    # ------------------------------------------------------------------
+    # Package runs
+    # ------------------------------------------------------------------
+
+    @app.post("/package_runs", summary="Create a package experiment run")
+    def create_package_run(body: dict):
+        package_id = body.get("package_id", "").upper()
+        try:
+            PackageId(package_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Unknown package_id: {package_id!r}")
+
+        run = _ts.create_run(
+            package_id=package_id,
+            scenario_ids=body.get("scenario_ids", []),
+            fault_profile_ids=body.get("fault_profile_ids", []),
+            trial_count=int(body.get("trial_count", 1)),
+            comparison_condition=body.get("comparison_condition"),
+        )
+        return run.to_dict()
+
+    @app.get("/package_runs", summary="List all package runs")
+    def list_package_runs():
+        return [r.to_dict() for r in _ts.list_runs()]
+
+    @app.get("/package_runs/{run_id}", summary="Get package run status and trial list")
+    def get_package_run(run_id: str):
+        run = _ts.get_run(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Package run {run_id} not found")
+        trials = _ts.list_trials_for_run(run_id)
+        return {
+            **run.to_dict(),
+            "trials": [t.to_dict() for t in trials],
+        }
+
+    @app.get("/package_runs/{run_id}/metrics",
+             summary="Compute paper-level metrics for a package run")
+    def get_package_metrics(run_id: str):
+        run = _ts.get_run(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Package run {run_id} not found")
+        trials = _ts.list_trials_for_run(run_id)
+        return compute_metrics(trials, run.package_id)
+
+    @app.get("/package_runs/{run_id}/export/json",
+             summary="Export package run trials as JSON")
+    def export_package_json(run_id: str):
+        run = _ts.get_run(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Package run {run_id} not found")
+        trials = _ts.list_trials_for_run(run_id)
+        return {"run": run.to_dict(), "trials": [t.to_dict() for t in trials]}
+
+    @app.get("/package_runs/{run_id}/export/csv",
+             summary="Export package run trials as CSV", response_class=PlainTextResponse)
+    def export_package_csv(run_id: str):
+        run = _ts.get_run(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Package run {run_id} not found")
+        trials = _ts.list_trials_for_run(run_id)
+        lines = [
+            "trial_id,package_id,scenario_id,fault_profile_id,comparison_condition,"
+            "expected_route_class,observed_route_class,expected_validation,"
+            "observed_validation,latency_ms,pass_,status"
+        ]
+        for t in trials:
+            lines.append(
+                f"{t.trial_id},{t.package_id},{t.scenario_id},"
+                f"{t.fault_profile_id or ''},"
+                f"{t.comparison_condition or ''},"
+                f"{t.expected_route_class},{t.observed_route_class or ''},"
+                f"{t.expected_validation},{t.observed_validation or ''},"
+                f"{t.latency_ms or ''},"
+                f"{'true' if t.pass_ else 'false'},{t.status}"
+            )
+        return PlainTextResponse("\n".join(lines), media_type="text/csv")
+
+    @app.get("/package_runs/{run_id}/export/markdown",
+             summary="Export package run as Markdown report", response_class=PlainTextResponse)
+    def export_package_markdown(run_id: str):
+        run = _ts.get_run(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Package run {run_id} not found")
+        trials = _ts.list_trials_for_run(run_id)
+        metrics = compute_metrics(trials, run.package_id)
+        completed = [t for t in trials if t.status == "completed"]
+        lines = [
+            f"# Package {run.package_id} Run Report",
+            f"",
+            f"**Run ID**: `{run.run_id}`  ",
+            f"**Package**: {run.package_id}  ",
+            f"**Trials**: {len(trials)} total, {len(completed)} completed  ",
+            f"",
+            f"## Metrics",
+            f"",
+            f"```json",
+            __import__("json").dumps(metrics, indent=2),
+            f"```",
+            f"",
+            f"## Trial Results",
+            f"",
+            f"| # | Scenario | Fault | Expected | Observed | Latency | Pass |",
+            f"|---|---|---|---|---|---|---|",
+        ]
+        for i, t in enumerate(trials, 1):
+            latency = f"{t.latency_ms:.0f}ms" if t.latency_ms else "—"
+            pass_icon = "✅" if t.pass_ else ("⏳" if t.status == "pending" else "❌")
+            lines.append(
+                f"| {i} | {t.scenario_id} | {t.fault_profile_id or '—'} | "
+                f"{t.expected_route_class} | {t.observed_route_class or '…'} | "
+                f"{latency} | {pass_icon} |"
+            )
+        return PlainTextResponse("\n".join(lines))
+
+    # ------------------------------------------------------------------
+    # Individual trials
+    # ------------------------------------------------------------------
+
+    @app.post("/package_runs/{run_id}/trial",
+              summary="Execute one trial (async — returns trial_id immediately)")
+    def run_trial(run_id: str, body: dict):
+        run = _ts.get_run(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Package run {run_id} not found")
+
+        node_id = body.get("node_id")
+        if not node_id:
+            raise HTTPException(status_code=400, detail="node_id is required")
+
+        fault_profile_id = body.get("fault_profile_id") or None
+        try:
+            trial = _pr.start_trial_async(
+                run_id=run_id,
+                package_id=run.package_id,
+                node_id=node_id,
+                scenario_id=body.get("scenario_id", run.scenario_ids[0] if run.scenario_ids else ""),
+                fault_profile_id=fault_profile_id,
+                comparison_condition=body.get("comparison_condition") or run.comparison_condition,
+                expected_route_class=body.get("expected_route_class", "CLASS_1"),
+                expected_validation=body.get("expected_validation", "approved"),
+                expected_outcome=body.get("expected_outcome"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return trial.to_dict()
+
+    @app.get("/trials/{trial_id}", summary="Get trial status and result")
+    def get_trial(trial_id: str):
+        trial = _ts.get_trial(trial_id)
+        if trial is None:
+            raise HTTPException(status_code=404, detail=f"Trial {trial_id} not found")
+        return trial.to_dict()
 
     # ------------------------------------------------------------------
     # Static files (after all routes so /docs still works)
