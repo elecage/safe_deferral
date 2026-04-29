@@ -49,6 +49,8 @@ import paho.mqtt.client as mqtt
 from dashboard.app import create_app
 from observation_store import ObservationStore
 from experiment_manager.manager import ExperimentManager
+from experiment_package.trial_store import TrialStore
+from experiment_package.runner import PackageRunner
 from governance.backend import GovernanceBackend
 from governance.ui_app import create_governance_app
 from mqtt_status.monitor import MqttStatusMonitor
@@ -134,6 +136,8 @@ def main() -> None:
     vnm = VirtualNodeManager(mqtt_publisher=publisher)
     governance_backend = GovernanceBackend()
     obs_store = ObservationStore()
+    trial_store = TrialStore()
+    pkg_runner = PackageRunner(vnm=vnm, obs_store=obs_store, trial_store=trial_store)
 
     # --- Dashboard (port 8888) ---
     dashboard_app = create_app(
@@ -144,6 +148,8 @@ def main() -> None:
         mqtt_monitor=mqtt_monitor,
         virtual_node_manager=vnm,
         observation_store=obs_store,
+        trial_store=trial_store,
+        package_runner=pkg_runner,
     )
     _start_fastapi(dashboard_app, DASHBOARD_PORT, "dashboard")
 
