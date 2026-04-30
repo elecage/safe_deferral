@@ -978,6 +978,16 @@
 
 <script>
 // ─────────────────────────────────────────────
+// fetch with timeout helper (default 8 s)
+// ─────────────────────────────────────────────
+function fetchT(url, options = {}, timeoutMs = 8000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: ctrl.signal })
+    .finally(() => clearTimeout(id));
+}
+
+// ─────────────────────────────────────────────
 // State
 // ─────────────────────────────────────────────
 let selectedScenario = null;
@@ -1017,7 +1027,7 @@ async function refreshAll() {
 
 async function checkMqtt() {
   try {
-    const r = await fetch('/mqtt/status');
+    const r = await fetchT('/mqtt/status');
     const d = await r.json();
     const ok = d.broker_reachable === true;
     setDot('dot-mqtt', ok ? 'green' : 'red');
@@ -1031,7 +1041,7 @@ async function checkMqtt() {
 
 async function checkPreflight() {
   try {
-    const r = await fetch('/preflight');
+    const r = await fetchT('/preflight');
     const d = await r.json();
     const ok = d.overall === 'ready';
     const warn = d.overall === 'degraded';
@@ -1054,7 +1064,7 @@ function setDot(id, cls) {
 // ─────────────────────────────────────────────
 async function loadScenarios() {
   try {
-    const r = await fetch('/scenarios');
+    const r = await fetchT('/scenarios');
     const d = await r.json();
     allScenarioFiles = d.scenarios || [];
     renderScenarioGrid(allScenarioFiles);
@@ -1102,7 +1112,7 @@ function showAllScenarios() {
 // ─────────────────────────────────────────────
 async function loadPackages() {
   try {
-    const [pkgR, fpR] = await Promise.all([fetch('/packages'), fetch('/fault_profiles')]);
+    const [pkgR, fpR] = await Promise.all([fetchT('/packages'), fetchT('/fault_profiles')]);
     allPackages = await pkgR.json();
     allFaultProfiles = await fpR.json();
     renderPackageGrid(allPackages);
@@ -1535,7 +1545,7 @@ async function deleteNode(nodeId) {
 
 async function updateTopoMqtt() {
   try {
-    const r = await fetch('/mqtt/status');
+    const r = await fetchT('/mqtt/status');
     const d = await r.json();
     setDot('topo-dot-mqtt', d.broker_reachable ? 'green' : 'red');
   } catch {}
@@ -2572,7 +2582,7 @@ let _simState = {};
 
 async function loadSimState() {
   try {
-    const r = await fetch('/sim/state');
+    const r = await fetchT('/sim/state');
     if (!r.ok) return;
     const d = await r.json();
     _simState = d;
