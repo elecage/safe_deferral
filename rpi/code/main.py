@@ -54,6 +54,7 @@ from experiment_package.runner import PackageRunner
 from governance.backend import GovernanceBackend
 from governance.ui_app import create_governance_app
 from mqtt_status.monitor import MqttStatusMonitor
+from node_presence.registry import NodePresenceRegistry, PRESENCE_TOPIC
 from preflight.readiness import PreflightManager
 from result_store.store import ResultStore
 from scenario_manager.manager import ScenarioManager
@@ -84,6 +85,7 @@ _MONITOR_TOPICS = [
     "safe_deferral/actuation/command",
     "safe_deferral/audit/log",
     "safe_deferral/dashboard/observation",
+    PRESENCE_TOPIC,   # safe_deferral/node/presence — physical + virtual nodes
 ]
 
 
@@ -129,7 +131,8 @@ def main() -> None:
 
     # --- Service components ---
     mqtt_monitor = MqttStatusMonitor()
-    preflight = PreflightManager()
+    presence_registry = NodePresenceRegistry()
+    preflight = PreflightManager(node_presence_registry=presence_registry)
     result_store = ResultStore()
     experiment_mgr = ExperimentManager()
     scenario_mgr = ScenarioManager()
@@ -150,6 +153,7 @@ def main() -> None:
         observation_store=obs_store,
         trial_store=trial_store,
         package_runner=pkg_runner,
+        node_presence_registry=presence_registry,
     )
     _start_fastapi(dashboard_app, DASHBOARD_PORT, "dashboard")
 
@@ -187,6 +191,8 @@ def main() -> None:
                 if acks:
                     log.info("Actuator simulator: auto-ACK for %s (%d node(s))",
                              payload.get("target_device"), len(acks))
+            elif msg.topic == PRESENCE_TOPIC:
+                presence_registry.handle_message(payload)
             log.debug("Monitor received [%s]", msg.topic)
         except Exception as exc:
             log.error("MQTT parse error on %s: %s", msg.topic, exc)

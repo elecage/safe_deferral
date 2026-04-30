@@ -32,6 +32,7 @@ _REGISTRY_TOPICS = {
 _ALLOWED_SOURCE_PREFIXES = ("rpi.", "esp32.virtual_", "test.")
 
 _ACK_TOPIC = "safe_deferral/actuation/ack"
+_PRESENCE_TOPIC = "safe_deferral/node/presence"
 
 
 class MqttPublisher(Protocol):
@@ -97,14 +98,17 @@ class VirtualNodeManager:
     def start_node(self, node: VirtualNode) -> None:
         if node.state in (VirtualNodeState.CREATED, VirtualNodeState.STOPPED):
             node.state = VirtualNodeState.RUNNING
+            self._publish_presence(node, "online")
 
     def stop_node(self, node: VirtualNode) -> None:
         if node.state == VirtualNodeState.RUNNING:
             node.state = VirtualNodeState.STOPPED
+            self._publish_presence(node, "offline")
 
     def delete_node(self, node_id: str) -> None:
         node = self._nodes.get(node_id)
         if node:
+            self._publish_presence(node, "offline")
             node.state = VirtualNodeState.DELETED
             del self._nodes[node_id]
 
@@ -169,6 +173,29 @@ class VirtualNodeManager:
     # ------------------------------------------------------------------
     # Internal validation
     # ------------------------------------------------------------------
+
+    def _publish_presence(self, node: VirtualNode, status: str) -> None:
+        """Publish node presence to safe_deferral/node/presence.
+
+        Mirrors the same topic used by physical ESP32 nodes (via MQTT LWT and
+        explicit connect announcements), so NodePresenceRegistry sees both
+        source types uniformly.
+        """
+        try:
+            payload = {
+                "node_id": node.node_id,
+                "node_type": node.node_type.value,
+                "source": "virtual",
+                "status": status,
+                "timestamp_ms": int(time.time() * 1000),
+                "source_node_id": node.source_node_id,
+            }
+            self._publisher.publish(_PRESENCE_TOPIC, payload, qos=1)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Failed to publish presence for %s: %s", node.node_id, exc
+            )
 
     @staticmethod
     def _validate_source_id(sid: str) -> None:

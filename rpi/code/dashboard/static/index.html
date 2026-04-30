@@ -415,6 +415,22 @@
         </div>
       </div>
 
+      <!-- 통합 노드 현황 (물리 + 가상) -->
+      <div class="card mb-20">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="card-title" style="margin:0">물리 + 가상 노드 현황
+            <span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:8px">safe_deferral/node/presence</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="presence-summary-badge" style="font-size:11px;color:var(--text-dim)">—</span>
+            <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="loadNodePresence()">새로고침</button>
+          </div>
+        </div>
+        <div id="presence-panel" style="display:flex;flex-wrap:wrap;gap:8px;min-height:32px">
+          <span class="text-dim" style="font-size:12px">로딩 중…</span>
+        </div>
+      </div>
+
       <!-- 노드 타입 안내 -->
       <div class="type-labels mb-12">
         <div><b>context_node</b> — 컨텍스트 입력</div>
@@ -1256,6 +1272,7 @@ async function loadNodes() {
   } catch {
     document.getElementById('node-list').innerHTML = '<div class="empty">노드 불러오기 실패</div>';
   }
+  loadNodePresence();  // always refresh unified presence panel alongside virtual nodes
 }
 
 function renderNodes(nodes) {
@@ -1310,6 +1327,41 @@ function renderTopo(nodes) {
       <span style="font-size:11px">${nodeTypeLabel(n.node_type)}</span>
     </div>`;
   }).join('');
+}
+
+async function loadNodePresence() {
+  const panel = document.getElementById('presence-panel');
+  const badge = document.getElementById('presence-summary-badge');
+  try {
+    const r = await fetch('/node_presence');
+    if (!r.ok) { panel.innerHTML = '<span class="text-dim" style="font-size:12px">불러오기 실패</span>'; return; }
+    const data = await r.json();
+    const nodes = data.nodes || [];
+    const s = data.summary || {};
+    badge.textContent = `물리 ${s.online_physical ?? 0} / 가상 ${s.online_virtual ?? 0} 온라인`;
+    if (nodes.length === 0) {
+      panel.innerHTML = '<span class="text-dim" style="font-size:12px">감지된 노드 없음 — MQTT 브로커 연결 후 물리/가상 노드를 시작하세요.</span>';
+      return;
+    }
+    const SOURCE_ICON = { physical: '🔌', virtual: '🤖' };
+    const STATUS_COLOR = { online: 'green', offline: '', stale: 'yellow' };
+    panel.innerHTML = nodes.map(n => {
+      const icon = SOURCE_ICON[n.source] || '❓';
+      const dotColor = STATUS_COLOR[n.status] || '';
+      const ageS = n.age_ms != null ? Math.round(n.age_ms / 1000) : '?';
+      const label = n.node_type || n.node_id;
+      const staleWarn = n.stale ? ' ⚠' : '';
+      return `<div style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);
+          border-radius:8px;padding:5px 10px;font-size:12px" title="${n.node_id}\nsource: ${n.source}\nstatus: ${n.reported_status}\nlast_seen: ${ageS}s ago">
+        <span class="dot ${dotColor}" style="flex-shrink:0"></span>
+        <span>${icon}</span>
+        <span>${label}${staleWarn}</span>
+        <span style="color:var(--text-dim);font-size:10px">${ageS}s</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    panel.innerHTML = '<span class="text-dim" style="font-size:12px">오류: ' + e.message + '</span>';
+  }
 }
 
 function nodeTypeLabel(t) {
