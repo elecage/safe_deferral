@@ -14,10 +14,13 @@ Authority boundary (02_safety_and_authority_boundaries.md §4):
 """
 
 import json
+import logging
 import re
 from typing import Optional
 
 import jsonschema
+
+log = logging.getLogger(__name__)
 
 from local_llm_adapter.llm_client import LlmClient, MockLlmClient
 from local_llm_adapter.models import LLMCandidateResult
@@ -78,8 +81,11 @@ class LocalLlmAdapter:
 
         raw_response: Optional[str] = None
         try:
+            log.info("DEBUG LLM prompt:\n%s", prompt)
             raw_response = self._client.complete(prompt)
+            log.info("DEBUG LLM raw_response: %r", raw_response)
             candidate = self._parse_and_validate(raw_response)
+            log.info("DEBUG LLM parsed candidate: %s", candidate)
             return LLMCandidateResult(
                 candidate=candidate,
                 is_fallback=False,
@@ -87,7 +93,8 @@ class LocalLlmAdapter:
                 llm_raw_response=raw_response,
                 model_id=self._client.model_id,
             )
-        except Exception:
+        except Exception as exc:
+            log.warning("DEBUG LLM fallback triggered: %s | raw=%r", exc, raw_response)
             return LLMCandidateResult(
                 candidate=dict(_SAFE_DEFERRAL_FALLBACK),
                 is_fallback=True,
