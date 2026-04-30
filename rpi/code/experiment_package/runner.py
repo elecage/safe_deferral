@@ -187,7 +187,7 @@ class PackageRunner:
             # For CLASS_2 expected trials: auto-simulate user button press once
             # the initial CLASS_2 observation (no class2 block) arrives.
             auto_class2_node = (
-                node if expected_route_class == "CLASS_2" else None
+                node if trial.expected_route_class == "CLASS_2" else None
             )
             observation = self._match_observation(
                 correlation_id, _TRIAL_TIMEOUT_S,
