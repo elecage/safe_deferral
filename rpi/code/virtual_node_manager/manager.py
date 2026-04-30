@@ -113,11 +113,24 @@ class VirtualNodeManager:
             del self._nodes[node_id]
 
     def publish_once(self, node: VirtualNode) -> dict:
-        """Publish one payload from the node's profile template."""
+        """Publish one payload from the node's profile template.
+
+        Automatically refreshes routing_metadata.ingest_timestamp_ms to the
+        current time at the moment of publishing. The policy router enforces
+        freshness_threshold_ms (3 s by default); a stale template timestamp
+        would trigger C204 (sensor_staleness_detected → CLASS_2) even for a
+        perfectly valid context payload.
+        """
         if node.state != VirtualNodeState.RUNNING:
             raise RuntimeError(f"Node {node.node_id} is not running")
         payload = {**node.profile.payload_template,
                    "source_node_id": node.source_node_id}
+        # Refresh ingest timestamp so the Mac mini freshness check passes.
+        if "routing_metadata" in payload:
+            payload["routing_metadata"] = {
+                **payload["routing_metadata"],
+                "ingest_timestamp_ms": int(time.time() * 1000),
+            }
         self._publisher.publish(node.profile.publish_topic, payload, qos=1)
         node.published_count += 1
         return payload
