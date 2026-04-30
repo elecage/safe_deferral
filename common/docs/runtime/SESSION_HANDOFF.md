@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-30_NODE_PRESENCE_SYSTEM_COMPLETE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-29_EXPERIMENT_PACKAGE_DASHBOARD_PLAN.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-29_HARDWARE_INTEGRATION_RUN_COMPLETE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-29_INSTALL_SCRIPT_BUGFIX.md`
