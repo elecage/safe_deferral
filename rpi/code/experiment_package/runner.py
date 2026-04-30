@@ -21,7 +21,7 @@ from experiment_package.trial_store import TrialResult, TrialStore
 
 log = logging.getLogger(__name__)
 
-_TRIAL_TIMEOUT_S = 15.0
+_TRIAL_TIMEOUT_S = 30.0
 _POLL_INTERVAL_S = 0.25
 
 # Governance-drift topic: deliberately unregistered, for testing

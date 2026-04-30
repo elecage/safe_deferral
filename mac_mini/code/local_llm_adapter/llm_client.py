@@ -31,7 +31,7 @@ class OllamaClient:
         self,
         model: str = "llama3.2",
         base_url: str = _DEFAULT_URL,
-        timeout_s: int = 30,
+        timeout_s: int = 60,
     ) -> None:
         self._model = model
         self._url = base_url
