@@ -170,7 +170,15 @@ class Pipeline:
         self._pending_acks: dict[str, DispatchRecord] = {}
         self._ack_lock = threading.Lock()
 
-        # CLASS_2 inline-keyboard response tracking
+        # CLASS_2 two-phase response tracking
+        # Phase 1 — user selection via MQTT button (class2_clarification_timeout_ms)
+        # clarification_id → {"session", "event", "trigger_id", "audit_id", "selection"}
+        self._pending_user_class2: dict[str, dict] = {}
+        self._user_class2_lock = threading.Lock()
+        # User-phase timeout from policy (class2_clarification_timeout_ms / 1000)
+        self._class2_user_timeout_s: float = self._class2._timeout_ms / 1000.0
+
+        # Phase 2 — caregiver inline-keyboard response (CAREGIVER_RESPONSE_TIMEOUT_S)
         # clarification_id → threading.Event (set when caregiver presses a button)
         self._pending_class2: dict[str, threading.Event] = {}
         # clarification_id → selected candidate_id
@@ -199,6 +207,11 @@ class Pipeline:
     # Context input path
     # ------------------------------------------------------------------
     def handle_context(self, raw: dict) -> None:
+        # If a CLASS_2 user-wait phase is active, try to treat this MQTT
+        # message as the user's selection before running the normal pipeline.
+        if self._try_handle_as_user_selection(raw):
+            return
+
         self._telemetry.reset()
         # 1. Intake
         intake_result = self._intake.process(raw)
@@ -304,29 +317,114 @@ class Pipeline:
         self._handle_class2("C207", route_result)
 
     # ------------------------------------------------------------------
-    # CLASS_2 — clarification manager → inline keyboard → caregiver
+    # CLASS_2 — clarification manager → user wait → caregiver escalation
     # ------------------------------------------------------------------
     def _handle_class2(self, trigger_id: str, route_result) -> None:
-        """Start a CLASS_2 clarification session.
+        """Start a CLASS_2 clarification session (two-phase wait).
 
-        If Telegram inline keyboard is available, sends the keyboard and spawns
-        a background thread to wait for the caregiver response (up to
-        CAREGIVER_RESPONSE_TIMEOUT_S).  Returns immediately so the pipeline
-        worker thread is never blocked and telemetry is published promptly.
+        Phase 1 (user, %.0fs): TTS announces candidate choices.  If an MQTT
+        button press arrives within class2_clarification_timeout_ms the user's
+        selection is processed and the caregiver is NOT involved.
 
-        If Telegram is not configured (or the send fails), falls back to a
-        plain escalation notification via the existing caregiver backend.
-        """
+        Phase 2 (caregiver, %ds): only reached when the user does not respond.
+        A Telegram inline keyboard is sent to the caregiver.  If the caregiver
+        responds the selection is processed; otherwise a plain escalation
+        notification is sent.
+
+        Both phases run in a daemon background thread so the pipeline worker
+        returns immediately and telemetry is published promptly.
+        """ % (self._class2_user_timeout_s, CAREGIVER_RESPONSE_TIMEOUT_S)
         log.info("CLASS_2: trigger=%s", trigger_id)
         session = self._class2.start_session(
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
         )
 
-        # Announce CLASS_2 candidates via TTS before waiting for response
+        # Step 1: announce candidate choices to the USER via TTS
         announce_class2(self._tts, session.candidate_choices)
 
-        # Attempt inline keyboard path when Telegram is available
+        # Step 2: publish telemetry immediately (pipeline worker must not block)
+        self._telemetry.escalate_to_class2()
+        class2_result = self._class2.handle_timeout(
+            session=session, trigger_id=trigger_id
+        )
+        self._telemetry.update_class2(class2_result)
+
+        # Step 3: spawn two-phase background waiter and return
+        threading.Thread(
+            target=self._await_user_then_caregiver,
+            args=(session, trigger_id, route_result.audit_correlation_id),
+            daemon=True,
+            name=f"class2-waiter-{session.clarification_id[:8]}",
+        ).start()
+        log.info(
+            "CLASS_2 announced — phase-1 user wait started "
+            "(user_timeout=%.0fs clarification_id=%s)",
+            self._class2_user_timeout_s, session.clarification_id,
+        )
+
+    # ------------------------------------------------------------------
+    # Background two-phase waiter: user (15s) → caregiver (300s)
+    # ------------------------------------------------------------------
+    def _await_user_then_caregiver(
+        self,
+        session,
+        trigger_id: str,
+        audit_correlation_id: str,
+    ) -> None:
+        """Two-phase CLASS_2 response wait.
+
+        Phase 1 — user (class2_clarification_timeout_ms):
+          Register the session so handle_context() can intercept the next
+          button press as a user selection.  If the user selects within the
+          timeout, process the selection and return — no caregiver involved.
+
+        Phase 2 — caregiver (CAREGIVER_RESPONSE_TIMEOUT_S):
+          User did not respond.  Send a Telegram inline keyboard to the
+          caregiver and wait.  Process caregiver selection or send a final
+          escalation notification on timeout.
+        """
+        # ---- Phase 1: user response ----
+        user_event = threading.Event()
+        entry: dict = {
+            "session": session,
+            "event": user_event,
+            "trigger_id": trigger_id,
+            "audit_id": audit_correlation_id,
+            "selection": None,
+        }
+        with self._user_class2_lock:
+            self._pending_user_class2[session.clarification_id] = entry
+
+        log.info(
+            "CLASS_2 phase-1: waiting %.0fs for user button press (clarification_id=%s)",
+            self._class2_user_timeout_s, session.clarification_id,
+        )
+        user_event.wait(timeout=self._class2_user_timeout_s)
+
+        with self._user_class2_lock:
+            self._pending_user_class2.pop(session.clarification_id, None)
+            user_selected_id = entry.get("selection")
+
+        if user_selected_id:
+            log.info(
+                "CLASS_2 phase-1: user selected %s (clarification_id=%s)",
+                user_selected_id, session.clarification_id,
+            )
+            self._class2.submit_selection(
+                session=session,
+                selected_candidate_id=user_selected_id,
+                selection_source="user_mqtt_button",
+                trigger_id=trigger_id,
+            )
+            return  # User handled it — caregiver not involved
+
+        # ---- Phase 2: caregiver Telegram ----
+        log.info(
+            "CLASS_2 phase-1 timeout — escalating to caregiver "
+            "(clarification_id=%s)", session.clarification_id,
+        )
+
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID and session.candidate_choices:
             keyboard_rows = build_inline_keyboard(
                 session.candidate_choices, session.clarification_id
@@ -341,125 +439,127 @@ class Pipeline:
                 buttons=keyboard_rows,
             )
             if sent is not None:
-                # Register the pending event before spawning the waiter thread
-                # so handle_telegram_callback() can never race ahead.
-                event = threading.Event()
+                caregiver_event = threading.Event()
                 with self._class2_lock:
-                    self._pending_class2[session.clarification_id] = event
+                    self._pending_class2[session.clarification_id] = caregiver_event
 
-                # Override route_class to CLASS_2 — the PolicyRouter may have set
-                # CLASS_1 originally (e.g. C207 via safe_deferral escalation),
-                # but the final outcome is CLASS_2.  Must be done before publish.
-                self._telemetry.escalate_to_class2()
-
-                # Use a pending class2_result placeholder so telemetry can be
-                # published immediately by handle_context() with CLASS_2 route
-                # state already known.  The background waiter will log the final
-                # caregiver decision independently.
-                class2_result = self._class2.handle_timeout(
-                    session=session, trigger_id=trigger_id
-                )
-                self._telemetry.update_class2(class2_result)
-                # No escalation update here — waiter thread will handle it.
-
-                # Spawn background thread; pipeline worker returns immediately.
-                threading.Thread(
-                    target=self._await_caregiver_response,
-                    args=(session, event, trigger_id, route_result.audit_correlation_id),
-                    daemon=True,
-                    name=f"class2-waiter-{session.clarification_id[:8]}",
-                ).start()
                 log.info(
-                    "CLASS_2 keyboard sent — background waiter started "
-                    "(timeout=%ds clarification_id=%s)",
+                    "CLASS_2 phase-2: Telegram keyboard sent — waiting %ds for caregiver "
+                    "(clarification_id=%s)",
                     CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
                 )
-                return  # telemetry published by handle_context() after this returns
+                caregiver_event.wait(timeout=CAREGIVER_RESPONSE_TIMEOUT_S)
 
-            # Button delivery failed — fall through to plain notification path
-            log.warning("CLASS_2 inline-keyboard send failed — falling back to plain notification")
+                with self._class2_lock:
+                    self._pending_class2.pop(session.clarification_id, None)
+                    caregiver_selected_id = self._class2_selections.pop(
+                        session.clarification_id, None
+                    )
 
-        # Plain notification fallback (no Telegram, no candidates, or send failure)
-        self._telemetry.escalate_to_class2()
-        class2_result = self._class2.handle_timeout(
+                if caregiver_selected_id:
+                    log.info(
+                        "CLASS_2 phase-2: caregiver selected %s (clarification_id=%s)",
+                        caregiver_selected_id, session.clarification_id,
+                    )
+                    self._class2.submit_selection(
+                        session=session,
+                        selected_candidate_id=caregiver_selected_id,
+                        selection_source="caregiver_telegram_inline_keyboard",
+                        trigger_id=trigger_id,
+                    )
+                    return
+
+                log.info(
+                    "CLASS_2 phase-2: no caregiver response within %ds — "
+                    "sending final escalation notification",
+                    CAREGIVER_RESPONSE_TIMEOUT_S,
+                )
+            else:
+                log.warning(
+                    "CLASS_2 phase-2: Telegram keyboard delivery failed — "
+                    "sending plain escalation notification"
+                )
+
+        # Final fallback: plain escalation notification
+        timeout_result = self._class2.handle_timeout(
             session=session, trigger_id=trigger_id
         )
-        self._telemetry.update_class2(class2_result)
-        if class2_result.notification_payload:
-            esc_result = self._caregiver.send_notification(
-                class2_result.notification_payload
-            )
+        if timeout_result.notification_payload:
+            self._caregiver.send_notification(timeout_result.notification_payload)
         else:
             notification = _build_notification(
-                event_summary=f"Class 2 진입: {trigger_id}",
-                context_summary="컨텍스트 정보 없음",
-                unresolved_reason=(
-                    class2_result.clarification_record.get("unresolved_reason", "insufficient_context")
-                    if class2_result.clarification_record else "insufficient_context"
-                ),
-                audit_id=route_result.audit_correlation_id,
+                event_summary=f"Class 2 무응답 타임아웃: {trigger_id}",
+                context_summary="사용자 및 보호자 모두 응답하지 않아 에스컬레이션합니다.",
+                unresolved_reason="timeout_or_no_response",
+                audit_id=audit_correlation_id,
                 exception_trigger_id=trigger_id,
             )
-            esc_result = self._caregiver.send_notification(notification)
-        self._telemetry.update_escalation(esc_result)
+            self._caregiver.send_notification(notification)
 
     # ------------------------------------------------------------------
-    # Background waiter for caregiver inline-keyboard response
+    # User button-press → CLASS_2 selection interceptor
     # ------------------------------------------------------------------
-    def _await_caregiver_response(
-        self,
-        session,
-        event: threading.Event,
-        trigger_id: str,
-        audit_correlation_id: str,
-    ) -> None:
-        """Wait up to CAREGIVER_RESPONSE_TIMEOUT_S for the caregiver to press
-        an inline keyboard button, then process the result.
+    def _try_handle_as_user_selection(self, raw: dict) -> bool:
+        """If a CLASS_2 user-wait phase is active, try to map the incoming
+        MQTT button event to a candidate selection and wake the waiter.
 
-        Runs in a daemon thread so it never blocks the pipeline worker.
+        Returns True if the message was consumed as a user selection (the
+        normal pipeline should NOT process it further).
+        Returns False otherwise (normal pipeline proceeds).
+
+        Mapping rules (simple, deterministic):
+          single_click → first candidate in the session's choice list
+          triple_hit   → first CLASS_0-targeted candidate (emergency)
+          other codes  → not recognised; pipeline runs normally
         """
+        with self._user_class2_lock:
+            if not self._pending_user_class2:
+                return False
+            # Use the most recently started user-phase session
+            clarification_id = next(iter(self._pending_user_class2))
+            entry = self._pending_user_class2.get(clarification_id)
+
+        if entry is None:
+            return False
+
+        ctx = raw.get("pure_context_payload", {})
+        trigger = ctx.get("trigger_event", {})
+        event_type = trigger.get("event_type", "")
+        event_code = trigger.get("event_code", "")
+
+        if event_type != "button":
+            return False  # Only button presses are user selections
+
+        session = entry["session"]
+        selected_id: Optional[str] = None
+
+        if event_code == "single_click" and session.candidate_choices:
+            # single_click → first candidate (typically C1_LIGHTING_ASSISTANCE)
+            selected_id = session.candidate_choices[0].candidate_id
+        elif event_code == "triple_hit":
+            # Emergency confirmation → CLASS_0-targeted candidate
+            selected_id = next(
+                (c.candidate_id for c in session.candidate_choices
+                 if c.candidate_transition_target == "CLASS_0"),
+                None,
+            )
+
+        if selected_id is None:
+            return False  # Not a recognised selection code; run normal pipeline
+
+        with self._user_class2_lock:
+            live_entry = self._pending_user_class2.get(clarification_id)
+            if live_entry is None:
+                return False  # Session expired between checks
+            live_entry["selection"] = selected_id
+            live_entry["event"].set()
+
         log.info(
-            "CLASS_2 waiter: waiting %ds for clarification_id=%s",
-            CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
+            "CLASS_2 user selection intercepted: event_code=%s → candidate=%s "
+            "(clarification_id=%s)",
+            event_code, selected_id, clarification_id,
         )
-        event.wait(timeout=CAREGIVER_RESPONSE_TIMEOUT_S)
-
-        with self._class2_lock:
-            self._pending_class2.pop(session.clarification_id, None)
-            selected_id = self._class2_selections.pop(session.clarification_id, None)
-
-        if selected_id:
-            log.info(
-                "CLASS_2 waiter: caregiver selected=%s  clarification_id=%s",
-                selected_id, session.clarification_id,
-            )
-            self._class2.submit_selection(
-                session=session,
-                selected_candidate_id=selected_id,
-                selection_source="caregiver_telegram_inline_keyboard",
-                trigger_id=trigger_id,
-            )
-            # Confirmation already signalled to caregiver via button UI;
-            # no additional Telegram notification needed for selection path.
-        else:
-            log.info(
-                "CLASS_2 waiter: no response within %ds — sending escalation notification",
-                CAREGIVER_RESPONSE_TIMEOUT_S,
-            )
-            timeout_result = self._class2.handle_timeout(
-                session=session, trigger_id=trigger_id
-            )
-            if timeout_result.notification_payload:
-                self._caregiver.send_notification(timeout_result.notification_payload)
-            else:
-                notification = _build_notification(
-                    event_summary=f"Class 2 무응답 타임아웃: {trigger_id}",
-                    context_summary="보호자가 응답하지 않아 에스컬레이션합니다.",
-                    unresolved_reason="timeout_or_no_response",
-                    audit_id=audit_correlation_id,
-                    exception_trigger_id=trigger_id,
-                )
-                self._caregiver.send_notification(notification)
+        return True
 
     # ------------------------------------------------------------------
     # Telegram callback_query handler (called from TelegramPoller thread)
