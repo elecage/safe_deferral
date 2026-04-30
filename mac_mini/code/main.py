@@ -548,22 +548,33 @@ def main() -> None:
 
     # Create MQTT client; publish via a holder so Pipeline can reference it
     # before on_connect fires.
-    client = mqtt.Client(client_id="sd-mac-mini-hub", clean_session=True)
+    # Use CallbackAPIVersion.VERSION2 to avoid Paho deprecation warning.
+    try:
+        client = mqtt.Client(
+            mqtt.CallbackAPIVersion.VERSION2,
+            client_id="sd-mac-mini-hub",
+            clean_session=True,
+        )
+    except AttributeError:
+        # Paho < 2.0 installed — fall back to legacy constructor
+        client = mqtt.Client(client_id="sd-mac-mini-hub", clean_session=True)
     publisher = _PahoPublisher(client)
     pipeline = Pipeline(mqtt_publisher=publisher)
 
     work_queue: queue.Queue = queue.Queue()
 
-    def on_connect(c, userdata, flags, rc):
-        if rc == 0:
+    def on_connect(c, userdata, flags, reason_code, properties=None):
+        # VERSION2 passes a ReasonCode object; treat 0 / "Success" as connected.
+        rc_value = getattr(reason_code, "value", reason_code)
+        if rc_value == 0:
             log.info("MQTT connected to %s:%s", MQTT_HOST, MQTT_PORT)
             c.subscribe(pipeline.topic_context_input, qos=1)
             c.subscribe(pipeline.topic_ack, qos=1)
         else:
-            log.error("MQTT connect failed rc=%d", rc)
+            log.error("MQTT connect failed rc=%s", reason_code)
 
-    def on_disconnect(c, userdata, rc):
-        log.warning("MQTT disconnected rc=%d — will auto-reconnect", rc)
+    def on_disconnect(c, userdata, flags, reason_code=None, properties=None):
+        log.warning("MQTT disconnected rc=%s — will auto-reconnect", reason_code)
 
     def on_message(c, userdata, msg):
         try:
