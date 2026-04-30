@@ -23,6 +23,9 @@ Environment variables (loaded from ~/smarthome_workspace/.env):
   OLLAMA_URL         default: http://localhost:11434/api/generate
   OLLAMA_MODEL       default: llama3.2
   AUDIT_DB_PATH      default: ~/smarthome_workspace/audit.db
+  TTS_ENABLED        "true" (default) | "false"
+  TTS_VOICE          macOS voice name, default "Yuna" (Korean)
+  TTS_RATE           words-per-minute for say -r (default: system default)
 """
 
 import json
@@ -75,6 +78,13 @@ from policy_router.router import PolicyRouter
 from safe_deferral_handler.handler import SafeDeferralHandler
 from shared.asset_loader import AssetLoader
 from telemetry_adapter.adapter import TelemetryAdapter
+from tts.speaker import (
+    make_speaker,
+    announce_dispatch,
+    announce_emergency,
+    announce_deferral,
+    announce_class2,
+)
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -154,6 +164,7 @@ class Pipeline:
             asset_loader=_loader,
         )
         self._telemetry = TelemetryAdapter(mqtt_publisher=mqtt_publisher, asset_loader=_loader)
+        self._tts = make_speaker()
 
         # Pending ACK records: command_id → DispatchRecord
         self._pending_acks: dict[str, DispatchRecord] = {}
@@ -222,6 +233,7 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _handle_emergency(self, route_result) -> None:
         log.warning("CLASS_0 emergency: %s", route_result.trigger_id)
+        announce_emergency(self._tts, route_result.trigger_id or "")
         notification = _build_notification(
             event_summary=f"긴급 상황 감지: {route_result.trigger_id}",
             context_summary="CLASS_0 emergency trigger — immediate caregiver notification.",
@@ -268,6 +280,11 @@ class Pipeline:
                     dispatch_result.dispatch_record
                 )
             self._telemetry.update_ack(dispatch_result.dispatch_record)
+            announce_dispatch(
+                self._tts,
+                dispatch_result.dispatch_record.action,
+                dispatch_result.dispatch_record.target_device,
+            )
             log.info("Dispatched command_id=%s", dispatch_result.dispatch_record.command_id)
 
         elif val_result.validation_status == ValidationStatus.SAFE_DEFERRAL:
@@ -283,6 +300,7 @@ class Pipeline:
     # ------------------------------------------------------------------
     def _handle_deferral(self, val_result, route_result) -> None:
         log.info("Safe deferral: %s", val_result.deferral_reason)
+        announce_deferral(self._tts, val_result.deferral_reason or "")
         self._handle_class2("C207", route_result)
 
     # ------------------------------------------------------------------
@@ -304,6 +322,9 @@ class Pipeline:
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
         )
+
+        # Announce CLASS_2 candidates via TTS before waiting for response
+        announce_class2(self._tts, session.candidate_choices)
 
         # Attempt inline keyboard path when Telegram is available
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID and session.candidate_choices:
@@ -607,6 +628,7 @@ def main() -> None:
         CAREGIVER_RESPONSE_TIMEOUT_S,
     )
     log.info("LLM: %s @ %s", OLLAMA_MODEL, OLLAMA_URL)
+    log.info("TTS: enabled=%s voice=%s", os.environ.get("TTS_ENABLED", "true"), os.environ.get("TTS_VOICE", "Yuna"))
 
     # Create MQTT client; publish via a holder so Pipeline can reference it
     # before on_connect fires.
