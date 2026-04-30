@@ -189,10 +189,23 @@ class TrialStore:
                 return None
 
             trial.observation_payload = observation
-            trial.observed_route_class = observation.get("route_class")
-            trial.observed_validation = observation.get("validation_status")
-            trial.snapshot_ts_ms = observation.get("snapshot_ts_ms")
-            trial.ingest_timestamp_ms = observation.get("ingest_timestamp_ms")
+            # Observation payload uses nested structure from Mac mini telemetry:
+            #   route.route_class, validation.validation_status, generated_at_ms
+            # Fall back to flat keys for forward compatibility.
+            _route = observation.get("route") or {}
+            _val = observation.get("validation") or {}
+            trial.observed_route_class = (
+                observation.get("route_class") or _route.get("route_class")
+            )
+            trial.observed_validation = (
+                observation.get("validation_status") or _val.get("validation_status")
+            )
+            trial.snapshot_ts_ms = (
+                observation.get("snapshot_ts_ms") or observation.get("generated_at_ms")
+            )
+            trial.ingest_timestamp_ms = (
+                observation.get("ingest_timestamp_ms") or _route.get("timestamp_ms")
+            )
 
             if trial.snapshot_ts_ms and trial.ingest_timestamp_ms:
                 trial.latency_ms = float(
