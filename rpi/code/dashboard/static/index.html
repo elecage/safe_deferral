@@ -1307,6 +1307,7 @@ function renderNodes(nodes) {
         ${canStart ? `<button class="btn btn-success" onclick="nodeAction('${n.node_id}','start')">▶ 시작</button>` : ''}
         ${canStop  ? `<button class="btn btn-warning" onclick="nodeAction('${n.node_id}','stop')">⏸ 정지</button>` : ''}
         ${canStop && !isSim ? `<button class="btn btn-ghost" onclick="nodePublish('${n.node_id}')">📤 1회 발행</button>` : ''}
+        ${canStop && !isSim ? `<button class="btn btn-ghost" style="background:var(--accent-dim,#2a3a5a)" onclick="nodeInteract('${n.node_id}')">🎯 인터랙션</button>` : ''}
         <button class="btn btn-ghost" onclick="openNodeModal('${n.node_id}')">✏ 수정</button>
         <button class="btn btn-danger" onclick="deleteNode('${n.node_id}')">✕ 삭제</button>
       </div>
@@ -1390,6 +1391,33 @@ async function nodeAction(nodeId, action) {
 async function nodePublish(nodeId) {
   const r = await fetch(`/nodes/${nodeId}/publish`, { method: 'POST' });
   if (!r.ok) { const d = await r.json(); alert(d.detail); }
+  await loadNodes();
+}
+
+async function nodeInteract(nodeId) {
+  // Quick-publish with a custom event_code (for CLASS_2 user interaction simulation)
+  const codes = ['single_click', 'double_click', 'triple_hit', 'long_press'];
+  const chosen = prompt(
+    'CLASS_2 사용자 응답 시뮬레이션\n\n' +
+    '발행할 이벤트 코드를 선택하세요:\n' +
+    '  single_click  → CLASS_2 첫 번째 후보 선택\n' +
+    '  triple_hit    → 응급 상황 선택 (CLASS_0)\n\n' +
+    '코드 입력:',
+    'single_click'
+  );
+  if (!chosen) return;
+  const r = await fetch(`/nodes/${nodeId}/interact`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_code: chosen.trim(), event_type: 'button' }),
+  });
+  if (!r.ok) {
+    const d = await r.json();
+    alert('오류: ' + d.detail);
+  } else {
+    const d = await r.json();
+    alert(`인터랙션 발행 완료\n이벤트: ${d.event_type}/${d.event_code}`);
+  }
   await loadNodes();
 }
 

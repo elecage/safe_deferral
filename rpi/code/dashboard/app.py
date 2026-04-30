@@ -338,6 +338,59 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(exc))
         return {"published": True, "payload": payload, "published_count": node.published_count}
 
+    @app.post(
+        "/nodes/{node_id}/interact",
+        summary="Publish one message with a custom event_code (CLASS_2 user interaction)",
+    )
+    def interact_node(node_id: str, body: dict):
+        """Publish a single message from this node with a temporarily overridden
+        trigger_event.event_code and optionally event_type.
+
+        The node's payload_template is not modified.  Use this to simulate a
+        user button press (e.g. single_click to select a CLASS_2 candidate)
+        while a trial's user-wait phase is active.
+
+        Body fields:
+          event_code  (required) — e.g. "single_click", "double_click", "triple_hit"
+          event_type  (optional, default "button")
+        """
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+
+        event_code = body.get("event_code")
+        if not event_code:
+            raise HTTPException(status_code=400, detail="event_code is required")
+        event_type = body.get("event_type", "button")
+
+        # Temporarily override the trigger_event fields in the template
+        import copy, time as _time
+        original_template = node.profile.payload_template
+        patched = copy.deepcopy(original_template)
+        patched.setdefault("pure_context_payload", {})
+        patched["pure_context_payload"].setdefault("trigger_event", {})
+        patched["pure_context_payload"]["trigger_event"]["event_type"] = event_type
+        patched["pure_context_payload"]["trigger_event"]["event_code"] = event_code
+        patched["pure_context_payload"]["trigger_event"]["timestamp_ms"] = int(
+            _time.time() * 1000
+        )
+
+        node.profile.payload_template = patched
+        try:
+            payload = _vnm.publish_once(node)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        finally:
+            node.profile.payload_template = original_template
+
+        return {
+            "published": True,
+            "event_type": event_type,
+            "event_code": event_code,
+            "payload": payload,
+            "published_count": node.published_count,
+        }
+
     # ------------------------------------------------------------------
     # Experiment packages (A~G definitions)
     # ------------------------------------------------------------------
