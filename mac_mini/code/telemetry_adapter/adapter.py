@@ -112,6 +112,21 @@ class TelemetryAdapter:
             timestamp_ms=int(time.time() * 1000),
         )
 
+    def escalate_to_class2(self) -> None:
+        """Override route_class to CLASS_2 in the current snapshot.
+
+        Called when a CLASS_1 event internally escalates to CLASS_2
+        (e.g. safe_deferral → C207).  The PolicyRouter set route_class=CLASS_1
+        originally; this corrects it so the experiment observation reflects the
+        final outcome class rather than the initial routing decision.
+        """
+        if self._route is not None:
+            self._route = RouteTelemetry(
+                route_class="CLASS_2",
+                trigger_id=self._route.trigger_id,
+                timestamp_ms=self._route.timestamp_ms,
+            )
+
     def update_escalation(self, result: EscalationResult) -> None:
         self._escalation = EscalationTelemetry(
             escalation_status=result.escalation_status.value,
