@@ -17,8 +17,9 @@ Environment variables (loaded from ~/smarthome_workspace/.env):
   MQTT_PORT          default: 1883
   MQTT_USER          default: (empty — anonymous)
   MQTT_PASS          default: (empty)
-  TELEGRAM_TOKEN     required for live Telegram notifications
-  TELEGRAM_CHAT_ID   required for live Telegram notifications
+  TELEGRAM_TOKEN              required for live Telegram notifications
+  TELEGRAM_CHAT_ID            required for live Telegram notifications
+  CAREGIVER_RESPONSE_TIMEOUT_S  CLASS_2 inline-keyboard wait (default: 300)
   OLLAMA_URL         default: http://localhost:11434/api/generate
   OLLAMA_MODEL       default: llama3.2
   AUDIT_DB_PATH      default: ~/smarthome_workspace/audit.db
@@ -53,7 +54,12 @@ import paho.mqtt.client as mqtt
 from audit_logger.logger import AuditLogger
 from audit_logger.models import AuditEvent, EventGroup
 from caregiver_escalation.backend import CaregiverEscalationBackend
-from caregiver_escalation.telegram_client import HttpTelegramSender, NoOpTelegramSender
+from caregiver_escalation.telegram_client import (
+    HttpTelegramSender,
+    NoOpTelegramSender,
+    TelegramPoller,
+    build_inline_keyboard,
+)
 from class2_clarification_manager.manager import Class2ClarificationManager
 from context_intake.intake import ContextIntake
 from context_intake.models import IntakeStatus
@@ -88,6 +94,7 @@ MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "") or os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+CAREGIVER_RESPONSE_TIMEOUT_S = int(os.environ.get("CAREGIVER_RESPONSE_TIMEOUT_S", "300"))
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
 AUDIT_DB_PATH = os.environ.get(
@@ -135,13 +142,13 @@ class Pipeline:
         self._deferral = SafeDeferralHandler()
         self._class2 = Class2ClarificationManager()
 
-        telegram = (
+        self._telegram_sender = (
             HttpTelegramSender(TELEGRAM_TOKEN)
             if TELEGRAM_TOKEN
             else NoOpTelegramSender()
         )
         self._caregiver = CaregiverEscalationBackend(
-            telegram_sender=telegram,
+            telegram_sender=self._telegram_sender,
             mqtt_publisher=mqtt_publisher,
             telegram_chat_id=TELEGRAM_CHAT_ID,
             asset_loader=_loader,
@@ -151,6 +158,23 @@ class Pipeline:
         # Pending ACK records: command_id → DispatchRecord
         self._pending_acks: dict[str, DispatchRecord] = {}
         self._ack_lock = threading.Lock()
+
+        # CLASS_2 inline-keyboard response tracking
+        # clarification_id → threading.Event (set when caregiver presses a button)
+        self._pending_class2: dict[str, threading.Event] = {}
+        # clarification_id → selected candidate_id
+        self._class2_selections: dict[str, str] = {}
+        self._class2_lock = threading.Lock()
+
+        # Telegram long-poll for caregiver inline-keyboard responses
+        if TELEGRAM_TOKEN:
+            self._poller = TelegramPoller(
+                bot_token=TELEGRAM_TOKEN,
+                handler=self.handle_telegram_callback,
+            )
+            self._poller.start()
+        else:
+            self._poller = None
 
         threading.Thread(
             target=self._sweep_ack_timeouts,
@@ -262,7 +286,7 @@ class Pipeline:
         self._handle_class2("C207", route_result)
 
     # ------------------------------------------------------------------
-    # CLASS_2 — clarification manager → caregiver
+    # CLASS_2 — clarification manager → inline keyboard → caregiver
     # ------------------------------------------------------------------
     def _handle_class2(self, trigger_id: str, route_result) -> None:
         log.info("CLASS_2: trigger=%s", trigger_id)
@@ -270,28 +294,134 @@ class Pipeline:
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
         )
-        class2_result = self._class2.handle_timeout(
-            session=session,
-            trigger_id=trigger_id,
-        )
+
+        # Build and send inline keyboard if Telegram is configured
+        response_received = False
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID and session.candidate_choices:
+            keyboard_rows = build_inline_keyboard(
+                session.candidate_choices, session.clarification_id
+            )
+            notification_payload = self._class2._build_notification(
+                session, trigger_id, context_summary=""
+            )
+            msg_text = (
+                _format_class2_keyboard_message(notification_payload, session)
+            )
+            sent = self._telegram_sender.send_message_with_buttons(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=msg_text,
+                buttons=keyboard_rows,
+            )
+            if sent is not None:
+                # Register pending event and wait for caregiver response
+                event = threading.Event()
+                with self._class2_lock:
+                    self._pending_class2[session.clarification_id] = event
+                log.info(
+                    "CLASS_2 waiting for caregiver response (timeout=%ds) clarification_id=%s",
+                    CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
+                )
+                event.wait(timeout=CAREGIVER_RESPONSE_TIMEOUT_S)
+                with self._class2_lock:
+                    self._pending_class2.pop(session.clarification_id, None)
+                    selected_id = self._class2_selections.pop(session.clarification_id, None)
+
+                if selected_id:
+                    log.info(
+                        "CLASS_2 caregiver selected: %s  clarification_id=%s",
+                        selected_id, session.clarification_id,
+                    )
+                    class2_result = self._class2.submit_selection(
+                        session=session,
+                        selected_candidate_id=selected_id,
+                        selection_source="caregiver_telegram_inline_keyboard",
+                        trigger_id=trigger_id,
+                    )
+                    response_received = True
+                else:
+                    log.info(
+                        "CLASS_2 caregiver did not respond within %ds — timeout",
+                        CAREGIVER_RESPONSE_TIMEOUT_S,
+                    )
+                    class2_result = self._class2.handle_timeout(
+                        session=session, trigger_id=trigger_id
+                    )
+            else:
+                # Button send failed — fall back to plain notification + immediate timeout
+                log.warning("CLASS_2 inline-keyboard send failed — falling back to plain notification")
+                class2_result = self._class2.handle_timeout(
+                    session=session, trigger_id=trigger_id
+                )
+        else:
+            # No Telegram or no candidates — plain notification path
+            class2_result = self._class2.handle_timeout(
+                session=session, trigger_id=trigger_id
+            )
+
         self._telemetry.update_class2(class2_result)
 
-        if class2_result.notification_payload:
-            esc_result = self._caregiver.send_notification(
-                class2_result.notification_payload
-            )
+        # For timeout path: send plain escalation notification
+        # For response path: notification_payload is None (non-deferral) or
+        # populated (caregiver chose deferral/escalation).
+        if not response_received:
+            if class2_result.notification_payload:
+                esc_result = self._caregiver.send_notification(
+                    class2_result.notification_payload
+                )
+            else:
+                notification = _build_notification(
+                    event_summary=f"Class 2 진입: {trigger_id}",
+                    context_summary="컨텍스트 정보 없음",
+                    unresolved_reason=(
+                        class2_result.clarification_record.get("unresolved_reason", "insufficient_context")
+                        if class2_result.clarification_record else "insufficient_context"
+                    ),
+                    audit_id=route_result.audit_correlation_id,
+                    exception_trigger_id=trigger_id,
+                )
+                esc_result = self._caregiver.send_notification(notification)
             self._telemetry.update_escalation(esc_result)
-        else:
-            notification = _build_notification(
-                event_summary=f"Class 2 진입: {trigger_id}",
-                context_summary="컨텍스트 정보 없음",
-                unresolved_reason=class2_result.clarification_record.unresolved_reason
-                    if class2_result.clarification_record else "insufficient_context",
-                audit_id=route_result.audit_correlation_id,
-                exception_trigger_id=trigger_id,
-            )
-            esc_result = self._caregiver.send_notification(notification)
-            self._telemetry.update_escalation(esc_result)
+
+    # ------------------------------------------------------------------
+    # Telegram callback_query handler (called from TelegramPoller thread)
+    # ------------------------------------------------------------------
+    def handle_telegram_callback(self, callback_query: dict) -> None:
+        """Process a caregiver inline-keyboard button press.
+
+        Expected callback_data format: "c2:{clarification_id}:{candidate_id}"
+        Answers the callback immediately to dismiss the button spinner, then
+        signals the waiting _handle_class2 thread.
+        """
+        cbq_id = callback_query.get("id", "")
+        data = callback_query.get("data", "")
+
+        # Dismiss the loading spinner on the button
+        if cbq_id:
+            self._telegram_sender.answer_callback_query(cbq_id)
+
+        if not data.startswith("c2:"):
+            log.debug("Ignoring non-CLASS2 callback_query data: %r", data)
+            return
+
+        parts = data.split(":", 2)  # ["c2", clarification_id, candidate_id]
+        if len(parts) != 3:
+            log.warning("Malformed CLASS_2 callback_data: %r", data)
+            return
+
+        _, clarification_id, candidate_id = parts
+        with self._class2_lock:
+            event = self._pending_class2.get(clarification_id)
+            if event is None:
+                log.warning(
+                    "callback_query for unknown/expired clarification_id=%s", clarification_id
+                )
+                return
+            self._class2_selections[clarification_id] = candidate_id
+            event.set()
+        log.info(
+            "Caregiver callback received: clarification_id=%s candidate=%s",
+            clarification_id, candidate_id,
+        )
 
     # ------------------------------------------------------------------
     # ACK path
@@ -354,6 +484,32 @@ class Pipeline:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _format_class2_keyboard_message(notification_payload: dict, session) -> str:
+    """Format the Telegram message that accompanies CLASS_2 inline keyboard buttons.
+
+    Combines the standard escalation notification text with an instruction
+    line so the caregiver knows to tap a button below.
+    """
+    import html as _html
+    event   = _html.escape(notification_payload.get("event_summary", ""))
+    reason  = _html.escape(notification_payload.get("unresolved_reason", ""))
+    trigger = _html.escape(notification_payload.get("exception_trigger_id") or "—")
+    audit_id = _html.escape(notification_payload.get("audit_correlation_id", ""))
+
+    lines = [
+        "🔔 <b>보호자 확인 요청</b>",
+        "",
+        f"<b>이벤트:</b> {event}",
+        f"<b>미해결 이유:</b> {reason}",
+        f"<b>트리거 ID:</b> {trigger}",
+        "",
+        "아래 버튼 중 하나를 선택해 주세요:",
+        "",
+        f"<i>감사 ID: {audit_id}</i>",
+    ]
+    return "\n".join(lines)
+
+
 def _build_notification(
     event_summary: str,
     context_summary: str,
@@ -383,7 +539,11 @@ def main() -> None:
     log.info("Safe Deferral — Mac mini hub starting …")
     log.info("MQTT broker: %s:%s", MQTT_HOST, MQTT_PORT)
     log.info("Audit DB: %s", AUDIT_DB_PATH)
-    log.info("Telegram: %s", "configured" if TELEGRAM_TOKEN else "NoOp (TELEGRAM_BOT_TOKEN not set)")
+    log.info(
+        "Telegram: %s (caregiver response timeout: %ds)",
+        "configured" if TELEGRAM_TOKEN else "NoOp (TELEGRAM_BOT_TOKEN not set)",
+        CAREGIVER_RESPONSE_TIMEOUT_S,
+    )
     log.info("LLM: %s @ %s", OLLAMA_MODEL, OLLAMA_URL)
 
     # Create MQTT client; publish via a holder so Pipeline can reference it

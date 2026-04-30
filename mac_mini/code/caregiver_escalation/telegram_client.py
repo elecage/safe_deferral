@@ -11,13 +11,16 @@ Authority boundary (02_safety_and_authority_boundaries.md §8):
 
 TelegramSender is injected as a protocol so the backend can be unit-tested
 without network access.
+
+TelegramPoller provides long-polling for inline keyboard callback_query
+responses from the caregiver (CLASS_2 clarification flow).
 """
 
 import html
 import logging
 import threading
 import time
-from typing import Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 log = logging.getLogger("sd.telegram")
 
@@ -43,6 +46,24 @@ class TelegramSender(Protocol):
         """
         ...
 
+    def send_message_with_buttons(
+        self,
+        chat_id: str,
+        text: str,
+        buttons: list,
+        parse_mode: str = "HTML",
+    ) -> Optional[int]:
+        """Send a message with an inline keyboard.
+
+        buttons: list[list[dict]] — Telegram InlineKeyboardMarkup rows.
+        Returns message_id on success, None on failure (synchronous).
+        """
+        ...
+
+    def answer_callback_query(self, callback_query_id: str) -> None:
+        """Dismiss the loading spinner on the pressed button (fire-and-forget)."""
+        ...
+
 
 class NoOpTelegramSender:
     """Used when no real Telegram client is injected (test / dry-run).
@@ -59,6 +80,18 @@ class NoOpTelegramSender:
     ) -> Optional[int]:
         return None
 
+    def send_message_with_buttons(
+        self,
+        chat_id: str,
+        text: str,
+        buttons: list,
+        parse_mode: str = "HTML",
+    ) -> Optional[int]:
+        return None
+
+    def answer_callback_query(self, callback_query_id: str) -> None:
+        pass
+
 
 class HttpTelegramSender:
     """Production sender — calls the Telegram Bot API over HTTP.
@@ -67,14 +100,29 @@ class HttpTelegramSender:
     immediately so the pipeline worker thread is never blocked.  Delivery
     failures are logged by the background thread.
 
+    send_message_with_buttons() is synchronous — it blocks until the Bot API
+    responds (or timeout).  This is intentional: the CLASS_2 wait loop must
+    not start until the inline keyboard is confirmed delivered.
+
     Requires `requests` package.
     """
 
-    _API_BASE = "https://api.telegram.org/bot{token}/sendMessage"
+    _API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
     def __init__(self, bot_token: str, max_retries: int = 1) -> None:
         self._token = bot_token
         self._max_retries = max_retries
+
+    # ------------------------------------------------------------------
+    # Internal helper
+    # ------------------------------------------------------------------
+
+    def _url(self, method: str) -> str:
+        return self._API_BASE.format(token=self._token, method=method)
+
+    # ------------------------------------------------------------------
+    # Async plain text message
+    # ------------------------------------------------------------------
 
     def send_message(
         self,
@@ -94,7 +142,7 @@ class HttpTelegramSender:
     def _send_with_retry(self, chat_id: str, text: str, parse_mode: str) -> None:
         import requests  # lazy import so unit tests never need it
 
-        url = self._API_BASE.format(token=self._token)
+        url = self._url("sendMessage")
         last_exc: Exception = Exception("no attempts made")
         for attempt in range(self._max_retries + 1):
             if attempt > 0:
@@ -114,6 +162,179 @@ class HttpTelegramSender:
             self._max_retries + 1, last_exc,
         )
 
+    # ------------------------------------------------------------------
+    # Synchronous inline-keyboard message
+    # ------------------------------------------------------------------
+
+    def send_message_with_buttons(
+        self,
+        chat_id: str,
+        text: str,
+        buttons: list,
+        parse_mode: str = "HTML",
+    ) -> Optional[int]:
+        """Send a message with an inline keyboard (blocking).
+
+        Returns the Telegram message_id on success, or None on failure.
+        Synchronous so the CLASS_2 event-wait loop starts only after delivery.
+        """
+        import requests  # lazy import
+
+        url = self._url("sendMessage")
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": parse_mode,
+            "reply_markup": {"inline_keyboard": buttons},
+        }
+        last_exc: Exception = Exception("no attempts made")
+        for attempt in range(self._max_retries + 1):
+            if attempt > 0:
+                time.sleep(1)
+            try:
+                resp = requests.post(url, json=payload, timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                message_id = data.get("result", {}).get("message_id")
+                log.info("Telegram inline-keyboard message sent: message_id=%s", message_id)
+                return message_id
+            except Exception as exc:
+                last_exc = exc
+        log.warning(
+            "Telegram inline-keyboard send failed after %d attempt(s): %s",
+            self._max_retries + 1, last_exc,
+        )
+        return None
+
+    # ------------------------------------------------------------------
+    # Answer callback query (dismiss spinner)
+    # ------------------------------------------------------------------
+
+    def answer_callback_query(self, callback_query_id: str) -> None:
+        """Dismiss the button loading spinner (fire-and-forget)."""
+        threading.Thread(
+            target=self._answer_callback,
+            args=(callback_query_id,),
+            daemon=True,
+            name="telegram-answer-cbq",
+        ).start()
+
+    def _answer_callback(self, callback_query_id: str) -> None:
+        import requests  # lazy import
+
+        url = self._url("answerCallbackQuery")
+        try:
+            requests.post(
+                url,
+                json={"callback_query_id": callback_query_id},
+                timeout=10,
+            )
+        except Exception as exc:
+            log.warning("answerCallbackQuery failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Long-polling receiver for caregiver inline-keyboard responses
+# ---------------------------------------------------------------------------
+
+class TelegramPoller:
+    """Background long-polling thread for Telegram callback_query updates.
+
+    Polls /getUpdates with a 20-second server-side timeout.  When a
+    callback_query arrives its callback_data and callback_query_id are
+    forwarded to the registered handler.
+
+    Usage:
+        poller = TelegramPoller(token, handler=pipeline.handle_telegram_callback)
+        poller.start()   # returns immediately; polling runs in daemon thread
+
+    Handler signature:
+        handler(callback_query: dict) -> None
+        callback_query keys: id, data, from, message, ...
+    """
+
+    _POLL_TIMEOUT_S = 20   # server-side long-poll wait (Bot API timeout param)
+    _HTTP_TIMEOUT_S = 30   # socket-level timeout (must be > _POLL_TIMEOUT_S)
+    _BACKOFF_S = 5         # sleep after repeated network errors
+
+    def __init__(
+        self,
+        bot_token: str,
+        handler: Callable[[dict], None],
+    ) -> None:
+        self._token = bot_token
+        self._handler = handler
+        self._offset: int = 0
+        self._thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
+
+    def start(self) -> None:
+        """Start the polling daemon thread (idempotent)."""
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._thread = threading.Thread(
+            target=self._poll_loop,
+            daemon=True,
+            name="telegram-poller",
+        )
+        self._thread.start()
+        log.info("TelegramPoller started.")
+
+    def stop(self) -> None:
+        """Signal the polling loop to stop (best-effort)."""
+        self._stop_event.set()
+
+    # ------------------------------------------------------------------
+    # Internal poll loop
+    # ------------------------------------------------------------------
+
+    def _poll_loop(self) -> None:
+        import requests  # lazy import
+
+        url = f"https://api.telegram.org/bot{self._token}/getUpdates"
+        consecutive_errors = 0
+
+        while not self._stop_event.is_set():
+            try:
+                resp = requests.get(
+                    url,
+                    params={
+                        "offset": self._offset,
+                        "timeout": self._POLL_TIMEOUT_S,
+                        "allowed_updates": ["callback_query"],
+                    },
+                    timeout=self._HTTP_TIMEOUT_S,
+                )
+                resp.raise_for_status()
+                updates = resp.json().get("result", [])
+                consecutive_errors = 0
+
+                for update in updates:
+                    self._offset = update["update_id"] + 1
+                    cbq = update.get("callback_query")
+                    if cbq:
+                        try:
+                            self._handler(cbq)
+                        except Exception as exc:
+                            log.warning("callback_query handler error: %s", exc)
+
+            except Exception as exc:
+                consecutive_errors += 1
+                log.warning(
+                    "TelegramPoller getUpdates error (#%d): %s",
+                    consecutive_errors, exc,
+                )
+                # Exponential-ish backoff, capped at 60s
+                sleep_s = min(self._BACKOFF_S * consecutive_errors, 60)
+                self._stop_event.wait(timeout=sleep_s)
+
+        log.info("TelegramPoller stopped.")
+
+
+# ---------------------------------------------------------------------------
+# Formatting helpers
+# ---------------------------------------------------------------------------
 
 def format_notification_message(notification_payload: dict) -> str:
     """Convert a class2_notification_payload dict to a Telegram HTML string."""
@@ -140,3 +361,26 @@ def format_notification_message(notification_payload: dict) -> str:
         f"<i>감사 ID: {audit_id}</i>",
     ]
     return "\n".join(lines)
+
+
+def build_inline_keyboard(
+    candidates: list,
+    clarification_id: str,
+) -> list:
+    """Build a Telegram InlineKeyboardMarkup rows list from candidate choices.
+
+    Each candidate becomes one button row.
+    callback_data format: "c2:{clarification_id}:{candidate_id}"
+
+    Args:
+        candidates: list of ClarificationChoice objects (have .candidate_id, .prompt)
+        clarification_id: session.clarification_id used to route the response back
+
+    Returns:
+        list[list[dict]]  — ready to pass as reply_markup["inline_keyboard"]
+    """
+    rows = []
+    for choice in candidates:
+        cb_data = f"c2:{clarification_id}:{choice.candidate_id}"
+        rows.append([{"text": choice.prompt, "callback_data": cb_data}])
+    return rows
