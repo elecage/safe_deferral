@@ -33,6 +33,15 @@ class PolicyRouter:
             policy["routing_policies"]["class_0_emergency"]["triggers"]
         )
 
+        # C206 predicate: button events whose event_code is not in the recognized set
+        c2_triggers = policy["routing_policies"]["class_2_clarification_transition"]["triggers"]
+        c206 = next((t for t in c2_triggers if t["id"] == "C206"), {})
+        pred = c206.get("minimal_triggering_predicate", {})
+        self._c206_event_type: str = pred.get("event_type", "button")
+        self._c206_recognized_codes: set = set(
+            pred.get("recognized_class1_button_event_codes", ["single_click"])
+        )
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -94,7 +103,15 @@ class PolicyRouter:
                 pure_context_payload=ctx,
             )
 
-        # Step 4: all checks passed → CLASS_1
+        # Step 4: C206 — insufficient context (ambiguous button event)
+        if self._is_insufficient_context(trigger):
+            return self._class2(
+                raw_input,
+                trigger_id="C206",
+                reason="insufficient_context_for_intent_resolution",
+            )
+
+        # Step 5: all checks passed → CLASS_1
         return PolicyRouterResult(
             route_class=RouteClass.CLASS_1,
             trigger_id=None,
@@ -171,6 +188,19 @@ class PolicyRouter:
             return ops.get(operator, False)
         except TypeError:
             return False
+
+    def _is_insufficient_context(self, trigger: dict) -> bool:
+        """Return True when the trigger event is ambiguous (C206).
+
+        Applies only to button events whose event_code is not in the
+        recognized clear-intent set loaded from the policy table.
+        Emergency button codes (triple_hit) are already caught by CLASS_0
+        before this check and never reach here.
+        """
+        return (
+            trigger.get("event_type") == self._c206_event_type
+            and trigger.get("event_code") not in self._c206_recognized_codes
+        )
 
     def _class2(self, raw_input: dict, trigger_id: str, reason: str) -> PolicyRouterResult:
         meta = raw_input.get("routing_metadata", {})

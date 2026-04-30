@@ -221,7 +221,13 @@
           "event": "insufficient_context_for_intent_resolution",
           "source_layer": "policy_router_or_class2_clarification_manager",
           "requires_notification": false,
-          "initial_class2_state": "clarification_candidate_generation_allowed"
+          "initial_class2_state": "clarification_candidate_generation_allowed",
+          "minimal_triggering_predicate": {
+            "description": "Button event whose event_code is not in the recognized clear-intent set. Emergency codes (triple_hit) are already caught by E002 before this check; sensor events use their own predicates. Only unrecognized button codes reach C206.",
+            "event_type": "button",
+            "event_code_not_in_recognized_class1_set": true,
+            "recognized_class1_button_event_codes": ["single_click"]
+          }
         },
         {
           "id": "C207",
