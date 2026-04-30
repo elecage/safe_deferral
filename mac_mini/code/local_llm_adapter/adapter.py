@@ -112,8 +112,14 @@ class LocalLlmAdapter:
 
         Raises ValueError / jsonschema.ValidationError on failure so that
         generate_candidate() can catch and return the safe fallback.
+
+        Null values are stripped before validation: LLMs often include
+        optional fields as null (e.g. deferral_reason: null when not
+        deferring), which fails 'type: string' schema checks.
         """
         candidate = self._extract_json(raw)
+        # Strip null values — optional fields absent is valid; null is not
+        candidate = {k: v for k, v in candidate.items() if v is not None}
         validator = jsonschema.Draft7Validator(self._schema, resolver=self._resolver)
         errors = list(validator.iter_errors(candidate))
         if errors:
