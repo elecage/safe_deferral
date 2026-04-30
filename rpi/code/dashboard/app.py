@@ -37,6 +37,7 @@ from virtual_node_manager.manager import VirtualNodeManager
 from virtual_node_manager.models import (
     VirtualNodeProfile, VirtualNodeState, VirtualNodeType, ACTUATOR_DEVICES,
 )
+from node_presence.registry import NodePresenceRegistry
 
 _STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
@@ -51,6 +52,7 @@ def create_app(
     observation_store: Optional[ObservationStore] = None,
     trial_store: Optional[TrialStore] = None,
     package_runner: Optional[PackageRunner] = None,
+    node_presence_registry: Optional[NodePresenceRegistry] = None,
 ) -> "FastAPI":
     if not _FASTAPI_AVAILABLE:
         raise ImportError("fastapi is required for the dashboard app")
@@ -77,6 +79,7 @@ def create_app(
     _obs = observation_store or ObservationStore()
     _ts = trial_store or TrialStore()
     _pr = package_runner or PackageRunner(vnm=_vnm, obs_store=_obs, trial_store=_ts)
+    _npr = node_presence_registry or NodePresenceRegistry()
 
     # ------------------------------------------------------------------
     # Root — serve dashboard UI
@@ -522,6 +525,36 @@ def create_app(
         if trial is None:
             raise HTTPException(status_code=404, detail=f"Trial {trial_id} not found")
         return trial.to_dict()
+
+    # ------------------------------------------------------------------
+    # Node presence
+    # ------------------------------------------------------------------
+
+    @app.get("/node_presence", summary="List all tracked nodes (physical + virtual)")
+    def get_node_presence():
+        nodes = _npr.snapshot()
+        online_physical = _npr.online_count(source="physical")
+        online_virtual = _npr.online_count(source="virtual")
+        return {
+            "nodes": nodes,
+            "summary": {
+                "total": len(nodes),
+                "online_physical": online_physical,
+                "online_virtual": online_virtual,
+                "online_total": online_physical + online_virtual,
+            },
+            "authority_note": (
+                "Node presence is a monitoring artifact. "
+                "It does not grant policy, validator, or actuator authority."
+            ),
+        }
+
+    @app.get("/node_presence/{node_id}", summary="Get presence record for a specific node")
+    def get_node_presence_by_id(node_id: str):
+        entry = _npr.get(node_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id!r} not tracked")
+        return entry.to_dict()
 
     # ------------------------------------------------------------------
     # Static files (after all routes so /docs still works)

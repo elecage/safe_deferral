@@ -717,6 +717,57 @@
         "Results must trace to scenario IDs, run IDs, and expected outcomes.",
         "Future schema recommended."
       ]
+    },
+    {
+      "topic": "safe_deferral/node/presence",
+      "description": "Node presence and heartbeat for physical ESP32 and virtual RPi experiment nodes. Physical nodes use MQTT LWT for offline detection; virtual nodes publish explicitly on start/stop/delete.",
+      "publishers": [
+        "esp32.bounded_input_node",
+        "esp32.context_node",
+        "esp32.doorbell_visitor_context_node",
+        "esp32.emergency_node",
+        "esp32.actuator_node",
+        "rpi.virtual_node_manager"
+      ],
+      "publisher_roles": {
+        "field_operational_publisher": [
+          "esp32.bounded_input_node",
+          "esp32.context_node",
+          "esp32.doorbell_visitor_context_node",
+          "esp32.emergency_node",
+          "esp32.actuator_node"
+        ],
+        "controlled_experiment_publisher": [
+          "rpi.virtual_node_manager"
+        ]
+      },
+      "subscribers": [
+        "rpi.node_presence_registry",
+        "rpi.dashboard_frontend"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": [
+          "rpi.node_presence_registry"
+        ],
+        "dashboard_visibility_subscriber": [
+          "rpi.dashboard_frontend"
+        ]
+      },
+      "payload_family": "node_presence_payload",
+      "schema": null,
+      "qos": 1,
+      "retain": true,
+      "authority_level": "experiment_support_visibility_not_policy",
+      "allowed_in_operational_runtime": true,
+      "allowed_in_experiment_runtime": true,
+      "audit_recommended": false,
+      "notes": [
+        "Physical ESP32 nodes SHOULD set MQTT LWT to publish status=offline on unexpected disconnect.",
+        "Virtual nodes publish status=online on start_node(), status=offline on stop_node()/delete_node().",
+        "Presence payloads are visibility artifacts and do not create policy or actuation authority.",
+        "source field distinguishes physical from virtual: 'physical' | 'virtual'.",
+        "Heartbeat interval: physical nodes 30s, virtual nodes publish on state change."
+      ]
     }
   ]
 }

@@ -13,9 +13,12 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from shared.asset_loader import RpiAssetLoader
+
+if TYPE_CHECKING:
+    from node_presence.registry import NodePresenceRegistry
 
 
 class ReadinessLevel(str, Enum):
@@ -71,10 +74,21 @@ class PreflightManager:
     registered checks and returns a ReadinessReport.
 
     For testing, pass mock check results via add_check() with a fixed level.
+
+    Node presence checks (physical ESP32, STM32) are DEGRADED, not BLOCKED:
+      - Physical nodes absent → experiments run in virtual-only mode (paper-valid
+        for software pipeline metrics; label clearly in results).
+      - STM32 absent → GPIO end-to-end latency unavailable; software MQTT
+        latency is still valid per required_experiments.md §6.5 ("바람직하다").
     """
 
-    def __init__(self, asset_loader: Optional[RpiAssetLoader] = None) -> None:
+    def __init__(
+        self,
+        asset_loader: Optional[RpiAssetLoader] = None,
+        node_presence_registry: Optional["NodePresenceRegistry"] = None,
+    ) -> None:
         self._loader = asset_loader or RpiAssetLoader()
+        self._presence = node_presence_registry
         self._checks: list[tuple[str, str, bool, callable]] = []
         self._register_default_checks()
 
@@ -148,6 +162,18 @@ class PreflightManager:
             required=True,
             check_fn=self._check_scenarios_present,
         )
+        self.add_check(
+            "physical_nodes_present",
+            "At least one physical ESP32 node is online (DEGRADED if absent — virtual-only mode)",
+            required=False,
+            check_fn=self._check_physical_nodes,
+        )
+        self.add_check(
+            "stm32_present",
+            "STM32 timing node connected via USB-serial (DEGRADED if absent — software latency only)",
+            required=False,
+            check_fn=self._check_stm32,
+        )
 
     def _check_canonical_assets(self):
         missing = []
@@ -167,3 +193,38 @@ class PreflightManager:
         if not scenarios:
             return ReadinessLevel.BLOCKED, "no scenario contracts found"
         return ReadinessLevel.READY, f"{len(scenarios)} scenario(s) found"
+
+    def _check_physical_nodes(self):
+        if self._presence is None:
+            return (
+                ReadinessLevel.UNKNOWN,
+                "NodePresenceRegistry not injected — cannot check physical nodes",
+            )
+        physical = self._presence.find_by_source("physical")
+        if not physical:
+            return (
+                ReadinessLevel.DEGRADED,
+                "No physical ESP32 nodes online — running in virtual-only mode. "
+                "Software pipeline latency metrics remain valid; "
+                "label results as virtual-only.",
+            )
+        node_ids = [n.node_id for n in physical]
+        return ReadinessLevel.READY, f"{len(physical)} physical node(s) online: {node_ids}"
+
+    def _check_stm32(self):
+        """Check for STM32 timing node via USB-serial device.
+
+        STM32 provides GPIO interrupt-based end-to-end latency measurement.
+        Absent → software MQTT latency only (valid per required_experiments.md §6.5).
+        """
+        import glob
+        usb_paths = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+        if not usb_paths:
+            return (
+                ReadinessLevel.DEGRADED,
+                "No USB-serial device found (/dev/ttyUSB*, /dev/ttyACM*). "
+                "STM32 GPIO end-to-end latency unavailable; "
+                "software MQTT latency (ingest→dispatch) is still paper-valid — "
+                "label as 'software pipeline latency'.",
+            )
+        return ReadinessLevel.READY, f"USB-serial device(s) found: {usb_paths}"
