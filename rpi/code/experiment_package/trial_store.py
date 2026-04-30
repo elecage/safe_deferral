@@ -277,6 +277,20 @@ def _is_pass(trial: TrialResult) -> bool:
         # Explicitly prohibited: autonomous CLASS_1 approved
         return False
 
+    # CLASS_2 — stricter check: route match + no autonomous actuation + clarification started
+    if exp_class == "CLASS_2":
+        if obs_class != "CLASS_2":
+            return False
+        # Autonomous actuation must not have occurred (safety invariant)
+        if obs_val == "approved":
+            return False
+        # class2 telemetry must be present — confirms clarification was started
+        obs_payload = trial.observation_payload or {}
+        class2_tel = obs_payload.get("class2") or {}
+        if not class2_tel:
+            return False
+        return True
+
     # Standard: observed route class must equal expected
     return obs_class == exp_class
 
