@@ -184,7 +184,15 @@ class PackageRunner:
                 self._publish_normal(node, payload, correlation_id, topic_override)
 
             # --- Wait for observation ---
-            observation = self._match_observation(correlation_id, _TRIAL_TIMEOUT_S)
+            # For CLASS_2 expected trials: auto-simulate user button press once
+            # the initial CLASS_2 observation (no class2 block) arrives.
+            auto_class2_node = (
+                node if expected_route_class == "CLASS_2" else None
+            )
+            observation = self._match_observation(
+                correlation_id, _TRIAL_TIMEOUT_S,
+                auto_class2_node=auto_class2_node,
+            )
 
             if observation is None:
                 log.warning(
@@ -259,8 +267,50 @@ class PackageRunner:
         except Exception as exc:
             log.warning("Contract drift publish failed: %s", exc)
 
+    def _simulate_class2_button(self, node, correlation_id: str) -> None:
+        """Simulate user single_click button press during CLASS_2 Phase 1.
+
+        Temporarily patches the node's payload_template with event_type=button
+        and event_code=single_click, then publishes once.  The Mac mini pipeline
+        intercepts this as the user's Phase-1 selection and wakes the waiter.
+
+        The node's original template and state are restored in the finally block.
+        """
+        import copy
+        from virtual_node_manager.models import VirtualNodeState
+
+        now_ms = int(time.time() * 1000)
+        patched = copy.deepcopy(node.profile.payload_template)
+        patched.setdefault("pure_context_payload", {})
+        patched["pure_context_payload"].setdefault("trigger_event", {})
+        patched["pure_context_payload"]["trigger_event"]["event_type"] = "button"
+        patched["pure_context_payload"]["trigger_event"]["event_code"] = "single_click"
+        patched["pure_context_payload"]["trigger_event"]["timestamp_ms"] = now_ms
+        patched.setdefault("routing_metadata", {})
+        patched["routing_metadata"]["audit_correlation_id"] = correlation_id
+        patched["routing_metadata"]["ingest_timestamp_ms"] = now_ms
+
+        original_template = node.profile.payload_template
+        original_state = node.state
+        node.profile.payload_template = patched
+        node.state = VirtualNodeState.RUNNING
+        try:
+            self._vnm.publish_once(node)
+            log.info(
+                "CLASS_2 trial: auto-simulated user button press (single_click) "
+                "correlation_id=%s", correlation_id,
+            )
+        except Exception as exc:
+            log.warning("CLASS_2 button simulation failed: %s", exc)
+        finally:
+            node.profile.payload_template = original_template
+            node.state = original_state
+
     def _match_observation(
-        self, correlation_id: str, timeout_s: float
+        self,
+        correlation_id: str,
+        timeout_s: float,
+        auto_class2_node=None,
     ) -> Optional[dict]:
         """Poll ObservationStore until correlation_id match or timeout.
 
@@ -269,13 +319,18 @@ class PackageRunner:
           2. A final snapshot (with class2 block) after Phase-1 interaction
              resolves (user response ~15 s, or timeout → caregiver path).
 
-        To avoid returning the interim observation prematurely, this method
-        keeps polling when it finds a CLASS_2 observation without a class2
-        block, waiting for the background thread's final publish.  All other
-        route classes (CLASS_0, CLASS_1) return the first match immediately.
+        When auto_class2_node is provided (expected CLASS_2 trial), this method
+        automatically simulates a user single_click button press once the first
+        CLASS_2 observation is seen (Phase 1 still active).  This triggers the
+        Phase-1 waiter in the pipeline, which publishes the final observation
+        with the class2 interaction block.
+
+        All other route classes (CLASS_0, CLASS_1) return the first match immediately.
         """
         deadline = time.monotonic() + timeout_s
         best_match = None
+        class2_button_sent = False
+
         while time.monotonic() < deadline:
             obs = self._obs.find_by_correlation_id(correlation_id)
             if obs is not None:
@@ -285,6 +340,15 @@ class PackageRunner:
                     return obs  # Non-CLASS_2: first match is final
                 if obs.get("class2"):
                     return obs  # CLASS_2 with interaction data: final
-                # CLASS_2 without class2 block yet — keep polling for background publish
+
+                # CLASS_2 without class2 block: Phase 1 is active.
+                # Send the simulated user button press exactly once.
+                if not class2_button_sent and auto_class2_node is not None:
+                    class2_button_sent = True
+                    # Small delay to ensure the Phase-1 guard entry is registered
+                    # in _pending_user_class2 before the button arrives.
+                    time.sleep(1.0)
+                    self._simulate_class2_button(auto_class2_node, correlation_id)
+
             time.sleep(_POLL_INTERVAL_S)
         return best_match  # Return best found if timeout reached
