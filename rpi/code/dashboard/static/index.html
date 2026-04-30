@@ -2671,7 +2671,33 @@ async function resetSimState() {
 // ─────────────────────────────────────────────
 // Init
 // ─────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+async function _boot() {
+  // Step 1: Immediately show JS is running
+  document.getElementById('lbl-mqtt').textContent = 'MQTT 서버 연결 중…';
+  document.getElementById('lbl-system').textContent = '시스템 연결 중…';
+
+  // Step 2: Probe server reachability with a tight 2-second timeout
+  let serverOk = false;
+  try {
+    const r = await fetchT('/health', {}, 2000);
+    serverOk = r.ok;
+  } catch (_) { /* server unreachable */ }
+
+  if (!serverOk) {
+    setDot('dot-mqtt', 'red');
+    document.getElementById('lbl-mqtt').textContent = 'MQTT — 서버 오프라인';
+    setDot('dot-system', 'red');
+    document.getElementById('lbl-system').textContent = '시스템 — 서버 오프라인';
+    document.getElementById('pkg-grid').innerHTML =
+      '<div class="empty">⚠️ RPi 서버(포트 8888)에 연결할 수 없습니다.<br>서버가 실행 중인지 확인하세요.</div>';
+    document.getElementById('scenario-list').innerHTML =
+      '<div class="empty">⚠️ 서버에 연결할 수 없습니다.</div>';
+    // Keep retrying every 5 s until server comes up
+    setTimeout(_boot, 5000);
+    return;
+  }
+
+  // Step 3: Server is up — load everything
   refreshAll();
   loadPackages();
   loadScenarios();
@@ -2683,7 +2709,9 @@ window.addEventListener('DOMContentLoaded', () => {
       loadSimState();
     }
   }, 3000);
-});
+}
+
+window.addEventListener('DOMContentLoaded', _boot);
 </script>
 </body>
 </html>

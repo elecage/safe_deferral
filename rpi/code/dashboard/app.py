@@ -92,6 +92,14 @@ def create_app(
         DEVICE_FIELDS = {}
 
     # ------------------------------------------------------------------
+    # Health check — instant response, no IO
+    # ------------------------------------------------------------------
+
+    @app.get("/health", summary="Instant server health probe", include_in_schema=False)
+    def health():
+        return {"ok": True}
+
+    # ------------------------------------------------------------------
     # Root — serve dashboard UI
     # ------------------------------------------------------------------
 
