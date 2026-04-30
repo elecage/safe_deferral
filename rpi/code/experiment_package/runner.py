@@ -23,6 +23,11 @@ from shared.asset_loader import RpiAssetLoader
 log = logging.getLogger(__name__)
 
 _TRIAL_TIMEOUT_S = 30.0
+# CLASS_2 trials may go through Phase 1 (user, 15 s) + Phase 2 (caregiver, up
+# to CAREGIVER_RESPONSE_TIMEOUT_S = 300 s) + telemetry publish latency.
+# Give enough headroom so the trial runner does not time out before the Mac
+# mini publishes the final class2 observation.
+_TRIAL_TIMEOUT_CLASS2_S = 360.0
 _POLL_INTERVAL_S = 0.25
 
 # All experiment fixture payloads are in policy-router input format and must
@@ -184,15 +189,23 @@ class PackageRunner:
                 self._publish_normal(node, payload, correlation_id, topic_override)
 
             # --- Wait for observation ---
-            # For CLASS_2 expected trials: auto-simulate user button press once
-            # the initial CLASS_2 observation (no class2 block) arrives.
-            auto_class2_node = (
-                node if trial.expected_route_class == "CLASS_2" else None
+            # CLASS_2 trials go through Phase 1 (user, ≤15 s) then Phase 2
+            # (caregiver Telegram, ≤300 s).  Use a longer timeout so the trial
+            # runner does not declare timeout before the Mac mini publishes the
+            # final class2 interaction snapshot.
+            #
+            # Note: we do NOT auto-simulate a user button press here.  Doing so
+            # would complete Phase 1 immediately and prevent Phase 2 (Telegram)
+            # from ever being triggered, which would block caregiver-path tests.
+            # The trial completes naturally when the Mac mini publishes the final
+            # class2 observation (after user response, caregiver response, or the
+            # full Phase-2 timeout).
+            trial_timeout = (
+                _TRIAL_TIMEOUT_CLASS2_S
+                if trial.expected_route_class == "CLASS_2"
+                else _TRIAL_TIMEOUT_S
             )
-            observation = self._match_observation(
-                correlation_id, _TRIAL_TIMEOUT_S,
-                auto_class2_node=auto_class2_node,
-            )
+            observation = self._match_observation(correlation_id, trial_timeout)
 
             if observation is None:
                 log.warning(
@@ -310,26 +323,25 @@ class PackageRunner:
         self,
         correlation_id: str,
         timeout_s: float,
-        auto_class2_node=None,
     ) -> Optional[dict]:
         """Poll ObservationStore until correlation_id match or timeout.
 
-        For CLASS_2 trials, the pipeline publishes two observations:
-          1. An initial snapshot (no class2 block) immediately after routing.
-          2. A final snapshot (with class2 block) after Phase-1 interaction
-             resolves (user response ~15 s, or timeout → caregiver path).
+        For CLASS_2 trials, the Mac mini pipeline publishes two observations:
+          1. An initial snapshot (no class2 block) immediately after routing
+             and TTS announcement (escalate_to_class2 telemetry publish).
+          2. A final snapshot (with class2 block) after the two-phase wait
+             resolves: user button press (Phase 1, ≤15 s), caregiver Telegram
+             response (Phase 2, ≤300 s), or full Phase-2 timeout.
 
-        When auto_class2_node is provided (expected CLASS_2 trial), this method
-        automatically simulates a user single_click button press once the first
-        CLASS_2 observation is seen (Phase 1 still active).  This triggers the
-        Phase-1 waiter in the pipeline, which publishes the final observation
-        with the class2 interaction block.
+        This method waits passively — it does NOT auto-simulate a user button
+        press.  Auto-simulation was removed because it unconditionally completed
+        Phase 1 and prevented Phase 2 (caregiver Telegram) from ever being
+        triggered, blocking caregiver-path experiment trials.
 
         All other route classes (CLASS_0, CLASS_1) return the first match immediately.
         """
         deadline = time.monotonic() + timeout_s
         best_match = None
-        class2_button_sent = False
 
         while time.monotonic() < deadline:
             obs = self._obs.find_by_correlation_id(correlation_id)
@@ -340,15 +352,8 @@ class PackageRunner:
                     return obs  # Non-CLASS_2: first match is final
                 if obs.get("class2"):
                     return obs  # CLASS_2 with interaction data: final
-
-                # CLASS_2 without class2 block: Phase 1 is active.
-                # Send the simulated user button press exactly once.
-                if not class2_button_sent and auto_class2_node is not None:
-                    class2_button_sent = True
-                    # Small delay to ensure the Phase-1 guard entry is registered
-                    # in _pending_user_class2 before the button arrives.
-                    time.sleep(1.0)
-                    self._simulate_class2_button(auto_class2_node, correlation_id)
+                # CLASS_2 without class2 block: Phase 1 or Phase 2 still active.
+                # Keep polling until the final snapshot arrives.
 
             time.sleep(_POLL_INTERVAL_S)
-        return best_match  # Return best found if timeout reached
+        return best_match  # Return best found (or None) if timeout reached
