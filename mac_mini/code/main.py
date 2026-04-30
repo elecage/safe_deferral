@@ -86,7 +86,7 @@ MQTT_HOST = os.environ.get("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "") or os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
@@ -383,7 +383,7 @@ def main() -> None:
     log.info("Safe Deferral — Mac mini hub starting …")
     log.info("MQTT broker: %s:%s", MQTT_HOST, MQTT_PORT)
     log.info("Audit DB: %s", AUDIT_DB_PATH)
-    log.info("Telegram: %s", "configured" if TELEGRAM_TOKEN else "NoOp (TELEGRAM_TOKEN not set)")
+    log.info("Telegram: %s", "configured" if TELEGRAM_TOKEN else "NoOp (TELEGRAM_BOT_TOKEN not set)")
     log.info("LLM: %s @ %s", OLLAMA_MODEL, OLLAMA_URL)
 
     # Create MQTT client; publish via a holder so Pipeline can reference it
