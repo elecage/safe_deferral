@@ -363,17 +363,60 @@ def format_notification_message(notification_payload: dict) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Caregiver-facing button label mapping
+# ---------------------------------------------------------------------------
+# choice.prompt is written for the USER (read aloud via TTS to the resident).
+# Telegram buttons go to the CAREGIVER, so labels must be from the caregiver's
+# perspective: "what action am I approving / directing?"
+#
+# Primary lookup: candidate_id  (most specific)
+# Fallback lookup: candidate_transition_target  (covers unknown future ids)
+# Final fallback: choice.prompt with a "✅ " prefix so it is at least visible
+
+_CAREGIVER_LABEL_BY_ID: dict[str, str] = {
+    "C1_LIGHTING_ASSISTANCE": "💡 조명 지원 승인",
+    "C2_CAREGIVER_HELP":      "👤 보호자 직접 개입",
+    "C3_EMERGENCY_HELP":      "🚨 긴급 상황으로 처리",
+    "C4_CANCEL_OR_WAIT":      "⏸ 취소 / 대기",
+    "OPT_LIVING_ROOM":        "💡 거실 조명 제어 승인",
+    "OPT_BEDROOM":            "💡 침실 조명 제어 승인",
+    "OPT_RETRY":              "🔄 재시도 승인",
+}
+
+_CAREGIVER_LABEL_BY_TRANSITION: dict[str, str] = {
+    "CLASS_1":                              "💡 조명 지원 승인",
+    "CLASS_0":                              "🚨 긴급 상황으로 처리",
+    "CAREGIVER_CONFIRMATION":               "👤 보호자 직접 개입",
+    "SAFE_DEFERRAL":                        "⏸ 취소 / 대기",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION": "⏸ 취소 / 대기",
+}
+
+
+def _caregiver_button_label(choice) -> str:
+    """Return a caregiver-facing button label for the given ClarificationChoice."""
+    label = _CAREGIVER_LABEL_BY_ID.get(choice.candidate_id)
+    if label:
+        return label
+    label = _CAREGIVER_LABEL_BY_TRANSITION.get(
+        getattr(choice, "candidate_transition_target", "")
+    )
+    return label or f"✅ {choice.prompt}"
+
+
 def build_inline_keyboard(
     candidates: list,
     clarification_id: str,
 ) -> list:
     """Build a Telegram InlineKeyboardMarkup rows list from candidate choices.
 
-    Each candidate becomes one button row.
+    Each candidate becomes one button row with a CAREGIVER-facing label
+    (not the user-facing TTS prompt stored in choice.prompt).
+
     callback_data format: "c2:{clarification_id}:{candidate_id}"
 
     Args:
-        candidates: list of ClarificationChoice objects (have .candidate_id, .prompt)
+        candidates: list of ClarificationChoice objects
         clarification_id: session.clarification_id used to route the response back
 
     Returns:
@@ -382,5 +425,6 @@ def build_inline_keyboard(
     rows = []
     for choice in candidates:
         cb_data = f"c2:{clarification_id}:{choice.candidate_id}"
-        rows.append([{"text": choice.prompt, "callback_data": cb_data}])
+        label = _caregiver_button_label(choice)
+        rows.append([{"text": label, "callback_data": cb_data}])
     return rows
