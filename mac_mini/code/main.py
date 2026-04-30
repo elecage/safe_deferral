@@ -426,13 +426,29 @@ class Pipeline:
         )
 
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID and session.candidate_choices:
+            # Filter candidates for caregiver: only CLASS_1 and CLASS_0 targets.
+            # SAFE_DEFERRAL ("취소하고 대기") is a user choice, not a caregiver
+            # decision.  CAREGIVER_CONFIRMATION is redundant — the caregiver IS
+            # already being contacted; they can simply not reply to defer.
+            # Always keep at least one option; fall back to all choices if filter
+            # would leave none.
+            _CAREGIVER_TARGETS = {"CLASS_1", "CLASS_0"}
+            caregiver_candidates = [
+                c for c in session.candidate_choices
+                if c.candidate_transition_target in _CAREGIVER_TARGETS
+            ]
+            if not caregiver_candidates:
+                caregiver_candidates = session.candidate_choices  # safety fallback
+
             keyboard_rows = build_inline_keyboard(
-                session.candidate_choices, session.clarification_id
+                caregiver_candidates, session.clarification_id
             )
             notification_payload = self._class2._build_notification(
                 session, trigger_id, context_summary=""
             )
-            msg_text = _format_class2_keyboard_message(notification_payload, session)
+            msg_text = _format_class2_keyboard_message(
+                notification_payload, session, caregiver_candidates
+            )
             sent = self._telegram_sender.send_message_with_buttons(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=msg_text,
@@ -667,26 +683,39 @@ class Pipeline:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _format_class2_keyboard_message(notification_payload: dict, session) -> str:
-    """Format the Telegram message that accompanies CLASS_2 inline keyboard buttons.
+def _format_class2_keyboard_message(
+    notification_payload: dict, session, caregiver_candidates: list
+) -> str:
+    """Format a caregiver-focused Telegram message for CLASS_2 escalation.
 
-    Combines the standard escalation notification text with an instruction
-    line so the caregiver knows to tap a button below.
+    The message focuses on what the user most likely wanted (the first
+    CLASS_1 candidate) and asks the caregiver for a simple decision.
+    Only the filtered caregiver_candidates are shown as buttons, so the
+    body text must match that reduced set — not the full user-facing list.
     """
     import html as _html
-    event   = _html.escape(notification_payload.get("event_summary", ""))
-    reason  = _html.escape(notification_payload.get("unresolved_reason", ""))
-    trigger = _html.escape(notification_payload.get("exception_trigger_id") or "—")
     audit_id = _html.escape(notification_payload.get("audit_correlation_id", ""))
+
+    # Derive a plain description of the user's likely intent from the first
+    # ACTION candidate (CLASS_1 or CLASS_0) among the caregiver candidates.
+    first = caregiver_candidates[0] if caregiver_candidates else None
+    if first and first.candidate_transition_target == "CLASS_0":
+        intent_line = "⚠️ 사용자가 응급 도움을 요청한 것으로 보입니다."
+    elif first:
+        # Use the caregiver-facing label from telegram_client mapping
+        from caregiver_escalation.telegram_client import _caregiver_button_label
+        label = _caregiver_button_label(first)
+        intent_line = f"사용자가 <b>{_html.escape(label)}</b>을(를) 원하는 것 같습니다."
+    else:
+        intent_line = "사용자의 의도를 확인하지 못했습니다."
 
     lines = [
         "🔔 <b>보호자 확인 요청</b>",
         "",
-        f"<b>이벤트:</b> {event}",
-        f"<b>미해결 이유:</b> {reason}",
-        f"<b>트리거 ID:</b> {trigger}",
+        intent_line,
+        "사용자가 15초 내에 응답하지 않아 보호자 확인이 필요합니다.",
         "",
-        "아래 버튼 중 하나를 선택해 주세요:",
+        "아래 버튼을 눌러 처리 방법을 선택해 주세요:",
         "",
         f"<i>감사 ID: {audit_id}</i>",
     ]
