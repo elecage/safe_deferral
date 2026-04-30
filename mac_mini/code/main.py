@@ -326,6 +326,11 @@ class Pipeline:
                 with self._class2_lock:
                     self._pending_class2[session.clarification_id] = event
 
+                # Override route_class to CLASS_2 — the PolicyRouter may have set
+                # CLASS_1 originally (e.g. C207 via safe_deferral escalation),
+                # but the final outcome is CLASS_2.  Must be done before publish.
+                self._telemetry.escalate_to_class2()
+
                 # Use a pending class2_result placeholder so telemetry can be
                 # published immediately by handle_context() with CLASS_2 route
                 # state already known.  The background waiter will log the final
@@ -354,6 +359,7 @@ class Pipeline:
             log.warning("CLASS_2 inline-keyboard send failed — falling back to plain notification")
 
         # Plain notification fallback (no Telegram, no candidates, or send failure)
+        self._telemetry.escalate_to_class2()
         class2_result = self._class2.handle_timeout(
             session=session, trigger_id=trigger_id
         )
@@ -464,8 +470,12 @@ class Pipeline:
         with self._class2_lock:
             event = self._pending_class2.get(clarification_id)
             if event is None:
-                log.warning(
-                    "callback_query for unknown/expired clarification_id=%s", clarification_id
+                # Normal when caregiver presses a button from a previous/expired
+                # session (e.g. old Telegram message after 300s timeout or
+                # after a re-run).  Not an error — log at INFO level.
+                log.info(
+                    "callback_query ignored: clarification_id=%s already expired or from a previous session",
+                    clarification_id,
                 )
                 return
             self._class2_selections[clarification_id] = candidate_id
