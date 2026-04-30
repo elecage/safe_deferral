@@ -180,19 +180,6 @@ class Pipeline:
                 "ingest_timestamp_ms": intake_result.ingest_timestamp_ms,
             },
         }
-        # DEBUG: log exact staleness values to diagnose C204
-        _trigger_ts = (
-            intake_result.raw_payload
-            .get("pure_context_payload", {})
-            .get("trigger_event", {})
-            .get("timestamp_ms", 0)
-        )
-        _diff_ms = intake_result.ingest_timestamp_ms - _trigger_ts
-        log.info(
-            "Staleness debug: ingest_ts=%d  trigger_ts=%d  diff_ms=%d  threshold=3000",
-            intake_result.ingest_timestamp_ms, _trigger_ts, _diff_ms,
-        )
-
         route_result = self._router.route(payload_to_route)
         self._telemetry.update_route(route_result)
         log.info("Route: %s (trigger=%s)", route_result.route_class.value, route_result.trigger_id)
