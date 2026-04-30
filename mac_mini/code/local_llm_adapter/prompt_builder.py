@@ -17,7 +17,8 @@ _SYSTEM_HEADER = """\
 4. proposed_action이 "safe_deferral"이면 target_device는 반드시 "none"이고 deferral_reason을 포함합니다.
 5. 조명 행동의 경우 target_device는 "none"이 될 수 없습니다.
 6. 비상 상황, 도어락, 민감한 장치는 이 스키마의 범위 밖입니다 — 항상 safe_deferral로 처리합니다.
-7. 이것은 후보 제안입니다. 최종 실행 결정권은 없습니다.
+7. 방문자 감지(도어벨)가 True이면 반드시 safe_deferral로 처리합니다. 방문자 상황은 자율 조명 판단 범위를 벗어나며 보호자 확인이 필요합니다.
+8. 이것은 후보 제안입니다. 최종 실행 결정권은 없습니다.
 
 출력 JSON 스키마:
 {
