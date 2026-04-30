@@ -18,6 +18,7 @@ from typing import Optional
 from experiment_package.definitions import PackageId, PACKAGES
 from experiment_package.fault_profiles import FAULT_PROFILES, FaultProfile
 from experiment_package.trial_store import TrialResult, TrialStore
+from shared.asset_loader import RpiAssetLoader
 
 log = logging.getLogger(__name__)
 
@@ -41,10 +42,17 @@ class PackageRunner:
         # trial.status == "pending"; poll /trials/{trial_id} until completed/timeout
     """
 
-    def __init__(self, vnm, obs_store, trial_store: TrialStore) -> None:
+    def __init__(
+        self,
+        vnm,
+        obs_store,
+        trial_store: TrialStore,
+        asset_loader: Optional[RpiAssetLoader] = None,
+    ) -> None:
         self._vnm = vnm
         self._obs = obs_store
         self._store = trial_store
+        self._loader = asset_loader or RpiAssetLoader()
 
     # ------------------------------------------------------------------
     # Public API
@@ -89,7 +97,7 @@ class PackageRunner:
 
         t = threading.Thread(
             target=self._run_trial,
-            args=(trial, node_id, profile, correlation_id),
+            args=(trial, node_id, profile, correlation_id, trial.scenario_id),
             daemon=True,
             name=f"trial-{trial.trial_id[:8]}",
         )
@@ -100,12 +108,30 @@ class PackageRunner:
     # Background trial execution
     # ------------------------------------------------------------------
 
+    def _load_base_payload(self, scenario_id: str, node) -> dict:
+        """Load base payload from scenario fixture if available, else node template."""
+        if scenario_id:
+            try:
+                scenario = self._loader.load_scenario(scenario_id)
+                for step in scenario.get("steps", []):
+                    fixture_path = step.get("payload_fixture")
+                    if fixture_path and self._loader.fixture_exists(fixture_path):
+                        fixture = self._loader.load_fixture(fixture_path)
+                        log.info("Trial using scenario fixture: %s", fixture_path)
+                        return fixture
+            except Exception as exc:
+                log.warning(
+                    "Could not load scenario fixture for %s: %s", scenario_id, exc
+                )
+        return dict(node.profile.payload_template)
+
     def _run_trial(
         self,
         trial: TrialResult,
         node_id: str,
         profile: Optional[FaultProfile],
         correlation_id: str,
+        scenario_id: str = "",
     ) -> None:
         """Background: apply fault → publish → wait for observation → record result."""
         try:
@@ -116,7 +142,7 @@ class PackageRunner:
                 return
 
             # --- Build payload ---
-            base_payload = dict(node.profile.payload_template)
+            base_payload = self._load_base_payload(scenario_id, node)
             base_payload.setdefault("routing_metadata", {})
             base_payload["routing_metadata"]["audit_correlation_id"] = correlation_id
             base_payload["routing_metadata"]["ingest_timestamp_ms"] = int(

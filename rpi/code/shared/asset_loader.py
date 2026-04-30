@@ -42,6 +42,14 @@ class RpiAssetLoader:
         path = self.repo_root / "integration/scenarios"
         return sorted(p.name for p in path.glob("*.json"))
 
+    def load_fixture(self, rel_path: str) -> dict:
+        """Load a payload fixture by repo-relative path (e.g. integration/tests/data/...)."""
+        return self._load(rel_path)
+
+    def fixture_exists(self, rel_path: str) -> bool:
+        """Return True if the fixture file exists under repo_root."""
+        return (self.repo_root / rel_path).exists()
+
     def _load(self, rel_path: str) -> dict:
         full = self.repo_root / rel_path
         with open(full) as f:
