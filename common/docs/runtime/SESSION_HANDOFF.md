@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-04-30_CLASS2_PHASE_TIMEOUT_AND_TTS_FIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-30_DASHBOARD_AND_CLASS2_BUGFIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-30_CLASS2_TELEGRAM_KEYBOARD_AND_TELEMETRY_FIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-04-30_EXPERIMENT_E2E_BUGFIX.md`
