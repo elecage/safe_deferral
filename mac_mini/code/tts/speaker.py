@@ -217,3 +217,27 @@ def announce_class2(speaker: TtsSpeaker, candidates: list) -> None:
     text = " ".join(parts)
     log.info("TTS announce_class2: %d candidates", len(candidates))
     speaker.speak(text)
+
+
+def announce_class2_selection(
+    speaker: TtsSpeaker,
+    selection_source: str,
+    chosen_prompt: str,
+) -> None:
+    """Announce who made a CLASS_2 selection and what was chosen.
+
+    Called after both user (Phase 1) and caregiver (Phase 2) selections so
+    the user receives audible feedback on which option was confirmed.
+
+    selection_source examples: "user_mqtt_button", "caregiver_telegram_inline_keyboard",
+    "user_mqtt_button_late".
+    chosen_prompt: the human-readable prompt string from the selected candidate
+    (e.g. "조명 도움이 필요하신가요?", "거실 조명을 제어할까요?").
+    """
+    if "caregiver" in selection_source:
+        prefix = "보호자가"
+    else:
+        prefix = "사용자가"
+    text = f"{prefix} '{chosen_prompt}'을(를) 선택했습니다."
+    log.info("TTS announce_class2_selection: %r", text)
+    speaker.speak(text)

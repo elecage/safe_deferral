@@ -13,7 +13,7 @@
     "default_context_integrity_safe_deferral_timeout_ms": 15000,
     "actuation_ack_timeout_ms": 5000,
     "max_context_integrity_safe_deferral_attempts": 2,
-    "class2_clarification_timeout_ms": 15000,
+    "class2_clarification_timeout_ms": 30000,
     "class2_max_clarification_attempts": 2,
     "class2_max_candidate_options": 4
   },
