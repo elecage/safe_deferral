@@ -115,22 +115,46 @@ class VirtualNodeManager:
     def publish_once(self, node: VirtualNode) -> dict:
         """Publish one payload from the node's profile template.
 
-        Automatically refreshes routing_metadata.ingest_timestamp_ms to the
-        current time at the moment of publishing. The policy router enforces
-        freshness_threshold_ms (3 s by default); a stale template timestamp
-        would trigger C204 (sensor_staleness_detected → CLASS_2) even for a
-        perfectly valid context payload.
+        Refreshes time-sensitive fields at the moment of publishing so the
+        Mac mini policy router's staleness check always passes.
+
+        The staleness check (router.py) is:
+            ingest_timestamp_ms - trigger_event.timestamp_ms > freshness_threshold_ms
+        Both fields must be updated together. Updating only ingest_timestamp_ms
+        while leaving trigger_event.timestamp_ms at the old template value
+        maximises the gap and guarantees C204.
+
+        Strategy: set trigger_event.timestamp_ms = now, ingest_timestamp_ms = now.
+        Difference = 0 ms, which is always within the 3 000 ms threshold.
         """
         if node.state != VirtualNodeState.RUNNING:
             raise RuntimeError(f"Node {node.node_id} is not running")
+
+        now_ms = int(time.time() * 1000)
         payload = {**node.profile.payload_template,
                    "source_node_id": node.source_node_id}
-        # Refresh ingest timestamp so the Mac mini freshness check passes.
+
+        # Refresh ingest timestamp (routing_metadata layer).
         if "routing_metadata" in payload:
             payload["routing_metadata"] = {
                 **payload["routing_metadata"],
-                "ingest_timestamp_ms": int(time.time() * 1000),
+                "ingest_timestamp_ms": now_ms,
             }
+
+        # Refresh trigger_event timestamp (pure_context_payload layer).
+        # Must be updated alongside ingest_timestamp_ms; the staleness check
+        # is: ingest_ts - trigger_ts > threshold. Leaving trigger_ts stale
+        # while refreshing ingest_ts widens the gap to the full elapsed time
+        # since node creation and guarantees C204.
+        if "pure_context_payload" in payload:
+            ctx = dict(payload["pure_context_payload"])
+            if "trigger_event" in ctx:
+                ctx["trigger_event"] = {
+                    **ctx["trigger_event"],
+                    "timestamp_ms": now_ms,
+                }
+            payload["pure_context_payload"] = ctx
+
         self._publisher.publish(node.profile.publish_topic, payload, qos=1)
         node.published_count += 1
         return payload
