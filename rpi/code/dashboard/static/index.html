@@ -1446,7 +1446,7 @@ function openNodeModal(nodeId) {
 // ─────────────────────────────────────────────
 const EVENT_CODES = {
   button: ['single_click', 'double_click', 'long_press', 'triple_hit'],
-  sensor: ['doorbell_pressed', 'smoke_detected', 'gas_detected', 'motion_detected', 'state_changed'],
+  sensor: ['doorbell_detected', 'threshold_exceeded', 'smoke_detected', 'gas_detected', 'fall_detected', 'state_changed'],
   system: ['startup', 'periodic_report'],
 };
 
@@ -1494,11 +1494,11 @@ function onNodeTypeChange(type) {
     if (isSim) sourceEl.value = 'rpi.mock_actuator_controlled_mode';
   }
 
-  // For doorbell: fix event type to sensor + doorbell_pressed
+  // For doorbell: fix event type to sensor + doorbell_detected
   if (isDoorbell) {
     document.getElementById('ctx-event-type').value = 'sensor';
     updateEventCodes();
-    document.getElementById('ctx-event-code').value = 'doorbell_pressed';
+    document.getElementById('ctx-event-code').value = 'doorbell_detected';
     document.getElementById('ctx-event-type').disabled = true;
     document.getElementById('ctx-event-code').disabled = true;
   } else {
