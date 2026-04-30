@@ -374,41 +374,58 @@ class Pipeline:
         """Two-phase CLASS_2 response wait.
 
         Phase 1 — user (class2_clarification_timeout_ms):
-          Register the session so handle_context() can intercept the next
-          button press as a user selection.  If the user selects within the
-          timeout, process the selection and return — no caregiver involved.
+          Register the session in _pending_user_class2 so handle_context()
+          can intercept the next button press as a user selection.  If the
+          user selects within the timeout, process the selection and return —
+          no caregiver involved.
 
         Phase 2 — caregiver (CAREGIVER_RESPONSE_TIMEOUT_S):
-          User did not respond.  Send a Telegram inline keyboard to the
-          caregiver and wait.  Process caregiver selection or send a final
-          escalation notification on timeout.
+          User did not respond in time.  Send a Telegram inline keyboard to
+          the caregiver.  The session entry REMAINS in _pending_user_class2
+          throughout Phase 2 so that a late user button press is still
+          intercepted and does not fall through to the normal CLASS_1
+          pipeline.  The caregiver_event stored in the entry is the same
+          event used to wake Phase 2, so a late user button press both
+          records the selection and unblocks the Phase 2 wait.
+
+        Authority: selection results in a Class2Result with a transition_target
+        that is recorded for experiment telemetry only.  Neither user nor
+        caregiver selection causes autonomous actuation — the result is an
+        observation, not a dispatch command.
         """
+        cid = session.clarification_id
+
         # ---- Phase 1: user response ----
         user_event = threading.Event()
+        # caregiver_event is created now so Phase 2 can re-use the same entry.
+        caregiver_event = threading.Event()
         entry: dict = {
             "session": session,
             "event": user_event,
+            "caregiver_event": caregiver_event,   # woken by late user press in Phase 2
             "trigger_id": trigger_id,
             "audit_id": audit_correlation_id,
             "selection": None,
+            "phase": 1,   # tracks which phase is active (for _try_handle_as_user_selection)
         }
         with self._user_class2_lock:
-            self._pending_user_class2[session.clarification_id] = entry
+            self._pending_user_class2[cid] = entry
 
         log.info(
             "CLASS_2 phase-1: waiting %.0fs for user button press (clarification_id=%s)",
-            self._class2_user_timeout_s, session.clarification_id,
+            self._class2_user_timeout_s, cid,
         )
         user_event.wait(timeout=self._class2_user_timeout_s)
 
         with self._user_class2_lock:
-            self._pending_user_class2.pop(session.clarification_id, None)
             user_selected_id = entry.get("selection")
 
         if user_selected_id:
+            with self._user_class2_lock:
+                self._pending_user_class2.pop(cid, None)
             log.info(
                 "CLASS_2 phase-1: user selected %s (clarification_id=%s)",
-                user_selected_id, session.clarification_id,
+                user_selected_id, cid,
             )
             class2_result = self._class2.submit_selection(
                 session=session,
@@ -422,9 +439,15 @@ class Pipeline:
             return  # User handled it — caregiver not involved
 
         # ---- Phase 2: caregiver Telegram ----
+        # Keep entry in _pending_user_class2 so any late user button press is
+        # still intercepted and does NOT fall through to the normal pipeline.
+        with self._user_class2_lock:
+            entry["phase"] = 2
+            entry["selection"] = None   # reset in case of race
+
         log.info(
             "CLASS_2 phase-1 timeout — escalating to caregiver "
-            "(clarification_id=%s)", session.clarification_id,
+            "(clarification_id=%s)", cid,
         )
 
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID and session.candidate_choices:
@@ -457,27 +480,45 @@ class Pipeline:
                 buttons=keyboard_rows,
             )
             if sent is not None:
-                caregiver_event = threading.Event()
                 with self._class2_lock:
-                    self._pending_class2[session.clarification_id] = caregiver_event
+                    self._pending_class2[cid] = caregiver_event
 
                 log.info(
                     "CLASS_2 phase-2: Telegram keyboard sent — waiting %ds for caregiver "
-                    "(clarification_id=%s)",
-                    CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
+                    "or late user button press (clarification_id=%s)",
+                    CAREGIVER_RESPONSE_TIMEOUT_S, cid,
                 )
                 caregiver_event.wait(timeout=CAREGIVER_RESPONSE_TIMEOUT_S)
 
                 with self._class2_lock:
-                    self._pending_class2.pop(session.clarification_id, None)
-                    caregiver_selected_id = self._class2_selections.pop(
-                        session.clarification_id, None
+                    self._pending_class2.pop(cid, None)
+                    caregiver_selected_id = self._class2_selections.pop(cid, None)
+
+                with self._user_class2_lock:
+                    self._pending_user_class2.pop(cid, None)
+                    late_user_selected_id = entry.get("selection")
+
+                # Late user press takes priority over caregiver selection
+                # (user expressed intent directly — caregiver not needed).
+                if late_user_selected_id:
+                    log.info(
+                        "CLASS_2 phase-2: late user button press — selected %s "
+                        "(clarification_id=%s)",
+                        late_user_selected_id, cid,
                     )
+                    class2_result = self._class2.submit_selection(
+                        session=session,
+                        selected_candidate_id=late_user_selected_id,
+                        selection_source="user_mqtt_button_late",
+                        trigger_id=trigger_id,
+                    )
+                    self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
+                    return
 
                 if caregiver_selected_id:
                     log.info(
                         "CLASS_2 phase-2: caregiver selected %s (clarification_id=%s)",
-                        caregiver_selected_id, session.clarification_id,
+                        caregiver_selected_id, cid,
                     )
                     class2_result = self._class2.submit_selection(
                         session=session,
@@ -500,6 +541,9 @@ class Pipeline:
                 )
 
         # Final fallback: plain escalation notification (no user or caregiver response)
+        with self._user_class2_lock:
+            self._pending_user_class2.pop(cid, None)
+
         timeout_result = self._class2.handle_timeout(
             session=session, trigger_id=trigger_id
         )
@@ -521,12 +565,19 @@ class Pipeline:
     # User button-press → CLASS_2 selection interceptor
     # ------------------------------------------------------------------
     def _try_handle_as_user_selection(self, raw: dict) -> bool:
-        """If a CLASS_2 user-wait phase is active, try to map the incoming
-        MQTT button event to a candidate selection and wake the waiter.
+        """If a CLASS_2 session is active (Phase 1 OR Phase 2), try to map
+        the incoming MQTT button event to a candidate selection.
 
         Returns True if the message was consumed as a user selection (the
         normal pipeline should NOT process it further).
         Returns False otherwise (normal pipeline proceeds).
+
+        Phase 1 (user wait active): wakes user_event so the waiter exits
+          the Phase 1 block with the recorded selection.
+
+        Phase 2 (caregiver wait active): wakes caregiver_event so the waiter
+          exits the Phase 2 block; the selection is recorded as a late user
+          press that overrides caregiver response.
 
         Mapping rules (simple, deterministic):
           single_click → first candidate in the session's choice list
@@ -536,7 +587,7 @@ class Pipeline:
         with self._user_class2_lock:
             if not self._pending_user_class2:
                 return False
-            # Use the most recently started user-phase session
+            # Use the most recently started session (only one active at a time)
             clarification_id = next(iter(self._pending_user_class2))
             entry = self._pending_user_class2.get(clarification_id)
 
@@ -549,7 +600,15 @@ class Pipeline:
         event_code = trigger.get("event_code", "")
 
         if event_type != "button":
-            return False  # Only button presses are user selections
+            # Non-button events during an active CLASS_2 session: block them.
+            # A new context message must not bypass the active CLASS_2 session
+            # and go through the normal pipeline (which could dispatch actuators).
+            log.info(
+                "CLASS_2 session active (phase=%s, clarification_id=%s) — "
+                "non-button context message blocked from normal pipeline",
+                entry.get("phase", "?"), clarification_id,
+            )
+            return True  # Consume without processing
 
         session = entry["session"]
         selected_id: Optional[str] = None
@@ -566,19 +625,28 @@ class Pipeline:
             )
 
         if selected_id is None:
-            return False  # Not a recognised selection code; run normal pipeline
+            # Unrecognised button code during active CLASS_2 session: block.
+            log.info(
+                "CLASS_2 session active — unrecognised event_code=%r blocked "
+                "(clarification_id=%s)", event_code, clarification_id,
+            )
+            return True  # Consume without processing
 
         with self._user_class2_lock:
             live_entry = self._pending_user_class2.get(clarification_id)
             if live_entry is None:
                 return False  # Session expired between checks
             live_entry["selection"] = selected_id
-            live_entry["event"].set()
+            phase = live_entry.get("phase", 1)
+            if phase == 1:
+                live_entry["event"].set()        # wake Phase 1 waiter
+            else:
+                live_entry["caregiver_event"].set()  # wake Phase 2 waiter
 
         log.info(
-            "CLASS_2 user selection intercepted: event_code=%s → candidate=%s "
+            "CLASS_2 user selection intercepted: phase=%d event_code=%s → candidate=%s "
             "(clarification_id=%s)",
-            event_code, selected_id, clarification_id,
+            phase, event_code, selected_id, clarification_id,
         )
         return True
 
