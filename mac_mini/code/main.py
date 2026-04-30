@@ -84,6 +84,7 @@ from tts.speaker import (
     announce_emergency,
     announce_deferral,
     announce_class2,
+    announce_class2_selection,
 )
 
 # ---------------------------------------------------------------------------
@@ -433,6 +434,14 @@ class Pipeline:
                 selection_source="user_mqtt_button",
                 trigger_id=trigger_id,
             )
+            # Announce selection to the user via TTS
+            chosen = next(
+                (c for c in session.candidate_choices if c.candidate_id == user_selected_id),
+                None,
+            )
+            announce_class2_selection(
+                self._tts, "user_mqtt_button", chosen.prompt if chosen else user_selected_id
+            )
             # Publish the final CLASS_2 interaction snapshot so the trial
             # runner can detect that interaction completed.
             self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
@@ -512,6 +521,15 @@ class Pipeline:
                         selection_source="user_mqtt_button_late",
                         trigger_id=trigger_id,
                     )
+                    chosen = next(
+                        (c for c in session.candidate_choices
+                         if c.candidate_id == late_user_selected_id),
+                        None,
+                    )
+                    announce_class2_selection(
+                        self._tts, "user_mqtt_button_late",
+                        chosen.prompt if chosen else late_user_selected_id,
+                    )
                     self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
                     return
 
@@ -525,6 +543,15 @@ class Pipeline:
                         selected_candidate_id=caregiver_selected_id,
                         selection_source="caregiver_telegram_inline_keyboard",
                         trigger_id=trigger_id,
+                    )
+                    chosen = next(
+                        (c for c in session.candidate_choices
+                         if c.candidate_id == caregiver_selected_id),
+                        None,
+                    )
+                    announce_class2_selection(
+                        self._tts, "caregiver_telegram_inline_keyboard",
+                        chosen.prompt if chosen else caregiver_selected_id,
                     )
                     self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
                     return
