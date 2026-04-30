@@ -219,6 +219,45 @@ class TelemetryAdapter:
         self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
         return snapshot
 
+    def publish_class2_update(
+        self,
+        audit_correlation_id: str,
+        class2_result: Class2Result,
+    ) -> None:
+        """Publish a standalone CLASS_2 interaction snapshot.
+
+        Called from the background two-phase waiter thread after Phase 1
+        resolves (user response or timeout → caregiver path).  Creates an
+        isolated snapshot with the given correlation ID so that the
+        observation matches the trial even if the shared adapter state has
+        been reset by a subsequent event.
+
+        The snapshot includes route_class=CLASS_2 so the runner's
+        _match_observation() can identify it as a final CLASS_2 observation.
+        """
+        unresolved = class2_result.clarification_record.get("unresolved_reason")
+        now_ms = int(time.time() * 1000)
+        class2 = Class2Telemetry(
+            transition_target=class2_result.transition_target.value,
+            should_notify_caregiver=class2_result.should_notify_caregiver,
+            unresolved_reason=unresolved,
+            timestamp_ms=now_ms,
+        )
+        route = RouteTelemetry(
+            route_class="CLASS_2",
+            trigger_id=None,
+            timestamp_ms=now_ms,
+        )
+        snapshot = TelemetrySnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            generated_at_ms=now_ms,
+            audit_correlation_id=audit_correlation_id,
+            route=route,
+            class2=class2,
+            audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
+        )
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
+
     def reset(self) -> None:
         """Clear all accumulated state (useful between experiment runs)."""
         self._audit_correlation_id = ""

@@ -284,6 +284,31 @@
   /* Fault tags that are not recommended by selected package */
   .fault-tag.dimmed-optional { opacity: 0.55; }
   .fault-tag.dimmed-optional:hover { opacity: 1; }
+
+  /* Simulation environment panel */
+  .sim-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .sim-panel-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .sim-sensor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .sim-sensor-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .sim-sensor-label { font-size: 10px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .sim-sensor-value { font-size: 18px; font-weight: 700; color: var(--accent); font-family: monospace; }
+  .sim-sensor-edit { display: flex; gap: 4px; margin-top: 4px; }
+  .sim-sensor-edit input, .sim-sensor-edit select { flex: 1; font-size: 11px; padding: 3px 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+  .sim-sensor-edit button { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--accent); color: white; border: none; cursor: pointer; }
+  .sim-device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .sim-device-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .sim-device-state { font-size: 13px; font-weight: 700; }
+  .sim-device-state.on { color: var(--green); }
+  .sim-device-state.off { color: var(--text-dim); }
+  .sim-device-state.standby { color: var(--yellow); }
+  .sim-device-state.open { color: var(--blue); }
+  .sim-device-state.closed { color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -431,13 +456,41 @@
         </div>
       </div>
 
+      <!-- 🌡️ 환경 시뮬레이터 패널 -->
+      <div class="sim-panel mb-20">
+        <div class="sim-panel-title">
+          🌡️ 환경 시뮬레이터
+          <span style="font-size:11px;color:var(--text-dim);font-weight:400">— 센서 노드가 없을 때 컨텍스트 노드가 이 값을 사용합니다</span>
+          <button class="btn btn-ghost" style="margin-left:auto;font-size:11px;padding:3px 10px" onclick="loadSimState()">새로고침</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px;color:var(--red)" onclick="resetSimState()">초기화</button>
+        </div>
+
+        <!-- 환경 센서 -->
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">환경 센서</div>
+        <div class="sim-sensor-grid" id="sim-env-grid">
+          <div class="text-dim" style="font-size:12px">불러오는 중…</div>
+        </div>
+
+        <!-- 장치 상태 -->
+        <div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:12px">장치 상태</div>
+        <div class="sim-device-grid" id="sim-device-grid">
+          <div class="text-dim" style="font-size:12px">불러오는 중…</div>
+        </div>
+
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim)">
+          💡 <b>context_node</b> 템플릿에 <code>environmental_context</code>가 없으면 위 값이 자동으로 주입됩니다.
+          개별 <b>env_sensor_node</b> / <b>device_state_node</b>를 생성하면 주기적 발행으로 이 값이 업데이트됩니다.
+        </div>
+      </div>
+
       <!-- 노드 타입 안내 -->
       <div class="type-labels mb-12">
-        <div><b>context_node</b> — 컨텍스트 입력</div>
-        <div><b>device_state_reporter</b> — 디바이스 상태 보고</div>
+        <div><b>context_node</b> — 트리거 입력 (환경은 시뮬레이터에서 자동 주입)</div>
+        <div><b>env_sensor_node</b> — 환경 센서 (온도/조도/재실 등) 주기 발행</div>
+        <div><b>device_state_node</b> — 장치 상태 (조명/블라인드 등) 주기 발행</div>
         <div><b>emergency_event_node</b> — 긴급 이벤트</div>
         <div><b>doorbell_visitor_context</b> — 도어벨 방문자</div>
-        <div><b>actuator_observer</b> — 액추에이터 관찰</div>
+        <div><b>actuator_simulator</b> — 자동 ACK 시뮬레이터</div>
       </div>
 
       <div class="flex gap-8 mb-12">
@@ -699,7 +752,9 @@
     <div class="form-group">
       <label class="form-label">노드 타입</label>
       <select class="form-control" id="node-type" onchange="onNodeTypeChange(this.value)">
-        <option value="context_node">context_node — 컨텍스트 입력 (버튼/센서)</option>
+        <option value="context_node">context_node — 트리거 입력 (환경은 시뮬레이터 자동 주입)</option>
+        <option value="env_sensor_node">env_sensor_node — 환경 센서 (온도/조도/재실 등)</option>
+        <option value="device_state_node">device_state_node — 장치 상태 (조명/블라인드 등)</option>
         <option value="device_state_reporter">device_state_reporter — 기기 상태 보고</option>
         <option value="emergency_event_node">emergency_event_node — 긴급 이벤트</option>
         <option value="doorbell_visitor_context">doorbell_visitor_context — 도어벨 방문자</option>
@@ -836,6 +891,57 @@
       </div>
     </div>
 
+    <!-- ── 환경 센서 노드 폼 ── -->
+    <div id="form-env-sensor" style="display:none">
+      <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--blue);margin-bottom:8px;font-weight:600">🌡️ 환경 센서 노드</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">이 노드는 주기적으로 센서값을 발행하여 SimStateStore를 업데이트합니다. context_node가 트리거를 발행할 때 최신 값이 자동으로 사용됩니다.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">센서 필드</label>
+            <select class="form-control" id="env-sensor-name" onchange="onEnvSensorChange(this.value)">
+              <option value="temperature">temperature — 온도 (°C)</option>
+              <option value="illuminance">illuminance — 조도 (lux)</option>
+              <option value="occupancy_detected">occupancy_detected — 재실 감지</option>
+              <option value="smoke_detected">smoke_detected — 연기 감지</option>
+              <option value="gas_detected">gas_detected — 가스 감지</option>
+              <option value="doorbell_detected">doorbell_detected — 도어벨</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">초기값</label>
+            <input type="number" class="form-control" id="env-sensor-value" value="22.5" step="0.5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 장치 상태 노드 폼 ── -->
+    <div id="form-device-node" style="display:none">
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--green);margin-bottom:8px;font-weight:600">💡 장치 상태 노드</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">이 노드는 장치의 현재 상태를 주기적으로 발행하여 SimStateStore를 업데이트합니다.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">장치</label>
+            <select class="form-control" id="dev-node-name" onchange="onDevNodeChange(this.value)">
+              <option value="living_room_light">거실 조명 (living_room_light)</option>
+              <option value="bedroom_light">침실 조명 (bedroom_light)</option>
+              <option value="living_room_blind">거실 블라인드 (living_room_blind)</option>
+              <option value="tv_main">TV (tv_main)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">초기 상태</label>
+            <select class="form-control" id="dev-node-state">
+              <option value="off">off</option>
+              <option value="on">on</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── 공통: Source Node ID / 토픽 / 간격 ── -->
     <div id="form-common-fields">
       <div class="form-group">
@@ -896,7 +1002,7 @@ function gotoSection(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + name).classList.add('active');
   document.getElementById('nav-' + name).classList.add('active');
-  if (name === 'nodes') { loadNodes(); updateTopoMqtt(); }
+  if (name === 'nodes') { loadNodes(); updateTopoMqtt(); loadSimState(); }
   if (name === 'run') { updateRunSummary(); loadRunStatus(); loadRunNodes(); startObsFeed(); if (currentPackageRunId) startTrialPoll(); }
   if (name !== 'run') { stopObsFeed(); stopTrialPoll(); }
   if (name === 'results') { loadResultRuns(); }
@@ -1489,12 +1595,16 @@ function onNodeTypeChange(type) {
   const isDoorbell = type === 'doorbell_visitor_context';
   const isEmergency = type === 'emergency_event_node';
   const isSim = type === 'actuator_simulator';
+  const isEnvSensor = type === 'env_sensor_node';
+  const isDevNode = type === 'device_state_node';
 
-  document.getElementById('form-context').style.display   = (isContext || isDoorbell) ? '' : 'none';
-  document.getElementById('form-emergency').style.display = isEmergency ? '' : 'none';
-  document.getElementById('form-simulator').style.display = isSim ? '' : 'none';
-  document.getElementById('topic-group').style.display    = isSim ? 'none' : '';
-  document.getElementById('interval-group').style.display = isSim ? 'none' : '';
+  document.getElementById('form-context').style.display      = (isContext || isDoorbell) ? '' : 'none';
+  document.getElementById('form-emergency').style.display    = isEmergency ? '' : 'none';
+  document.getElementById('form-simulator').style.display    = isSim ? '' : 'none';
+  document.getElementById('form-env-sensor').style.display   = isEnvSensor ? '' : 'none';
+  document.getElementById('form-device-node').style.display  = isDevNode ? '' : 'none';
+  document.getElementById('topic-group').style.display       = (isSim || isEnvSensor || isDevNode) ? 'none' : '';
+  document.getElementById('interval-group').style.display    = isSim ? 'none' : '';
 
   const topicEl   = document.getElementById('node-topic');
   const sourceEl  = document.getElementById('node-source-id');
@@ -1506,6 +1616,8 @@ function onNodeTypeChange(type) {
     emergency_event_node:    'safe_deferral/emergency/event',
     actuator_observer:       'safe_deferral/actuation/ack',
     actuator_simulator:      'safe_deferral/actuation/ack',
+    env_sensor_node:         'safe_deferral/sim/sensor',
+    device_state_node:       'safe_deferral/sim/device',
   };
   const sourceMap = {
     context_node:            'rpi.virtual_context_node',
@@ -1514,13 +1626,14 @@ function onNodeTypeChange(type) {
     emergency_event_node:    'rpi.virtual_emergency',
     actuator_observer:       'rpi.virtual_actuator_obs',
     actuator_simulator:      'rpi.mock_actuator_controlled_mode',
+    env_sensor_node:         'rpi.virtual_env_sensor',
+    device_state_node:       'rpi.virtual_device',
   };
 
   topicEl.value = topicMap[type] || 'safe_deferral/context/input';
-  if (!sourceEl.value) {
-    sourceEl.placeholder = sourceMap[type] || 'rpi.virtual_node';
-    if (isSim) sourceEl.value = 'rpi.mock_actuator_controlled_mode';
-  }
+  sourceEl.value = '';
+  sourceEl.placeholder = sourceMap[type] || 'rpi.virtual_node';
+  if (isSim) sourceEl.value = 'rpi.mock_actuator_controlled_mode';
 
   // For doorbell: fix event type to sensor + doorbell_detected
   if (isDoorbell) {
@@ -1536,6 +1649,47 @@ function onNodeTypeChange(type) {
       updateEventCodes();
     }
   }
+
+  // For env_sensor_node: update source_node_id hint based on selected sensor
+  if (isEnvSensor) {
+    const sensor = document.getElementById('env-sensor-name')?.value || 'temperature';
+    sourceEl.placeholder = `rpi.virtual_env_sensor.${sensor}`;
+  }
+  if (isDevNode) {
+    const dev = document.getElementById('dev-node-name')?.value || 'living_room_light';
+    sourceEl.placeholder = `rpi.virtual_device.${dev}`;
+  }
+}
+
+function onEnvSensorChange(sensorName) {
+  const BOOL_SENSORS = ['occupancy_detected', 'smoke_detected', 'gas_detected', 'doorbell_detected'];
+  const valEl = document.getElementById('env-sensor-value');
+  const isBool = BOOL_SENSORS.includes(sensorName);
+  if (isBool) {
+    // Replace number input with select for booleans
+    if (valEl.type === 'number') {
+      const sel = document.createElement('select');
+      sel.className = 'form-control'; sel.id = 'env-sensor-value';
+      sel.innerHTML = '<option value="false">없음 (false)</option><option value="true">감지됨 (true)</option>';
+      valEl.replaceWith(sel);
+    }
+  } else {
+    if (valEl.tagName === 'SELECT') {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.className = 'form-control'; inp.id = 'env-sensor-value';
+      inp.value = sensorName === 'illuminance' ? '30' : '22.5';
+      inp.step = sensorName === 'illuminance' ? '1' : '0.5';
+      valEl.replaceWith(inp);
+    }
+  }
+  document.getElementById('node-source-id').placeholder = `rpi.virtual_env_sensor.${sensorName}`;
+}
+
+function onDevNodeChange(devName) {
+  const states = { living_room_light: ['off','on'], bedroom_light: ['off','on'], living_room_blind: ['closed','open'], tv_main: ['off','standby','on'] };
+  const opts = (states[devName] || ['off','on']).map(s => `<option value="${s}">${s}</option>`).join('');
+  document.getElementById('dev-node-state').innerHTML = opts;
+  document.getElementById('node-source-id').placeholder = `rpi.virtual_device.${devName}`;
 }
 
 function closeNodeModal() {
@@ -1556,7 +1710,26 @@ function buildPayloadFromForm(type) {
     };
   }
 
-  // context / device_state_reporter / doorbell_visitor_context
+  // ENV_SENSOR_NODE: only sensor name + value
+  if (type === 'env_sensor_node') {
+    const sensorName = document.getElementById('env-sensor-name').value;
+    const rawVal = document.getElementById('env-sensor-value').value;
+    const BOOL_SENSORS = ['occupancy_detected', 'smoke_detected', 'gas_detected', 'doorbell_detected'];
+    const value = BOOL_SENSORS.includes(sensorName) ? (rawVal === 'true') : parseFloat(rawVal);
+    return { sensor_name: sensorName, value };
+  }
+
+  // DEVICE_STATE_NODE: only device name + state
+  if (type === 'device_state_node') {
+    return {
+      device_name: document.getElementById('dev-node-name').value,
+      state: document.getElementById('dev-node-state').value,
+    };
+  }
+
+  // CONTEXT_NODE (live simulation mode): template has only trigger_event.
+  // environmental_context and device_states are injected from SimStateStore at publish time.
+  // DOORBELL / DEVICE_STATE_REPORTER: same — lean template, store provides env.
   const isDoorbell = type === 'doorbell_visitor_context';
   return {
     routing_metadata: {
@@ -1570,20 +1743,9 @@ function buildPayloadFromForm(type) {
         event_code: document.getElementById('ctx-event-code').value,
         timestamp_ms: now,
       },
-      environmental_context: {
-        temperature: parseFloat(document.getElementById('ctx-temp').value) || 22.5,
-        illuminance: parseInt(document.getElementById('ctx-illuminance').value) || 150,
-        occupancy_detected: document.getElementById('ctx-occupancy').value === 'true',
-        smoke_detected: false,
-        gas_detected: false,
-        doorbell_detected: isDoorbell,
-      },
-      device_states: {
-        living_room_light: document.getElementById('ctx-living-light').value,
-        bedroom_light: document.getElementById('ctx-bedroom-light').value,
-        living_room_blind: document.getElementById('ctx-blind').value,
-        tv_main: document.getElementById('ctx-tv').value,
-      },
+      // NOTE: environmental_context and device_states are intentionally omitted
+      // so the VirtualNodeManager injects them from SimStateStore at publish time.
+      // To override with a specific environment, use a scenario fixture instead.
     },
   };
 }
@@ -1594,6 +1756,38 @@ async function saveNode() {
 
   const type = document.getElementById('node-type').value;
   const isSim = type === 'actuator_simulator';
+  const isEnvSensor = type === 'env_sensor_node';
+  const isDevNode = type === 'device_state_node';
+
+  // ENV_SENSOR_NODE and DEVICE_STATE_NODE use dedicated creation endpoints
+  // that auto-set topics, source_node_id, and immediately seed SimStateStore.
+  if (isEnvSensor) {
+    const sensorName = document.getElementById('env-sensor-name').value;
+    const rawVal = document.getElementById('env-sensor-value').value;
+    const BOOL_SENSORS = ['occupancy_detected', 'smoke_detected', 'gas_detected', 'doorbell_detected'];
+    const value = BOOL_SENSORS.includes(sensorName) ? (rawVal === 'true') : parseFloat(rawVal);
+    const interval_ms = parseInt(document.getElementById('node-interval').value) || 5000;
+    try {
+      const r = await fetch('/sim/nodes/sensor', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sensor_name: sensorName, value, interval_ms})});
+      if (!r.ok) { const d = await r.json(); errEl.textContent = d.detail || '저장 실패'; errEl.style.display = 'block'; return; }
+      closeNodeModal(); await loadNodes(); await loadSimState();
+    } catch(e) { errEl.textContent = '오류: ' + e.message; errEl.style.display = 'block'; }
+    return;
+  }
+  if (isDevNode) {
+    const device_name = document.getElementById('dev-node-name').value;
+    const state = document.getElementById('dev-node-state').value;
+    const interval_ms = parseInt(document.getElementById('node-interval').value) || 5000;
+    try {
+      const r = await fetch('/sim/nodes/device', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({device_name, state, interval_ms})});
+      if (!r.ok) { const d = await r.json(); errEl.textContent = d.detail || '저장 실패'; errEl.style.display = 'block'; return; }
+      closeNodeModal(); await loadNodes(); await loadSimState();
+    } catch(e) { errEl.textContent = '오류: ' + e.message; errEl.style.display = 'block'; }
+    return;
+  }
+
   const payloadTemplate = buildPayloadFromForm(type);
 
   const body = {
@@ -2357,15 +2551,127 @@ function renderTrialTable(trials) {
 }
 
 // ─────────────────────────────────────────────
+// Simulation State Store — 환경 시뮬레이터
+// ─────────────────────────────────────────────
+const ENV_LABELS = {
+  temperature: '온도 (°C)', illuminance: '조도 (lux)',
+  occupancy_detected: '재실 감지', smoke_detected: '연기 감지',
+  gas_detected: '가스 감지', doorbell_detected: '도어벨',
+};
+const DEVICE_LABELS = {
+  living_room_light: '거실 조명', bedroom_light: '침실 조명',
+  living_room_blind: '거실 블라인드', tv_main: 'TV',
+};
+const DEVICE_STATES = {
+  living_room_light: ['off', 'on'],
+  bedroom_light: ['off', 'on'],
+  living_room_blind: ['closed', 'open'],
+  tv_main: ['off', 'standby', 'on'],
+};
+let _simState = {};
+
+async function loadSimState() {
+  try {
+    const r = await fetch('/sim/state');
+    if (!r.ok) return;
+    const d = await r.json();
+    _simState = d;
+    renderSimEnv(d.env || {});
+    renderSimDevices(d.devices || {});
+  } catch {}
+}
+
+function renderSimEnv(env) {
+  const grid = document.getElementById('sim-env-grid');
+  if (!grid) return;
+  const BOOL_FIELDS = ['occupancy_detected', 'smoke_detected', 'gas_detected', 'doorbell_detected'];
+  grid.innerHTML = Object.entries(env).map(([k, v]) => {
+    const label = ENV_LABELS[k] || k;
+    const isBool = BOOL_FIELDS.includes(k);
+    const displayVal = isBool ? (v ? '✅ 감지됨' : '— 없음') : v;
+    const valColor = isBool ? (v ? 'var(--green)' : 'var(--text-dim)') : 'var(--accent)';
+    let editHtml;
+    if (isBool) {
+      editHtml = `<div class="sim-sensor-edit">
+        <select id="sim-env-${k}">
+          <option value="true" ${v ? 'selected' : ''}>감지됨</option>
+          <option value="false" ${!v ? 'selected' : ''}>없음</option>
+        </select>
+        <button onclick="applySimEnv('${k}', document.getElementById('sim-env-${k}').value === 'true')">적용</button>
+      </div>`;
+    } else {
+      editHtml = `<div class="sim-sensor-edit">
+        <input type="number" id="sim-env-${k}" value="${v}" step="${k==='temperature'?'0.5':'1'}">
+        <button onclick="applySimEnv('${k}', parseFloat(document.getElementById('sim-env-${k}').value))">적용</button>
+      </div>`;
+    }
+    return `<div class="sim-sensor-card">
+      <div class="sim-sensor-label">${label}</div>
+      <div class="sim-sensor-value" style="font-size:${isBool?'12px':'18px'};color:${valColor}">${displayVal}</div>
+      ${editHtml}
+    </div>`;
+  }).join('');
+}
+
+function renderSimDevices(devices) {
+  const grid = document.getElementById('sim-device-grid');
+  if (!grid) return;
+  grid.innerHTML = Object.entries(devices).map(([k, v]) => {
+    const label = DEVICE_LABELS[k] || k;
+    const states = DEVICE_STATES[k] || ['off', 'on'];
+    const options = states.map(s => `<option value="${s}" ${v===s?'selected':''}>${s}</option>`).join('');
+    const cls = v === 'on' ? 'on' : v === 'standby' ? 'standby' : v === 'open' ? 'open' : 'off';
+    return `<div class="sim-device-card">
+      <div class="sim-sensor-label">${label}</div>
+      <div class="sim-device-state ${cls}">${v}</div>
+      <div class="sim-sensor-edit">
+        <select id="sim-dev-${k}">${options}</select>
+        <button onclick="applySimDevice('${k}', document.getElementById('sim-dev-${k}').value)">적용</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function applySimEnv(field, value) {
+  try {
+    const body = {}; body[field] = value;
+    const r = await fetch('/sim/state/env', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (r.ok) { const d = await r.json(); _simState = d; renderSimEnv(d.env || {}); }
+    else { const d = await r.json(); alert('오류: ' + (d.detail || r.status)); }
+  } catch(e) { alert('오류: ' + e); }
+}
+
+async function applySimDevice(field, value) {
+  try {
+    const body = {}; body[field] = value;
+    const r = await fetch('/sim/state/device', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (r.ok) { const d = await r.json(); _simState = d; renderSimDevices(d.devices || {}); }
+    else { const d = await r.json(); alert('오류: ' + (d.detail || r.status)); }
+  } catch(e) { alert('오류: ' + e); }
+}
+
+async function resetSimState() {
+  if (!confirm('환경 시뮬레이터를 기본값으로 초기화하시겠습니까?')) return;
+  try {
+    const r = await fetch('/sim/state/reset', {method:'POST'});
+    if (r.ok) { const d = await r.json(); _simState = d; renderSimEnv(d.env || {}); renderSimDevices(d.devices || {}); }
+  } catch {}
+}
+
+// ─────────────────────────────────────────────
 // Init
 // ─────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   refreshAll();
   loadPackages();
   loadScenarios();
+  loadSimState();
   setInterval(refreshAll, 10000);
   setInterval(() => {
-    if (document.getElementById('section-nodes').classList.contains('active')) loadNodes();
+    if (document.getElementById('section-nodes').classList.contains('active')) {
+      loadNodes();
+      loadSimState();
+    }
   }, 3000);
 });
 </script>

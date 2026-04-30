@@ -12,6 +12,9 @@ class VirtualNodeType(str, Enum):
     DOORBELL_VISITOR_CONTEXT = "doorbell_visitor_context"
     ACTUATOR_OBSERVER = "actuator_observer"
     ACTUATOR_SIMULATOR = "actuator_simulator"
+    # Simulation sensor/device nodes — write to SimStateStore on each publish
+    ENV_SENSOR_NODE = "env_sensor_node"       # one per env field (temperature, illuminance…)
+    DEVICE_STATE_NODE = "device_state_node"   # one per device (living_room_light…)
 
 
 # Devices that actuator_simulator nodes can target
@@ -65,6 +68,8 @@ class VirtualNode:
     published_count: int = 0
     created_at_ms: Optional[int] = None
     device_target: Optional[str] = None  # actuator_simulator: which device this node simulates
+    # ENV_SENSOR_NODE: the sensor field name (e.g. "temperature", "occupancy_detected")
+    sensor_name: Optional[str] = None
 
     def to_dict(self) -> dict:
         d = {
@@ -78,4 +83,6 @@ class VirtualNode:
         }
         if self.device_target is not None:
             d["device_target"] = self.device_target
+        if self.sensor_name is not None:
+            d["sensor_name"] = self.sensor_name
         return d

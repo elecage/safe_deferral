@@ -262,11 +262,29 @@ class PackageRunner:
     def _match_observation(
         self, correlation_id: str, timeout_s: float
     ) -> Optional[dict]:
-        """Poll ObservationStore until correlation_id match or timeout."""
+        """Poll ObservationStore until correlation_id match or timeout.
+
+        For CLASS_2 trials, the pipeline publishes two observations:
+          1. An initial snapshot (no class2 block) immediately after routing.
+          2. A final snapshot (with class2 block) after Phase-1 interaction
+             resolves (user response ~15 s, or timeout → caregiver path).
+
+        To avoid returning the interim observation prematurely, this method
+        keeps polling when it finds a CLASS_2 observation without a class2
+        block, waiting for the background thread's final publish.  All other
+        route classes (CLASS_0, CLASS_1) return the first match immediately.
+        """
         deadline = time.monotonic() + timeout_s
+        best_match = None
         while time.monotonic() < deadline:
             obs = self._obs.find_by_correlation_id(correlation_id)
             if obs is not None:
-                return obs
+                best_match = obs
+                route_class = (obs.get("route") or {}).get("route_class", "")
+                if route_class != "CLASS_2":
+                    return obs  # Non-CLASS_2: first match is final
+                if obs.get("class2"):
+                    return obs  # CLASS_2 with interaction data: final
+                # CLASS_2 without class2 block yet — keep polling for background publish
             time.sleep(_POLL_INTERVAL_S)
-        return None
+        return best_match  # Return best found if timeout reached

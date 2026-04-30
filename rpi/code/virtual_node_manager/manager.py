@@ -8,6 +8,17 @@ Authority boundary:
   - No Policy Router override.
   - No autonomous doorlock authorization from virtual visitor context.
   - source_node_id must identify simulated origin (rpi.virtual_*).
+
+Simulation state architecture:
+  ENV_SENSOR_NODE and DEVICE_STATE_NODE update the injected SimStateStore when
+  they publish.  CONTEXT_NODE assembles the full pure_context_payload at publish
+  time by merging its trigger_event template with the current SimStateStore
+  snapshot — so the environmental context always reflects the live sensor states
+  rather than a static baked-in template value.
+
+  Backward compatibility: if the CONTEXT_NODE template already contains
+  environmental_context (e.g. a scenario fixture was loaded), the existing
+  values are kept and SimStateStore is NOT injected.
 """
 
 import time
@@ -23,16 +34,29 @@ from virtual_node_manager.models import (
     device_post_state,
 )
 
+# Operational topics (policy-router input, emergency, ACK)
 _REGISTRY_TOPICS = {
     "safe_deferral/context/input",
     "safe_deferral/emergency/event",
     "safe_deferral/actuation/ack",
 }
 
+# Simulation-only topics: sensor/device state and general sim context
+_SIM_TOPICS = {
+    "safe_deferral/sim/sensor",   # env sensor readings (one topic, per-sensor payload)
+    "safe_deferral/sim/device",   # device state updates
+    "safe_deferral/sim/context",  # general simulation context (legacy)
+}
+
+_ALL_ALLOWED_TOPICS = _REGISTRY_TOPICS | _SIM_TOPICS
+
 _ALLOWED_SOURCE_PREFIXES = ("rpi.", "esp32.virtual_", "test.")
 
 _ACK_TOPIC = "safe_deferral/actuation/ack"
 _PRESENCE_TOPIC = "safe_deferral/node/presence"
+
+_SIM_SENSOR_TOPIC = "safe_deferral/sim/sensor"
+_SIM_DEVICE_TOPIC = "safe_deferral/sim/device"
 
 
 class MqttPublisher(Protocol):
@@ -48,7 +72,7 @@ class VirtualNodeManager:
     """Manages virtual experiment nodes.
 
     Usage:
-        mgr = VirtualNodeManager()
+        mgr = VirtualNodeManager(mqtt_publisher=pub, sim_state=state_store)
         node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, profile)
         mgr.start_node(node)
         mgr.publish_once(node)      # or run in loop externally
@@ -59,9 +83,14 @@ class VirtualNodeManager:
     actuation command arrives on safe_deferral/actuation/command.
     """
 
-    def __init__(self, mqtt_publisher: Optional[MqttPublisher] = None) -> None:
+    def __init__(
+        self,
+        mqtt_publisher: Optional[MqttPublisher] = None,
+        sim_state=None,  # Optional[SimStateStore] — avoid circular import
+    ) -> None:
         self._publisher: MqttPublisher = mqtt_publisher or _NoOpPublisher()
         self._nodes: dict[str, VirtualNode] = {}
+        self._sim_state = sim_state  # may be None (no-op for backward compatibility)
 
     # ------------------------------------------------------------------
     # Public API
@@ -74,6 +103,7 @@ class VirtualNodeManager:
         source_node_id: Optional[str] = None,
         node_id: Optional[str] = None,
         device_target: Optional[str] = None,
+        sensor_name: Optional[str] = None,
     ) -> VirtualNode:
         nid = node_id or str(uuid.uuid4())
         sid = source_node_id or f"rpi.virtual_{node_type.value}"
@@ -91,6 +121,7 @@ class VirtualNodeManager:
             profile=profile,
             created_at_ms=int(time.time() * 1000),
             device_target=device_target,
+            sensor_name=sensor_name,
         )
         self._nodes[nid] = node
         return node
@@ -115,22 +146,44 @@ class VirtualNodeManager:
     def publish_once(self, node: VirtualNode) -> dict:
         """Publish one payload from the node's profile template.
 
-        Refreshes time-sensitive fields at the moment of publishing so the
-        Mac mini policy router's staleness check always passes.
+        Behaviour varies by node type:
 
-        The staleness check (router.py) is:
-            ingest_timestamp_ms - trigger_event.timestamp_ms > freshness_threshold_ms
-        Both fields must be updated together. Updating only ingest_timestamp_ms
-        while leaving trigger_event.timestamp_ms at the old template value
-        maximises the gap and guarantees C204.
+        CONTEXT_NODE:
+          Assembles a complete policy_router_input payload from the template's
+          trigger_event + current SimStateStore snapshot (environmental_context
+          and device_states).  If the template already contains
+          environmental_context the SimStateStore is NOT injected (backward
+          compatibility for scenario fixtures with baked-in environment).
 
-        Strategy: set trigger_event.timestamp_ms = now, ingest_timestamp_ms = now.
-        Difference = 0 ms, which is always within the 3 000 ms threshold.
+        ENV_SENSOR_NODE:
+          Publishes one sensor reading to safe_deferral/sim/sensor and updates
+          the SimStateStore.  Template keys: {"sensor_name": str, "value": any}.
+
+        DEVICE_STATE_NODE:
+          Publishes one device state update to safe_deferral/sim/device and
+          updates the SimStateStore.  Template keys: {"device_name": str, "state": str}.
+
+        All other types:
+          Publishes the template payload with refreshed timestamps.
+
+        Staleness check note (applies to CONTEXT_NODE and general context types):
+          ingest_timestamp_ms and trigger_event.timestamp_ms must be kept equal
+          (both set to now_ms) so the Policy Router staleness guard (C204) passes.
         """
         if node.state != VirtualNodeState.RUNNING:
             raise RuntimeError(f"Node {node.node_id} is not running")
 
         now_ms = int(time.time() * 1000)
+
+        # ---- ENV_SENSOR_NODE ----
+        if node.node_type == VirtualNodeType.ENV_SENSOR_NODE:
+            return self._publish_env_sensor(node, now_ms)
+
+        # ---- DEVICE_STATE_NODE ----
+        if node.node_type == VirtualNodeType.DEVICE_STATE_NODE:
+            return self._publish_device_state(node, now_ms)
+
+        # ---- CONTEXT_NODE (and all other types) ----
         payload = {**node.profile.payload_template,
                    "source_node_id": node.source_node_id}
 
@@ -141,18 +194,30 @@ class VirtualNodeManager:
                 "ingest_timestamp_ms": now_ms,
             }
 
-        # Refresh trigger_event timestamp (pure_context_payload layer).
-        # Must be updated alongside ingest_timestamp_ms; the staleness check
-        # is: ingest_ts - trigger_ts > threshold. Leaving trigger_ts stale
-        # while refreshing ingest_ts widens the gap to the full elapsed time
-        # since node creation and guarantees C204.
+        # Build pure_context_payload with SimStateStore injection for CONTEXT_NODE.
         if "pure_context_payload" in payload:
             ctx = dict(payload["pure_context_payload"])
+
+            # Refresh trigger_event timestamp (staleness check).
             if "trigger_event" in ctx:
                 ctx["trigger_event"] = {
                     **ctx["trigger_event"],
                     "timestamp_ms": now_ms,
                 }
+
+            # Inject current simulation state for CONTEXT_NODEs whose template
+            # does NOT already carry environmental_context.  This is the live-
+            # simulation path: the environment comes from sensor virtual nodes
+            # rather than a static baked-in fixture.
+            if (
+                node.node_type == VirtualNodeType.CONTEXT_NODE
+                and "environmental_context" not in ctx
+                and self._sim_state is not None
+            ):
+                snap = self._sim_state.get_snapshot()
+                ctx["environmental_context"] = snap["environmental_context"]
+                ctx["device_states"] = snap["device_states"]
+
             payload["pure_context_payload"] = ctx
 
         self._publisher.publish(node.profile.publish_topic, payload, qos=1)
@@ -208,6 +273,58 @@ class VirtualNodeManager:
                 if n.state == VirtualNodeState.RUNNING]
 
     # ------------------------------------------------------------------
+    # Internal: per-type publish helpers
+    # ------------------------------------------------------------------
+
+    def _publish_env_sensor(self, node: VirtualNode, now_ms: int) -> dict:
+        """Publish one env sensor reading and update SimStateStore."""
+        tmpl = node.profile.payload_template
+        sensor_name = node.sensor_name or tmpl.get("sensor_name", "")
+        value = tmpl.get("value")
+
+        payload = {
+            "sensor_name": sensor_name,
+            "value": value,
+            "timestamp_ms": now_ms,
+            "source_node_id": node.source_node_id,
+        }
+
+        # Update shared simulation state
+        if self._sim_state is not None and sensor_name:
+            try:
+                self._sim_state.update_env(sensor_name, value)
+            except (ValueError, TypeError):
+                pass  # Unknown sensor — publish anyway, don't crash
+
+        self._publisher.publish(_SIM_SENSOR_TOPIC, payload, qos=1)
+        node.published_count += 1
+        return payload
+
+    def _publish_device_state(self, node: VirtualNode, now_ms: int) -> dict:
+        """Publish one device state update and update SimStateStore."""
+        tmpl = node.profile.payload_template
+        device_name = node.device_target or tmpl.get("device_name", "")
+        state = tmpl.get("state", "off")
+
+        payload = {
+            "device_name": device_name,
+            "state": state,
+            "timestamp_ms": now_ms,
+            "source_node_id": node.source_node_id,
+        }
+
+        # Update shared simulation state
+        if self._sim_state is not None and device_name:
+            try:
+                self._sim_state.update_device(device_name, state)
+            except ValueError:
+                pass  # Unknown device — publish anyway
+
+        self._publisher.publish(_SIM_DEVICE_TOPIC, payload, qos=1)
+        node.published_count += 1
+        return payload
+
+    # ------------------------------------------------------------------
     # Internal validation
     # ------------------------------------------------------------------
 
@@ -244,8 +361,8 @@ class VirtualNodeManager:
 
     @staticmethod
     def _validate_topic(topic: str) -> None:
-        if topic not in _REGISTRY_TOPICS:
+        if topic not in _ALL_ALLOWED_TOPICS:
             raise ValueError(
-                f"Topic '{topic}' is not in the allowed virtual-node registry topics. "
-                f"Allowed: {sorted(_REGISTRY_TOPICS)}"
+                f"Topic '{topic}' is not in the allowed virtual-node topics. "
+                f"Allowed: {sorted(_ALL_ALLOWED_TOPICS)}"
             )

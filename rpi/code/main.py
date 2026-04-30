@@ -59,6 +59,7 @@ from preflight.readiness import PreflightManager
 from result_store.store import ResultStore
 from scenario_manager.manager import ScenarioManager
 from virtual_node_manager.manager import VirtualNodeManager
+from sim_state_store import SimStateStore
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -136,7 +137,8 @@ def main() -> None:
     result_store = ResultStore()
     experiment_mgr = ExperimentManager()
     scenario_mgr = ScenarioManager()
-    vnm = VirtualNodeManager(mqtt_publisher=publisher)
+    sim_state = SimStateStore()
+    vnm = VirtualNodeManager(mqtt_publisher=publisher, sim_state=sim_state)
     governance_backend = GovernanceBackend()
     obs_store = ObservationStore()
     trial_store = TrialStore()
@@ -154,6 +156,7 @@ def main() -> None:
         trial_store=trial_store,
         package_runner=pkg_runner,
         node_presence_registry=presence_registry,
+        sim_state=sim_state,
     )
     _start_fastapi(dashboard_app, DASHBOARD_PORT, "dashboard")
 

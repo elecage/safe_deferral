@@ -53,6 +53,7 @@ def create_app(
     trial_store: Optional[TrialStore] = None,
     package_runner: Optional[PackageRunner] = None,
     node_presence_registry: Optional[NodePresenceRegistry] = None,
+    sim_state=None,  # Optional[SimStateStore]
 ) -> "FastAPI":
     if not _FASTAPI_AVAILABLE:
         raise ImportError("fastapi is required for the dashboard app")
@@ -80,6 +81,15 @@ def create_app(
     _ts = trial_store or TrialStore()
     _pr = package_runner or PackageRunner(vnm=_vnm, obs_store=_obs, trial_store=_ts)
     _npr = node_presence_registry or NodePresenceRegistry()
+
+    # SimStateStore — may be None when running unit tests without full wiring
+    try:
+        from sim_state_store import SimStateStore, ENV_SENSOR_FIELDS, DEVICE_FIELDS
+        _sss = sim_state if sim_state is not None else SimStateStore()
+    except ImportError:
+        _sss = None
+        ENV_SENSOR_FIELDS = {}
+        DEVICE_FIELDS = {}
 
     # ------------------------------------------------------------------
     # Root — serve dashboard UI
@@ -264,11 +274,13 @@ def create_app(
                 else f"rpi.virtual_{node_type.value}")
         )
         device_target = body.get("device_target") or None
+        sensor_name = body.get("sensor_name") or None
         try:
             node = _vnm.create_node(
                 node_type, profile,
                 source_node_id=source_node_id,
                 device_target=device_target,
+                sensor_name=sensor_name,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
@@ -375,12 +387,18 @@ def create_app(
             _time.time() * 1000
         )
 
+        # Temporarily force RUNNING state so publish_once() proceeds even when
+        # the node was stopped after a single-shot trial publish.  The state is
+        # restored in the finally block regardless of outcome.
+        original_state = node.state
+        node.state = VirtualNodeState.RUNNING
         node.profile.payload_template = patched
         try:
             payload = _vnm.publish_once(node)
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         finally:
+            node.state = original_state
             node.profile.payload_template = original_template
 
         return {
@@ -390,6 +408,236 @@ def create_app(
             "payload": payload,
             "published_count": node.published_count,
         }
+
+    # ------------------------------------------------------------------
+    # Simulation State Store — live environment and device state
+    # ------------------------------------------------------------------
+
+    @app.get("/sim/state", summary="Get current simulation environment and device states")
+    def get_sim_state():
+        """Return the current SimStateStore snapshot.
+
+        Context virtual nodes read this state at publish time to assemble
+        the full pure_context_payload — so what you see here is what the
+        Mac mini will receive as environmental_context and device_states
+        on the next trigger publish.
+        """
+        if _sss is None:
+            return {"env": {}, "devices": {}, "env_fields": [], "device_fields": {}}
+        return _sss.to_dict()
+
+    @app.post("/sim/state/env", summary="Update one or more environmental sensor values")
+    def update_sim_env(body: dict):
+        """Set environmental sensor values in the SimStateStore.
+
+        Body: { "temperature": 28.0, "smoke_detected": true, ... }
+
+        These values will be included in the next CONTEXT_NODE publish
+        (and any ENV_SENSOR_NODE publishes will override them again).
+        """
+        if _sss is None:
+            raise HTTPException(status_code=503, detail="SimStateStore not available")
+        unknown = [k for k in body if k not in ENV_SENSOR_FIELDS]
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown env sensor fields: {unknown}. "
+                       f"Allowed: {list(ENV_SENSOR_FIELDS.keys())}",
+            )
+        try:
+            _sss.update_from_dict(env=body)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return _sss.to_dict()
+
+    @app.post("/sim/state/device", summary="Update one or more device states")
+    def update_sim_device(body: dict):
+        """Set device states in the SimStateStore.
+
+        Body: { "living_room_light": "on", "bedroom_light": "off", ... }
+        """
+        if _sss is None:
+            raise HTTPException(status_code=503, detail="SimStateStore not available")
+        unknown = [k for k in body if k not in DEVICE_FIELDS]
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown device fields: {unknown}. "
+                       f"Allowed: {list(DEVICE_FIELDS.keys())}",
+            )
+        try:
+            _sss.update_from_dict(devices=body)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return _sss.to_dict()
+
+    @app.post("/sim/state/reset", summary="Reset simulation state to default values")
+    def reset_sim_state():
+        """Restore all environmental sensor and device state values to defaults."""
+        if _sss is None:
+            raise HTTPException(status_code=503, detail="SimStateStore not available")
+        _sss.reset_to_defaults()
+        return _sss.to_dict()
+
+    @app.post(
+        "/sim/nodes/sensor",
+        summary="Create and start an ENV_SENSOR_NODE virtual node",
+    )
+    def create_sensor_node(body: dict):
+        """Create an ENV_SENSOR_NODE for one environmental sensor field.
+
+        Body fields:
+          sensor_name  (required) — e.g. "temperature", "smoke_detected"
+          value        (required) — initial value (number or bool)
+          interval_ms  (optional, default 5000) — periodic publish interval
+
+        The node is started automatically and publishes immediately so the
+        SimStateStore reflects the new value at once.
+        """
+        sensor_name = body.get("sensor_name")
+        if not sensor_name or sensor_name not in ENV_SENSOR_FIELDS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"sensor_name must be one of {list(ENV_SENSOR_FIELDS.keys())}",
+            )
+        value = body.get("value")
+        if value is None:
+            raise HTTPException(status_code=400, detail="value is required")
+        interval_ms = int(body.get("interval_ms", 5000))
+
+        profile = VirtualNodeProfile(
+            profile_id=f"env_sensor_{sensor_name}",
+            payload_template={"sensor_name": sensor_name, "value": value},
+            publish_topic="safe_deferral/sim/sensor",
+            publish_interval_ms=interval_ms,
+        )
+        try:
+            node = _vnm.create_node(
+                VirtualNodeType.ENV_SENSOR_NODE,
+                profile,
+                source_node_id=f"rpi.virtual_env_sensor.{sensor_name}",
+                sensor_name=sensor_name,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        _vnm.start_node(node)
+        _vnm.publish_once(node)  # immediate publish to seed SimStateStore
+        return node.to_dict()
+
+    @app.post(
+        "/sim/nodes/device",
+        summary="Create and start a DEVICE_STATE_NODE virtual node",
+    )
+    def create_device_node(body: dict):
+        """Create a DEVICE_STATE_NODE for one simulated actuator.
+
+        Body fields:
+          device_name  (required) — e.g. "living_room_light"
+          state        (required) — initial state string (e.g. "off", "on")
+          interval_ms  (optional, default 5000)
+
+        The node is started automatically and publishes immediately.
+        """
+        device_name = body.get("device_name")
+        if not device_name or device_name not in DEVICE_FIELDS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"device_name must be one of {list(DEVICE_FIELDS.keys())}",
+            )
+        state = body.get("state", "off")
+        interval_ms = int(body.get("interval_ms", 5000))
+
+        profile = VirtualNodeProfile(
+            profile_id=f"device_{device_name}",
+            payload_template={"device_name": device_name, "state": state},
+            publish_topic="safe_deferral/sim/device",
+            publish_interval_ms=interval_ms,
+        )
+        try:
+            node = _vnm.create_node(
+                VirtualNodeType.DEVICE_STATE_NODE,
+                profile,
+                source_node_id=f"rpi.virtual_device.{device_name}",
+                device_target=device_name,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        _vnm.start_node(node)
+        _vnm.publish_once(node)  # immediate publish to seed SimStateStore
+        return node.to_dict()
+
+    @app.post(
+        "/sim/nodes/sensor/{node_id}/value",
+        summary="Update an existing ENV_SENSOR_NODE value and republish",
+    )
+    def update_sensor_node_value(node_id: str, body: dict):
+        """Change the sensor value of an existing ENV_SENSOR_NODE and publish once.
+
+        Body: { "value": <new_value> }
+
+        Both the node template and the SimStateStore are updated so future
+        periodic publishes will use the new value.
+        """
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        if node.node_type != VirtualNodeType.ENV_SENSOR_NODE:
+            raise HTTPException(status_code=400, detail="Node is not an env_sensor_node")
+
+        new_value = body.get("value")
+        if new_value is None:
+            raise HTTPException(status_code=400, detail="value is required")
+
+        # Update the node template so periodic publishes use the new value
+        import copy
+        new_template = copy.deepcopy(node.profile.payload_template)
+        new_template["value"] = new_value
+        node.profile.payload_template = new_template
+
+        # Publish immediately (force RUNNING state if needed)
+        original_state = node.state
+        node.state = VirtualNodeState.RUNNING
+        try:
+            payload = _vnm.publish_once(node)
+        finally:
+            node.state = original_state
+
+        return {"published": True, "sensor_name": node.sensor_name, "value": new_value, "payload": payload}
+
+    @app.post(
+        "/sim/nodes/device/{node_id}/state",
+        summary="Update an existing DEVICE_STATE_NODE state and republish",
+    )
+    def update_device_node_state(node_id: str, body: dict):
+        """Change the device state of an existing DEVICE_STATE_NODE and publish once.
+
+        Body: { "state": "on" }
+        """
+        node = _vnm.get_node(node_id)
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+        if node.node_type != VirtualNodeType.DEVICE_STATE_NODE:
+            raise HTTPException(status_code=400, detail="Node is not a device_state_node")
+
+        new_state = body.get("state")
+        if new_state is None:
+            raise HTTPException(status_code=400, detail="state is required")
+
+        import copy
+        new_template = copy.deepcopy(node.profile.payload_template)
+        new_template["state"] = new_state
+        node.profile.payload_template = new_template
+
+        original_state = node.state
+        node.state = VirtualNodeState.RUNNING
+        try:
+            payload = _vnm.publish_once(node)
+        finally:
+            node.state = original_state
+
+        return {"published": True, "device_name": node.device_target, "state": new_state, "payload": payload}
 
     # ------------------------------------------------------------------
     # Experiment packages (A~G definitions)
