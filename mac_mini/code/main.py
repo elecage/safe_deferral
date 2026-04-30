@@ -343,12 +343,11 @@ class Pipeline:
         # Step 1: announce candidate choices to the USER via TTS
         announce_class2(self._tts, session.candidate_choices)
 
-        # Step 2: publish telemetry immediately (pipeline worker must not block)
+        # Step 2: publish telemetry immediately so the pipeline worker returns.
+        # class2 details are added by the background thread after Phase 1
+        # resolves (user response or 15 s timeout), so the trial runner must
+        # poll until the second observation with class2 data arrives.
         self._telemetry.escalate_to_class2()
-        class2_result = self._class2.handle_timeout(
-            session=session, trigger_id=trigger_id
-        )
-        self._telemetry.update_class2(class2_result)
 
         # Step 3: spawn two-phase background waiter and return
         threading.Thread(
@@ -411,12 +410,15 @@ class Pipeline:
                 "CLASS_2 phase-1: user selected %s (clarification_id=%s)",
                 user_selected_id, session.clarification_id,
             )
-            self._class2.submit_selection(
+            class2_result = self._class2.submit_selection(
                 session=session,
                 selected_candidate_id=user_selected_id,
                 selection_source="user_mqtt_button",
                 trigger_id=trigger_id,
             )
+            # Publish the final CLASS_2 interaction snapshot so the trial
+            # runner can detect that interaction completed.
+            self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
             return  # User handled it — caregiver not involved
 
         # ---- Phase 2: caregiver Telegram ----
@@ -477,12 +479,13 @@ class Pipeline:
                         "CLASS_2 phase-2: caregiver selected %s (clarification_id=%s)",
                         caregiver_selected_id, session.clarification_id,
                     )
-                    self._class2.submit_selection(
+                    class2_result = self._class2.submit_selection(
                         session=session,
                         selected_candidate_id=caregiver_selected_id,
                         selection_source="caregiver_telegram_inline_keyboard",
                         trigger_id=trigger_id,
                     )
+                    self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
                     return
 
                 log.info(
@@ -496,10 +499,12 @@ class Pipeline:
                     "sending plain escalation notification"
                 )
 
-        # Final fallback: plain escalation notification
+        # Final fallback: plain escalation notification (no user or caregiver response)
         timeout_result = self._class2.handle_timeout(
             session=session, trigger_id=trigger_id
         )
+        # Publish class2 interaction snapshot so the trial runner can close the trial
+        self._telemetry.publish_class2_update(audit_correlation_id, timeout_result)
         if timeout_result.notification_payload:
             self._caregiver.send_notification(timeout_result.notification_payload)
         else:

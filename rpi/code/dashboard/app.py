@@ -375,12 +375,18 @@ def create_app(
             _time.time() * 1000
         )
 
+        # Temporarily force RUNNING state so publish_once() proceeds even when
+        # the node was stopped after a single-shot trial publish.  The state is
+        # restored in the finally block regardless of outcome.
+        original_state = node.state
+        node.state = VirtualNodeState.RUNNING
         node.profile.payload_template = patched
         try:
             payload = _vnm.publish_once(node)
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         finally:
+            node.state = original_state
             node.profile.payload_template = original_template
 
         return {
