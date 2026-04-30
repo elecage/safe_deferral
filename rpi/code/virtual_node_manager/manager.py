@@ -146,14 +146,23 @@ class VirtualNodeManager:
         # is: ingest_ts - trigger_ts > threshold. Leaving trigger_ts stale
         # while refreshing ingest_ts widens the gap to the full elapsed time
         # since node creation and guarantees C204.
+        import logging as _logging
+        _dbg = _logging.getLogger(__name__)
         if "pure_context_payload" in payload:
             ctx = dict(payload["pure_context_payload"])
+            _dbg.info("DEBUG publish_once: pure_context_payload keys=%s", list(ctx.keys()))
             if "trigger_event" in ctx:
+                old_ts = ctx["trigger_event"].get("timestamp_ms", "MISSING")
                 ctx["trigger_event"] = {
                     **ctx["trigger_event"],
                     "timestamp_ms": now_ms,
                 }
+                _dbg.info("DEBUG publish_once: trigger_event.timestamp_ms %s -> %d", old_ts, now_ms)
+            else:
+                _dbg.info("DEBUG publish_once: trigger_event NOT FOUND in pure_context_payload")
             payload["pure_context_payload"] = ctx
+        else:
+            _dbg.info("DEBUG publish_once: pure_context_payload NOT FOUND in payload. keys=%s", list(payload.keys()))
 
         self._publisher.publish(node.profile.publish_topic, payload, qos=1)
         node.published_count += 1
