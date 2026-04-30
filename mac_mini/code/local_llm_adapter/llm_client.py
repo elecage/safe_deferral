@@ -31,7 +31,7 @@ class OllamaClient:
         self,
         model: str = "llama3.2",
         base_url: str = _DEFAULT_URL,
-        timeout_s: int = 30,
+        timeout_s: int = 60,
     ) -> None:
         self._model = model
         self._url = base_url
@@ -46,7 +46,12 @@ class OllamaClient:
 
         resp = requests.post(
             self._url,
-            json={"model": self._model, "prompt": prompt, "stream": False},
+            json={
+                "model": self._model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.2},  # low variance for experiment reproducibility
+            },
             timeout=self._timeout,
         )
         resp.raise_for_status()
