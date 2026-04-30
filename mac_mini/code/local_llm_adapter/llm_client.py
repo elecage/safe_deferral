@@ -46,7 +46,12 @@ class OllamaClient:
 
         resp = requests.post(
             self._url,
-            json={"model": self._model, "prompt": prompt, "stream": False},
+            json={
+                "model": self._model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.2},  # low variance for experiment reproducibility
+            },
             timeout=self._timeout,
         )
         resp.raise_for_status()
