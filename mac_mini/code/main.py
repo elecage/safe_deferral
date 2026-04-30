@@ -289,14 +289,23 @@ class Pipeline:
     # CLASS_2 — clarification manager → inline keyboard → caregiver
     # ------------------------------------------------------------------
     def _handle_class2(self, trigger_id: str, route_result) -> None:
+        """Start a CLASS_2 clarification session.
+
+        If Telegram inline keyboard is available, sends the keyboard and spawns
+        a background thread to wait for the caregiver response (up to
+        CAREGIVER_RESPONSE_TIMEOUT_S).  Returns immediately so the pipeline
+        worker thread is never blocked and telemetry is published promptly.
+
+        If Telegram is not configured (or the send fails), falls back to a
+        plain escalation notification via the existing caregiver backend.
+        """
         log.info("CLASS_2: trigger=%s", trigger_id)
         session = self._class2.start_session(
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
         )
 
-        # Build and send inline keyboard if Telegram is configured
-        response_received = False
+        # Attempt inline keyboard path when Telegram is available
         if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID and session.candidate_choices:
             keyboard_rows = build_inline_keyboard(
                 session.candidate_choices, session.clarification_id
@@ -304,83 +313,126 @@ class Pipeline:
             notification_payload = self._class2._build_notification(
                 session, trigger_id, context_summary=""
             )
-            msg_text = (
-                _format_class2_keyboard_message(notification_payload, session)
-            )
+            msg_text = _format_class2_keyboard_message(notification_payload, session)
             sent = self._telegram_sender.send_message_with_buttons(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=msg_text,
                 buttons=keyboard_rows,
             )
             if sent is not None:
-                # Register pending event and wait for caregiver response
+                # Register the pending event before spawning the waiter thread
+                # so handle_telegram_callback() can never race ahead.
                 event = threading.Event()
                 with self._class2_lock:
                     self._pending_class2[session.clarification_id] = event
-                log.info(
-                    "CLASS_2 waiting for caregiver response (timeout=%ds) clarification_id=%s",
-                    CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
-                )
-                event.wait(timeout=CAREGIVER_RESPONSE_TIMEOUT_S)
-                with self._class2_lock:
-                    self._pending_class2.pop(session.clarification_id, None)
-                    selected_id = self._class2_selections.pop(session.clarification_id, None)
 
-                if selected_id:
-                    log.info(
-                        "CLASS_2 caregiver selected: %s  clarification_id=%s",
-                        selected_id, session.clarification_id,
-                    )
-                    class2_result = self._class2.submit_selection(
-                        session=session,
-                        selected_candidate_id=selected_id,
-                        selection_source="caregiver_telegram_inline_keyboard",
-                        trigger_id=trigger_id,
-                    )
-                    response_received = True
-                else:
-                    log.info(
-                        "CLASS_2 caregiver did not respond within %ds — timeout",
-                        CAREGIVER_RESPONSE_TIMEOUT_S,
-                    )
-                    class2_result = self._class2.handle_timeout(
-                        session=session, trigger_id=trigger_id
-                    )
-            else:
-                # Button send failed — fall back to plain notification + immediate timeout
-                log.warning("CLASS_2 inline-keyboard send failed — falling back to plain notification")
+                # Use a pending class2_result placeholder so telemetry can be
+                # published immediately by handle_context() with CLASS_2 route
+                # state already known.  The background waiter will log the final
+                # caregiver decision independently.
                 class2_result = self._class2.handle_timeout(
                     session=session, trigger_id=trigger_id
                 )
+                self._telemetry.update_class2(class2_result)
+                # No escalation update here — waiter thread will handle it.
+
+                # Spawn background thread; pipeline worker returns immediately.
+                threading.Thread(
+                    target=self._await_caregiver_response,
+                    args=(session, event, trigger_id, route_result.audit_correlation_id),
+                    daemon=True,
+                    name=f"class2-waiter-{session.clarification_id[:8]}",
+                ).start()
+                log.info(
+                    "CLASS_2 keyboard sent — background waiter started "
+                    "(timeout=%ds clarification_id=%s)",
+                    CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
+                )
+                return  # telemetry published by handle_context() after this returns
+
+            # Button delivery failed — fall through to plain notification path
+            log.warning("CLASS_2 inline-keyboard send failed — falling back to plain notification")
+
+        # Plain notification fallback (no Telegram, no candidates, or send failure)
+        class2_result = self._class2.handle_timeout(
+            session=session, trigger_id=trigger_id
+        )
+        self._telemetry.update_class2(class2_result)
+        if class2_result.notification_payload:
+            esc_result = self._caregiver.send_notification(
+                class2_result.notification_payload
+            )
         else:
-            # No Telegram or no candidates — plain notification path
-            class2_result = self._class2.handle_timeout(
+            notification = _build_notification(
+                event_summary=f"Class 2 진입: {trigger_id}",
+                context_summary="컨텍스트 정보 없음",
+                unresolved_reason=(
+                    class2_result.clarification_record.get("unresolved_reason", "insufficient_context")
+                    if class2_result.clarification_record else "insufficient_context"
+                ),
+                audit_id=route_result.audit_correlation_id,
+                exception_trigger_id=trigger_id,
+            )
+            esc_result = self._caregiver.send_notification(notification)
+        self._telemetry.update_escalation(esc_result)
+
+    # ------------------------------------------------------------------
+    # Background waiter for caregiver inline-keyboard response
+    # ------------------------------------------------------------------
+    def _await_caregiver_response(
+        self,
+        session,
+        event: threading.Event,
+        trigger_id: str,
+        audit_correlation_id: str,
+    ) -> None:
+        """Wait up to CAREGIVER_RESPONSE_TIMEOUT_S for the caregiver to press
+        an inline keyboard button, then process the result.
+
+        Runs in a daemon thread so it never blocks the pipeline worker.
+        """
+        log.info(
+            "CLASS_2 waiter: waiting %ds for clarification_id=%s",
+            CAREGIVER_RESPONSE_TIMEOUT_S, session.clarification_id,
+        )
+        event.wait(timeout=CAREGIVER_RESPONSE_TIMEOUT_S)
+
+        with self._class2_lock:
+            self._pending_class2.pop(session.clarification_id, None)
+            selected_id = self._class2_selections.pop(session.clarification_id, None)
+
+        if selected_id:
+            log.info(
+                "CLASS_2 waiter: caregiver selected=%s  clarification_id=%s",
+                selected_id, session.clarification_id,
+            )
+            self._class2.submit_selection(
+                session=session,
+                selected_candidate_id=selected_id,
+                selection_source="caregiver_telegram_inline_keyboard",
+                trigger_id=trigger_id,
+            )
+            # Confirmation already signalled to caregiver via button UI;
+            # no additional Telegram notification needed for selection path.
+        else:
+            log.info(
+                "CLASS_2 waiter: no response within %ds — sending escalation notification",
+                CAREGIVER_RESPONSE_TIMEOUT_S,
+            )
+            timeout_result = self._class2.handle_timeout(
                 session=session, trigger_id=trigger_id
             )
-
-        self._telemetry.update_class2(class2_result)
-
-        # For timeout path: send plain escalation notification
-        # For response path: notification_payload is None (non-deferral) or
-        # populated (caregiver chose deferral/escalation).
-        if not response_received:
-            if class2_result.notification_payload:
-                esc_result = self._caregiver.send_notification(
-                    class2_result.notification_payload
-                )
+            if timeout_result.notification_payload:
+                self._caregiver.send_notification(timeout_result.notification_payload)
             else:
                 notification = _build_notification(
-                    event_summary=f"Class 2 진입: {trigger_id}",
-                    context_summary="컨텍스트 정보 없음",
-                    unresolved_reason=(
-                        class2_result.clarification_record.get("unresolved_reason", "insufficient_context")
-                        if class2_result.clarification_record else "insufficient_context"
-                    ),
-                    audit_id=route_result.audit_correlation_id,
+                    event_summary=f"Class 2 무응답 타임아웃: {trigger_id}",
+                    context_summary="보호자가 응답하지 않아 에스컬레이션합니다.",
+                    unresolved_reason="timeout_or_no_response",
+                    audit_id=audit_correlation_id,
                     exception_trigger_id=trigger_id,
                 )
-                esc_result = self._caregiver.send_notification(notification)
-            self._telemetry.update_escalation(esc_result)
+                self._caregiver.send_notification(notification)
 
     # ------------------------------------------------------------------
     # Telegram callback_query handler (called from TelegramPoller thread)
