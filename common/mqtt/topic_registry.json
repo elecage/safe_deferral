@@ -559,6 +559,66 @@
       ]
     },
     {
+      "topic": "safe_deferral/sim/sensor",
+      "description": "Individual environmental sensor state publications from RPi virtual ENV_SENSOR_NODE instances. Used only in simulation mode to drive the SimStateStore; not consumed by the Mac mini policy router.",
+      "publishers": [
+        "rpi.virtual_env_sensor_controlled_mode"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.virtual_env_sensor_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "rpi.sim_state_store",
+        "rpi.dashboard"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": ["rpi.sim_state_store"],
+        "dashboard_visibility_subscriber": ["rpi.dashboard"]
+      },
+      "payload_family": "sim_sensor_reading",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "experiment_simulation_only",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "notes": [
+        "Payload keys: sensor_name, value, timestamp_ms, source_node_id.",
+        "Not a policy authority topic. SimStateStore values are simulation-layer state only."
+      ]
+    },
+    {
+      "topic": "safe_deferral/sim/device",
+      "description": "Individual device state publications from RPi virtual DEVICE_STATE_NODE instances. Used only in simulation mode to drive the SimStateStore.",
+      "publishers": [
+        "rpi.virtual_device_controlled_mode"
+      ],
+      "publisher_roles": {
+        "controlled_experiment_publisher": [
+          "rpi.virtual_device_controlled_mode"
+        ]
+      },
+      "subscribers": [
+        "rpi.sim_state_store",
+        "rpi.dashboard"
+      ],
+      "subscriber_roles": {
+        "runtime_subscriber": ["rpi.sim_state_store"],
+        "dashboard_visibility_subscriber": ["rpi.dashboard"]
+      },
+      "payload_family": "sim_device_state",
+      "qos": 1,
+      "retain": false,
+      "authority_level": "experiment_simulation_only",
+      "allowed_in_operational_runtime": false,
+      "allowed_in_experiment_runtime": true,
+      "notes": [
+        "Payload keys: device_name, state, timestamp_ms, source_node_id.",
+        "Not a policy authority topic. SimStateStore values are simulation-layer state only."
+      ]
+    },
+    {
       "topic": "safe_deferral/fault/injection",
       "description": "Fault injection command/profile event for controlled experiments.",
       "publishers": [
