@@ -47,6 +47,7 @@ except ImportError:
 import paho.mqtt.client as mqtt
 
 from dashboard.app import create_app
+from notification_store import NotificationStore
 from observation_store import ObservationStore
 from experiment_manager.manager import ExperimentManager
 from experiment_package.trial_store import TrialStore
@@ -86,6 +87,7 @@ _MONITOR_TOPICS = [
     "safe_deferral/actuation/command",
     "safe_deferral/audit/log",
     "safe_deferral/dashboard/observation",
+    "safe_deferral/escalation/class2",  # Class 2 caregiver notification payload (Package D)
     PRESENCE_TOPIC,   # safe_deferral/node/presence — physical + virtual nodes
 ]
 
@@ -141,8 +143,14 @@ def main() -> None:
     vnm = VirtualNodeManager(mqtt_publisher=publisher, sim_state=sim_state)
     governance_backend = GovernanceBackend()
     obs_store = ObservationStore()
+    notif_store = NotificationStore()
     trial_store = TrialStore()
-    pkg_runner = PackageRunner(vnm=vnm, obs_store=obs_store, trial_store=trial_store)
+    pkg_runner = PackageRunner(
+        vnm=vnm,
+        obs_store=obs_store,
+        trial_store=trial_store,
+        notification_store=notif_store,
+    )
 
     # --- Dashboard (port 8888) ---
     dashboard_app = create_app(
@@ -182,6 +190,7 @@ def main() -> None:
 
     _OBS_TOPIC = "safe_deferral/dashboard/observation"
     _CMD_TOPIC = "safe_deferral/actuation/command"
+    _NOTIF_TOPIC = "safe_deferral/escalation/class2"
 
     def on_message(c, userdata, msg):
         try:
@@ -189,6 +198,8 @@ def main() -> None:
             mqtt_monitor.observe_message(msg.topic)
             if msg.topic == _OBS_TOPIC:
                 obs_store.add(payload)
+            elif msg.topic == _NOTIF_TOPIC:
+                notif_store.add(payload)
             elif msg.topic == _CMD_TOPIC:
                 acks = vnm.handle_command(payload)
                 if acks:

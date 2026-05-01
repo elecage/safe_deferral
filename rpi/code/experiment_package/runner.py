@@ -20,6 +20,11 @@ from experiment_package.fault_profiles import FAULT_PROFILES, FaultProfile
 from experiment_package.trial_store import TrialResult, TrialStore
 from shared.asset_loader import RpiAssetLoader
 
+# Default sleep between scenario context publish and the simulated user/emergency
+# selection that drives a CLASS_2 trial to its expected transition. Gives the
+# pipeline time to enter the CLASS_2 clarification session and register a waiter.
+_CLASS2_SELECTION_DRIVE_DELAY_S = 0.5
+
 log = logging.getLogger(__name__)
 
 _TRIAL_TIMEOUT_S = 30.0
@@ -60,11 +65,13 @@ class PackageRunner:
         obs_store,
         trial_store: TrialStore,
         asset_loader: Optional[RpiAssetLoader] = None,
+        notification_store=None,
     ) -> None:
         self._vnm = vnm
         self._obs = obs_store
         self._store = trial_store
         self._loader = asset_loader or RpiAssetLoader()
+        self._notif = notification_store
 
     # ------------------------------------------------------------------
     # Public API
@@ -81,6 +88,7 @@ class PackageRunner:
         expected_route_class: str,
         expected_validation: str = "approved",
         expected_outcome: Optional[str] = None,
+        expected_transition_target_override: Optional[str] = None,
     ) -> TrialResult:
         """Create a TrialResult record, launch background thread, return immediately."""
         profile: Optional[FaultProfile] = (
@@ -93,14 +101,18 @@ class PackageRunner:
             profile.expected_outcome if profile else "class_1_approved"
         )
 
-        # Load expected_transition_target from scenario's class2_clarification_expectation
-        # when the scenario declares one.  Only relevant for CLASS_2 trials.
-        eff_transition_target: Optional[str] = None
-        if expected_route_class == "CLASS_2" and scenario_id:
+        # Load expected_transition_target and requires_validator_reentry_when_class1
+        # from scenario's class2_clarification_expectation when declared.
+        eff_transition_target: Optional[str] = expected_transition_target_override
+        eff_requires_validator_reentry: bool = False
+        if expected_route_class == "CLASS_2" and scenario_id and eff_transition_target is None:
             try:
                 scenario = self._loader.load_scenario(scenario_id)
                 c2_exp = scenario.get("class2_clarification_expectation") or {}
                 eff_transition_target = c2_exp.get("expected_transition_target") or None
+                eff_requires_validator_reentry = bool(
+                    c2_exp.get("requires_validator_reentry_when_class1", False)
+                )
             except Exception as exc:
                 log.warning(
                     "Could not load class2_clarification_expectation from %s: %s",
@@ -120,6 +132,7 @@ class PackageRunner:
             expected_outcome=eff_outcome,
             audit_correlation_id=correlation_id,
             expected_transition_target=eff_transition_target,
+            requires_validator_reentry_when_class1=eff_requires_validator_reentry,
         )
 
         t = threading.Thread(
@@ -243,16 +256,24 @@ class PackageRunner:
                 if trial.expected_route_class == "CLASS_2"
                 else _TRIAL_TIMEOUT_S
             )
-            observation = self._match_observation(correlation_id, trial_timeout)
+            observation = self._match_observation(
+                correlation_id, trial_timeout, trial=trial, node=node,
+            )
+
+            notification = None
+            if self._notif is not None:
+                notification = self._notif.find_by_correlation_id(correlation_id)
 
             if observation is None:
                 log.warning(
                     "Trial %s timed out waiting for audit_correlation_id=%s",
                     trial.trial_id, correlation_id,
                 )
-                self._store.timeout_trial(trial.trial_id)
+                self._store.timeout_trial(trial.trial_id, notification_payload=notification)
             else:
-                self._store.complete_trial(trial.trial_id, observation)
+                self._store.complete_trial(
+                    trial.trial_id, observation, notification_payload=notification,
+                )
                 log.info(
                     "Trial %s completed: route=%s validation=%s pass=%s latency=%.1fms",
                     trial.trial_id,
@@ -314,12 +335,21 @@ class PackageRunner:
         except Exception as exc:
             log.warning("Contract drift publish failed: %s", exc)
 
-    def _simulate_class2_button(self, node, correlation_id: str) -> None:
-        """Simulate user single_click button press during CLASS_2 Phase 1.
+    def _simulate_class2_button(
+        self,
+        node,
+        correlation_id: str,
+        event_code: str = "single_click",
+    ) -> None:
+        """Simulate a user/emergency button press during an active CLASS_2 session.
 
         Temporarily patches the node's payload_template with event_type=button
-        and event_code=single_click, then publishes once.  The Mac mini pipeline
-        intercepts this as the user's Phase-1 selection and wakes the waiter.
+        and the requested event_code, then publishes once. The Mac mini pipeline
+        intercepts this as the user's selection and wakes the CLASS_2 waiter.
+
+        event_code mapping (mirrors Pipeline._try_handle_as_user_selection):
+          - "single_click"  → first candidate (typically C1_LIGHTING_ASSISTANCE → CLASS_1)
+          - "triple_hit"    → first CLASS_0-targeted candidate (emergency confirmation)
 
         The node's original template and state are restored in the finally block.
         """
@@ -331,7 +361,7 @@ class PackageRunner:
         patched.setdefault("pure_context_payload", {})
         patched["pure_context_payload"].setdefault("trigger_event", {})
         patched["pure_context_payload"]["trigger_event"]["event_type"] = "button"
-        patched["pure_context_payload"]["trigger_event"]["event_code"] = "single_click"
+        patched["pure_context_payload"]["trigger_event"]["event_code"] = event_code
         patched["pure_context_payload"]["trigger_event"]["timestamp_ms"] = now_ms
         patched.setdefault("routing_metadata", {})
         patched["routing_metadata"]["audit_correlation_id"] = correlation_id
@@ -344,11 +374,11 @@ class PackageRunner:
         try:
             self._vnm.publish_once(node)
             log.info(
-                "CLASS_2 trial: auto-simulated user button press (single_click) "
-                "correlation_id=%s", correlation_id,
+                "CLASS_2 trial: auto-simulated button press (%s) correlation_id=%s",
+                event_code, correlation_id,
             )
         except Exception as exc:
-            log.warning("CLASS_2 button simulation failed: %s", exc)
+            log.warning("CLASS_2 button simulation (%s) failed: %s", event_code, exc)
         finally:
             node.profile.payload_template = original_template
             node.state = original_state
@@ -357,25 +387,53 @@ class PackageRunner:
         self,
         correlation_id: str,
         timeout_s: float,
+        trial: Optional[TrialResult] = None,
+        node=None,
     ) -> Optional[dict]:
         """Poll ObservationStore until correlation_id match or timeout.
 
-        For CLASS_2 trials, the Mac mini pipeline publishes two observations:
+        For CLASS_2 trials, the Mac mini pipeline publishes:
           1. An initial snapshot (no class2 block) immediately after routing
              and TTS announcement (escalate_to_class2 telemetry publish).
-          2. A final snapshot (with class2 block) after the two-phase wait
-             resolves: user button press (Phase 1, ≤15 s), caregiver Telegram
-             response (Phase 2, ≤300 s), or full Phase-2 timeout.
+          2. A clarification snapshot (class2 block, no validation/escalation)
+             after the user-phase wait records a selection.
+          3. A post-transition snapshot (class2 + validation for CLASS_1, or
+             class2 + escalation for CLASS_0) after _execute_class2_transition.
 
-        This method waits passively — it does NOT auto-simulate a user button
-        press.  Auto-simulation was removed because it unconditionally completed
-        Phase 1 and prevented Phase 2 (caregiver Telegram) from ever being
-        triggered, blocking caregiver-path experiment trials.
+        Selection auto-drive: when ``trial.expected_transition_target`` is
+        ``CLASS_1`` or ``CLASS_0`` and the initial CLASS_2 observation has
+        arrived, this method publishes a synthetic single_click / triple_hit so
+        the trial can actually close instead of waiting out the full caregiver
+        timeout. SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION trials are NOT driven —
+        they exercise the full timeout path and the caregiver Telegram channel.
 
-        All other route classes (CLASS_0, CLASS_1) return the first match immediately.
+        Completion criterion (CLASS_2):
+          - expected_transition_target=CLASS_1 → wait for class2 + validation
+          - expected_transition_target=CLASS_0 → wait for class2 + escalation
+          - otherwise → wait for class2 (current behaviour for safe-deferral path)
+
+        All other route classes (CLASS_0, CLASS_1) return the first match.
         """
         deadline = time.monotonic() + timeout_s
         best_match = None
+        drive_target: Optional[str] = None
+        if trial is not None and trial.expected_route_class == "CLASS_2":
+            tt = trial.expected_transition_target
+            if tt == "CLASS_1":
+                drive_target = "single_click"
+            elif tt == "CLASS_0":
+                drive_target = "triple_hit"
+        drive_done = drive_target is None  # if no drive target, treat as already done
+        require_validation = (
+            trial is not None
+            and trial.expected_route_class == "CLASS_2"
+            and trial.expected_transition_target == "CLASS_1"
+        )
+        require_escalation = (
+            trial is not None
+            and trial.expected_route_class == "CLASS_2"
+            and trial.expected_transition_target == "CLASS_0"
+        )
 
         while time.monotonic() < deadline:
             obs = self._obs.find_by_correlation_id(correlation_id)
@@ -385,9 +443,21 @@ class PackageRunner:
                 if route_class != "CLASS_2":
                     return obs  # Non-CLASS_2: first match is final
                 if obs.get("class2"):
-                    return obs  # CLASS_2 with interaction data: final
-                # CLASS_2 without class2 block: Phase 1 or Phase 2 still active.
-                # Keep polling until the final snapshot arrives.
+                    if require_validation and not obs.get("validation"):
+                        # Class2 selection seen, but transition not yet emitted.
+                        pass
+                    elif require_escalation and not obs.get("escalation"):
+                        pass
+                    else:
+                        return obs  # Final snapshot (selection or post-transition)
+                else:
+                    # Initial CLASS_2 routing snapshot — drive selection if needed.
+                    if not drive_done and node is not None:
+                        time.sleep(_CLASS2_SELECTION_DRIVE_DELAY_S)
+                        self._simulate_class2_button(
+                            node, correlation_id, event_code=drive_target,
+                        )
+                        drive_done = True
 
             time.sleep(_POLL_INTERVAL_S)
         return best_match  # Return best found (or None) if timeout reached

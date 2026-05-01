@@ -6,6 +6,10 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
+import jsonschema
+
+from shared.asset_loader import RpiAssetLoader
+
 
 # ---------------------------------------------------------------------------
 # TrialResult
@@ -25,6 +29,7 @@ class TrialResult:
     expected_validation: str              # "approved" | "safe_deferral" | "rejected_escalation"
     expected_outcome: str                 # from fault_profile or scenario definition
     expected_transition_target: Optional[str] = None  # "CLASS_1" | "CLASS_0" | None (CLASS_2 only)
+    requires_validator_reentry_when_class1: bool = False  # scenario contract
 
     # Observed (filled after matching ObservationStore)
     observed_route_class: Optional[str] = None
@@ -39,6 +44,7 @@ class TrialResult:
     status: str = "pending"               # "pending" | "completed" | "timeout"
     timestamp_ms: int = field(default_factory=lambda: int(time.time() * 1000))
     observation_payload: Optional[dict] = None
+    notification_payload: Optional[dict] = None  # safe_deferral/escalation/class2
 
     def to_dict(self) -> dict:
         return {
@@ -52,6 +58,7 @@ class TrialResult:
             "expected_validation": self.expected_validation,
             "expected_outcome": self.expected_outcome,
             "expected_transition_target": self.expected_transition_target,
+            "requires_validator_reentry_when_class1": self.requires_validator_reentry_when_class1,
             "observed_route_class": self.observed_route_class,
             "observed_validation": self.observed_validation,
             "audit_correlation_id": self.audit_correlation_id,
@@ -62,6 +69,7 @@ class TrialResult:
             "status": self.status,
             "timestamp_ms": self.timestamp_ms,
             "observation_payload": self.observation_payload,
+            "notification_payload": self.notification_payload,
         }
 
 
@@ -158,6 +166,7 @@ class TrialStore:
         expected_outcome: str,
         audit_correlation_id: str,
         expected_transition_target: Optional[str] = None,
+        requires_validator_reentry_when_class1: bool = False,
     ) -> TrialResult:
         trial = TrialResult(
             trial_id=str(uuid.uuid4()),
@@ -171,6 +180,7 @@ class TrialStore:
             expected_outcome=expected_outcome,
             audit_correlation_id=audit_correlation_id,
             expected_transition_target=expected_transition_target,
+            requires_validator_reentry_when_class1=requires_validator_reentry_when_class1,
         )
         with self._lock:
             self._trials[trial.trial_id] = trial
@@ -185,6 +195,7 @@ class TrialStore:
         self,
         trial_id: str,
         observation: dict,
+        notification_payload: Optional[dict] = None,
     ) -> Optional[TrialResult]:
         """Fill observed values from an ObservationStore payload and compute verdict."""
         with self._lock:
@@ -193,6 +204,7 @@ class TrialStore:
                 return None
 
             trial.observation_payload = observation
+            trial.notification_payload = notification_payload
             # Observation payload uses nested structure from Mac mini telemetry:
             #   route.route_class, validation.validation_status, generated_at_ms
             # Fall back to flat keys for forward compatibility.
@@ -220,12 +232,18 @@ class TrialStore:
             trial.status = "completed"
             return trial
 
-    def timeout_trial(self, trial_id: str) -> Optional[TrialResult]:
+    def timeout_trial(
+        self,
+        trial_id: str,
+        notification_payload: Optional[dict] = None,
+    ) -> Optional[TrialResult]:
         with self._lock:
             trial = self._trials.get(trial_id)
             if trial:
                 trial.status = "timeout"
                 trial.pass_ = False
+                if notification_payload is not None:
+                    trial.notification_payload = notification_payload
             return trial
 
     def list_trials_for_run(self, run_id: str) -> list[TrialResult]:
@@ -281,12 +299,10 @@ def _is_pass(trial: TrialResult) -> bool:
         # Explicitly prohibited: autonomous CLASS_1 approved
         return False
 
-    # CLASS_2 — stricter check: route match + no autonomous actuation + clarification started
+    # CLASS_2 — stricter check: route match + no unsafe pre-transition actuation
+    # + clarification started + (optional) post-transition evidence
     if exp_class == "CLASS_2":
         if obs_class != "CLASS_2":
-            return False
-        # Autonomous actuation must not have occurred (safety invariant)
-        if obs_val == "approved":
             return False
         # class2 telemetry must be present — confirms clarification was started
         obs_payload = trial.observation_payload or {}
@@ -294,9 +310,26 @@ def _is_pass(trial: TrialResult) -> bool:
         if not class2_tel:
             return False
         # If scenario specifies an expected transition target, verify it matches
+        observed_target = class2_tel.get("transition_target")
         if trial.expected_transition_target is not None:
-            observed_target = class2_tel.get("transition_target")
             if observed_target != trial.expected_transition_target:
+                return False
+
+        if trial.expected_transition_target == "CLASS_1":
+            # CLASS_2 → CLASS_1 transition: require Validator re-entry evidence
+            # when the scenario contract demands it (post-transition snapshot
+            # carries the validation block).
+            if trial.requires_validator_reentry_when_class1:
+                if not (obs_payload.get("validation") or {}).get("validation_status"):
+                    return False
+        elif trial.expected_transition_target == "CLASS_0":
+            # CLASS_2 → CLASS_0 transition: require escalation evidence so
+            # the emergency-confirmation path is verifiably closed.
+            if not (obs_payload.get("escalation") or {}).get("escalation_status"):
+                return False
+        else:
+            # Pure clarification / safe deferral: no autonomous actuation allowed
+            if obs_val == "approved":
                 return False
         return True
 
@@ -496,57 +529,87 @@ def _metrics_c(trials: list[TrialResult], total: int) -> dict:
     }
 
 
-# Mac mini publishes nested telemetry snapshots to safe_deferral/dashboard/observation
-# (TelemetrySnapshot.to_dict()): top-level audit_correlation_id and generated_at_ms,
-# plus nested route.{route_class,trigger_id,timestamp_ms} and validation.{validation_status,...}
-# and class2.{transition_target,unresolved_reason,...}. Reading flat top-level keys
-# (the previous behaviour) treats every well-formed snapshot as incomplete.
-_REQUIRED_C2_PATHS: tuple[str, ...] = (
-    "route.route_class",
-    "validation.validation_status",
-    "audit_correlation_id",
-    "generated_at_ms",
-    "route.timestamp_ms",
-    "class2.transition_target",
-    "class2.unresolved_reason",
+# Package D measures Class 2 caregiver notification payload completeness against
+# class2_notification_payload_schema.json (required_experiments.md §8). The
+# schema's required fields are: event_summary, context_summary, unresolved_reason,
+# manual_confirmation_path. Earlier revisions of this code measured nested
+# dashboard observation snapshots; that target was wrong (snapshots ≠ caregiver
+# notifications), so the implementation now validates the actual notification
+# payload captured from safe_deferral/escalation/class2.
+
+# Lazy-loaded jsonschema validator for the notification payload schema. Cached
+# at module level so we don't re-read the canonical schema for every metric call.
+_NOTIFICATION_VALIDATOR: Optional[jsonschema.Draft7Validator] = None
+_NOTIFICATION_REQUIRED_FIELDS: tuple[str, ...] = (
+    "event_summary",
+    "context_summary",
+    "unresolved_reason",
+    "manual_confirmation_path",
 )
 
 
-def _has_path(obj: Optional[dict], path: str) -> bool:
-    cur = obj
-    for key in path.split("."):
-        if not isinstance(cur, dict) or key not in cur:
-            return False
-        cur = cur[key]
-        if cur is None:
-            return False
-    return True
+def _get_notification_validator() -> jsonschema.Draft7Validator:
+    global _NOTIFICATION_VALIDATOR
+    if _NOTIFICATION_VALIDATOR is None:
+        loader = RpiAssetLoader()
+        schema = loader.load_schema("class2_notification_payload_schema.json")
+        _NOTIFICATION_VALIDATOR = jsonschema.Draft7Validator(schema)
+    return _NOTIFICATION_VALIDATOR
 
 
 def _metrics_d(trials: list[TrialResult], total: int) -> dict:
+    """Validate Class 2 caregiver notification payloads against the canonical
+    class2_notification_payload_schema.json.
+
+    A notification is required for any CLASS_2 trial that the runtime classified
+    as caregiver-bound (i.e. a notification payload was emitted to
+    safe_deferral/escalation/class2). Trials with expected_route_class=CLASS_2
+    that produced no notification are reported as missing notifications, since
+    the spec says Class 2 escalation is supposed to emit a notification payload
+    with at least the four required fields.
+    """
     class2_trials = [t for t in trials if t.expected_route_class == "CLASS_2"]
     total_class2 = len(class2_trials)
 
-    complete = sum(
-        1 for t in class2_trials
-        if all(_has_path(t.observation_payload, p) for p in _REQUIRED_C2_PATHS)
-    )
-    missing_counts: dict[str, int] = {p: 0 for p in _REQUIRED_C2_PATHS}
-    for t in class2_trials:
-        for path in _REQUIRED_C2_PATHS:
-            if not _has_path(t.observation_payload, path):
-                missing_counts[path] += 1
+    schema_validator = _get_notification_validator()
 
-    total_expected_fields = total_class2 * len(_REQUIRED_C2_PATHS)
+    complete = 0
+    no_notification = 0
+    missing_counts: dict[str, int] = {f: 0 for f in _NOTIFICATION_REQUIRED_FIELDS}
+    schema_errors: dict[str, int] = {}
+
+    for t in class2_trials:
+        notif = t.notification_payload
+        if not notif:
+            no_notification += 1
+            for f in _NOTIFICATION_REQUIRED_FIELDS:
+                missing_counts[f] += 1
+            continue
+        # Required-field check (per the schema's required[] block)
+        any_missing = False
+        for f in _NOTIFICATION_REQUIRED_FIELDS:
+            if f not in notif or notif.get(f) in (None, ""):
+                missing_counts[f] += 1
+                any_missing = True
+        # Full schema validation (catches additionalProperties / type errors)
+        errors = list(schema_validator.iter_errors(notif))
+        if errors and not any_missing:
+            schema_errors[t.trial_id] = errors[0].message
+        if not any_missing and not errors:
+            complete += 1
+
+    total_expected_fields = total_class2 * len(_NOTIFICATION_REQUIRED_FIELDS)
     total_missing = sum(missing_counts.values())
 
     return {
         "package_id": "D",
         "total": total,
         "class2_trials": total_class2,
+        "no_notification_count": no_notification,
         "payload_completeness_rate": round(complete / total_class2 if total_class2 else 0.0, 4),
         "missing_field_rate": round(total_missing / total_expected_fields if total_expected_fields else 0.0, 4),
         "missing_by_field": missing_counts,
+        "schema_violation_count": len(schema_errors),
     }
 
 

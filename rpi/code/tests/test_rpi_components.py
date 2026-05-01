@@ -921,9 +921,11 @@ class TestTrialStoreTransitionTarget:
         return store, trial
 
     def _complete_with_target(self, store, trial, observed_target):
-        obs = {
+        # Build a post-transition observation that mirrors what the Mac mini
+        # actually publishes for each transition target (validation block for
+        # CLASS_1, escalation block for CLASS_0, plain class2 for safe-deferral).
+        obs: dict = {
             "route": {"route_class": "CLASS_2"},
-            "validation": {"validation_status": "safe_deferral"},
             "class2": {
                 "transition_target": observed_target,
                 "should_notify_caregiver": False,
@@ -932,6 +934,14 @@ class TestTrialStoreTransitionTarget:
             },
             "generated_at_ms": 1000,
         }
+        if observed_target == "CLASS_1":
+            obs["validation"] = {"validation_status": "approved"}
+        elif observed_target == "CLASS_0":
+            obs["escalation"] = {"escalation_status": "pending",
+                                  "notification_channel": "telegram",
+                                  "timestamp_ms": 0}
+        else:
+            obs["validation"] = {"validation_status": "safe_deferral"}
         return store.complete_trial(trial.trial_id, obs)
 
     def test_no_expected_target_always_passes(self):
@@ -974,9 +984,11 @@ class TestTrialStoreTransitionTarget:
 # ==================================================================
 
 class TestPackageMetricsD:
-    """_metrics_d must read the nested observation snapshot, not flat keys."""
+    """_metrics_d validates Class 2 caregiver notification payloads against
+    common/schemas/class2_notification_payload_schema.json (required_experiments.md §8).
+    """
 
-    def _make_class2_trial(self, observation):
+    def _make_class2_trial(self, notification_payload):
         from experiment_package.trial_store import TrialStore
         store = TrialStore()
         run = store.create_run(
@@ -996,56 +1008,77 @@ class TestPackageMetricsD:
             expected_outcome="class_2_escalation",
             audit_correlation_id="audit-d-001",
         )
-        store.complete_trial(trial.trial_id, observation)
+        # Observation payload is required for trial completion bookkeeping
+        # (route/class2 blocks) but Package D evaluates notification_payload.
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                       "unresolved_reason": "insufficient_context"},
+            "audit_correlation_id": "audit-d-001",
+            "generated_at_ms": 0,
+        }
+        store.complete_trial(
+            trial.trial_id, obs, notification_payload=notification_payload,
+        )
         return store, run
 
-    def _full_class2_observation(self):
+    def _valid_notification(self):
         return {
+            "event_summary": "Class 2 진입: insufficient_context",
+            "context_summary": "현재 환경 및 기기 상태 요약 없음",
+            "unresolved_reason": "insufficient_context",
+            "manual_confirmation_path": (
+                "보호자는 Telegram 또는 대시보드를 통해 상황을 검토하고 "
+                "수동 확인, 거부, 또는 개입 경로를 선택할 수 있습니다."
+            ),
             "audit_correlation_id": "audit-d-001",
-            "generated_at_ms": 1700000000000,
-            "route": {
-                "route_class": "CLASS_2",
-                "trigger_id": "C206",
-                "timestamp_ms": 1699999999999,
-            },
-            "validation": {"validation_status": "safe_deferral"},
-            "class2": {
-                "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
-                "should_notify_caregiver": True,
-                "unresolved_reason": "insufficient_context",
-                "timestamp_ms": 1700000000001,
-            },
+            "timestamp_ms": 1700000000000,
+            "notification_channel": "telegram",
+            "source_layer": "class2_clarification_manager",
         }
 
-    def test_complete_nested_observation_is_complete(self):
-        """A well-formed nested CLASS_2 telemetry snapshot scores 100% complete."""
+    def test_valid_notification_is_complete(self):
+        """A schema-valid notification payload scores 100% complete."""
         from experiment_package.trial_store import compute_metrics
-        store, run = self._make_class2_trial(self._full_class2_observation())
+        store, run = self._make_class2_trial(self._valid_notification())
         metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
         assert metrics["payload_completeness_rate"] == 1.0
         assert metrics["missing_field_rate"] == 0.0
+        assert metrics["schema_violation_count"] == 0
+        assert metrics["no_notification_count"] == 0
 
-    def test_flat_keys_alone_no_longer_score_complete(self):
-        """The pre-fix flat-key shape must NOT count as a complete CLASS_2 payload."""
+    def test_no_notification_counts_as_incomplete(self):
+        """Missing notification → trial counted as missing all required fields."""
         from experiment_package.trial_store import compute_metrics
-        store, run = self._make_class2_trial({
-            "route_class": "CLASS_2",
-            "validation_status": "safe_deferral",
-            "audit_correlation_id": "audit-d-001",
-            "snapshot_ts_ms": 1700000000000,
-            "ingest_timestamp_ms": 1699999999999,
-        })
+        store, run = self._make_class2_trial(None)
         metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
         assert metrics["payload_completeness_rate"] == 0.0
+        assert metrics["no_notification_count"] == 1
+        for f in ("event_summary", "context_summary", "unresolved_reason",
+                  "manual_confirmation_path"):
+            assert metrics["missing_by_field"][f] == 1
 
-    def test_missing_field_appears_in_breakdown(self):
-        """Missing class2.unresolved_reason is reported in missing_by_field."""
+    def test_missing_required_field_reported(self):
+        """Missing manual_confirmation_path is reported in missing_by_field."""
         from experiment_package.trial_store import compute_metrics
-        obs = self._full_class2_observation()
-        del obs["class2"]["unresolved_reason"]
-        store, run = self._make_class2_trial(obs)
+        notif = self._valid_notification()
+        del notif["manual_confirmation_path"]
+        store, run = self._make_class2_trial(notif)
         metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
-        assert metrics["missing_by_field"]["class2.unresolved_reason"] == 1
+        assert metrics["payload_completeness_rate"] == 0.0
+        assert metrics["missing_by_field"]["manual_confirmation_path"] == 1
+
+    def test_extra_property_violates_schema(self):
+        """additionalProperties:false on the schema is enforced via schema_violation_count."""
+        from experiment_package.trial_store import compute_metrics
+        notif = self._valid_notification()
+        notif["bogus_extra"] = "x"
+        store, run = self._make_class2_trial(notif)
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        # Required fields are present, so missing_field_rate stays 0.
+        # But the extra property breaks schema validation.
+        assert metrics["schema_violation_count"] == 1
         assert metrics["payload_completeness_rate"] == 0.0
 
 
@@ -1317,3 +1350,297 @@ class TestExperimentModePropagation:
         assert "template" in captured, "publish_once was not called"
         meta = captured["template"]["routing_metadata"]
         assert meta.get("experiment_mode") == "rule_only"
+
+
+# ==================================================================
+# PackageRunner — auto-drive selection input for CLASS_2 trials
+# ==================================================================
+
+class TestClass2SelectionAutoDrive:
+    """For CLASS_2 trials with expected_transition_target=CLASS_1/CLASS_0,
+    runner must publish a synthetic single_click/triple_hit so the trial
+    actually closes instead of waiting out the full caregiver timeout."""
+
+    def _make_setup(self, expected_target, observation_sequence):
+        """observation_sequence: list of dicts; find_by_correlation_id returns
+        the next one each call (advances the index)."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+
+        publishes: list[dict] = []
+
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {
+                "audit_correlation_id": "x",
+                "ingest_timestamp_ms": 0,
+                "network_status": "online",
+            },
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+
+        def _capture(_node):
+            publishes.append(dict(_node.profile.payload_template))
+        vnm.publish_once.side_effect = _capture
+
+        idx = {"i": 0}
+        def _find(corr_id):
+            i = idx["i"]
+            if i >= len(observation_sequence):
+                return observation_sequence[-1] if observation_sequence else None
+            obs = observation_sequence[i]
+            idx["i"] = i + 1
+            return obs
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.side_effect = _find
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store)
+        return runner, store, publishes
+
+    def _wait_done(self, store, trial_id, timeout=3.0):
+        import time
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial_id)
+            if t and t.status != "pending":
+                return t
+            time.sleep(0.05)
+        return store.get_trial(trial_id)
+
+    def test_class1_transition_drives_single_click(self):
+        """expected_transition_target=CLASS_1 → runner publishes a single_click."""
+        # First obs: initial CLASS_2 routing snapshot (no class2 block).
+        # Second obs: post-transition with class2+validation.
+        initial = {
+            "route": {"route_class": "CLASS_2"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+        post = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "approved"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 2,
+        }
+        runner, store, publishes = self._make_setup("CLASS_1", [initial, initial, post])
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="A",
+            node_id="n",
+            scenario_id="",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_transition_target_override="CLASS_1",
+        )
+        result = self._wait_done(store, trial.trial_id, timeout=5.0)
+        assert result.status == "completed"
+        # Two publishes: initial scenario context + auto-driven single_click
+        codes = [p["pure_context_payload"]["trigger_event"]["event_code"]
+                 for p in publishes if "pure_context_payload" in p
+                 and p["pure_context_payload"].get("trigger_event")]
+        assert "single_click" in codes
+
+    def test_class0_transition_drives_triple_hit(self):
+        """expected_transition_target=CLASS_0 → runner publishes a triple_hit."""
+        initial = {
+            "route": {"route_class": "CLASS_2"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+        post = {
+            "route": {"route_class": "CLASS_2"},
+            "escalation": {"escalation_status": "pending",
+                           "notification_channel": "telegram", "timestamp_ms": 2},
+            "class2": {"transition_target": "CLASS_0",
+                       "unresolved_reason": "insufficient_context"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 2,
+        }
+        runner, store, publishes = self._make_setup("CLASS_0", [initial, initial, post])
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="A",
+            node_id="n",
+            scenario_id="",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_transition_target_override="CLASS_0",
+        )
+        result = self._wait_done(store, trial.trial_id, timeout=5.0)
+        assert result.status == "completed"
+        codes = [p["pure_context_payload"]["trigger_event"]["event_code"]
+                 for p in publishes if "pure_context_payload" in p
+                 and p["pure_context_payload"].get("trigger_event")]
+        assert "triple_hit" in codes
+
+    def test_safe_deferral_does_not_drive_selection(self):
+        """SAFE_DEFERRAL trials must NOT auto-drive — they exercise the timeout/caregiver path."""
+        post = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                       "unresolved_reason": "timeout_or_no_response"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 2,
+        }
+        runner, store, publishes = self._make_setup(None, [post])
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="A",
+            node_id="n",
+            scenario_id="",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+        )
+        result = self._wait_done(store, trial.trial_id, timeout=5.0)
+        assert result.status == "completed"
+        # Only the initial scenario publish, no synthetic button press
+        codes = [p["pure_context_payload"]["trigger_event"]["event_code"]
+                 for p in publishes if "pure_context_payload" in p
+                 and p["pure_context_payload"].get("trigger_event")]
+        assert "single_click" not in codes
+        assert "triple_hit" not in codes
+
+
+# ==================================================================
+# TrialStore — requires_validator_reentry_when_class1 verdict
+# ==================================================================
+
+class TestRequiresValidatorReentry:
+    """When the scenario contract requires validator re-entry on CLASS_2→CLASS_1,
+    _is_pass must verify the post-transition observation carries validation evidence."""
+
+    def _make_trial(self, requires_reentry, observation):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="D",
+            scenario_id="s",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-rv-001",
+            expected_transition_target="CLASS_1",
+            requires_validator_reentry_when_class1=requires_reentry,
+        )
+        return store.complete_trial(trial.trial_id, observation)
+
+    def test_validator_reentry_required_passes_with_validation(self):
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "approved"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        result = self._make_trial(True, obs)
+        assert result.pass_ is True
+
+    def test_validator_reentry_required_fails_without_validation(self):
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        result = self._make_trial(True, obs)
+        assert result.pass_ is False
+
+    def test_validator_reentry_not_required_passes_without_validation(self):
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        result = self._make_trial(False, obs)
+        assert result.pass_ is True
+
+    def test_class0_requires_escalation_evidence(self):
+        """Even without the requires_validator_reentry flag, CLASS_0 transitions
+        require escalation evidence (Issue #4)."""
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-c0-001",
+            expected_transition_target="CLASS_0",
+        )
+        # CLASS_0 transition observed but escalation evidence missing → fail
+        no_escalation = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": "CLASS_0",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        store.complete_trial(trial.trial_id, no_escalation)
+        assert store.get_trial(trial.trial_id).pass_ is False
+
+        # Now with escalation block present → pass
+        trial2 = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-c0-002",
+            expected_transition_target="CLASS_0",
+        )
+        with_escalation = {
+            "route": {"route_class": "CLASS_2"},
+            "escalation": {"escalation_status": "pending",
+                           "notification_channel": "telegram", "timestamp_ms": 0},
+            "class2": {"transition_target": "CLASS_0",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        store.complete_trial(trial2.trial_id, with_escalation)
+        assert store.get_trial(trial2.trial_id).pass_ is True
+
+
+# ==================================================================
+# NotificationStore — basic ring-buffer behaviour
+# ==================================================================
+
+class TestNotificationStore:
+    def test_add_and_find(self):
+        from notification_store import NotificationStore
+        store = NotificationStore()
+        store.add({"audit_correlation_id": "a", "event_summary": "x"})
+        store.add({"audit_correlation_id": "b", "event_summary": "y"})
+        assert store.find_by_correlation_id("a")["event_summary"] == "x"
+        assert store.find_by_correlation_id("b")["event_summary"] == "y"
+        assert store.find_by_correlation_id("nonexistent") is None
+
+    def test_returns_most_recent_match(self):
+        from notification_store import NotificationStore
+        store = NotificationStore()
+        store.add({"audit_correlation_id": "a", "event_summary": "old"})
+        store.add({"audit_correlation_id": "a", "event_summary": "new"})
+        assert store.find_by_correlation_id("a")["event_summary"] == "new"
