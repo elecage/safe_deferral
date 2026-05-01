@@ -49,7 +49,7 @@ _TRIGGER_TO_REASON: dict[str, str] = {
     "C205": "actuation_ack_timeout",
     "C206": "insufficient_context",
     "C207": "timeout_or_no_response",
-    "C208": "visitor_context_sensitive_actuation_required",
+    "C208": "caregiver_required_sensitive_path",
     # internal label used when MM-05 escalates
     "deferral_timeout": "timeout_or_no_response",
 }
@@ -217,7 +217,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
     # C208: visitor/doorbell detected — doorlock-sensitive path.
     # Caregiver confirmation is the first option; lighting assistance is
     # intentionally excluded because doorlock is outside the Class 1 catalog.
-    "visitor_context_sensitive_actuation_required": [
+    "caregiver_required_sensitive_path": [
         {
             "candidate_id": "C2_CAREGIVER_HELP",
             "prompt": "보호자에게 방문자 확인을 요청할까요?",

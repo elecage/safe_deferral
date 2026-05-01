@@ -293,9 +293,9 @@ class TestClarificationRecord:
 # ------------------------------------------------------------------
 
 class TestC208VisitorContext:
-    def test_c208_reason_is_visitor_context(self, manager):
+    def test_c208_reason_is_caregiver_required_sensitive_path(self, manager):
         session = manager.start_session("C208", AUDIT_ID)
-        assert session.deferral_reason == "visitor_context_sensitive_actuation_required"
+        assert session.deferral_reason == "caregiver_required_sensitive_path"
 
     def test_c208_first_candidate_is_caregiver_not_lighting(self, manager):
         """C208 must NOT offer lighting assistance as first choice."""
@@ -318,9 +318,7 @@ class TestC208VisitorContext:
     def test_c208_record_unresolved_reason(self, manager):
         session = manager.start_session("C208", AUDIT_ID)
         result = manager.handle_timeout(session, trigger_id="C208")
-        assert result.clarification_record["unresolved_reason"] == (
-            "visitor_context_sensitive_actuation_required"
-        )
+        assert result.clarification_record["unresolved_reason"] == "caregiver_required_sensitive_path"
 
 
 # ------------------------------------------------------------------
@@ -388,3 +386,66 @@ class TestSelectionSourceNormalisation:
             result = manager.submit_selection(s2, c.candidate_id, src, trigger_id="C206")
             mapped = result.clarification_record["selection_result"]["selection_source"]
             assert mapped in _SCHEMA_ALLOWED_SOURCES, f"{src!r} → {mapped!r} not in schema enum"
+
+
+# ------------------------------------------------------------------
+# clarification_interaction_schema.json validation against actual records
+# ------------------------------------------------------------------
+
+class TestClarificationRecordSchemaCompliance:
+    """Validate that published clarification_records pass jsonschema validation."""
+
+    @pytest.fixture(scope="class")
+    def schema_and_resolver(self):
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("clarification_interaction_schema.json")
+        resolver = loader.make_schema_resolver()
+        return schema, resolver
+
+    def _validate(self, record, schema_and_resolver):
+        import jsonschema
+        schema, resolver = schema_and_resolver
+        validator = jsonschema.Draft7Validator(schema=schema, resolver=resolver)
+        errors = list(validator.iter_errors(record))
+        return errors
+
+    def test_timeout_record_passes_schema_for_every_trigger(self, manager, schema_and_resolver):
+        for trigger_id in ("C201", "C202", "C203", "C204", "C205", "C206", "C207", "C208"):
+            session = manager.start_session(trigger_id, AUDIT_ID)
+            result = manager.handle_timeout(session, trigger_id=trigger_id)
+            errors = self._validate(result.clarification_record, schema_and_resolver)
+            assert not errors, (
+                f"trigger={trigger_id} clarification_record failed schema: "
+                + "; ".join(e.message for e in errors)
+            )
+
+    def test_user_selection_record_passes_schema(self, manager, schema_and_resolver):
+        session = manager.start_session("C206", AUDIT_ID)
+        c1 = next(c for c in session.candidate_choices if c.candidate_transition_target == "CLASS_1")
+        result = manager.submit_selection(
+            session, c1.candidate_id, "user_mqtt_button", trigger_id="C206"
+        )
+        errors = self._validate(result.clarification_record, schema_and_resolver)
+        assert not errors, "; ".join(e.message for e in errors)
+
+    def test_caregiver_selection_record_passes_schema(self, manager, schema_and_resolver):
+        session = manager.start_session("C208", AUDIT_ID)
+        cg = next(c for c in session.candidate_choices
+                  if c.candidate_transition_target == "CAREGIVER_CONFIRMATION")
+        result = manager.submit_selection(
+            session, cg.candidate_id, "caregiver_telegram_inline_keyboard", trigger_id="C208"
+        )
+        errors = self._validate(result.clarification_record, schema_and_resolver)
+        assert not errors, "; ".join(e.message for e in errors)
+
+    def test_c208_unresolved_reason_in_schema_enum(self, manager, schema_and_resolver):
+        """Regression: visitor_context_sensitive_actuation_required must NOT appear."""
+        session = manager.start_session("C208", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="C208")
+        reason = result.clarification_record["unresolved_reason"]
+        assert reason != "visitor_context_sensitive_actuation_required", (
+            "C208 must map to caregiver_required_sensitive_path, not the policy-layer string"
+        )
+        errors = self._validate(result.clarification_record, schema_and_resolver)
+        assert not errors, "; ".join(e.message for e in errors)
