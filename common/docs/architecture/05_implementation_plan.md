@@ -132,9 +132,22 @@ That document captures the design discussion (2026-05-01), the safety
 boundary reconciliation, the bounded-variability constraints, and a phased
 implementation plan (Phase 0 doc → Phase 1 LLM adapter API → Phase 2
 manager hook → Phase 3 policy block → Phase 4 TTS auto-pickup → Phase 5
-evaluation metrics → Phase 6 deferred multi-turn). Read it before touching
-`mac_mini/code/class2_clarification_manager/manager.py` or
-`mac_mini/code/local_llm_adapter/adapter.py`.
+evaluation metrics → Phase 6 deferred multi-turn).
+
+**Integration alignment plan (after Phases 1-5 landed):**
+`common/docs/architecture/10_llm_class2_integration_alignment_plan.md`
+
+After PR #87 (Phase 1+2), PR #88 (Phase 3), and PR #89 (Phase 5) merged,
+a follow-up review identified operational timing risks (LLM call blocking
+the MQTT message-handler thread; `OllamaClient` 60 s timeout vs Class 2
+30 s user window; runner auto-drive delay not accounting for LLM
+latency), documentation drift across active architecture / MQTT / asset
+manifest docs, and scenario fixture assumptions that pre-date LLM-generated
+candidate text. Doc 10 organises those findings into P0 / P1 / P2 tiers
+with a recommended PR sequence (B = P0 safety fixes, C = P1 doc alignment,
+D-F = P2 evaluation refinements). Read it before touching the LLM Class 2
+runtime path or the experiment fixture format. **The P0 tier is a real
+safety regression and should land before any further LLM-side work.**
 
 ### 6.2 Smaller / supporting items
 
