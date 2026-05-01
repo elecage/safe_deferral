@@ -15,7 +15,23 @@
     "max_context_integrity_safe_deferral_attempts": 2,
     "class2_clarification_timeout_ms": 30000,
     "class2_max_clarification_attempts": 2,
-    "class2_max_candidate_options": 4
+    "class2_max_candidate_options": 4,
+    "class2_conversational_prompt_constraints": {
+      "_description": "Bounded-variability constraints applied to LLM-generated Class 2 clarification candidate prompts (09_llm_driven_class2_candidate_generation_plan.md §5). Operations may tighten these without code changes; LocalLlmAdapter loads them at startup and rejects LLM output that violates any constraint, falling back to the static _DEFAULT_CANDIDATES table on rejection. The accessibility intent is to keep TTS prompts predictable for users with cognitive / attention limits.",
+      "max_prompt_length_chars": 80,
+      "prompt_must_be_question": true,
+      "must_include_target_action_in_prompt": false,
+      "vocabulary_tier": "plain_korean",
+      "forbidden_phrasings": [
+        "unlock",
+        "doorlock",
+        "open the door",
+        "도어락",
+        "잠금 해제",
+        "emergency dispatch",
+        "긴급 출동"
+      ]
+    }
   },
   "routing_policies": {
     "class_0_emergency": {

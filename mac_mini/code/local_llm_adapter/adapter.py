@@ -46,14 +46,17 @@ _SAFE_DEFERRAL_FALLBACK = {
     "deferral_reason": "insufficient_context",
 }
 
-# Bounded-variability constraints for Class 2 candidate prompts. These match
-# 09_llm_driven_class2_candidate_generation_plan.md §5. Phase 3 of that plan
-# will move them into policy_table.json under
-# class2_conversational_prompt_constraints; until then they live here as
-# adapter-level defaults so Phase 1+2 can land independently.
-_CLASS2_PROMPT_CONSTRAINTS: dict = {
+# Bounded-variability constraints for Class 2 candidate prompts.
+# (09_llm_driven_class2_candidate_generation_plan.md §5.)
+#
+# Authoritative source: policy_table.json
+#   global_constraints.class2_conversational_prompt_constraints
+# loaded at LocalLlmAdapter.__init__. The literal below is the safe fallback
+# used only when the policy block is missing (e.g. older policy_table that
+# pre-dates Phase 3) so the adapter is never blocked by a missing policy
+# entry. Operations should adjust the policy block, not this fallback.
+_CLASS2_PROMPT_CONSTRAINTS_FALLBACK: dict = {
     "max_prompt_length_chars": 80,
-    "max_candidate_count": 4,
     "prompt_must_be_question": True,
     "must_include_target_action_in_prompt": False,
     "vocabulary_tier": "plain_korean",
@@ -109,6 +112,29 @@ class LocalLlmAdapter:
             if action:
                 self._allowed_actions.add(action)
                 self._allowed_targets_by_action[action] = set(entry.get("allowed_targets", []))
+        # Phase 3: load bounded-variability constraints from
+        # policy_table.json::global_constraints.class2_conversational_prompt_constraints.
+        # Falls back to the module default when the block is missing so older
+        # policy versions remain usable.
+        try:
+            policy = loader.load_policy_table()
+        except Exception:
+            policy = {}
+        gc = (policy.get("global_constraints") or {})
+        policy_constraints = gc.get("class2_conversational_prompt_constraints") or {}
+        # Strip the optional self-documenting "_description" key before applying.
+        policy_constraints = {
+            k: v for k, v in policy_constraints.items() if not k.startswith("_")
+        }
+        merged_constraints: dict = dict(_CLASS2_PROMPT_CONSTRAINTS_FALLBACK)
+        merged_constraints.update(policy_constraints)
+        # max_candidate_count is sourced from the existing
+        # class2_max_candidate_options policy field — keep a single source of
+        # truth so the manager's cap and the adapter's cap cannot drift.
+        merged_constraints.setdefault(
+            "max_candidate_count", gc.get("class2_max_candidate_options", 4),
+        )
+        self._class2_prompt_constraints: dict = merged_constraints
 
     # ------------------------------------------------------------------
     # Public API
@@ -184,11 +210,11 @@ class LocalLlmAdapter:
         is expected to fall back to its static _DEFAULT_CANDIDATES table in
         that case.
         """
-        constraints = dict(_CLASS2_PROMPT_CONSTRAINTS)
-        # Honour the manager's max_candidates cap if it is tighter than the
-        # constraint default.
+        # Snapshot the policy-loaded constraints; honour the manager's
+        # per-call max_candidates cap if it is tighter than the policy value.
+        constraints = dict(self._class2_prompt_constraints)
         constraints["max_candidate_count"] = min(
-            max_candidates, constraints["max_candidate_count"]
+            max_candidates, constraints.get("max_candidate_count", 4),
         )
 
         event_code = (
