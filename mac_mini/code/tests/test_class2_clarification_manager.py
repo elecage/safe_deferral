@@ -286,3 +286,105 @@ class TestClarificationRecord:
         assert lb["final_decision_allowed"] is False
         assert lb["actuation_authority_allowed"] is False
         assert lb["emergency_trigger_authority_allowed"] is False
+
+
+# ------------------------------------------------------------------
+# C208 — visitor/doorlock-sensitive path
+# ------------------------------------------------------------------
+
+class TestC208VisitorContext:
+    def test_c208_reason_is_visitor_context(self, manager):
+        session = manager.start_session("C208", AUDIT_ID)
+        assert session.deferral_reason == "visitor_context_sensitive_actuation_required"
+
+    def test_c208_first_candidate_is_caregiver_not_lighting(self, manager):
+        """C208 must NOT offer lighting assistance as first choice."""
+        session = manager.start_session("C208", AUDIT_ID)
+        first = session.candidate_choices[0]
+        assert first.candidate_transition_target == "CAREGIVER_CONFIRMATION"
+        assert "C1_LIGHTING" not in first.candidate_id
+
+    def test_c208_candidate_set_has_no_lighting_action(self, manager):
+        session = manager.start_session("C208", AUDIT_ID)
+        lighting_ids = [c for c in session.candidate_choices if c.action_hint == "light_on"]
+        assert lighting_ids == []
+
+    def test_c208_summary_mentions_doorlock_sensitive_path(self, manager):
+        session = manager.start_session("C208", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="C208")
+        summary = result.notification_payload["event_summary"]
+        assert "C208" not in summary or "도어락" in summary or "방문자" in summary
+
+    def test_c208_record_unresolved_reason(self, manager):
+        session = manager.start_session("C208", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="C208")
+        assert result.clarification_record["unresolved_reason"] == (
+            "visitor_context_sensitive_actuation_required"
+        )
+
+
+# ------------------------------------------------------------------
+# selection_source normalisation to schema enum
+# ------------------------------------------------------------------
+
+_SCHEMA_ALLOWED_SOURCES = {
+    "bounded_input_node", "voice_input", "caregiver_confirmation",
+    "deterministic_emergency_evidence", "timeout_or_no_response", "none",
+}
+
+
+class TestSelectionSourceNormalisation:
+    def _first_c1_candidate(self, session):
+        return next(
+            c for c in session.candidate_choices
+            if c.candidate_transition_target == "CLASS_1"
+        )
+
+    def test_user_mqtt_button_maps_to_bounded_input_node(self, manager):
+        session = manager.start_session("C206", AUDIT_ID)
+        c = self._first_c1_candidate(session)
+        result = manager.submit_selection(session, c.candidate_id, "user_mqtt_button", trigger_id="C206")
+        src = result.clarification_record["selection_result"]["selection_source"]
+        assert src == "bounded_input_node"
+        assert src in _SCHEMA_ALLOWED_SOURCES
+
+    def test_user_mqtt_button_late_maps_to_bounded_input_node(self, manager):
+        session = manager.start_session("C206", AUDIT_ID)
+        c = self._first_c1_candidate(session)
+        result = manager.submit_selection(session, c.candidate_id, "user_mqtt_button_late", trigger_id="C206")
+        src = result.clarification_record["selection_result"]["selection_source"]
+        assert src == "bounded_input_node"
+        assert src in _SCHEMA_ALLOWED_SOURCES
+
+    def test_caregiver_telegram_maps_to_caregiver_confirmation(self, manager):
+        session = manager.start_session("C206", AUDIT_ID)
+        c = self._first_c1_candidate(session)
+        result = manager.submit_selection(
+            session, c.candidate_id, "caregiver_telegram_inline_keyboard", trigger_id="C206"
+        )
+        src = result.clarification_record["selection_result"]["selection_source"]
+        assert src == "caregiver_confirmation"
+        assert src in _SCHEMA_ALLOWED_SOURCES
+
+    def test_timeout_source_passes_through_unchanged(self, manager):
+        session = manager.start_session("C206", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="C206")
+        src = result.clarification_record["selection_result"]["selection_source"]
+        assert src == "timeout_or_no_response"
+        assert src in _SCHEMA_ALLOWED_SOURCES
+
+    def test_all_runtime_sources_normalise_to_schema_enum(self, manager):
+        """All source strings that main.py passes must produce schema-allowed values."""
+        runtime_sources = [
+            "user_mqtt_button",
+            "user_mqtt_button_late",
+            "caregiver_telegram_inline_keyboard",
+            "timeout_or_no_response",
+        ]
+        session = manager.start_session("C206", AUDIT_ID)
+        c = self._first_c1_candidate(session)
+        for src in runtime_sources:
+            s2 = manager.start_session("C206", AUDIT_ID)
+            result = manager.submit_selection(s2, c.candidate_id, src, trigger_id="C206")
+            mapped = result.clarification_record["selection_result"]["selection_source"]
+            assert mapped in _SCHEMA_ALLOWED_SOURCES, f"{src!r} → {mapped!r} not in schema enum"

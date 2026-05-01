@@ -559,14 +559,14 @@ class TestPublishLlmCandidate:
         assert len(pub.calls) == 1
         assert pub.calls[0]["topic"] == "safe_deferral/llm/candidate_action"
 
-    def test_payload_has_required_fields(self):
+    def test_payload_only_schema_fields(self):
+        """candidate_action_schema.json has additionalProperties=false — no extra fields."""
         pub = _RecordingPublisher()
         adapter = TelemetryAdapter(mqtt_publisher=pub)
         adapter.publish_llm_candidate(_llm_result())
         p = pub.calls[0]["payload"]
-        for key in ("audit_correlation_id", "proposed_action", "target_device",
-                    "model_id", "is_fallback", "llm_boundary", "timestamp_ms"):
-            assert key in p, f"missing: {key}"
+        allowed = {"proposed_action", "target_device", "rationale_summary", "deferral_reason"}
+        assert set(p.keys()) <= allowed, f"unexpected keys: {set(p.keys()) - allowed}"
 
     def test_payload_action_and_target(self):
         pub = _RecordingPublisher()
@@ -575,21 +575,33 @@ class TestPublishLlmCandidate:
         p = pub.calls[0]["payload"]
         assert p["proposed_action"] == "light_on"
         assert p["target_device"] == "living_room_light"
-        assert p["audit_correlation_id"] == AUDIT_ID
 
-    def test_fallback_flag_preserved(self):
-        pub = _RecordingPublisher()
-        adapter = TelemetryAdapter(mqtt_publisher=pub)
-        adapter.publish_llm_candidate(_llm_result(fallback=True))
-        assert pub.calls[0]["payload"]["is_fallback"] is True
-
-    def test_llm_boundary_present(self):
+    def test_no_audit_id_or_model_id_in_payload(self):
+        """Runtime metadata must not appear in the schema-governed candidate payload."""
         pub = _RecordingPublisher()
         adapter = TelemetryAdapter(mqtt_publisher=pub)
         adapter.publish_llm_candidate(_llm_result())
-        boundary = pub.calls[0]["payload"]["llm_boundary"]
-        assert boundary.get("final_decision_allowed") is False
-        assert boundary.get("actuation_authority_allowed") is False
+        p = pub.calls[0]["payload"]
+        assert "audit_correlation_id" not in p
+        assert "model_id" not in p
+        assert "is_fallback" not in p
+        assert "llm_boundary" not in p
+
+    def test_safe_deferral_candidate_includes_deferral_reason(self):
+        """Fallback candidate may include deferral_reason (schema-allowed optional field)."""
+        fallback = LLMCandidateResult(
+            candidate={"proposed_action": "safe_deferral", "target_device": "none",
+                       "deferral_reason": "insufficient_context"},
+            is_fallback=True,
+            audit_correlation_id=AUDIT_ID,
+            llm_raw_response=None,
+            model_id="mock",
+        )
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_llm_candidate(fallback)
+        p = pub.calls[0]["payload"]
+        assert p["deferral_reason"] == "insufficient_context"
 
 
 class TestPublishValidatorOutput:
@@ -600,14 +612,15 @@ class TestPublishValidatorOutput:
         assert len(pub.calls) == 1
         assert pub.calls[0]["topic"] == "safe_deferral/validator/output"
 
-    def test_payload_has_required_fields(self):
+    def test_payload_only_schema_fields(self):
+        """validator_output_schema.json has additionalProperties=false — no extra fields."""
         pub = _RecordingPublisher()
         adapter = TelemetryAdapter(mqtt_publisher=pub)
         adapter.publish_validator_output(_validator_result())
         p = pub.calls[0]["payload"]
-        for key in ("audit_correlation_id", "timestamp_ms", "validation_status",
-                    "routing_target", "exception_trigger_id"):
-            assert key in p, f"missing: {key}"
+        allowed = {"validation_status", "routing_target", "exception_trigger_id",
+                   "executable_payload", "deferral_reason"}
+        assert set(p.keys()) <= allowed, f"unexpected keys: {set(p.keys()) - allowed}"
 
     def test_approved_status_in_payload(self):
         pub = _RecordingPublisher()
@@ -615,7 +628,15 @@ class TestPublishValidatorOutput:
         adapter.publish_validator_output(_validator_result(ValidationStatus.APPROVED))
         p = pub.calls[0]["payload"]
         assert p["validation_status"] == "approved"
-        assert p["audit_correlation_id"] == AUDIT_ID
+
+    def test_no_audit_id_or_timestamp_in_payload(self):
+        """Runtime metadata must not appear in the schema-governed validator payload."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_validator_output(_validator_result(ValidationStatus.APPROVED))
+        p = pub.calls[0]["payload"]
+        assert "audit_correlation_id" not in p
+        assert "timestamp_ms" not in p
 
     def test_safe_deferral_status_in_payload(self):
         pub = _RecordingPublisher()

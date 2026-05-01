@@ -142,26 +142,23 @@ class TelemetryAdapter:
     # ------------------------------------------------------------------
 
     def publish_llm_candidate(self, llm_result) -> None:
-        """Publish LLM candidate output to safe_deferral/llm/candidate_action."""
-        payload = {
-            "audit_correlation_id": llm_result.audit_correlation_id,
-            "proposed_action": llm_result.proposed_action,
-            "target_device": llm_result.target_device,
-            "model_id": llm_result.model_id,
-            "is_fallback": llm_result.is_fallback,
-            "llm_boundary": llm_result.llm_boundary,
-            "timestamp_ms": int(time.time() * 1000),
-        }
-        self._publisher.publish(self._llm_topic, payload, qos=1)
+        """Publish LLM candidate output to safe_deferral/llm/candidate_action.
+
+        Publishes only the candidate dict (validated against candidate_action_schema.json
+        by LocalLlmAdapter).  Extra runtime fields (audit_id, model_id, is_fallback,
+        llm_boundary) are not published because candidate_action_schema.json has
+        additionalProperties=false.
+        """
+        self._publisher.publish(self._llm_topic, llm_result.candidate, qos=1)
 
     def publish_validator_output(self, val_result) -> None:
-        """Publish validator decision to safe_deferral/validator/output."""
-        payload = {
-            "audit_correlation_id": val_result.audit_correlation_id,
-            "timestamp_ms": int(time.time() * 1000),
-            **val_result.to_dict(),
-        }
-        self._publisher.publish(self._validator_topic, payload, qos=1)
+        """Publish validator decision to safe_deferral/validator/output.
+
+        Publishes only val_result.to_dict() (validator_output_schema.json fields).
+        audit_correlation_id and timestamp_ms are omitted because
+        validator_output_schema.json has additionalProperties=false.
+        """
+        self._publisher.publish(self._validator_topic, val_result.to_dict(), qos=1)
 
     # ------------------------------------------------------------------
     # Snapshot / publish

@@ -49,6 +49,7 @@ _TRIGGER_TO_REASON: dict[str, str] = {
     "C205": "actuation_ack_timeout",
     "C206": "insufficient_context",
     "C207": "timeout_or_no_response",
+    "C208": "visitor_context_sensitive_actuation_required",
     # internal label used when MM-05 escalates
     "deferral_timeout": "timeout_or_no_response",
 }
@@ -62,6 +63,7 @@ _TRIGGER_SUMMARY: dict[str, str] = {
     "C205": "액추에이터 ACK 타임아웃으로 Class 2 진입",
     "C206": "의도 해석 불충분으로 Class 2 진입",
     "C207": "사용자 선택 타임아웃 또는 무응답으로 Class 2 진입",
+    "C208": "방문자 감지 — 도어락 민감 경로로 Class 2 진입",
     "deferral_timeout": "안전 유예 핸들러 타임아웃으로 Class 2 진입",
 }
 
@@ -201,6 +203,32 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_id": "C2_CAREGIVER_HELP",
             "prompt": "보호자에게 연락할까요?",
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
+            "action_hint": None,
+            "target_hint": None,
+        },
+        {
+            "candidate_id": "C4_CANCEL_OR_WAIT",
+            "prompt": "취소하고 대기할까요?",
+            "candidate_transition_target": "SAFE_DEFERRAL",
+            "action_hint": None,
+            "target_hint": None,
+        },
+    ],
+    # C208: visitor/doorbell detected — doorlock-sensitive path.
+    # Caregiver confirmation is the first option; lighting assistance is
+    # intentionally excluded because doorlock is outside the Class 1 catalog.
+    "visitor_context_sensitive_actuation_required": [
+        {
+            "candidate_id": "C2_CAREGIVER_HELP",
+            "prompt": "보호자에게 방문자 확인을 요청할까요?",
+            "candidate_transition_target": "CAREGIVER_CONFIRMATION",
+            "action_hint": None,
+            "target_hint": None,
+        },
+        {
+            "candidate_id": "C3_EMERGENCY_HELP",
+            "prompt": "긴급상황인가요?",
+            "candidate_transition_target": "CLASS_0",
             "action_hint": None,
             "target_hint": None,
         },
@@ -388,6 +416,14 @@ class Class2ClarificationManager:
             notification_payload=notification,
         )
 
+    # Maps runtime selection_source values to the enum allowed by
+    # clarification_interaction_schema.json selection_result.selection_source.
+    _SELECTION_SOURCE_MAP: dict[str, str] = {
+        "user_mqtt_button": "bounded_input_node",
+        "user_mqtt_button_late": "bounded_input_node",
+        "caregiver_telegram_inline_keyboard": "caregiver_confirmation",
+    }
+
     def _build_record(
         self,
         session: ClarificationSession,
@@ -395,6 +431,12 @@ class Class2ClarificationManager:
         transition_target: str,
         timeout_result: str,
     ) -> dict:
+        # Normalise selection_source to the schema enum before storing.
+        normalised_selection = dict(selection_result)
+        raw_source = normalised_selection.get("selection_source", "none")
+        normalised_selection["selection_source"] = self._SELECTION_SOURCE_MAP.get(
+            raw_source, raw_source
+        )
         return {
             "clarification_id": session.clarification_id,
             "audit_correlation_id": session.audit_correlation_id,
@@ -402,7 +444,7 @@ class Class2ClarificationManager:
             "unresolved_reason": session.deferral_reason,
             "candidate_choices": [c.to_schema_dict() for c in session.candidate_choices],
             "presentation_channel": session.presentation_channel,
-            "selection_result": selection_result,
+            "selection_result": normalised_selection,
             "transition_target": transition_target,
             "timeout_result": timeout_result,
             "llm_boundary": _LLM_BOUNDARY_CONST,
