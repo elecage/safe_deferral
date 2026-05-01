@@ -42,6 +42,14 @@ _LLM_BOUNDARY_CONST = {
     "emergency_trigger_authority_allowed": False,
 }
 
+# Canonical Class 2 trigger IDs accepted by class2_notification_payload_schema's
+# exception_trigger_id enum. Anything else (e.g. "deferral_timeout",
+# "EMERGENCY_BUTTON") must be omitted from the payload entirely — leaving the
+# field as None fails schema validation because the schema declares type=string.
+_CANONICAL_C2_TRIGGER_IDS: frozenset[str] = frozenset(
+    ("C201", "C202", "C203", "C204", "C205", "C206", "C207", "C208")
+)
+
 # Canonical Class 2 trigger ID → unresolved_reason
 _TRIGGER_TO_REASON: dict[str, str] = {
     "C201": "insufficient_context",
@@ -463,9 +471,14 @@ class Class2ClarificationManager:
         trigger_id: str,
         context_summary: str,
     ) -> dict:
-        """Build a class2_notification_payload_schema.json-compliant dict."""
+        """Build a class2_notification_payload_schema.json-compliant dict.
+
+        exception_trigger_id is included only when trigger_id is in the canonical
+        enum; otherwise the field is omitted entirely so jsonschema validation
+        does not reject the payload (the field is type=string in the schema).
+        """
         event_summary = _TRIGGER_SUMMARY.get(trigger_id, "Class 2 clarification/escalation")
-        return {
+        payload = {
             "event_summary": event_summary,
             "context_summary": context_summary or "현재 환경 및 기기 상태 요약 없음",
             "unresolved_reason": session.deferral_reason,
@@ -477,7 +490,7 @@ class Class2ClarificationManager:
             "timestamp_ms": int(time.time() * 1000),
             "notification_channel": "telegram",
             "source_layer": "class2_clarification_manager",
-            "exception_trigger_id": trigger_id if trigger_id in (
-                "C201", "C202", "C203", "C204", "C205", "C206", "C207"
-            ) else None,
         }
+        if trigger_id in _CANONICAL_C2_TRIGGER_IDS:
+            payload["exception_trigger_id"] = trigger_id
+        return payload

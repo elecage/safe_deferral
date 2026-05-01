@@ -994,6 +994,11 @@ def _rule_only_candidate(ctx: dict) -> dict:
     }
 
 
+_CANONICAL_C2_TRIGGER_IDS: frozenset[str] = frozenset(
+    ("C201", "C202", "C203", "C204", "C205", "C206", "C207", "C208")
+)
+
+
 def _build_notification(
     event_summary: str,
     context_summary: str,
@@ -1011,7 +1016,10 @@ def _build_notification(
         "notification_channel": "telegram",
         "source_layer": "system",
     }
-    if exception_trigger_id is not None:
+    # Only canonical Class 2 trigger IDs survive into the payload — anything
+    # else (e.g. "EMERGENCY_BUTTON", "deferral_timeout", or None) is omitted so
+    # class2_notification_payload_schema validation does not reject the publish.
+    if exception_trigger_id in _CANONICAL_C2_TRIGGER_IDS:
         payload["exception_trigger_id"] = exception_trigger_id
     return payload
 

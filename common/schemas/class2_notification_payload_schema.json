@@ -72,9 +72,10 @@
         "C204",
         "C205",
         "C206",
-        "C207"
+        "C207",
+        "C208"
       ],
-      "description": "Canonical Class 2 trigger identifier. C206 and C207 support Class 2 clarification/transition semantics introduced in policy v1.2.0."
+      "description": "Canonical Class 2 trigger identifier. C206 and C207 support Class 2 clarification/transition semantics introduced in policy v1.2.0. C208 covers visitor/doorbell-detected doorlock-sensitive paths added in the C208 routing addendum."
     }
   },
   "required": [

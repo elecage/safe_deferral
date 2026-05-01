@@ -17,13 +17,24 @@ from typing import Optional
 
 from experiment_package.definitions import PackageId, PACKAGES
 from experiment_package.fault_profiles import FAULT_PROFILES, FaultProfile
-from experiment_package.trial_store import TrialResult, TrialStore
+from experiment_package.trial_store import (
+    TrialResult,
+    TrialStore,
+    _expected_transition_targets,
+)
 from shared.asset_loader import RpiAssetLoader
 
 # Default sleep between scenario context publish and the simulated user/emergency
 # selection that drives a CLASS_2 trial to its expected transition. Gives the
 # pipeline time to enter the CLASS_2 clarification session and register a waiter.
 _CLASS2_SELECTION_DRIVE_DELAY_S = 0.5
+
+# How long to keep polling the NotificationStore after the observation has
+# already arrived. The Mac mini timeout/caregiver-fallback path emits the
+# dashboard observation BEFORE the caregiver notification, so the runner must
+# tolerate notification-after-observation races (Issue #4 of 2026-05-01
+# CLASS2 transition closure session).
+_POST_OBS_NOTIFICATION_GRACE_S = 2.0
 
 log = logging.getLogger(__name__)
 
@@ -260,9 +271,7 @@ class PackageRunner:
                 correlation_id, trial_timeout, trial=trial, node=node,
             )
 
-            notification = None
-            if self._notif is not None:
-                notification = self._notif.find_by_correlation_id(correlation_id)
+            notification = self._await_notification(correlation_id, observation)
 
             if observation is None:
                 log.warning(
@@ -334,6 +343,37 @@ class PackageRunner:
             )
         except Exception as exc:
             log.warning("Contract drift publish failed: %s", exc)
+
+    def _await_notification(
+        self,
+        correlation_id: str,
+        observation: Optional[dict],
+    ) -> Optional[dict]:
+        """Look up the matching notification, briefly waiting for late arrivals.
+
+        The Mac mini timeout/caregiver-fallback path emits the dashboard
+        observation BEFORE the caregiver notification, so a single store lookup
+        immediately after observation match would race and miss the notification
+        even when one was published.  Polls the NotificationStore for up to
+        _POST_OBS_NOTIFICATION_GRACE_S; returns None if no notification arrived.
+        """
+        if self._notif is None:
+            return None
+        # Fast path: notification may already be present.
+        notif = self._notif.find_by_correlation_id(correlation_id)
+        if notif is not None:
+            return notif
+        # If we have no observation we already know the trial timed out — no
+        # point polling for a notification that almost certainly will not arrive.
+        if observation is None:
+            return None
+        deadline = time.monotonic() + _POST_OBS_NOTIFICATION_GRACE_S
+        while time.monotonic() < deadline:
+            time.sleep(_POLL_INTERVAL_S)
+            notif = self._notif.find_by_correlation_id(correlation_id)
+            if notif is not None:
+                return notif
+        return None
 
     def _simulate_class2_button(
         self,
@@ -417,23 +457,22 @@ class PackageRunner:
         deadline = time.monotonic() + timeout_s
         best_match = None
         drive_target: Optional[str] = None
+        accepted_targets: Optional[set[str]] = None
         if trial is not None and trial.expected_route_class == "CLASS_2":
-            tt = trial.expected_transition_target
-            if tt == "CLASS_1":
+            accepted_targets = _expected_transition_targets(trial.expected_transition_target)
+            # Auto-drive only when the scenario uniquely expects CLASS_1 or CLASS_0;
+            # compound expectations (e.g. CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_*)
+            # exercise the natural timeout/caregiver path and must NOT be driven.
+            if accepted_targets == {"CLASS_1"}:
                 drive_target = "single_click"
-            elif tt == "CLASS_0":
+            elif accepted_targets == {"CLASS_0"}:
                 drive_target = "triple_hit"
         drive_done = drive_target is None  # if no drive target, treat as already done
-        require_validation = (
-            trial is not None
-            and trial.expected_route_class == "CLASS_2"
-            and trial.expected_transition_target == "CLASS_1"
-        )
-        require_escalation = (
-            trial is not None
-            and trial.expected_route_class == "CLASS_2"
-            and trial.expected_transition_target == "CLASS_0"
-        )
+        # Final-snapshot completion criteria (mirrors _is_pass):
+        # require validation evidence when the only accepted target is CLASS_1,
+        # require escalation evidence when the only accepted target is CLASS_0.
+        require_validation = accepted_targets == {"CLASS_1"}
+        require_escalation = accepted_targets == {"CLASS_0"}
 
         while time.monotonic() < deadline:
             obs = self._obs.find_by_correlation_id(correlation_id)

@@ -299,6 +299,54 @@ class TestExecuteClass2Transition:
 
 
 # ---------------------------------------------------------------------------
+# main._build_notification — exception_trigger_id schema gating (Issue #1)
+# ---------------------------------------------------------------------------
+
+class TestBuildNotificationTriggerGating:
+    """main._build_notification must include exception_trigger_id only when the
+    value matches the canonical class2_notification_payload_schema enum."""
+
+    def test_canonical_c208_is_included(self):
+        import main
+        n = main._build_notification(
+            event_summary="x", context_summary="x",
+            unresolved_reason="caregiver_required_sensitive_path",
+            audit_id="a", exception_trigger_id="C208",
+        )
+        assert n["exception_trigger_id"] == "C208"
+
+    def test_non_canonical_trigger_is_omitted(self):
+        import main
+        n = main._build_notification(
+            event_summary="x", context_summary="x",
+            unresolved_reason="emergency_event", audit_id="a",
+            exception_trigger_id="EMERGENCY_BUTTON",
+        )
+        assert "exception_trigger_id" not in n
+
+    def test_none_trigger_is_omitted(self):
+        import main
+        n = main._build_notification(
+            event_summary="x", context_summary="x",
+            unresolved_reason="emergency_event", audit_id="a",
+        )
+        assert "exception_trigger_id" not in n
+
+    def test_payload_validates_against_schema_for_c208(self):
+        """The full payload with C208 must pass class2_notification_payload_schema."""
+        import jsonschema
+        import main
+        from shared.asset_loader import AssetLoader
+        schema = AssetLoader().load_schema("class2_notification_payload_schema.json")
+        n = main._build_notification(
+            event_summary="긴급 상황 확인", context_summary="x",
+            unresolved_reason="caregiver_required_sensitive_path",
+            audit_id="a", exception_trigger_id="C208",
+        )
+        jsonschema.validate(n, schema)
+
+
+# ---------------------------------------------------------------------------
 # Post-transition outcome publish (Issues #2, #4)
 # ---------------------------------------------------------------------------
 

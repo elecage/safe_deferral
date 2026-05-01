@@ -266,6 +266,43 @@ _EMERGENCY_PROFILES = {
 
 _SAFE_OUTCOMES = {"safe_deferral", "class_2_escalation"}
 
+# Canonical TransitionTarget values the runtime emits in
+# observation.class2.transition_target.
+_CANONICAL_TRANSITION_TARGETS: frozenset[str] = frozenset((
+    "CLASS_1",
+    "CLASS_0",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+))
+
+# Aliases used in scenario expectation blocks that the runtime canonicalizes.
+# Resolves to a canonical value before comparison.
+_TRANSITION_TARGET_ALIASES: dict[str, str] = {
+    "CAREGIVER_CONFIRMATION": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+    "SAFE_DEFERRAL": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+}
+
+
+def _expected_transition_targets(expected: Optional[str]) -> Optional[set[str]]:
+    """Parse expected_transition_target into a set of acceptable canonical values.
+
+    Scenarios may declare:
+      - a single canonical value ("CLASS_1")
+      - an alias ("CAREGIVER_CONFIRMATION") that resolves to a canonical value
+      - a compound value ("CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION")
+        joined by ``_OR_`` whose parts are canonicalized individually.
+
+    Returns None when no expectation is set (verdict skips the target check),
+    else a non-empty set of canonical TransitionTarget strings.
+    """
+    if expected is None:
+        return None
+    parts = expected.split("_OR_") if "_OR_" in expected else [expected]
+    canon: set[str] = set()
+    for raw in parts:
+        token = raw.strip()
+        canon.add(_TRANSITION_TARGET_ALIASES.get(token, token))
+    return canon or None
+
 
 def _is_pass(trial: TrialResult) -> bool:
     """Compute pass/fail for a completed trial.
@@ -309,20 +346,28 @@ def _is_pass(trial: TrialResult) -> bool:
         class2_tel = obs_payload.get("class2") or {}
         if not class2_tel:
             return False
-        # If scenario specifies an expected transition target, verify it matches
+        # If scenario specifies an expected transition target, verify it matches.
+        # Compound expectations like
+        # ``CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION`` and
+        # aliases like ``CAREGIVER_CONFIRMATION`` are canonicalized to the
+        # runtime's TransitionTarget enum values.
         observed_target = class2_tel.get("transition_target")
-        if trial.expected_transition_target is not None:
-            if observed_target != trial.expected_transition_target:
-                return False
+        accepted = _expected_transition_targets(trial.expected_transition_target)
+        if accepted is not None and observed_target not in accepted:
+            return False
 
-        if trial.expected_transition_target == "CLASS_1":
-            # CLASS_2 → CLASS_1 transition: require Validator re-entry evidence
-            # when the scenario contract demands it (post-transition snapshot
-            # carries the validation block).
+        if observed_target == "CLASS_1":
+            # CLASS_2 → CLASS_1 transition: require validator approval AND
+            # dispatcher evidence when the scenario contract demands validator
+            # re-entry. A rejected_escalation here means the bounded candidate
+            # was inadmissible — that is NOT a successful Class 1 transition.
             if trial.requires_validator_reentry_when_class1:
-                if not (obs_payload.get("validation") or {}).get("validation_status"):
+                val_block = obs_payload.get("validation") or {}
+                if val_block.get("validation_status") != "approved":
                     return False
-        elif trial.expected_transition_target == "CLASS_0":
+                if not (obs_payload.get("ack") or {}).get("dispatch_status"):
+                    return False
+        elif observed_target == "CLASS_0":
             # CLASS_2 → CLASS_0 transition: require escalation evidence so
             # the emergency-confirmation path is verifiably closed.
             if not (obs_payload.get("escalation") or {}).get("escalation_status"):
@@ -575,16 +620,29 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
 
     complete = 0
     no_notification = 0
+    notification_expected = 0
+    notification_present = 0
     missing_counts: dict[str, int] = {f: 0 for f in _NOTIFICATION_REQUIRED_FIELDS}
     schema_errors: dict[str, int] = {}
 
     for t in class2_trials:
+        # Notification-expected denominator (Notification Readiness Rate, per
+        # required_experiments.md §8.4): we use class2.should_notify_caregiver
+        # from the observation snapshot; default True so trials that never
+        # produced a snapshot also count as expecting a notification.
+        c2_block = (t.observation_payload or {}).get("class2") or {}
+        should_notify = bool(c2_block.get("should_notify_caregiver", True))
+        if should_notify:
+            notification_expected += 1
+
         notif = t.notification_payload
         if not notif:
             no_notification += 1
             for f in _NOTIFICATION_REQUIRED_FIELDS:
                 missing_counts[f] += 1
             continue
+        if should_notify:
+            notification_present += 1
         # Required-field check (per the schema's required[] block)
         any_missing = False
         for f in _NOTIFICATION_REQUIRED_FIELDS:
@@ -606,6 +664,10 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
         "total": total,
         "class2_trials": total_class2,
         "no_notification_count": no_notification,
+        "notification_expected_count": notification_expected,
+        "notification_readiness_rate": round(
+            notification_present / notification_expected if notification_expected else 0.0, 4
+        ),
         "payload_completeness_rate": round(complete / total_class2 if total_class2 else 0.0, 4),
         "missing_field_rate": round(total_missing / total_expected_fields if total_expected_fields else 0.0, 4),
         "missing_by_field": missing_counts,
