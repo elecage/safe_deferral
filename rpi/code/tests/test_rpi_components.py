@@ -2349,6 +2349,116 @@ class TestClass2LlmQualityBlock:
 # PackageRunner — clarification record capture (Phase 5)
 # ==================================================================
 
+class TestClass2TrialTimeoutDecomposition:
+    """PackageRunner._class2_trial_timeout_s is composed from policy budgets
+    so a tighter llm_request_timeout_ms or class2_clarification_timeout_ms
+    automatically tightens the trial wait (P2.2 of doc 10)."""
+
+    def _make_runner(self, policy_table):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        from shared.asset_loader import RpiAssetLoader
+
+        real = RpiAssetLoader()
+
+        class _StubLoader:
+            def load_policy_table(self): return policy_table
+            def load_scenario(self, sid): return real.load_scenario(sid)
+            def fixture_exists(self, p): return real.fixture_exists(p)
+            def load_fixture(self, p): return real.load_fixture(p)
+
+        vnm = MagicMock()
+        obs_store = MagicMock()
+        store = TrialStore()
+        return PackageRunner(vnm, obs_store, store, asset_loader=_StubLoader())
+
+    def test_default_policy_yields_known_total(self):
+        """8 + 30 + 300 + 30 = 368 with shipped policy."""
+        from experiment_package.runner import (
+            PackageRunner,
+            _CAREGIVER_PHASE_TIMEOUT_S,
+            _TRIAL_TIMEOUT_CLASS2_SLACK_S,
+        )
+        from unittest.mock import MagicMock
+        from experiment_package.trial_store import TrialStore
+
+        runner = PackageRunner(MagicMock(), MagicMock(), TrialStore())
+        # llm_request_timeout_ms=8000, class2_clarification_timeout_ms=30000
+        # → 8 + 30 + 300 + 30 = 368
+        expected = 8.0 + 30.0 + _CAREGIVER_PHASE_TIMEOUT_S + _TRIAL_TIMEOUT_CLASS2_SLACK_S
+        assert abs(runner._class2_trial_timeout_s - expected) < 0.01
+
+    def test_tighter_policy_tightens_trial_timeout(self):
+        runner = self._make_runner({
+            "global_constraints": {
+                "llm_request_timeout_ms": 3000,
+                "class2_clarification_timeout_ms": 15000,
+            }
+        })
+        from experiment_package.runner import (
+            _CAREGIVER_PHASE_TIMEOUT_S, _TRIAL_TIMEOUT_CLASS2_SLACK_S,
+        )
+        # 3 + 15 + 300 + 30 = 348
+        expected = 3.0 + 15.0 + _CAREGIVER_PHASE_TIMEOUT_S + _TRIAL_TIMEOUT_CLASS2_SLACK_S
+        assert abs(runner._class2_trial_timeout_s - expected) < 0.01
+
+    def test_missing_policy_fields_use_module_defaults(self):
+        runner = self._make_runner({
+            "global_constraints": {
+                # llm_request_timeout_ms / class2_clarification_timeout_ms both absent
+            }
+        })
+        from experiment_package.runner import (
+            _LLM_BUDGET_DEFAULT_S, _USER_PHASE_TIMEOUT_DEFAULT_S,
+            _CAREGIVER_PHASE_TIMEOUT_S, _TRIAL_TIMEOUT_CLASS2_SLACK_S,
+        )
+        expected = (
+            _LLM_BUDGET_DEFAULT_S + _USER_PHASE_TIMEOUT_DEFAULT_S
+            + _CAREGIVER_PHASE_TIMEOUT_S + _TRIAL_TIMEOUT_CLASS2_SLACK_S
+        )
+        assert abs(runner._class2_trial_timeout_s - expected) < 0.01
+
+    def test_phase_breakdown_attributes_exposed(self):
+        """Each phase's value is on its own instance attribute so a future
+        dashboard / audit trace can render the breakdown."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        runner = PackageRunner(MagicMock(), MagicMock(), TrialStore())
+        # Sum reconstruction
+        total = (
+            runner._class2_llm_budget_s
+            + runner._class2_user_phase_timeout_s
+            + runner._class2_caregiver_phase_timeout_s
+            + runner._class2_trial_timeout_slack_s
+        )
+        assert abs(total - runner._class2_trial_timeout_s) < 0.01
+
+    def test_loader_failure_falls_back_to_defaults(self):
+        """If asset loader raises, the runner still produces a sensible
+        timeout from module defaults."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import (
+            PackageRunner,
+            _LLM_BUDGET_DEFAULT_S, _USER_PHASE_TIMEOUT_DEFAULT_S,
+            _CAREGIVER_PHASE_TIMEOUT_S, _TRIAL_TIMEOUT_CLASS2_SLACK_S,
+        )
+        from experiment_package.trial_store import TrialStore
+
+        class _BrokenLoader:
+            def load_policy_table(self):
+                raise RuntimeError("policy file missing")
+
+        runner = PackageRunner(MagicMock(), MagicMock(), TrialStore(),
+                                asset_loader=_BrokenLoader())
+        expected = (
+            _LLM_BUDGET_DEFAULT_S + _USER_PHASE_TIMEOUT_DEFAULT_S
+            + _CAREGIVER_PHASE_TIMEOUT_S + _TRIAL_TIMEOUT_CLASS2_SLACK_S
+        )
+        assert abs(runner._class2_trial_timeout_s - expected) < 0.01
+
+
 class TestClarificationCapture:
     """Runner forwards a captured clarification record into TrialResult and
     tolerates late arrivals via _await_clarification grace polling."""

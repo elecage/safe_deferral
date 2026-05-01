@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_CLASS2_INTEGRATION_P2_2_TIMEOUT_DECOMPOSITION.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_CLASS2_INTEGRATION_P2_1_FIXTURE_VARIABILITY.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_CLASS2_INTEGRATION_P1_DOC_ALIGNMENT.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_CLASS2_INTEGRATION_P0_SAFETY_FIXES.md`

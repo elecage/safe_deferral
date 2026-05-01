@@ -51,11 +51,35 @@ _POST_OBS_NOTIFICATION_GRACE_S = 2.0
 log = logging.getLogger(__name__)
 
 _TRIAL_TIMEOUT_S = 30.0
-# CLASS_2 trials may go through Phase 1 (user, 15 s) + Phase 2 (caregiver, up
-# to CAREGIVER_RESPONSE_TIMEOUT_S = 300 s) + telemetry publish latency.
-# Give enough headroom so the trial runner does not time out before the Mac
-# mini publishes the final class2 observation.
-_TRIAL_TIMEOUT_CLASS2_S = 360.0
+
+# Phase-decomposed CLASS_2 trial timeout
+# (P2.2 of 10_llm_class2_integration_alignment_plan.md).
+#
+# A CLASS_2 trial may walk through three serial phases plus telemetry slack:
+#   1. LLM candidate generation budget — the manager bounds the LLM call;
+#      its budget comes from policy_table.global_constraints.llm_request_timeout_ms
+#      (PR #91 P0.1+P0.2). Default 8 s.
+#   2. User clarification window — the Mac mini's class2_clarification_timeout_ms
+#      from the same policy block. Default 30 s.
+#   3. Caregiver Telegram window — Mac mini's CAREGIVER_RESPONSE_TIMEOUT_S
+#      env (default 300 s). Not currently surfaced in policy_table; the
+#      runner uses the same default as the Mac mini env so they stay in sync.
+#   4. Telemetry publish slack — small margin so the trial does not time out
+#      while the post-transition observation is still in flight.
+#
+# Module-level defaults are kept so old callers that import
+# _TRIAL_TIMEOUT_CLASS2_S still work; new callers should use
+# PackageRunner._class2_trial_timeout_s, which reflects the live policy.
+_LLM_BUDGET_DEFAULT_S = 8.0
+_USER_PHASE_TIMEOUT_DEFAULT_S = 30.0
+_CAREGIVER_PHASE_TIMEOUT_S = 300.0
+_TRIAL_TIMEOUT_CLASS2_SLACK_S = 30.0
+_TRIAL_TIMEOUT_CLASS2_S = (
+    _LLM_BUDGET_DEFAULT_S
+    + _USER_PHASE_TIMEOUT_DEFAULT_S
+    + _CAREGIVER_PHASE_TIMEOUT_S
+    + _TRIAL_TIMEOUT_CLASS2_SLACK_S
+)
 _POLL_INTERVAL_S = 0.25
 
 # All experiment fixture payloads are in policy-router input format and must
@@ -100,6 +124,35 @@ class PackageRunner:
         # class2_llm_quality metrics (candidate_source provenance, user
         # pickup rate per source).
         self._clarif = clarification_store
+        # P2.2 of 10_llm_class2_integration_alignment_plan.md: compose the
+        # CLASS_2 trial timeout from policy-aware phase budgets so a tighter
+        # llm_request_timeout_ms or class2_clarification_timeout_ms in policy
+        # automatically tightens the trial wait. Each component falls back to
+        # the matching module-level default if the policy load or field is
+        # missing (older policy_table versions stay usable).
+        try:
+            policy = self._loader.load_policy_table()
+            gc = policy.get("global_constraints", {}) or {}
+        except Exception:
+            gc = {}
+        self._class2_llm_budget_s: float = float(
+            gc.get("llm_request_timeout_ms", _LLM_BUDGET_DEFAULT_S * 1000)
+        ) / 1000.0
+        self._class2_user_phase_timeout_s: float = float(
+            gc.get("class2_clarification_timeout_ms", _USER_PHASE_TIMEOUT_DEFAULT_S * 1000)
+        ) / 1000.0
+        # Caregiver Telegram window — currently a runner-side default, not a
+        # policy field. Tracked as a follow-up in doc 10's "Out of scope" notes
+        # if a single source of truth for both Mac mini env and runner is
+        # eventually wanted in policy_table.
+        self._class2_caregiver_phase_timeout_s: float = _CAREGIVER_PHASE_TIMEOUT_S
+        self._class2_trial_timeout_slack_s: float = _TRIAL_TIMEOUT_CLASS2_SLACK_S
+        self._class2_trial_timeout_s: float = (
+            self._class2_llm_budget_s
+            + self._class2_user_phase_timeout_s
+            + self._class2_caregiver_phase_timeout_s
+            + self._class2_trial_timeout_slack_s
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -289,7 +342,7 @@ class PackageRunner:
             # class2 observation (after user response, caregiver response, or the
             # full Phase-2 timeout).
             trial_timeout = (
-                _TRIAL_TIMEOUT_CLASS2_S
+                self._class2_trial_timeout_s
                 if trial.expected_route_class == "CLASS_2"
                 else _TRIAL_TIMEOUT_S
             )
