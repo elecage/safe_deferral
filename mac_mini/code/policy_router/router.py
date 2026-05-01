@@ -33,14 +33,21 @@ class PolicyRouter:
             policy["routing_policies"]["class_0_emergency"]["triggers"]
         )
 
-        # C206 predicate: button events whose event_code is not in the recognized set
         c2_triggers = policy["routing_policies"]["class_2_clarification_transition"]["triggers"]
+
+        # C206 predicate: button events whose event_code is not in the recognized set
         c206 = next((t for t in c2_triggers if t["id"] == "C206"), {})
-        pred = c206.get("minimal_triggering_predicate", {})
-        self._c206_event_type: str = pred.get("event_type", "button")
+        pred206 = c206.get("minimal_triggering_predicate", {})
+        self._c206_event_type: str = pred206.get("event_type", "button")
         self._c206_recognized_codes: set = set(
-            pred.get("recognized_class1_button_event_codes", ["single_click"])
+            pred206.get("recognized_class1_button_event_codes", ["single_click"])
         )
+
+        # C208 predicate: visitor/doorbell sensor event → doorlock-sensitive path
+        c208 = next((t for t in c2_triggers if t["id"] == "C208"), {})
+        pred208 = c208.get("minimal_triggering_predicate", {})
+        self._c208_event_type: str = pred208.get("event_type", "sensor")
+        self._c208_event_code: str = pred208.get("event_code", "doorbell_detected")
 
     # ------------------------------------------------------------------
     # Public API
@@ -103,7 +110,15 @@ class PolicyRouter:
                 pure_context_payload=ctx,
             )
 
-        # Step 4: C206 — insufficient context (ambiguous button event)
+        # Step 4: C208 — visitor/doorbell sensor event (doorlock-sensitive path)
+        if self._is_visitor_context(trigger):
+            return self._class2(
+                raw_input,
+                trigger_id="C208",
+                reason="visitor_context_sensitive_actuation_required",
+            )
+
+        # Step 5: C206 — insufficient context (ambiguous button event)
         if self._is_insufficient_context(trigger):
             return self._class2(
                 raw_input,
@@ -111,7 +126,7 @@ class PolicyRouter:
                 reason="insufficient_context_for_intent_resolution",
             )
 
-        # Step 5: all checks passed → CLASS_1
+        # Step 6: all checks passed → CLASS_1
         return PolicyRouterResult(
             route_class=RouteClass.CLASS_1,
             trigger_id=None,
@@ -188,6 +203,18 @@ class PolicyRouter:
             return ops.get(operator, False)
         except TypeError:
             return False
+
+    def _is_visitor_context(self, trigger: dict) -> bool:
+        """Return True when the trigger is a doorbell/visitor-arrival sensor event (C208).
+
+        Any doorbell_detected trigger may involve doorlock-sensitive actuation which
+        is outside the Class 1 autonomous low-risk catalog.  Routes to CLASS_2 so a
+        caregiver can confirm or deny the visitor-response action.
+        """
+        return (
+            trigger.get("event_type") == self._c208_event_type
+            and trigger.get("event_code") == self._c208_event_code
+        )
 
     def _is_insufficient_context(self, trigger: dict) -> bool:
         """Return True when the trigger event is ambiguous (C206).

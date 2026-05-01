@@ -134,6 +134,7 @@ class Pipeline:
 
         _loader = AssetLoader()
         self.topic_context_input: str = _loader.get_topic("safe_deferral/context/input")
+        self.topic_emergency_event: str = _loader.get_topic("safe_deferral/emergency/event")
         self.topic_ack: str = _loader.get_topic("safe_deferral/actuation/ack")
 
         self._audit = AuditLogger(db_path=AUDIT_DB_PATH)
@@ -882,6 +883,7 @@ def main() -> None:
         if rc_value == 0:
             log.info("MQTT connected to %s:%s", MQTT_HOST, MQTT_PORT)
             c.subscribe(pipeline.topic_context_input, qos=1)
+            c.subscribe(pipeline.topic_emergency_event, qos=1)
             c.subscribe(pipeline.topic_ack, qos=1)
         else:
             log.error("MQTT connect failed rc=%s", reason_code)
@@ -900,7 +902,7 @@ def main() -> None:
         while True:
             topic, payload = work_queue.get()
             try:
-                if topic == pipeline.topic_context_input:
+                if topic in (pipeline.topic_context_input, pipeline.topic_emergency_event):
                     pipeline.handle_context(payload)
                 elif topic == pipeline.topic_ack:
                     pipeline.handle_ack(payload)

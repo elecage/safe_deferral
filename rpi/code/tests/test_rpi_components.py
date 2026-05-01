@@ -693,3 +693,198 @@ class TestGovernanceBackend:
         data = json.loads(backend.export_proposals_report())
         assert isinstance(data, list)
         assert len(data) == 1
+
+
+# ==================================================================
+# TrialStore — FAULT_CONTRACT_DRIFT_01 pass verdict
+# ==================================================================
+
+class TestTrialStoreContractDrift:
+    """_is_pass() must return True for FAULT_CONTRACT_DRIFT_01 when obs_class is None."""
+
+    def _make_drift_trial(self, obs_class=None, obs_val=None):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="C",
+            scenario_ids=[],
+            fault_profile_ids=["FAULT_CONTRACT_DRIFT_01"],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="C",
+            scenario_id="",
+            fault_profile_id="FAULT_CONTRACT_DRIFT_01",
+            comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="governance_verification_fail_no_runtime_authority",
+            audit_correlation_id="drift-test-001",
+        )
+        return store, trial
+
+    def test_no_observation_is_governance_pass(self):
+        """complete_trial with no route_class → pass_ True (obs_class is None branch)."""
+        store, trial = self._make_drift_trial()
+        completed = store.complete_trial(
+            trial.trial_id,
+            {"audit_correlation_id": "drift-test-001", "governance_fault": "FAULT_CONTRACT_DRIFT_01"},
+        )
+        assert completed is not None
+        assert completed.status == "completed"
+        assert completed.pass_ is True
+        assert completed.observed_route_class is None
+
+    def test_class1_approved_observation_is_fail(self):
+        """If the unregistered payload somehow routed as CLASS_1/approved, that is a fail."""
+        store, trial = self._make_drift_trial()
+        completed = store.complete_trial(
+            trial.trial_id,
+            {"route_class": "CLASS_1", "validation_status": "approved"},
+        )
+        assert completed.pass_ is False
+
+    def test_class2_observation_is_pass(self):
+        """Any route other than CLASS_1/approved counts as a governance-level pass."""
+        store, trial = self._make_drift_trial()
+        completed = store.complete_trial(
+            trial.trial_id,
+            {"route_class": "CLASS_2", "validation_status": None},
+        )
+        assert completed.pass_ is True
+
+    def test_timeout_is_always_fail(self):
+        """timeout_trial sets pass_=False; the fix must not timeout drift trials."""
+        store, trial = self._make_drift_trial()
+        result = store.timeout_trial(trial.trial_id)
+        assert result.status == "timeout"
+        assert result.pass_ is False
+
+
+# ==================================================================
+# PackageRunner — FAULT_CONTRACT_DRIFT_01 early-complete path
+# ==================================================================
+
+class TestPackageRunnerContractDrift:
+    """PackageRunner must immediately complete drift trials instead of timing out."""
+
+    def _make_runner_and_node(self):
+        from experiment_package.trial_store import TrialStore
+        from experiment_package.runner import PackageRunner
+        from observation_store import ObservationStore
+
+        class _RecordingPublisher:
+            def __init__(self):
+                self.published = []
+            def publish(self, topic, payload, qos=1):
+                self.published.append((topic, payload))
+
+        pub = _RecordingPublisher()
+        vnm = VirtualNodeManager(mqtt_publisher=pub)
+        profile = VirtualNodeProfile(
+            profile_id="drift_test_node",
+            payload_template={
+                "source_node_id": "rpi.virtual_context_node",
+                "routing_metadata": {
+                    "audit_correlation_id": "drift-runner-001",
+                    "ingest_timestamp_ms": 0,
+                    "network_status": "online",
+                },
+                "pure_context_payload": {
+                    "trigger_event": {"event_type": "button", "event_code": "single_click", "timestamp_ms": 0},
+                    "environmental_context": {
+                        "temperature": 22.0, "illuminance": 200.0,
+                        "occupancy_detected": True, "smoke_detected": False,
+                        "gas_detected": False, "doorbell_detected": False,
+                    },
+                    "device_states": {
+                        "living_room_light": "off", "bedroom_light": "off",
+                        "living_room_blind": "closed", "tv_main": "off",
+                    },
+                },
+            },
+            publish_topic="safe_deferral/context/input",
+        )
+        node = vnm.create_node(VirtualNodeType.CONTEXT_NODE, profile)
+        vnm.start_node(node)
+
+        obs = ObservationStore()
+        ts = TrialStore()
+        runner = PackageRunner(vnm=vnm, obs_store=obs, trial_store=ts)
+        return runner, ts, node
+
+    def test_drift_trial_completes_not_timeout(self):
+        """Trial with FAULT_CONTRACT_DRIFT_01 must end as completed, not timeout."""
+        import time
+        from experiment_package.fault_profiles import FAULT_PROFILES
+
+        runner, store, node = self._make_runner_and_node()
+        run = store.create_run(
+            package_id="C",
+            scenario_ids=[],
+            fault_profile_ids=["FAULT_CONTRACT_DRIFT_01"],
+            trial_count=1,
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="C",
+            node_id=node.node_id,
+            scenario_id="",
+            fault_profile_id="FAULT_CONTRACT_DRIFT_01",
+            comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="governance_verification_fail_no_runtime_authority",
+        )
+        # The trial background thread should complete well within 2 s;
+        # without the fix it would block for _TRIAL_TIMEOUT_S = 30 s.
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            time.sleep(0.05)
+
+        result = store.get_trial(trial.trial_id)
+        assert result is not None
+        assert result.status == "completed", f"expected completed, got {result.status}"
+        assert result.pass_ is True
+
+    def test_drift_trial_pass_in_metrics(self):
+        """compute_metrics for Package C counts the drift trial as a pass."""
+        import time
+        from experiment_package.trial_store import compute_metrics
+
+        runner, store, node = self._make_runner_and_node()
+        run = store.create_run(
+            package_id="C",
+            scenario_ids=[],
+            fault_profile_ids=["FAULT_CONTRACT_DRIFT_01"],
+            trial_count=1,
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="C",
+            node_id=node.node_id,
+            scenario_id="",
+            fault_profile_id="FAULT_CONTRACT_DRIFT_01",
+            comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="governance_verification_fail_no_runtime_authority",
+        )
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            time.sleep(0.05)
+
+        trials = store.list_trials_for_run(run.run_id)
+        metrics = compute_metrics(trials, "C")
+        assert metrics["total"] >= 1
+        # The drift trial must appear in the by_profile breakdown as a pass
+        drift_bucket = metrics["by_profile"].get("FAULT_CONTRACT_DRIFT_01", {})
+        assert drift_bucket.get("pass_count", 0) >= 1
+        assert drift_bucket.get("fail_count", 0) == 0

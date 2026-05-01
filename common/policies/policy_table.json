@@ -235,6 +235,18 @@
           "source_layer": "class2_clarification_manager",
           "requires_notification": true,
           "initial_class2_state": "safe_deferral_or_caregiver_confirmation"
+        },
+        {
+          "id": "C208",
+          "event": "visitor_context_sensitive_actuation_required",
+          "source_layer": "policy_router",
+          "requires_notification": true,
+          "initial_class2_state": "clarification_candidate_generation_allowed",
+          "minimal_triggering_predicate": {
+            "description": "Sensor event whose event_code is doorbell_detected. Any visitor-arrival trigger may involve doorlock-sensitive actuation which is outside the Class 1 autonomous low-risk catalog. Routes to Class 2 so the caregiver can confirm or deny.",
+            "event_type": "sensor",
+            "event_code": "doorbell_detected"
+          }
         }
       ],
       "clarification_interaction": {
