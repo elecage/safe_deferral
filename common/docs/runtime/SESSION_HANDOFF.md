@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_CLASS2_TO_CLASS1_DEDICATED_FIXTURE_WIRING.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_DASHBOARD_RATIO_KEY_FORMAT_AND_PACKAGE_D_NAMING.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_PACKAGE_D_DENOMINATOR_OVERRIDE_CONTRACT_DOORLOCK_TRIGGER.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_NOTIFICATION_SCHEMA_GATE_AND_VERDICT_SHARPENING.md`
