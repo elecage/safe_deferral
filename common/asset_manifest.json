@@ -19,7 +19,8 @@
       "candidate_action_schema": "common/schemas/candidate_action_schema.json",
       "validator_output_schema": "common/schemas/validator_output_schema.json",
       "class2_notification_payload_schema": "common/schemas/class2_notification_payload_schema.json",
-      "clarification_interaction_schema": "common/schemas/clarification_interaction_schema.json"
+      "clarification_interaction_schema": "common/schemas/clarification_interaction_schema.json",
+      "class2_candidate_set_schema": "common/schemas/class2_candidate_set_schema.json"
     },
     "mqtt": {
       "topic_registry": "common/mqtt/topic_registry.json",

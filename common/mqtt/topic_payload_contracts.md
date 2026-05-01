@@ -394,6 +394,26 @@ Rules:
 
 ---
 
+## 7.5 Adapter-internal schemas (not on any MQTT topic)
+
+The following schemas govern in-process payloads exchanged between Mac mini
+components and **never appear on any MQTT topic**. They are listed here so
+governance / verification tooling does not mistakenly treat them as wire
+contracts:
+
+- `common/schemas/class2_candidate_set_schema.json` — output of
+  `LocalLlmAdapter.generate_class2_candidates()` consumed by
+  `Class2ClarificationManager.start_session(...)` for Class 2
+  candidate-source provenance and bounded-variability echo. The
+  on-the-wire artifact for Class 2 clarification remains the
+  `clarification_interaction_payload` governed by
+  `clarification_interaction_schema.json` (§3 above).
+
+These adapter-internal schemas have no publisher, no subscriber, and no
+topic. They are validation contracts for in-process function-call data.
+
+---
+
 ## 8. Future schema candidates
 
 The following topic payload families are likely candidates for future schema formalization:

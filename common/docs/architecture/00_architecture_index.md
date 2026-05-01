@@ -45,6 +45,7 @@ Current schema assets:
 - `common/schemas/validator_output_schema.json`
 - `common/schemas/class2_notification_payload_schema.json`
 - `common/schemas/clarification_interaction_schema.json`
+- `common/schemas/class2_candidate_set_schema.json`
 
 Current MQTT and payload reference assets:
 

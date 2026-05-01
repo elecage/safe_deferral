@@ -51,6 +51,21 @@ LLM-generated candidate prompts (`prompt` field on each
 `ClarificationChoice`) are subject to **bounded-variability constraints**
 loaded at startup from
 `policy_table.json::global_constraints.class2_conversational_prompt_constraints`.
+
+The LLM-internal candidate set (the value `LocalLlmAdapter.generate_class2_candidates()`
+returns to `Class2ClarificationManager`) is governed by
+`common/schemas/class2_candidate_set_schema.json`. That schema defines the
+in-process payload shape — it is **never published to any MQTT topic**.
+The on-the-wire artifact is the clarification record governed by
+`common/schemas/clarification_interaction_schema.json` (see §4.3).
+
+The LocalLlmAdapter call is also bounded by a request timeout sourced from
+`policy_table.global_constraints.llm_request_timeout_ms` (default 8 s) so
+the MQTT message-handler thread cannot block on a slow / hung Ollama. The
+manager wraps the call in a daemon thread with a join budget of
+`llm_request_timeout_ms / 1000 + 0.5 s`; if the budget elapses, the manager
+abandons the in-flight LLM call and uses the static fallback table.
+See `10_llm_class2_integration_alignment_plan.md` P0.1 / P0.2 for rationale.
 The currently shipped values:
 
 | Constraint | Value | Purpose |
