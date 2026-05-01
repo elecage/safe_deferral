@@ -260,29 +260,38 @@ class Pipeline:
         self._telemetry.update_escalation(esc_result)
 
     # ------------------------------------------------------------------
-    # CLASS_1 — LLM → Validator → Dispatcher
+    # CLASS_1 — Intent recovery (direct/rule/llm) → Validator → Dispatcher
     # ------------------------------------------------------------------
     def _handle_class1(self, route_result) -> None:
         ctx = route_result.pure_context_payload
         audit_id = route_result.audit_correlation_id
+        mode = getattr(route_result, "experiment_mode", None) or "llm_assisted"
 
-        # LLM candidate
-        llm_result = self._llm.generate_candidate(ctx, audit_correlation_id=audit_id)
-        self._telemetry.publish_llm_candidate(llm_result)
-        log.info("LLM candidate: action=%s target=%s fallback=%s",
-                 llm_result.proposed_action, llm_result.target_device, llm_result.is_fallback)
+        if mode == "direct_mapping":
+            candidate = _direct_mapping_candidate(ctx)
+            log.info("Intent recovery (direct_mapping): action=%s target=%s",
+                     candidate.get("proposed_action"), candidate.get("target_device"))
+        elif mode == "rule_only":
+            candidate = _rule_only_candidate(ctx)
+            log.info("Intent recovery (rule_only): action=%s target=%s",
+                     candidate.get("proposed_action"), candidate.get("target_device"))
+        else:
+            llm_result = self._llm.generate_candidate(ctx, audit_correlation_id=audit_id)
+            self._telemetry.publish_llm_candidate(llm_result)
+            log.info("LLM candidate: action=%s target=%s fallback=%s",
+                     llm_result.proposed_action, llm_result.target_device, llm_result.is_fallback)
 
-        candidate: dict = {
-            "proposed_action": llm_result.proposed_action,
-            "target_device":   llm_result.target_device,
-        }
-        rationale = llm_result.candidate.get("rationale_summary", "")
-        if rationale:
-            candidate["rationale_summary"] = rationale
-        if llm_result.is_safe_deferral:
-            candidate["deferral_reason"] = (
-                llm_result.candidate.get("deferral_reason") or "insufficient_context"
-            )
+            candidate = {
+                "proposed_action": llm_result.proposed_action,
+                "target_device":   llm_result.target_device,
+            }
+            rationale = llm_result.candidate.get("rationale_summary", "")
+            if rationale:
+                candidate["rationale_summary"] = rationale
+            if llm_result.is_safe_deferral:
+                candidate["deferral_reason"] = (
+                    llm_result.candidate.get("deferral_reason") or "insufficient_context"
+                )
 
         # Validate
         val_result = self._validator.validate(candidate, audit_correlation_id=audit_id)
@@ -905,6 +914,67 @@ def _format_class2_keyboard_message(
         f"<i>감사 ID: {audit_id}</i>",
     ]
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Package A intent-recovery comparison conditions (deterministic baselines).
+# These run instead of the LLM when routing_metadata.experiment_mode is set;
+# both candidates still pass through DeterministicValidator for the safety
+# gate, so neither bypasses authority.
+# ---------------------------------------------------------------------------
+_DIRECT_MAPPING_TABLE: dict[str, tuple[str, str]] = {
+    # button event_code -> (proposed_action, target_device)
+    "single_click": ("light_on", "living_room_light"),
+    "double_click": ("light_off", "living_room_light"),
+    "long_press":   ("light_on", "bedroom_light"),
+}
+
+_RULE_ONLY_ILLUMINANCE_THRESHOLD = 200  # lux below which lighting assistance is rule-eligible
+
+
+def _direct_mapping_candidate(ctx: dict) -> dict:
+    """Direct mapping baseline: button event_code -> fixed action.
+
+    Ignores environmental context. Returns safe_deferral when the event_code
+    is not in the table.
+    """
+    code = (ctx.get("trigger_event") or {}).get("event_code", "")
+    mapping = _DIRECT_MAPPING_TABLE.get(code)
+    if mapping is None:
+        return {
+            "proposed_action": "safe_deferral",
+            "target_device":   "none",
+            "deferral_reason": "insufficient_context",
+        }
+    action, target = mapping
+    return {"proposed_action": action, "target_device": target}
+
+
+def _rule_only_candidate(ctx: dict) -> dict:
+    """Rule-only baseline: hand-crafted rules using environmental context.
+
+    Proposes light_on when illuminance is low, the room is occupied, and the
+    target light is currently off. Falls back to safe_deferral otherwise. No
+    free-form interpretation.
+    """
+    env = ctx.get("environmental_context") or {}
+    devices = ctx.get("device_states") or {}
+    illum = env.get("illuminance")
+    occupied = bool(env.get("occupancy_detected"))
+    living_off = devices.get("living_room_light") == "off"
+
+    if (
+        isinstance(illum, (int, float))
+        and illum < _RULE_ONLY_ILLUMINANCE_THRESHOLD
+        and occupied
+        and living_off
+    ):
+        return {"proposed_action": "light_on", "target_device": "living_room_light"}
+    return {
+        "proposed_action": "safe_deferral",
+        "target_device":   "none",
+        "deferral_reason": "insufficient_context",
+    }
 
 
 def _build_notification(

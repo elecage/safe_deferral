@@ -12,7 +12,7 @@
       "prompt": "Turn on the living room light.",
       "candidate_transition_target": "CLASS_1",
       "requires_confirmation": true,
-      "allowed_next_path": "policy_router_reentry_then_validator",
+      "allowed_next_path": "validator_reentry_with_confirmed_candidate",
       "risk_note": "Low-risk lighting candidate; validator approval still required."
     },
     {
@@ -20,7 +20,7 @@
       "prompt": "Turn on the bedroom light.",
       "candidate_transition_target": "CLASS_1",
       "requires_confirmation": true,
-      "allowed_next_path": "policy_router_reentry_then_validator",
+      "allowed_next_path": "validator_reentry_with_confirmed_candidate",
       "risk_note": "Low-risk lighting candidate; validator approval still required."
     }
   ],
@@ -36,6 +36,6 @@
   "timestamp_ms": 1710000000800,
   "notes": [
     "This payload is clarification evidence only and does not authorize actuation.",
-    "Selection results must re-enter the Policy Router and Class 1 transition still requires Deterministic Validator approval."
+    "Selection results are confirmed-candidate evidence; Class 1 selections re-enter the Deterministic Validator with the bounded candidate and still require validator approval before any low-risk dispatch."
   ]
 }

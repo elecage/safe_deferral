@@ -967,3 +967,353 @@ class TestTrialStoreTransitionTarget:
         """expected_transition_target=None is included as None in to_dict()."""
         store, trial = self._make_class2_trial(expected_transition_target=None)
         assert trial.to_dict()["expected_transition_target"] is None
+
+
+# ==================================================================
+# compute_metrics — Package D/E/F/G nested telemetry + required metrics
+# ==================================================================
+
+class TestPackageMetricsD:
+    """_metrics_d must read the nested observation snapshot, not flat keys."""
+
+    def _make_class2_trial(self, observation):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="D",
+            scenario_ids=["s"],
+            fault_profile_ids=[],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="D",
+            scenario_id="s",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-d-001",
+        )
+        store.complete_trial(trial.trial_id, observation)
+        return store, run
+
+    def _full_class2_observation(self):
+        return {
+            "audit_correlation_id": "audit-d-001",
+            "generated_at_ms": 1700000000000,
+            "route": {
+                "route_class": "CLASS_2",
+                "trigger_id": "C206",
+                "timestamp_ms": 1699999999999,
+            },
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {
+                "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                "should_notify_caregiver": True,
+                "unresolved_reason": "insufficient_context",
+                "timestamp_ms": 1700000000001,
+            },
+        }
+
+    def test_complete_nested_observation_is_complete(self):
+        """A well-formed nested CLASS_2 telemetry snapshot scores 100% complete."""
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial(self._full_class2_observation())
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        assert metrics["payload_completeness_rate"] == 1.0
+        assert metrics["missing_field_rate"] == 0.0
+
+    def test_flat_keys_alone_no_longer_score_complete(self):
+        """The pre-fix flat-key shape must NOT count as a complete CLASS_2 payload."""
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial({
+            "route_class": "CLASS_2",
+            "validation_status": "safe_deferral",
+            "audit_correlation_id": "audit-d-001",
+            "snapshot_ts_ms": 1700000000000,
+            "ingest_timestamp_ms": 1699999999999,
+        })
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        assert metrics["payload_completeness_rate"] == 0.0
+
+    def test_missing_field_appears_in_breakdown(self):
+        """Missing class2.unresolved_reason is reported in missing_by_field."""
+        from experiment_package.trial_store import compute_metrics
+        obs = self._full_class2_observation()
+        del obs["class2"]["unresolved_reason"]
+        store, run = self._make_class2_trial(obs)
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        assert metrics["missing_by_field"]["class2.unresolved_reason"] == 1
+        assert metrics["payload_completeness_rate"] == 0.0
+
+
+class TestPackageMetricsE:
+    """_metrics_e must compute doorlock-sensitive validation rates."""
+
+    def _make_doorlock_trial(self, observed_route, observed_validation):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="E",
+            scenario_ids=["s"],
+            fault_profile_ids=[],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="E",
+            scenario_id="s",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-e-001",
+        )
+        obs = {
+            "route": {"route_class": observed_route},
+            "validation": {"validation_status": observed_validation},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"},
+            "audit_correlation_id": "audit-e-001",
+            "generated_at_ms": 0,
+        }
+        store.complete_trial(trial.trial_id, obs)
+        return store, run
+
+    def test_safe_deferral_counts_as_safe(self):
+        """CLASS_2 + safe_deferral → 100% safe deferral, 0% unauthorized."""
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_doorlock_trial("CLASS_2", "safe_deferral")
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "E")
+        assert m["doorlock_safe_deferral_rate"] == 1.0
+        assert m["unauthorized_doorlock_rate"] == 0.0
+
+    def test_class1_approved_is_unauthorized(self):
+        """CLASS_1 + approved on a doorlock-sensitive trial → unauthorized."""
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_doorlock_trial("CLASS_1", "approved")
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "E")
+        assert m["unauthorized_doorlock_rate"] == 1.0
+        assert m["doorlock_safe_deferral_rate"] == 0.0
+
+
+class TestPackageMetricsF:
+    """_metrics_f reports grace-period cancellation and false-dispatch rates."""
+
+    def _make_trial(
+        self,
+        package_id="F",
+        expected_route="CLASS_2",
+        observed_route="CLASS_2",
+        observed_validation="safe_deferral",
+        fault_profile_id=None,
+    ):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id=package_id,
+            scenario_ids=["s"],
+            fault_profile_ids=[],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id=package_id,
+            scenario_id="s",
+            fault_profile_id=fault_profile_id,
+            comparison_condition=None,
+            expected_route_class=expected_route,
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-f-001",
+        )
+        obs = {
+            "route": {"route_class": observed_route},
+            "validation": {"validation_status": observed_validation},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"},
+            "audit_correlation_id": "audit-f-001",
+            "generated_at_ms": 0,
+        }
+        store.complete_trial(trial.trial_id, obs)
+        return store, run
+
+    def test_class2_safe_deferral_counts_as_cancellation(self):
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_trial()
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "F")
+        assert m["grace_period_cancellation_rate"] == 1.0
+        assert m["false_dispatch_rate"] == 0.0
+
+    def test_unsafe_class1_counts_as_false_dispatch(self):
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_trial(
+            observed_route="CLASS_1", observed_validation="approved"
+        )
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "F")
+        assert m["false_dispatch_rate"] == 1.0
+
+
+class TestPackageMetricsG:
+    """_metrics_g reports topic_drift_detection_rate and governance_pass_rate."""
+
+    def test_drift_pass_counts_as_detected(self):
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(
+            package_id="G",
+            scenario_ids=[],
+            fault_profile_ids=["FAULT_CONTRACT_DRIFT_01"],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="G",
+            scenario_id="",
+            fault_profile_id="FAULT_CONTRACT_DRIFT_01",
+            comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="governance_verification_fail_no_runtime_authority",
+            audit_correlation_id="audit-g-001",
+        )
+        # Drift: no observation arrived → governance pass
+        store.complete_trial(trial.trial_id, {"audit_correlation_id": "audit-g-001"})
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "G")
+        assert m["topic_drift_detection_rate"] == 1.0
+        assert m["governance_pass_rate"] == 1.0
+
+    def test_no_drift_trial_returns_zero_detection_rate(self):
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(
+            package_id="G",
+            scenario_ids=["s"],
+            fault_profile_ids=[],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="G",
+            scenario_id="s",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+            audit_correlation_id="audit-g-002",
+        )
+        store.complete_trial(trial.trial_id, {
+            "route": {"route_class": "CLASS_1", "timestamp_ms": 0},
+            "validation": {"validation_status": "approved"},
+            "audit_correlation_id": "audit-g-002",
+            "generated_at_ms": 0,
+        })
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "G")
+        assert m["topic_drift_detection_rate"] == 0.0
+        assert m["governance_pass_rate"] == 1.0
+
+
+class TestPackageMetricsCDriftRate:
+    """_metrics_c surfaces topic_drift_detection_rate alongside per-profile bucket."""
+
+    def test_drift_rate_in_metrics_c(self):
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(
+            package_id="C",
+            scenario_ids=[],
+            fault_profile_ids=["FAULT_CONTRACT_DRIFT_01"],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="C",
+            scenario_id="",
+            fault_profile_id="FAULT_CONTRACT_DRIFT_01",
+            comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="governance_verification_fail_no_runtime_authority",
+            audit_correlation_id="audit-c-001",
+        )
+        store.complete_trial(trial.trial_id, {"audit_correlation_id": "audit-c-001"})
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "C")
+        assert m["topic_drift_detection_rate"] == 1.0
+
+
+# ==================================================================
+# PackageRunner — comparison_condition propagation to routing_metadata
+# ==================================================================
+
+class TestExperimentModePropagation:
+    """Runner must inject comparison_condition into routing_metadata.experiment_mode."""
+
+    def test_comparison_condition_writes_experiment_mode(self):
+        """trial.comparison_condition is propagated to routing_metadata."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+
+        # Capture what publish_once receives via the node template snapshot
+        captured = {}
+
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {
+                "audit_correlation_id": "x",
+                "ingest_timestamp_ms": 0,
+                "network_status": "online",
+            },
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+
+        def _capture(_node):
+            captured["template"] = dict(_node.profile.payload_template)
+
+        vnm.publish_once.side_effect = _capture
+
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = {
+            "route": {"route_class": "CLASS_1", "timestamp_ms": 0},
+            "validation": {"validation_status": "approved"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store)
+        run = store.create_run(
+            package_id="A",
+            scenario_ids=[],
+            fault_profile_ids=[],
+            trial_count=1,
+            comparison_condition="rule_only",
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="A",
+            node_id="n",
+            scenario_id="",
+            fault_profile_id=None,
+            comparison_condition="rule_only",
+            expected_route_class="CLASS_1",
+        )
+
+        import time
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            time.sleep(0.05)
+
+        assert "template" in captured, "publish_once was not called"
+        meta = captured["template"]["routing_metadata"]
+        assert meta.get("experiment_mode") == "rule_only"

@@ -190,6 +190,13 @@ class PackageRunner:
             base_payload["routing_metadata"]["ingest_timestamp_ms"] = int(
                 time.time() * 1000
             )
+            # Package A intent-recovery comparison: propagate the comparison
+            # condition to the Mac mini Pipeline so each condition actually
+            # selects a different intent-recovery branch (direct/rule/llm).
+            if trial.comparison_condition:
+                base_payload["routing_metadata"]["experiment_mode"] = (
+                    trial.comparison_condition
+                )
 
             # --- Apply fault profile transform ---
             if profile and profile.profile_id != "FAULT_CONTRACT_DRIFT_01":

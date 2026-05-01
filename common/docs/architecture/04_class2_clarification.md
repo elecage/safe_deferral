@@ -29,7 +29,8 @@ The Class 2 Clarification Manager coordinates:
 - timeout/no-response handling,
 - transition target recording,
 - audit evidence,
-- Policy Router re-entry when appropriate.
+- Deterministic Validator re-entry on the confirmed bounded candidate when the
+  selected transition is Class 1.
 
 It does not approve execution directly.
 
@@ -77,7 +78,9 @@ A Class 2 case may transition to Class 1 only when:
 
 1. clarification provides bounded low-risk intent evidence,
 2. the target action remains inside `low_risk_actions.json`,
-3. Policy Router re-entry occurs,
+3. the runtime re-enters the Deterministic Validator with the confirmed
+   bounded candidate (the selection is not a Policy Router re-routing event;
+   it is a confirmed candidate that still must clear the validator),
 4. Deterministic Validator approves the exact admissible action,
 5. dispatch remains limited to the approved low-risk action.
 

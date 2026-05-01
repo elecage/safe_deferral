@@ -147,7 +147,7 @@ When a fault scenario uses Class 2-like clarification, verify:
 - clarification_schema_ref is common/schemas/clarification_interaction_schema.json.
 - clarification_payload_is_not_authorization is true.
 - timeout_must_not_infer_intent is true.
-- requires_policy_router_reentry is true.
+- requires_validator_reentry_when_class1 is true.
 - requires_validator_when_class1 is true.
 - fault cause identity is preserved.
 - no candidate text authorizes actuation.

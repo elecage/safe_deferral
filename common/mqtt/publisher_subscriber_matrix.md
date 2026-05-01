@@ -105,7 +105,7 @@ emergency trigger authority
 doorlock authorization
 ```
 
-Selection results require Policy Router re-entry. Class 1 transition still requires Deterministic Validator approval. Class 0 transition requires deterministic emergency evidence or explicit emergency confirmation. Timeout/no-response must not infer user intent.
+Selection results are confirmed-candidate evidence: Class 1 transition re-enters the Deterministic Validator with the bounded candidate and still requires validator approval. Class 0 transition requires deterministic emergency evidence or explicit emergency confirmation. Timeout/no-response must not infer user intent.
 
 ---
 

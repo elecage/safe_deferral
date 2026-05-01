@@ -296,3 +296,157 @@ class TestExecuteClass2Transition:
             pipeline._caregiver.send_notification = original_notify
         assert dispatched == []
         assert notifications == []
+
+
+# ---------------------------------------------------------------------------
+# Package A intent-recovery comparison helpers and _handle_class1 dispatch
+# ---------------------------------------------------------------------------
+
+class TestIntentRecoveryHelpers:
+    """_direct_mapping_candidate and _rule_only_candidate behave deterministically."""
+
+    def test_direct_mapping_known_event(self):
+        import main  # noqa: PLC0415
+        ctx = {"trigger_event": {"event_code": "single_click"}}
+        cand = main._direct_mapping_candidate(ctx)
+        assert cand["proposed_action"] == "light_on"
+        assert cand["target_device"] == "living_room_light"
+
+    def test_direct_mapping_unknown_event_safe_deferral(self):
+        import main  # noqa: PLC0415
+        ctx = {"trigger_event": {"event_code": "shrug"}}
+        cand = main._direct_mapping_candidate(ctx)
+        assert cand["proposed_action"] == "safe_deferral"
+        assert cand.get("deferral_reason") == "insufficient_context"
+
+    def test_rule_only_dark_room_proposes_light_on(self):
+        import main  # noqa: PLC0415
+        ctx = {
+            "environmental_context": {"illuminance": 50, "occupancy_detected": True},
+            "device_states": {"living_room_light": "off"},
+        }
+        cand = main._rule_only_candidate(ctx)
+        assert cand["proposed_action"] == "light_on"
+        assert cand["target_device"] == "living_room_light"
+
+    def test_rule_only_bright_room_safe_deferral(self):
+        import main  # noqa: PLC0415
+        ctx = {
+            "environmental_context": {"illuminance": 800, "occupancy_detected": True},
+            "device_states": {"living_room_light": "off"},
+        }
+        cand = main._rule_only_candidate(ctx)
+        assert cand["proposed_action"] == "safe_deferral"
+
+    def test_rule_only_unoccupied_safe_deferral(self):
+        import main  # noqa: PLC0415
+        ctx = {
+            "environmental_context": {"illuminance": 50, "occupancy_detected": False},
+            "device_states": {"living_room_light": "off"},
+        }
+        cand = main._rule_only_candidate(ctx)
+        assert cand["proposed_action"] == "safe_deferral"
+
+
+class TestHandleClass1ExperimentMode:
+    """_handle_class1 must select intent-recovery branch by experiment_mode."""
+
+    def _make_route_result(self, mode):
+        from policy_router.models import PolicyRouterResult, RouteClass
+        return PolicyRouterResult(
+            route_class=RouteClass.CLASS_1,
+            trigger_id=None,
+            llm_invocation_allowed=True,
+            candidate_generation_allowed=True,
+            unresolved_reason=None,
+            source_node_id="test-node",
+            audit_correlation_id="audit-em-001",
+            network_status="online",
+            routed_at_ms=1,
+            pure_context_payload={
+                "trigger_event": {"event_code": "single_click", "event_type": "button",
+                                   "timestamp_ms": 0},
+                "environmental_context": {
+                    "illuminance": 50, "occupancy_detected": True,
+                    "temperature": 25.0, "smoke_detected": False,
+                    "gas_detected": False, "doorbell_detected": False,
+                },
+                "device_states": {
+                    "living_room_light": "off", "bedroom_light": "off",
+                    "living_room_blind": "open", "tv_main": "off",
+                },
+            },
+            experiment_mode=mode,
+        )
+
+    def test_direct_mapping_skips_llm(self, pipeline):
+        """direct_mapping mode must not invoke the LLM adapter."""
+        rr = self._make_route_result("direct_mapping")
+        called = []
+        original_llm = pipeline._llm.generate_candidate
+        original_validate = pipeline._validator.validate
+        original_dispatch = pipeline._dispatcher.dispatch
+        pipeline._llm.generate_candidate = lambda *a, **kw: called.append("llm") or original_llm(*a, **kw)
+        pipeline._validator.validate = lambda c, **kw: called.append(("val", c)) or MagicMock(
+            validation_status=MagicMock(value="safe_deferral"),
+            routing_target=MagicMock(value="safe_deferral"),
+        )
+        pipeline._dispatcher.dispatch = lambda v: called.append("dispatch")
+        try:
+            pipeline._handle_class1(rr)
+        finally:
+            pipeline._llm.generate_candidate = original_llm
+            pipeline._validator.validate = original_validate
+            pipeline._dispatcher.dispatch = original_dispatch
+        assert "llm" not in called
+        # Validator must still be called
+        validator_calls = [c for c in called if isinstance(c, tuple) and c[0] == "val"]
+        assert len(validator_calls) == 1
+        # The candidate passed to validator is from direct mapping
+        cand = validator_calls[0][1]
+        assert cand["proposed_action"] == "light_on"
+        assert cand["target_device"] == "living_room_light"
+
+    def test_rule_only_skips_llm(self, pipeline):
+        """rule_only mode must not invoke the LLM adapter."""
+        rr = self._make_route_result("rule_only")
+        called = []
+        original_llm = pipeline._llm.generate_candidate
+        original_validate = pipeline._validator.validate
+        original_dispatch = pipeline._dispatcher.dispatch
+        pipeline._llm.generate_candidate = lambda *a, **kw: called.append("llm") or original_llm(*a, **kw)
+        pipeline._validator.validate = lambda c, **kw: called.append(("val", c)) or MagicMock(
+            validation_status=MagicMock(value="safe_deferral"),
+            routing_target=MagicMock(value="safe_deferral"),
+        )
+        pipeline._dispatcher.dispatch = lambda v: called.append("dispatch")
+        try:
+            pipeline._handle_class1(rr)
+        finally:
+            pipeline._llm.generate_candidate = original_llm
+            pipeline._validator.validate = original_validate
+            pipeline._dispatcher.dispatch = original_dispatch
+        assert "llm" not in called
+        validator_calls = [c for c in called if isinstance(c, tuple) and c[0] == "val"]
+        assert len(validator_calls) == 1
+
+    def test_llm_assisted_invokes_llm(self, pipeline):
+        """llm_assisted mode (and the None default) must invoke the LLM adapter."""
+        rr = self._make_route_result("llm_assisted")
+        called = []
+        original_llm = pipeline._llm.generate_candidate
+        original_validate = pipeline._validator.validate
+        original_dispatch = pipeline._dispatcher.dispatch
+        pipeline._llm.generate_candidate = lambda *a, **kw: called.append("llm") or original_llm(*a, **kw)
+        pipeline._validator.validate = lambda c, **kw: called.append("val") or MagicMock(
+            validation_status=MagicMock(value="safe_deferral"),
+            routing_target=MagicMock(value="safe_deferral"),
+        )
+        pipeline._dispatcher.dispatch = lambda v: called.append("dispatch")
+        try:
+            pipeline._handle_class1(rr)
+        finally:
+            pipeline._llm.generate_candidate = original_llm
+            pipeline._validator.validate = original_validate
+            pipeline._dispatcher.dispatch = original_dispatch
+        assert "llm" in called

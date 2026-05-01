@@ -41,6 +41,15 @@
             "degraded"
           ],
           "description": "로컬 연결 상태를 나타내며, LLM 해석에는 사용되지 않고 안전 fallback에만 사용됨"
+        },
+        "experiment_mode": {
+          "type": "string",
+          "enum": [
+            "direct_mapping",
+            "rule_only",
+            "llm_assisted"
+          ],
+          "description": "Optional experiment mode for Package A intent-recovery comparison. Field is honored only by experiment runners and the Class 1 intent-recovery branch; it must not be passed into the LLM prompt and does not affect Class 0 emergency, Class 2 escalation, or validator authority."
         }
       }
     },

@@ -229,9 +229,10 @@
         "expected_transition_target": {
           "type": "string"
         },
-        "requires_policy_router_reentry": {
+        "requires_validator_reentry_when_class1": {
           "type": "boolean",
-          "const": true
+          "const": true,
+          "description": "Confirms that a Class 1 selection re-enters the Deterministic Validator with the bounded confirmed candidate. Renamed from the legacy 'requires_policy_router_reentry' so that scenario expectations match runtime behaviour (the runtime does not re-invoke the Policy Router after a Class 2 selection)."
         },
         "requires_validator_when_class1": {
           "type": "boolean",

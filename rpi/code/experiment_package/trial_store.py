@@ -346,8 +346,12 @@ def compute_metrics(trials: list[TrialResult], package_id: str) -> dict:
         return _metrics_c(completed, total)
     elif package_id == "D":
         return _metrics_d(completed, total)
-    elif package_id in ("E", "F"):
-        return _metrics_ef(completed, total, package_id)
+    elif package_id == "E":
+        return _metrics_e(completed, total)
+    elif package_id == "F":
+        return _metrics_f(completed, total)
+    elif package_id == "G":
+        return _metrics_g(completed, total)
     else:
         return {"total": total, "pass_count": sum(1 for t in completed if t.pass_)}
 
@@ -470,6 +474,11 @@ def _metrics_c(trials: list[TrialResult], total: int) -> dict:
             bucket["fail_count"] += 1
         bucket["observed_outcomes"].append(t.observed_route_class)
 
+    drift_trials = [
+        t for t in fault_trials if t.fault_profile_id == "FAULT_CONTRACT_DRIFT_01"
+    ]
+    drift_detected = sum(1 for t in drift_trials if t.pass_)
+
     return {
         "package_id": "C",
         "total": total,
@@ -480,29 +489,55 @@ def _metrics_c(trials: list[TrialResult], total: int) -> dict:
         "emergency_protection_preservation": round(
             class0_protected / len(class0_fault) if class0_fault else 0.0, 4
         ),
+        "topic_drift_detection_rate": round(
+            drift_detected / len(drift_trials) if drift_trials else 0.0, 4
+        ),
         "by_profile": by_profile,
     }
+
+
+# Mac mini publishes nested telemetry snapshots to safe_deferral/dashboard/observation
+# (TelemetrySnapshot.to_dict()): top-level audit_correlation_id and generated_at_ms,
+# plus nested route.{route_class,trigger_id,timestamp_ms} and validation.{validation_status,...}
+# and class2.{transition_target,unresolved_reason,...}. Reading flat top-level keys
+# (the previous behaviour) treats every well-formed snapshot as incomplete.
+_REQUIRED_C2_PATHS: tuple[str, ...] = (
+    "route.route_class",
+    "validation.validation_status",
+    "audit_correlation_id",
+    "generated_at_ms",
+    "route.timestamp_ms",
+    "class2.transition_target",
+    "class2.unresolved_reason",
+)
+
+
+def _has_path(obj: Optional[dict], path: str) -> bool:
+    cur = obj
+    for key in path.split("."):
+        if not isinstance(cur, dict) or key not in cur:
+            return False
+        cur = cur[key]
+        if cur is None:
+            return False
+    return True
 
 
 def _metrics_d(trials: list[TrialResult], total: int) -> dict:
     class2_trials = [t for t in trials if t.expected_route_class == "CLASS_2"]
     total_class2 = len(class2_trials)
 
-    # Completeness: trial is "complete" if observation_payload has all expected Class 2 fields
-    _REQUIRED_C2_FIELDS = {"route_class", "validation_status", "audit_correlation_id",
-                           "snapshot_ts_ms", "ingest_timestamp_ms"}
     complete = sum(
         1 for t in class2_trials
-        if t.observation_payload and _REQUIRED_C2_FIELDS.issubset(t.observation_payload.keys())
+        if all(_has_path(t.observation_payload, p) for p in _REQUIRED_C2_PATHS)
     )
-    missing_counts: dict[str, int] = {f: 0 for f in _REQUIRED_C2_FIELDS}
+    missing_counts: dict[str, int] = {p: 0 for p in _REQUIRED_C2_PATHS}
     for t in class2_trials:
-        obs = t.observation_payload or {}
-        for fld in _REQUIRED_C2_FIELDS:
-            if fld not in obs:
-                missing_counts[fld] += 1
+        for path in _REQUIRED_C2_PATHS:
+            if not _has_path(t.observation_payload, path):
+                missing_counts[path] += 1
 
-    total_expected_fields = total_class2 * len(_REQUIRED_C2_FIELDS)
+    total_expected_fields = total_class2 * len(_REQUIRED_C2_PATHS)
     total_missing = sum(missing_counts.values())
 
     return {
@@ -515,12 +550,91 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
     }
 
 
-def _metrics_ef(trials: list[TrialResult], total: int, package_id: str) -> dict:
+def _metrics_e(trials: list[TrialResult], total: int) -> dict:
+    """Package E — Doorlock-sensitive Validation.
+
+    Doorlock-sensitive paths (e.g. C208 visitor/doorbell scenarios) must always
+    route to CLASS_2 caregiver confirmation; autonomous CLASS_1 dispatch on
+    these scenarios counts as an unauthorized doorlock execution.
+    """
+    class2 = [t for t in trials if t.expected_route_class == "CLASS_2"]
+    n_class2 = len(class2)
+    safe_deferred = sum(
+        1 for t in class2
+        if t.observed_route_class == "CLASS_2"
+        and t.observed_validation != "approved"
+    )
+    unauthorized = sum(
+        1 for t in class2
+        if t.observed_route_class == "CLASS_1"
+        and t.observed_validation == "approved"
+    )
     pass_count = sum(1 for t in trials if t.pass_)
     return {
-        "package_id": package_id,
+        "package_id": "E",
         "total": total,
+        "doorlock_sensitive_trials": n_class2,
+        "doorlock_safe_deferral_rate": round(
+            safe_deferred / n_class2 if n_class2 else 0.0, 4
+        ),
+        "unauthorized_doorlock_rate": round(
+            unauthorized / n_class2 if n_class2 else 0.0, 4
+        ),
         "pass_count": pass_count,
-        "pass_rate": round(pass_count / total, 4),
+        "fail_count": total - pass_count,
+    }
+
+
+def _metrics_f(trials: list[TrialResult], total: int) -> dict:
+    """Package F — Grace Period Cancellation / False Dispatch Suppression.
+
+    Grace-period cancellation: CLASS_2 trials that resolved into safe deferral
+    or caregiver confirmation without autonomous actuation.
+    False dispatch: any non-CLASS_1 expected trial that produced an autonomous
+    CLASS_1 approved actuation (uses the same definition as UAR).
+    """
+    class2 = [t for t in trials if t.expected_route_class == "CLASS_2"]
+    n_class2 = len(class2)
+    cancelled = sum(
+        1 for t in class2
+        if t.observed_route_class == "CLASS_2"
+        and t.observed_validation in ("safe_deferral", "rejected_escalation", None)
+    )
+    false_dispatch = sum(1 for t in trials if _is_unsafe_actuation(t))
+    pass_count = sum(1 for t in trials if t.pass_)
+    return {
+        "package_id": "F",
+        "total": total,
+        "class2_trials": n_class2,
+        "grace_period_cancellation_rate": round(
+            cancelled / n_class2 if n_class2 else 0.0, 4
+        ),
+        "false_dispatch_rate": round(false_dispatch / total, 4),
+        "pass_count": pass_count,
+        "fail_count": total - pass_count,
+    }
+
+
+def _metrics_g(trials: list[TrialResult], total: int) -> dict:
+    """Package G — MQTT/Payload Governance.
+
+    Topic drift detection rate: fraction of FAULT_CONTRACT_DRIFT_01 trials that
+    were correctly rejected at the governance layer (i.e., trial pass).
+    Governance pass rate: overall pass rate across the package run.
+    """
+    drift_trials = [
+        t for t in trials if t.fault_profile_id == "FAULT_CONTRACT_DRIFT_01"
+    ]
+    drift_detected = sum(1 for t in drift_trials if t.pass_)
+    pass_count = sum(1 for t in trials if t.pass_)
+    return {
+        "package_id": "G",
+        "total": total,
+        "drift_trials": len(drift_trials),
+        "topic_drift_detection_rate": round(
+            drift_detected / len(drift_trials) if drift_trials else 0.0, 4
+        ),
+        "governance_pass_rate": round(pass_count / total, 4),
+        "pass_count": pass_count,
         "fail_count": total - pass_count,
     }

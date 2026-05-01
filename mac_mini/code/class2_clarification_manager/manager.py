@@ -14,7 +14,9 @@ Responsibilities:
 
 Authority rule (02_safety_and_authority_boundaries.md):
   - Candidate selection is confirmation evidence only.
-  - CLASS_1 transition still requires Policy Router re-entry + Validator approval.
+  - CLASS_1 transition still requires Deterministic Validator approval; the
+    runtime re-validates the confirmed bounded candidate before any dispatch
+    (the Policy Router is not re-invoked).
   - CLASS_0 transition requires emergency confirmation or deterministic evidence.
   - Silence/timeout must never be treated as consent.
   - This manager does not dispatch actuators or approve caregiver confirmation.

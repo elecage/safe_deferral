@@ -72,6 +72,7 @@ class PolicyRouter:
         audit_id: str = meta["audit_correlation_id"]
         ingest_ts: int = meta["ingest_timestamp_ms"]
         network_status: str = meta["network_status"]
+        experiment_mode: Optional[str] = meta.get("experiment_mode")
 
         trigger: dict = ctx["trigger_event"]
         env: dict = ctx["environmental_context"]
@@ -92,6 +93,7 @@ class PolicyRouter:
                 network_status=network_status,
                 routed_at_ms=routed_at,
                 pure_context_payload=ctx,
+                experiment_mode=experiment_mode,
             )
 
         # Step 3: emergency triggers → CLASS_0
@@ -108,6 +110,7 @@ class PolicyRouter:
                 network_status=network_status,
                 routed_at_ms=routed_at,
                 pure_context_payload=ctx,
+                experiment_mode=experiment_mode,
             )
 
         # Step 4: C208 — visitor/doorbell sensor event (doorlock-sensitive path)
@@ -138,6 +141,7 @@ class PolicyRouter:
             network_status=network_status,
             routed_at_ms=routed_at,
             pure_context_payload=ctx,
+            experiment_mode=experiment_mode,
         )
 
     # ------------------------------------------------------------------
@@ -242,4 +246,5 @@ class PolicyRouter:
             network_status=meta.get("network_status", "unknown"),
             routed_at_ms=int(time.time() * 1000),
             pure_context_payload=raw_input.get("pure_context_payload", {}),
+            experiment_mode=meta.get("experiment_mode"),
         )
