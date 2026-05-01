@@ -436,6 +436,21 @@ Rules:
 - `doorbell_detected=true`는 emergency evidence가 아니다
 - `doorbell_detected=true`는 autonomous door unlock authorization이 아니다
 
+### trigger_event vs environmental_context 구분
+
+`doorbell_detected`는 두 가지 다른 위치에서 사용되며 혼동해서는 안 된다:
+
+| 위치 | 필드 | 역할 | Policy Router 결과 |
+|---|---|---|---|
+| `environmental_context.doorbell_detected` | boolean context field | 방문자 도착 상황 context signal | **CLASS_1** (button trigger와 함께 사용 시) |
+| `trigger_event.event_type=sensor` + `event_code=doorbell_detected` | trigger event | 도어벨 센서 이벤트 자체 | **CLASS_2 (C208)** |
+
+- `environmental_context.doorbell_detected=true`만으로는 CLASS_2가 되지 않는다.
+  button trigger와 함께라면 CLASS_1 pipeline을 따른다.
+- `trigger_event.event_type=sensor, event_code=doorbell_detected`일 때만 C208로
+  CLASS_2에 진입한다. 이는 도어락 민감 경로이므로 보호자 확인이 필요하다.
+- 두 경우 모두 `doorbell_detected`는 doorlock 자동 개방 권한이 아니다.
+
 ---
 
 ## 12. fixture 참조 규칙

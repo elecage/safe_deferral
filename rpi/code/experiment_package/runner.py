@@ -93,6 +93,20 @@ class PackageRunner:
             profile.expected_outcome if profile else "class_1_approved"
         )
 
+        # Load expected_transition_target from scenario's class2_clarification_expectation
+        # when the scenario declares one.  Only relevant for CLASS_2 trials.
+        eff_transition_target: Optional[str] = None
+        if expected_route_class == "CLASS_2" and scenario_id:
+            try:
+                scenario = self._loader.load_scenario(scenario_id)
+                c2_exp = scenario.get("class2_clarification_expectation") or {}
+                eff_transition_target = c2_exp.get("expected_transition_target") or None
+            except Exception as exc:
+                log.warning(
+                    "Could not load class2_clarification_expectation from %s: %s",
+                    scenario_id, exc,
+                )
+
         correlation_id = f"pkg-{package_id}-{uuid.uuid4().hex[:8]}"
 
         trial = self._store.create_trial(
@@ -105,6 +119,7 @@ class PackageRunner:
             expected_validation=expected_validation,
             expected_outcome=eff_outcome,
             audit_correlation_id=correlation_id,
+            expected_transition_target=eff_transition_target,
         )
 
         t = threading.Thread(
