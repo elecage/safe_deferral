@@ -118,6 +118,26 @@ not BLOCKED; experiments may proceed with clearly labelled limitations.
 
 ## 6. Remaining Work
 
+### 6.1 Top priority initiative — LLM-driven Class 2 candidate generation
+
+The system's `_DEFAULT_CANDIDATES` static table for Class 2 clarification
+does not scale as new sensor / actuator nodes are added. The next major
+work is to let `LocalLlmAdapter` produce contextual bounded candidates
+(within strict policy caps) so TTS prompts and clarification options reflect
+actual current state.
+
+**Design document:** `common/docs/architecture/09_llm_driven_class2_candidate_generation_plan.md`
+
+That document captures the design discussion (2026-05-01), the safety
+boundary reconciliation, the bounded-variability constraints, and a phased
+implementation plan (Phase 0 doc → Phase 1 LLM adapter API → Phase 2
+manager hook → Phase 3 policy block → Phase 4 TTS auto-pickup → Phase 5
+evaluation metrics → Phase 6 deferred multi-turn). Read it before touching
+`mac_mini/code/class2_clarification_manager/manager.py` or
+`mac_mini/code/local_llm_adapter/adapter.py`.
+
+### 6.2 Smaller / supporting items
+
 - **STM32 timing support** (optional): USB-serial latency capture module
   under `rpi/code/stm32_timing/` with pyserial.
 - **ESP32 LWT wiring**: confirm LWT payload format matches presence schema
