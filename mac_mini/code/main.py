@@ -153,7 +153,12 @@ class Pipeline:
         self._dispatcher = LowRiskDispatcher(mqtt_publisher=mqtt_publisher, asset_loader=_loader)
         self._ack_handler = AckHandler()
         self._deferral = SafeDeferralHandler()
-        self._class2 = Class2ClarificationManager()
+        # Class2ClarificationManager receives the LLM adapter so it can ask
+        # for contextual bounded candidates (Phase 2 of
+        # 09_llm_driven_class2_candidate_generation_plan.md). On any LLM
+        # failure the manager silently falls back to its static
+        # _DEFAULT_CANDIDATES table.
+        self._class2 = Class2ClarificationManager(llm_candidate_generator=self._llm)
 
         self._telegram_sender = (
             HttpTelegramSender(TELEGRAM_TOKEN)
@@ -349,9 +354,14 @@ class Pipeline:
         returns immediately and telemetry is published promptly.
         """ % (self._class2_user_timeout_s, CAREGIVER_RESPONSE_TIMEOUT_S)
         log.info("CLASS_2: trigger=%s", trigger_id)
+        # Pass pure_context_payload so the manager can ask the LLM adapter
+        # for contextual bounded candidates (Phase 2 of
+        # 09_llm_driven_class2_candidate_generation_plan.md). On any LLM
+        # failure the manager falls back to its static _DEFAULT_CANDIDATES.
         session = self._class2.start_session(
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
+            pure_context_payload=route_result.pure_context_payload,
         )
 
         # Step 1: announce candidate choices to the USER via TTS

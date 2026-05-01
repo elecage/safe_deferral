@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "class2_candidate_set_schema",
+  "description": "LLM-generated bounded candidate set for Class 2 clarification. Wraps the candidate list with provenance and bounded-variability metadata. This payload is internal evidence between LocalLlmAdapter and Class2ClarificationManager; it does not authorize execution. Each candidate is converted by the manager into a ClarificationChoice and ultimately surfaced via clarification_interaction_schema. Authority boundary (02_safety_and_authority_boundaries.md §4): the LLM may suggest, the deterministic validator decides admissibility, and the canonical low-risk catalog gates execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_source",
+    "candidates",
+    "generated_at_ms",
+    "model_id"
+  ],
+  "properties": {
+    "candidate_source": {
+      "type": "string",
+      "enum": [
+        "llm_generated",
+        "default_fallback"
+      ],
+      "description": "Provenance of the candidate set. llm_generated means produced by LocalLlmAdapter.generate_class2_candidates() within the bounded-variability constraints; default_fallback means the manager's static _DEFAULT_CANDIDATES table was used (e.g. on LLM failure or constraint violation)."
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "description": "Bounded candidate list. Each item maps directly to a ClarificationChoice. action_hint/target_hint are optional but, when present, must reference values that the deterministic validator can admit against low_risk_actions.json.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "candidate_id",
+          "prompt",
+          "candidate_transition_target"
+        ],
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "User-facing TTS prompt. Length cap is the conversational-prompt accessibility ceiling; longer prompts must be rejected so the static fallback is used."
+          },
+          "candidate_transition_target": {
+            "type": "string",
+            "enum": [
+              "CLASS_1",
+              "CLASS_0",
+              "SAFE_DEFERRAL",
+              "CAREGIVER_CONFIRMATION"
+            ]
+          },
+          "action_hint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Suggested low-risk action. When present (CLASS_1 candidates), must be admissible by low_risk_actions.json or the candidate is rejected during validation."
+          },
+          "target_hint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Suggested target device. When present (CLASS_1 candidates), must be in the allowed_targets list for the chosen action_hint."
+          }
+        }
+      }
+    },
+    "generated_at_ms": {
+      "type": "integer",
+      "description": "Wall-clock generation timestamp in epoch milliseconds."
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "LLM model identifier (e.g. 'llama3.2', 'mock'). For default_fallback this should be the literal 'static_default_fallback'."
+    },
+    "prompt_constraints_applied": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Echo of the bounded-variability constraints applied during validation. Recorded for audit so a reviewer can see what the LLM was held to.",
+      "properties": {
+        "max_prompt_length_chars": {
+          "type": "integer"
+        },
+        "max_candidate_count": {
+          "type": "integer"
+        },
+        "prompt_must_be_question": {
+          "type": "boolean"
+        },
+        "must_include_target_action_in_prompt": {
+          "type": "boolean"
+        },
+        "vocabulary_tier": {
+          "type": "string"
+        },
+        "forbidden_phrasings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rejection_reason": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "When candidate_source=default_fallback, an optional short reason explaining why the LLM output was rejected (e.g. 'prompt_too_long', 'action_hint_not_in_catalog', 'invalid_json'). Useful for evaluation in Package A."
+    },
+    "llm_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_generation_only",
+        "final_decision_allowed",
+        "actuation_authority_allowed",
+        "emergency_trigger_authority_allowed"
+      ],
+      "properties": {
+        "candidate_generation_only": {
+          "type": "boolean",
+          "const": true
+        },
+        "final_decision_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "actuation_authority_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "emergency_trigger_authority_allowed": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    }
+  }
+}

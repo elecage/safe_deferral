@@ -67,6 +67,14 @@
       ],
       "description": "Machine-readable reason for entering or remaining in Class 2 clarification."
     },
+    "candidate_source": {
+      "type": "string",
+      "enum": [
+        "llm_generated",
+        "default_fallback"
+      ],
+      "description": "Provenance of the candidate set. llm_generated means LocalLlmAdapter.generate_class2_candidates() produced the candidates within bounded-variability constraints; default_fallback means Class2ClarificationManager._DEFAULT_CANDIDATES was used (e.g. on LLM failure or constraint violation). Optional field for backward compatibility; absence means default_fallback for legacy records."
+    },
     "candidate_choices": {
       "type": "array",
       "minItems": 1,

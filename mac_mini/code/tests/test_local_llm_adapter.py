@@ -289,3 +289,197 @@ class TestPromptBuilder:
         result = adapter.generate_candidate(_ctx(event_code="long_press"), AUDIT_ID,
                                             event_code="single_click")
         assert result.is_fallback is False
+
+
+# ==================================================================
+# generate_class2_candidates (Phase 1 of LLM-driven Class 2 plan)
+# ==================================================================
+
+import json as _json
+
+
+def _class2_response(*candidates) -> str:
+    return _json.dumps({"candidates": list(candidates)})
+
+
+def _valid_lighting_candidate() -> dict:
+    return {
+        "candidate_id": "C1_LIGHTING_ASSISTANCE",
+        "prompt": "거실 조명을 켜드릴까요?",
+        "candidate_transition_target": "CLASS_1",
+        "action_hint": "light_on",
+        "target_hint": "living_room_light",
+    }
+
+
+def _valid_caregiver_candidate() -> dict:
+    return {
+        "candidate_id": "C2_CAREGIVER_HELP",
+        "prompt": "보호자에게 알려드릴까요?",
+        "candidate_transition_target": "CAREGIVER_CONFIRMATION",
+        "action_hint": None,
+        "target_hint": None,
+    }
+
+
+class TestGenerateClass2Candidates:
+    """LocalLlmAdapter.generate_class2_candidates produces a bounded candidate
+    set or returns a default_fallback signalling the manager to use its
+    static _DEFAULT_CANDIDATES table."""
+
+    def test_valid_llm_set_is_accepted(self):
+        adapter = _mock_adapter(_class2_response(
+            _valid_lighting_candidate(), _valid_caregiver_candidate(),
+        ))
+        result = adapter.generate_class2_candidates(
+            _ctx(event_code="double_click"),
+            unresolved_reason="insufficient_context",
+            max_candidates=4,
+            audit_correlation_id=AUDIT_ID,
+        )
+        assert result.candidate_source == "llm_generated"
+        assert result.is_usable is True
+        assert len(result.candidates) == 2
+        assert result.candidates[0]["candidate_id"] == "C1_LIGHTING_ASSISTANCE"
+        assert result.candidates[0]["target_hint"] == "living_room_light"
+        # bounded-variability constraints echoed
+        assert result.prompt_constraints_applied["max_prompt_length_chars"] == 80
+        assert result.prompt_constraints_applied["prompt_must_be_question"] is True
+
+    def test_invalid_json_falls_back(self):
+        adapter = _mock_adapter("this is not json")
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        assert result.candidate_source == "default_fallback"
+        assert result.candidates == []
+        assert result.rejection_reason == "invalid_json"
+
+    def test_oversized_prompt_drops_candidate(self):
+        bad = _valid_lighting_candidate()
+        bad["prompt"] = "정말 정말 정말 " * 30 + "켜드릴까요?"  # > 80 chars
+        adapter = _mock_adapter(_class2_response(bad, _valid_caregiver_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        assert result.candidate_source == "llm_generated"
+        # bad lighting dropped, caregiver kept
+        assert all(c["candidate_id"] != "C1_LIGHTING_ASSISTANCE" for c in result.candidates)
+        assert any(c["candidate_id"] == "C2_CAREGIVER_HELP" for c in result.candidates)
+
+    def test_non_question_prompt_dropped(self):
+        bad = _valid_lighting_candidate()
+        bad["prompt"] = "거실 조명을 켜겠습니다"  # statement, not question
+        adapter = _mock_adapter(_class2_response(bad, _valid_caregiver_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        assert all(c["candidate_id"] != "C1_LIGHTING_ASSISTANCE" for c in result.candidates)
+
+    def test_action_hint_outside_catalog_dropped(self):
+        bad = _valid_lighting_candidate()
+        bad["action_hint"] = "door_unlock"  # not in low_risk_actions
+        bad["target_hint"] = "front_door_lock"
+        adapter = _mock_adapter(_class2_response(bad, _valid_caregiver_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        ids = [c["candidate_id"] for c in result.candidates]
+        assert "C1_LIGHTING_ASSISTANCE" not in ids
+
+    def test_target_hint_outside_action_targets_dropped(self):
+        bad = _valid_lighting_candidate()
+        bad["target_hint"] = "tv_main"  # light_on doesn't allow tv_main
+        adapter = _mock_adapter(_class2_response(bad, _valid_caregiver_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        ids = [c["candidate_id"] for c in result.candidates]
+        assert "C1_LIGHTING_ASSISTANCE" not in ids
+
+    def test_forbidden_phrasing_dropped(self):
+        bad = _valid_lighting_candidate()
+        bad["prompt"] = "도어락을 풀어드릴까요?"  # contains "도어락" forbidden token
+        adapter = _mock_adapter(_class2_response(bad, _valid_caregiver_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        ids = [c["candidate_id"] for c in result.candidates]
+        assert "C1_LIGHTING_ASSISTANCE" not in ids
+
+    def test_class0_normalized_to_fixed_template(self):
+        invented = {
+            "candidate_id": "C_INVENTED_EMERGENCY",
+            "prompt": "강도가 들어왔다고 보고 비상 출동시킬까요?",
+            "candidate_transition_target": "CLASS_0",
+            "action_hint": None,
+            "target_hint": None,
+        }
+        adapter = _mock_adapter(_class2_response(_valid_lighting_candidate(), invented))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        # The CLASS_0 entry must be collapsed to the safe template
+        c0 = [c for c in result.candidates if c["candidate_transition_target"] == "CLASS_0"]
+        assert len(c0) == 1
+        assert c0[0]["candidate_id"] == "C3_EMERGENCY_HELP"
+        assert c0[0]["prompt"] == "긴급상황인가요?"
+
+    def test_caregiver_first_invariant_for_sensitive_path(self):
+        """unresolved_reason=caregiver_required_sensitive_path must put a
+        caregiver candidate first; if not present at all, fall back."""
+        adapter = _mock_adapter(_class2_response(
+            _valid_lighting_candidate(),  # CLASS_1 first
+            _valid_caregiver_candidate(),
+        ))
+        result = adapter.generate_class2_candidates(
+            _ctx(event_type="sensor", event_code="doorbell_detected"),
+            "caregiver_required_sensitive_path",
+            4, AUDIT_ID,
+        )
+        assert result.candidate_source == "llm_generated"
+        assert result.candidates[0]["candidate_transition_target"] == "CAREGIVER_CONFIRMATION"
+
+    def test_caregiver_required_with_no_caregiver_falls_back(self):
+        adapter = _mock_adapter(_class2_response(_valid_lighting_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(),
+            "caregiver_required_sensitive_path",
+            4, AUDIT_ID,
+        )
+        assert result.candidate_source == "default_fallback"
+        assert result.rejection_reason == "caregiver_first_violation"
+
+    def test_max_candidates_enforced(self):
+        """max_candidates from the manager caps the LLM output."""
+        many = [_valid_caregiver_candidate() | {"candidate_id": f"C_{i}"} for i in range(6)]
+        adapter = _mock_adapter(_class2_response(*many))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", max_candidates=2, audit_correlation_id=AUDIT_ID,
+        )
+        assert len(result.candidates) <= 2
+
+    def test_empty_candidates_array_falls_back(self):
+        adapter = _mock_adapter(_class2_response())  # candidates: []
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        assert result.candidate_source == "default_fallback"
+        assert result.rejection_reason == "no_candidates_array"
+
+    def test_safe_deferral_candidate_strips_actuation_hints(self):
+        """Even if the LLM puts action_hint on a SAFE_DEFERRAL candidate, the
+        adapter must clear it — only CLASS_1 candidates carry actuation hints."""
+        sd = {
+            "candidate_id": "C4_CANCEL_OR_WAIT",
+            "prompt": "취소하고 대기할까요?",
+            "candidate_transition_target": "SAFE_DEFERRAL",
+            "action_hint": "light_on",
+            "target_hint": "living_room_light",
+        }
+        adapter = _mock_adapter(_class2_response(sd))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        assert result.candidates[0]["action_hint"] is None
+        assert result.candidates[0]["target_hint"] is None
