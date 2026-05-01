@@ -27,8 +27,8 @@
     {
       "step_id": 1,
       "action": "publish_visitor_or_doorlock_sensitive_context",
-      "description": "Publish visitor-response context or doorlock-sensitive intent evidence through the registry-aligned context input plane. doorbell_detected may be true, but it is not door unlock authorization.",
-      "payload_fixture": "common/payloads/examples/policy_router_input_visitor_doorbell.json"
+      "description": "Publish a visitor/doorbell sensor event (event_type=sensor, event_code=doorbell_detected, doorbell_detected=true). Routes to CLASS_2 / C208 caregiver_required_sensitive_path. doorbell_detected may be true, but it is NOT door unlock authorization.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_caregiver_confirmation_doorlock_sensitive.json"
     },
     {
       "step_id": 2,
@@ -38,7 +38,7 @@
     {
       "step_id": 3,
       "action": "publish_class2_notification",
-      "description": "Publish Class 2 notification for the doorlock-sensitive case. The notification describes the manual confirmation path but is not actuation authority.",
+      "description": "Publish Class 2 notification for the doorlock-sensitive case to safe_deferral/escalation/class2. exception_trigger_id=C208. The notification describes the manual confirmation path but is not actuation authority.",
       "payload_fixture": "common/payloads/examples/class_2_notification_doorlock_sensitive.json"
     },
     {
@@ -50,7 +50,8 @@
     {
       "step_id": 5,
       "action": "collect_caregiver_confirmation",
-      "description": "Collect caregiver confirmation through the governed manual confirmation path. Caregiver confirmation is a separate governed path and not autonomous Class 1 validator approval."
+      "description": "Collect caregiver confirmation through the governed manual confirmation path. Caregiver confirmation is a separate governed path and NOT autonomous Class 1 validator approval. Lighting candidate (C1_LIGHTING_ASSISTANCE) must be excluded from the C208 candidate set.",
+      "expected_fixture": "integration/tests/data/expected_class2_caregiver_confirmation_doorlock_sensitive.json"
     },
     {
       "step_id": 6,

@@ -25,8 +25,8 @@
     {
       "step_id": 1,
       "action": "publish_ambiguous_context_payload",
-      "description": "Publish an ambiguous context payload that enters Class 2 rather than immediate emergency handling because deterministic emergency evidence is not yet present.",
-      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+      "description": "Publish an ambiguous non-emergency context payload (button double_click, no smoke/gas/fall, doorbell_detected=false, normal temperature) so the Policy Router routes to CLASS_2 / C206 insufficient_context. Deterministic emergency evidence is intentionally absent — the Class 0 transition will be driven by the user/caregiver emergency selection in step 4.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_to_class0_emergency_confirmation.json"
     },
     {
       "step_id": 2,
@@ -42,12 +42,14 @@
     {
       "step_id": 4,
       "action": "collect_emergency_confirmation_or_evidence",
-      "description": "Collect explicit emergency confirmation, emergency-pattern input such as triple-hit, or deterministic E001-E005 evidence."
+      "description": "Collect explicit emergency confirmation (e.g. C3_EMERGENCY_HELP selection), emergency-pattern input such as triple-hit, or deterministic E001-E005 evidence. The runner auto-drives a triple_hit when expected_transition_target=CLASS_0, which the Pipeline maps to the first CLASS_0-targeted candidate.",
+      "payload_fixture": "integration/tests/data/sample_class2_user_selection_class0.json"
     },
     {
       "step_id": 5,
       "action": "transition_to_class0_emergency_path",
-      "description": "Transition to Class 0 only when emergency confirmation or deterministic emergency evidence is present. The runtime announces the emergency and dispatches a caregiver notification directly; the Policy Router is not re-invoked."
+      "description": "Transition to Class 0 only when emergency confirmation or deterministic emergency evidence is present. The runtime announces the emergency and dispatches a caregiver notification directly; the Policy Router is not re-invoked. The post-transition observation must carry the escalation block.",
+      "expected_fixture": "integration/tests/data/expected_class2_transition_class0.json"
     },
     {
       "step_id": 6,
