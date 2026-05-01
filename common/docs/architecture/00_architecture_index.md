@@ -22,6 +22,7 @@ Read these documents first for current architecture work:
 7. `06_deployment_and_scripts.md`
 8. `07_scenarios_and_evaluation.md`
 9. `08_system_structure_figure_revision_plan.md`
+10. `09_llm_driven_class2_candidate_generation_plan.md`
 
 These files are the active navigation layer. They intentionally summarize and
 deduplicate the older numbered notes.
@@ -65,6 +66,7 @@ Current MQTT and payload reference assets:
 | `06_deployment_and_scripts.md` | Install/configure/verify structure for Mac mini, RPi, ESP32 |
 | `07_scenarios_and_evaluation.md` | Scenario contracts, evaluation boundaries, measurement direction |
 | `08_system_structure_figure_revision_plan.md` | Stepwise revision plan for the system structure figure |
+| `09_llm_driven_class2_candidate_generation_plan.md` | Plan for moving Class 2 candidate generation and TTS prompts from a static lookup table to bounded LLM-driven contextual generation, with phased implementation and safety reconciliation |
 
 System-figure revision working notes live under:
 
