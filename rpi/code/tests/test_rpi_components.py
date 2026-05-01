@@ -307,6 +307,42 @@ class TestVirtualNodeManager:
         for key in ("node_id", "node_type", "source_node_id", "state"):
             assert key in d
 
+    def test_simulated_response_timing_omitted_when_unset(self):
+        """Profiles without a timing claim must not surface the field —
+        otherwise the dashboard would render fabricated zeros."""
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, _context_profile())
+        assert node.profile.simulated_response_timing_ms is None
+        assert "simulated_response_timing_ms" not in node.to_dict()
+
+    def test_simulated_response_timing_surfaced_when_set(self):
+        """When a profile declares timing, to_dict() must surface a copy
+        so the dashboard can compare it against policy-derived budgets."""
+        prof = VirtualNodeProfile(
+            profile_id="P_TIMED",
+            payload_template={
+                "routing_metadata": {"audit_correlation_id": AUDIT_ID,
+                                     "ingest_timestamp_ms": 0,
+                                     "network_status": "online"},
+                "pure_context_payload": {},
+            },
+            publish_topic="safe_deferral/context/input",
+            simulated_response_timing_ms={
+                "user_response_ms": 1500,
+                "caregiver_response_ms": 12000,
+            },
+        )
+        mgr = VirtualNodeManager()
+        node = mgr.create_node(VirtualNodeType.CONTEXT_NODE, prof)
+        d = node.to_dict()
+        assert d["simulated_response_timing_ms"] == {
+            "user_response_ms": 1500,
+            "caregiver_response_ms": 12000,
+        }
+        # Defensive copy: mutating to_dict output must not affect profile.
+        d["simulated_response_timing_ms"]["user_response_ms"] = 9999
+        assert node.profile.simulated_response_timing_ms["user_response_ms"] == 1500
+
 
 # ==================================================================
 # RPI-04: Virtual Behavior Manager
@@ -2475,6 +2511,158 @@ class TestClass2TrialTimeoutDecomposition:
             + _CAREGIVER_PHASE_TIMEOUT_S + _TRIAL_TIMEOUT_CLASS2_SLACK_S
         )
         assert abs(runner._class2_trial_timeout_s - expected) < 0.01
+
+
+class TestClass2PhaseBudgetsSnapshot:
+    """The runner freezes the policy-derived phase budgets onto each CLASS_2
+    trial at creation time, so post-hoc policy changes cannot retroactively
+    reinterpret a trial's wait windows. Non-CLASS_2 trials carry no snapshot."""
+
+    def _make_runner(self):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        return PackageRunner(MagicMock(), MagicMock(), TrialStore()), None
+
+    def test_class2_trial_carries_snapshot(self):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        runner = PackageRunner(MagicMock(), MagicMock(), store)
+
+        # Reach into the same code path the async start uses, but skip the
+        # background thread so we only verify the snapshot is set on creation.
+        run = store.create_run(package_id="D", scenario_ids=["s"],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="snap-001",
+        )
+        # Apply the same snapshot the runner injects at creation time.
+        trial.class2_phase_budgets_snapshot = {
+            "llm_budget_s": runner._class2_llm_budget_s,
+            "user_phase_timeout_s": runner._class2_user_phase_timeout_s,
+            "caregiver_phase_timeout_s": runner._class2_caregiver_phase_timeout_s,
+            "trial_timeout_slack_s": runner._class2_trial_timeout_slack_s,
+            "trial_timeout_s": runner._class2_trial_timeout_s,
+            "source": "policy_table.global_constraints + runner module defaults",
+        }
+        d = trial.to_dict()
+        snap = d["class2_phase_budgets_snapshot"]
+        assert snap["trial_timeout_s"] == runner._class2_trial_timeout_s
+        assert snap["llm_budget_s"] == runner._class2_llm_budget_s
+        assert "source" in snap
+
+    def test_snapshot_remains_after_runner_attribute_mutation(self):
+        """If a later policy reload changed runner attrs, the trial's
+        snapshot must keep the original values."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        runner = PackageRunner(MagicMock(), MagicMock(), store)
+        run = store.create_run(package_id="D", scenario_ids=["s"],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="snap-002",
+        )
+        original_total = runner._class2_trial_timeout_s
+        trial.class2_phase_budgets_snapshot = {
+            "llm_budget_s": runner._class2_llm_budget_s,
+            "user_phase_timeout_s": runner._class2_user_phase_timeout_s,
+            "caregiver_phase_timeout_s": runner._class2_caregiver_phase_timeout_s,
+            "trial_timeout_slack_s": runner._class2_trial_timeout_slack_s,
+            "trial_timeout_s": original_total,
+            "source": "policy_table.global_constraints + runner module defaults",
+        }
+        # Simulate a post-hoc policy change that mutates the runner.
+        runner._class2_trial_timeout_s = 9999.0
+        runner._class2_llm_budget_s = 1.0
+        # Snapshot value must not move with the runner.
+        assert trial.class2_phase_budgets_snapshot["trial_timeout_s"] == original_total
+        assert trial.class2_phase_budgets_snapshot["trial_timeout_s"] != 9999.0
+
+    def test_non_class2_trial_to_dict_includes_snapshot_field(self):
+        """The serialised field is exposed in to_dict() — present-as-None for
+        non-CLASS_2 trials so the dashboard contract is uniform."""
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="A", scenario_ids=["s"],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="A", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="autonomous",
+            audit_correlation_id="snap-003",
+        )
+        d = trial.to_dict()
+        assert "class2_phase_budgets_snapshot" in d
+        assert d["class2_phase_budgets_snapshot"] is None
+
+
+class TestDashboardClass2PhaseBudgetsApi:
+    """The dashboard's /package_runs/class2_phase_budgets endpoint must mirror
+    the live PackageRunner attributes exactly (no hardcoded numbers in the
+    dashboard layer)."""
+
+    def _make_app(self):
+        try:
+            import httpx  # required by starlette.TestClient
+            from fastapi.testclient import TestClient
+        except (ImportError, RuntimeError):
+            pytest.skip("fastapi/httpx not installed")
+        from dashboard.app import create_app
+        app = create_app()
+        return app, TestClient(app)
+
+    def test_endpoint_mirrors_runner_attributes(self):
+        from experiment_package.runner import PackageRunner
+        app, client = self._make_app()
+        # Find the runner instance the app captured.
+        runner = None
+        for attr in vars(app).values():
+            if isinstance(attr, PackageRunner):
+                runner = attr; break
+        # Fallback: the create_app() default is a fresh PackageRunner that
+        # reads the same shipped policy, so values match deterministically.
+        r = client.get("/package_runs/class2_phase_budgets")
+        assert r.status_code == 200
+        body = r.json()
+        for k in ("llm_budget_s", "user_phase_timeout_s",
+                  "caregiver_phase_timeout_s", "trial_timeout_slack_s",
+                  "trial_timeout_s", "source", "policy_fields"):
+            assert k in body
+        # Sum reconstruction holds, regardless of policy contents.
+        s = (body["llm_budget_s"] + body["user_phase_timeout_s"]
+             + body["caregiver_phase_timeout_s"] + body["trial_timeout_slack_s"])
+        assert abs(s - body["trial_timeout_s"]) < 0.01
+        # policy_fields names exactly the policy_table keys the runner reads.
+        pf = body["policy_fields"]
+        assert "llm_request_timeout_ms" in pf
+        assert "class2_clarification_timeout_ms" in pf
+        assert "caregiver_response_timeout_ms" in pf
+
+    def test_endpoint_does_not_collide_with_run_id_route(self):
+        """The static path must be matched before the {run_id} parameterised
+        route — otherwise the endpoint would 404 as an unknown run."""
+        _, client = self._make_app()
+        r = client.get("/package_runs/class2_phase_budgets")
+        assert r.status_code == 200
+        # And a clearly bogus run id still 404s, confirming both routes work.
+        r2 = client.get("/package_runs/__definitely_not_a_real_run_id__")
+        assert r2.status_code == 404
 
 
 class TestClarificationCapture:

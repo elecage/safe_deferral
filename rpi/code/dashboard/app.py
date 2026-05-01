@@ -706,6 +706,33 @@ def create_app(
     def list_package_runs():
         return [r.to_dict() for r in _ts.list_runs()]
 
+    @app.get("/package_runs/class2_phase_budgets",
+             summary="Live CLASS_2 trial phase budgets (policy-derived)")
+    def get_class2_phase_budgets():
+        """Reflects the live PackageRunner attributes derived from
+        policy_table.global_constraints. The dashboard fetches this so the
+        rendered phase breakdown is the same value the runner actually uses
+        — no hardcoded numbers in the dashboard.
+
+        Trials carry their own snapshot (trial.class2_phase_budgets_snapshot)
+        captured at trial creation time; that snapshot is the historically
+        correct source for past trials. This endpoint is for the *current*
+        budget that any new trial would receive.
+        """
+        return {
+            "source": "policy_table.global_constraints + runner module defaults",
+            "llm_budget_s": _pr._class2_llm_budget_s,
+            "user_phase_timeout_s": _pr._class2_user_phase_timeout_s,
+            "caregiver_phase_timeout_s": _pr._class2_caregiver_phase_timeout_s,
+            "trial_timeout_slack_s": _pr._class2_trial_timeout_slack_s,
+            "trial_timeout_s": _pr._class2_trial_timeout_s,
+            "policy_fields": {
+                "llm_request_timeout_ms": "global_constraints.llm_request_timeout_ms",
+                "class2_clarification_timeout_ms": "global_constraints.class2_clarification_timeout_ms",
+                "caregiver_response_timeout_ms": "global_constraints.caregiver_response_timeout_ms",
+            },
+        }
+
     @app.get("/package_runs/{run_id}", summary="Get package run status and trial list")
     def get_package_run(run_id: str):
         run = _ts.get_run(run_id)

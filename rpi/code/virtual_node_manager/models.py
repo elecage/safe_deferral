@@ -56,6 +56,15 @@ class VirtualNodeProfile:
     publish_topic: str
     publish_interval_ms: int = 1000
     repeat_count: int = 1             # 0 = unlimited until stopped
+    # Optional advisory: declares the simulated response timing this node is
+    # configured to produce, in milliseconds, for each Class 2 phase. Used by
+    # the dashboard to compare what the simulation actually exercises against
+    # the policy-derived budgets in PackageRunner. Keys are free-form
+    # (e.g. {"user_response_ms": 1500, "caregiver_response_ms": 12000})
+    # so different simulator personalities can document themselves without
+    # forcing a schema. None means "this profile makes no timing claim";
+    # the dashboard should display "(unset)" rather than fabricate a number.
+    simulated_response_timing_ms: Optional[dict] = None
 
 
 @dataclass
@@ -85,4 +94,10 @@ class VirtualNode:
             d["device_target"] = self.device_target
         if self.sensor_name is not None:
             d["sensor_name"] = self.sensor_name
+        # Surface the profile's advisory simulated_response_timing_ms so the
+        # dashboard can render it without hardcoding any numbers itself.
+        if self.profile.simulated_response_timing_ms is not None:
+            d["simulated_response_timing_ms"] = dict(
+                self.profile.simulated_response_timing_ms
+            )
         return d

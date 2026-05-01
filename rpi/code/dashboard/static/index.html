@@ -666,6 +666,17 @@
         <!-- Run summary bar -->
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px" id="pkg-result-summary-bar"></div>
 
+        <!-- CLASS_2 phase budget breakdown — values fetched live from
+             /package_runs/class2_phase_budgets, which mirrors the runner's
+             policy-derived attributes. No hardcoded numbers in this card.
+             For per-trial historical accuracy, the trial detail view also
+             surfaces trial.class2_phase_budgets_snapshot when present. -->
+        <div class="card mb-20" id="pkg-class2-budgets-card" style="display:none">
+          <div class="card-title">CLASS_2 Phase Budgets <span style="font-size:11px;color:var(--text-dim);font-weight:400;margin-left:8px" id="pkg-class2-budgets-source"></span></div>
+          <div id="pkg-class2-budgets-grid" class="metrics-grid" style="margin-bottom:8px"></div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:4px" id="pkg-class2-budgets-policy-fields"></div>
+        </div>
+
         <!-- Package A view -->
         <div id="view-pkg-A" style="display:none">
           <div class="card mb-20">
@@ -1394,6 +1405,22 @@ function renderNodes(nodes) {
     const autoAckBadge = isSim
       ? `<span style="font-size:10px;color:var(--accent);background:rgba(99,102,241,0.15);padding:2px 7px;border-radius:10px;margin-left:4px">자동ACK</span>`
       : '';
+    // Surface advisory timing claims declared by the virtual node profile
+    // (simulated_response_timing_ms). When unset, show nothing rather than
+    // fabricating numbers — fidelity comes from the pre-configured profile.
+    const timing = n.simulated_response_timing_ms;
+    let timingRow = '';
+    if (timing && typeof timing === 'object') {
+      const parts = Object.entries(timing).map(([k, v]) => {
+        const label = k.replace(/_ms$/, '').replace(/_/g, ' ');
+        return `${label} ${v}ms`;
+      });
+      if (parts.length > 0) {
+        timingRow = `<div style="font-size:10px;color:var(--text-dim);margin-top:6px"
+          title="Profile-declared simulated response timing (advisory; compared with policy-derived budgets in CLASS_2 phase card)">
+          ⏱ ${parts.join(' · ')}</div>`;
+      }
+    }
     return `<div class="node-card">
       <div class="node-header">
         <div class="node-type">${nodeTypeLabel(n.node_type)}${autoAckBadge}</div>
@@ -1404,6 +1431,7 @@ function renderNodes(nodes) {
         ${deviceInfo}
         <div class="node-info-item">발행<br><span>${n.published_count}회</span></div>
       </div>
+      ${timingRow}
       <div class="node-actions">
         ${canStart ? `<button class="btn btn-success" onclick="nodeAction('${n.node_id}','start')">▶ 시작</button>` : ''}
         ${canStop  ? `<button class="btn btn-warning" onclick="nodeAction('${n.node_id}','stop')">⏸ 정지</button>` : ''}
@@ -2126,11 +2154,78 @@ async function loadPkgRunResult() {
   else if (pkgId === 'C') renderPkgC(metrics, trials);
   else renderPkgGeneric(metrics, pkgId);
 
+  // CLASS_2 phase budget breakdown — fetched live from runner-derived API.
+  // Show only when at least one trial in this run is CLASS_2; per-trial
+  // historical accuracy is preserved by trial.class2_phase_budgets_snapshot
+  // in the export, so older runs still report the budgets they actually used.
+  const hasClass2 = trials.some(t =>
+    t.expected_route_class === 'CLASS_2' || t.observed_route_class === 'CLASS_2');
+  await renderClass2PhaseBudgets(hasClass2, trials);
+
   // Export links
   document.getElementById('pkg-export-card').style.display = '';
   document.getElementById('pkg-export-json').href = `/package_runs/${runId}/export/json`;
   document.getElementById('pkg-export-csv').href = `/package_runs/${runId}/export/csv`;
   document.getElementById('pkg-export-md').href = `/package_runs/${runId}/export/markdown`;
+}
+
+// ── CLASS_2 phase budget card ──────────────
+// All numbers come from the live runner-derived /package_runs/class2_phase_budgets
+// endpoint or from each trial's class2_phase_budgets_snapshot. The dashboard
+// never invents or hardcodes budget numbers — fidelity comes from policy_table
+// and from virtual node pre-configured timing claims (VirtualNodeProfile.
+// simulated_response_timing_ms).
+async function renderClass2PhaseBudgets(hasClass2, trials) {
+  const card = document.getElementById('pkg-class2-budgets-card');
+  const grid = document.getElementById('pkg-class2-budgets-grid');
+  const srcEl = document.getElementById('pkg-class2-budgets-source');
+  const polEl = document.getElementById('pkg-class2-budgets-policy-fields');
+  if (!card) return;
+  if (!hasClass2) { card.style.display = 'none'; return; }
+
+  // Pick a per-trial snapshot if all CLASS_2 trials in this run share one.
+  // Otherwise fall back to the live runner-derived endpoint. This preserves
+  // historical accuracy when policy changes after a run was recorded.
+  const c2 = trials.filter(t =>
+    t.expected_route_class === 'CLASS_2' || t.observed_route_class === 'CLASS_2');
+  const snapshots = c2.map(t => t.class2_phase_budgets_snapshot).filter(Boolean);
+  let data = null;
+  let snapshotMode = false;
+  if (snapshots.length > 0 && snapshots.length === c2.length) {
+    const ref = JSON.stringify(snapshots[0]);
+    const allSame = snapshots.every(s => JSON.stringify(s) === ref);
+    if (allSame) { data = snapshots[0]; snapshotMode = true; }
+  }
+  if (!data) {
+    try {
+      const r = await fetch('/package_runs/class2_phase_budgets');
+      if (!r.ok) { card.style.display = 'none'; return; }
+      data = await r.json();
+    } catch { card.style.display = 'none'; return; }
+  }
+
+  const fmtS = v => v == null ? '—' : `${(+v).toFixed(1)}s`;
+  const cells = [
+    { v: data.llm_budget_s, k: 'LLM Budget' },
+    { v: data.user_phase_timeout_s, k: 'User Phase' },
+    { v: data.caregiver_phase_timeout_s, k: 'Caregiver Phase' },
+    { v: data.trial_timeout_slack_s, k: 'Slack' },
+    { v: data.trial_timeout_s, k: 'Trial Timeout' },
+  ];
+  grid.innerHTML = cells.map(c =>
+    `<div class="metric-box"><div class="metric-value" style="font-size:20px">${fmtS(c.v)}</div>` +
+    `<div class="metric-label">${c.k}</div></div>`
+  ).join('');
+
+  const srcLabel = snapshotMode
+    ? '(per-trial snapshot — frozen at trial creation)'
+    : `(live runner-derived · ${data.source || 'policy'})`;
+  srcEl.textContent = srcLabel;
+
+  const pf = data.policy_fields || {};
+  const pfStr = Object.entries(pf).map(([k, v]) => `${k} ← ${v}`).join(' · ');
+  polEl.textContent = pfStr ? `policy: ${pfStr}` : '';
+  card.style.display = '';
 }
 
 // ── Package A ──────────────────────────────
