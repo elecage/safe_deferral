@@ -134,12 +134,15 @@ Generate the Class 2 clarification manager.
 
 Required behavior:
 
-- publish and consume Class 2 interaction evidence through
-  `safe_deferral/clarification/interaction`,
+- publish Class 2 interaction evidence to `safe_deferral/clarification/interaction`
+  (publish-only; runtime receives CLASS_2 selections via `context/input` button
+  press or Telegram callback, not by consuming this topic),
 - validate records with `common/schemas/clarification_interaction_schema.json`,
 - manage branches for Class 2 to Class 1, Class 2 to Class 0, and Class 2 to
   Safe Deferral / Caregiver Confirmation,
-- ensure every transition re-enters the Policy Router,
+- for Class 2 to Class 1: re-enter Deterministic Validator with the confirmed
+  bounded candidate (Policy Router re-entry is not required when candidate is
+  already selected),
 - record candidate choices, selection, timeout/no-response, transition target,
   and final safe outcome.
 

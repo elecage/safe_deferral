@@ -24,6 +24,7 @@ class TrialResult:
     expected_route_class: str             # "CLASS_0" | "CLASS_1" | "CLASS_2"
     expected_validation: str              # "approved" | "safe_deferral" | "rejected_escalation"
     expected_outcome: str                 # from fault_profile or scenario definition
+    expected_transition_target: Optional[str] = None  # "CLASS_1" | "CLASS_0" | None (CLASS_2 only)
 
     # Observed (filled after matching ObservationStore)
     observed_route_class: Optional[str] = None
@@ -50,6 +51,7 @@ class TrialResult:
             "expected_route_class": self.expected_route_class,
             "expected_validation": self.expected_validation,
             "expected_outcome": self.expected_outcome,
+            "expected_transition_target": self.expected_transition_target,
             "observed_route_class": self.observed_route_class,
             "observed_validation": self.observed_validation,
             "audit_correlation_id": self.audit_correlation_id,
@@ -155,6 +157,7 @@ class TrialStore:
         expected_validation: str,
         expected_outcome: str,
         audit_correlation_id: str,
+        expected_transition_target: Optional[str] = None,
     ) -> TrialResult:
         trial = TrialResult(
             trial_id=str(uuid.uuid4()),
@@ -167,6 +170,7 @@ class TrialStore:
             expected_validation=expected_validation,
             expected_outcome=expected_outcome,
             audit_correlation_id=audit_correlation_id,
+            expected_transition_target=expected_transition_target,
         )
         with self._lock:
             self._trials[trial.trial_id] = trial
@@ -289,6 +293,11 @@ def _is_pass(trial: TrialResult) -> bool:
         class2_tel = obs_payload.get("class2") or {}
         if not class2_tel:
             return False
+        # If scenario specifies an expected transition target, verify it matches
+        if trial.expected_transition_target is not None:
+            observed_target = class2_tel.get("transition_target")
+            if observed_target != trial.expected_transition_target:
+                return False
         return True
 
     # Standard: observed route class must equal expected

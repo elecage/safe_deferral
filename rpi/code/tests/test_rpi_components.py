@@ -888,3 +888,82 @@ class TestPackageRunnerContractDrift:
         drift_bucket = metrics["by_profile"].get("FAULT_CONTRACT_DRIFT_01", {})
         assert drift_bucket.get("pass_count", 0) >= 1
         assert drift_bucket.get("fail_count", 0) == 0
+
+
+# ==================================================================
+# TrialStore — expected_transition_target verdict
+# ==================================================================
+
+class TestTrialStoreTransitionTarget:
+    """_is_pass() CLASS_2 block must verify transition_target when set."""
+
+    def _make_class2_trial(self, expected_transition_target=None):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="D",
+            scenario_ids=["s1"],
+            fault_profile_ids=[],
+            trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id,
+            package_id="D",
+            scenario_id="s1",
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-tt-001",
+            expected_transition_target=expected_transition_target,
+        )
+        return store, trial
+
+    def _complete_with_target(self, store, trial, observed_target):
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {
+                "transition_target": observed_target,
+                "should_notify_caregiver": False,
+                "unresolved_reason": "caregiver_required_sensitive_path",
+                "timestamp_ms": 0,
+            },
+            "generated_at_ms": 1000,
+        }
+        return store.complete_trial(trial.trial_id, obs)
+
+    def test_no_expected_target_always_passes(self):
+        """When expected_transition_target is None, any transition_target passes."""
+        store, trial = self._make_class2_trial(expected_transition_target=None)
+        result = self._complete_with_target(store, trial, "CLASS_0")
+        assert result.pass_ is True
+
+    def test_matching_target_passes(self):
+        """CLASS_2 trial passes when observed target matches expected."""
+        store, trial = self._make_class2_trial(expected_transition_target="CLASS_1")
+        result = self._complete_with_target(store, trial, "CLASS_1")
+        assert result.pass_ is True
+
+    def test_mismatched_target_fails(self):
+        """CLASS_2 trial fails when observed target does not match expected."""
+        store, trial = self._make_class2_trial(expected_transition_target="CLASS_1")
+        result = self._complete_with_target(store, trial, "CLASS_0")
+        assert result.pass_ is False
+
+    def test_class0_expected_target_passes(self):
+        """CLASS_2 trial with expected CLASS_0 transition passes when observed."""
+        store, trial = self._make_class2_trial(expected_transition_target="CLASS_0")
+        result = self._complete_with_target(store, trial, "CLASS_0")
+        assert result.pass_ is True
+
+    def test_expected_target_in_to_dict(self):
+        """expected_transition_target is serialised in to_dict()."""
+        store, trial = self._make_class2_trial(expected_transition_target="CLASS_1")
+        assert trial.to_dict()["expected_transition_target"] == "CLASS_1"
+
+    def test_none_expected_target_in_to_dict(self):
+        """expected_transition_target=None is included as None in to_dict()."""
+        store, trial = self._make_class2_trial(expected_transition_target=None)
+        assert trial.to_dict()["expected_transition_target"] is None

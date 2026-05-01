@@ -76,6 +76,7 @@ from low_risk_dispatcher.models import AckStatus, DispatchRecord
 from policy_router.models import RouteClass
 from policy_router.router import PolicyRouter
 from safe_deferral_handler.handler import SafeDeferralHandler
+from safe_deferral_handler.models import TransitionTarget
 from shared.asset_loader import AssetLoader
 from telemetry_adapter.adapter import TelemetryAdapter
 from tts.speaker import (
@@ -448,6 +449,7 @@ class Pipeline:
             # Publish the final CLASS_2 interaction snapshot so the trial
             # runner can detect that interaction completed.
             self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
+            self._execute_class2_transition(class2_result, audit_correlation_id, trigger_id)
             return  # User handled it — caregiver not involved
 
         # ---- Phase 2: caregiver Telegram ----
@@ -534,6 +536,7 @@ class Pipeline:
                         chosen.prompt if chosen else late_user_selected_id,
                     )
                     self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
+                    self._execute_class2_transition(class2_result, audit_correlation_id, trigger_id)
                     return
 
                 if caregiver_selected_id:
@@ -557,6 +560,7 @@ class Pipeline:
                         chosen.prompt if chosen else caregiver_selected_id,
                     )
                     self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
+                    self._execute_class2_transition(class2_result, audit_correlation_id, trigger_id)
                     return
 
                 log.info(
@@ -761,6 +765,84 @@ class Pipeline:
                 self._ack_handler.handle_ack_timeout(record)
                 self._telemetry.publish_ack_only(record)
                 self._escalate_c205(record.audit_correlation_id)
+
+    def _execute_class2_transition(
+        self,
+        class2_result,
+        audit_correlation_id: str,
+        trigger_id: str = "",
+    ) -> None:
+        """Execute downstream action after CLASS_2 selection is published.
+
+        CLASS_1 (is_class1_ready): run Deterministic Validator on the confirmed
+          bounded candidate; dispatch via LowRiskDispatcher if approved.
+          Policy Router re-entry is not needed — the user/caregiver already
+          selected the bounded candidate; the Validator is the safety gate.
+        CLASS_0: announce emergency and send caregiver notification immediately.
+        SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION: no autonomous action.
+        """
+        target = class2_result.transition_target
+
+        if target == TransitionTarget.CLASS_1:
+            if class2_result.is_class1_ready:
+                candidate = {
+                    "proposed_action": class2_result.action_hint,
+                    "target_device": class2_result.target_hint,
+                }
+                val_result = self._validator.validate(
+                    candidate, audit_correlation_id=audit_correlation_id
+                )
+                self._telemetry.publish_validator_output(val_result)
+                log.info(
+                    "CLASS_2→CLASS_1 validation: %s (action=%s target=%s)",
+                    val_result.validation_status.value,
+                    class2_result.action_hint,
+                    class2_result.target_hint,
+                )
+                if val_result.validation_status == ValidationStatus.APPROVED:
+                    dispatch_result = self._dispatcher.dispatch(val_result)
+                    with self._ack_lock:
+                        self._pending_acks[dispatch_result.dispatch_record.command_id] = (
+                            dispatch_result.dispatch_record
+                        )
+                    announce_dispatch(
+                        self._tts,
+                        dispatch_result.dispatch_record.action,
+                        dispatch_result.dispatch_record.target_device,
+                    )
+                    log.info(
+                        "CLASS_2→CLASS_1 dispatched: command_id=%s",
+                        dispatch_result.dispatch_record.command_id,
+                    )
+                else:
+                    log.warning(
+                        "CLASS_2→CLASS_1 validation not approved (%s) — no dispatch",
+                        val_result.validation_status.value,
+                    )
+            else:
+                log.warning(
+                    "CLASS_2→CLASS_1: action_hint=%r target_hint=%r — "
+                    "candidate missing target_hint; cannot dispatch",
+                    class2_result.action_hint,
+                    class2_result.target_hint,
+                )
+
+        elif target == TransitionTarget.CLASS_0:
+            log.warning("CLASS_2→CLASS_0 emergency: trigger=%r", trigger_id)
+            announce_emergency(self._tts, trigger_id)
+            notification = _build_notification(
+                event_summary=f"긴급 상황 확인 (Class 2 선택): {trigger_id}",
+                context_summary=(
+                    "사용자 또는 보호자가 Class 2 세션에서 응급 경로를 선택했습니다. "
+                    "보호자의 즉각적인 대응이 필요합니다."
+                ),
+                unresolved_reason="emergency_event",
+                audit_id=audit_correlation_id,
+                exception_trigger_id=trigger_id if trigger_id else None,
+            )
+            esc_result = self._caregiver.send_notification(notification)
+            self._telemetry.update_escalation(esc_result)
+        # SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION: no autonomous action here
 
     def _escalate_c205(self, audit_correlation_id: str) -> None:
         """Trigger C205 (actuation_ack_timeout) Class 2 escalation."""

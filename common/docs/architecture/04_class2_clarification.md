@@ -56,6 +56,12 @@ topic: safe_deferral/clarification/interaction
 payload_family: clarification_interaction_payload
 ```
 
+This topic is **publish-only evidence**. The runtime publishes interaction
+snapshots here for audit and experiment observation. It does not subscribe to
+this topic to receive CLASS_2 selections — user selections arrive via
+`safe_deferral/context/input` (button press) and caregiver selections arrive
+via the Telegram callback path.
+
 This payload may record:
 
 - candidate choices,
