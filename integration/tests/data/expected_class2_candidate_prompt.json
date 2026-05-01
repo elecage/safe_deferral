@@ -8,21 +8,25 @@
   "expected_candidate_choices": [
     {
       "candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "candidate_id_is_static_mode_literal": true,
       "candidate_transition_target": "CLASS_1",
       "requires_confirmation": true
     },
     {
       "candidate_id": "C2_CAREGIVER_HELP",
+      "candidate_id_is_static_mode_literal": true,
       "candidate_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
       "requires_confirmation": true
     },
     {
       "candidate_id": "C3_EMERGENCY_HELP",
+      "candidate_id_is_llm_normalized_literal": true,
       "candidate_transition_target": "CLASS_0",
       "requires_confirmation": true
     },
     {
       "candidate_id": "C4_CANCEL_OR_WAIT",
+      "candidate_id_is_static_mode_literal": true,
       "candidate_transition_target": "SAFE_DEFERRAL",
       "requires_confirmation": true
     }
@@ -48,6 +52,7 @@
   ],
   "notes": [
     "This expected fixture describes the bounded candidate prompt produced during Class 2 clarification.",
-    "Candidate choices are guidance only and must not be interpreted as validator output, actuator command, emergency trigger, or doorlock authorization."
+    "Candidate choices are guidance only and must not be interpreted as validator output, actuator command, emergency trigger, or doorlock authorization.",
+    "LLM-mode allowance (scenario_manifest_rules.md §7.5): the per-candidate candidate_id_is_static_mode_literal / candidate_id_is_llm_normalized_literal flags identify which literal id values are stable in llm_generated mode. Static-mode literals (C1_LIGHTING_ASSISTANCE, C2_CAREGIVER_HELP, C4_CANCEL_OR_WAIT) may be replaced by LLM-emitted ids in llm_generated mode — match on candidate_transition_target instead. The CLASS_0 candidate (C3_EMERGENCY_HELP) is normalized by the adapter and remains literally fixed across both modes."
   ]
 }

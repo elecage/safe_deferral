@@ -4,6 +4,10 @@
   "expected_transition_target": "CLASS_0",
   "expected_required_confirmation_or_evidence": true,
   "expected_selected_candidate_id": "C3_EMERGENCY_HELP",
+  "expected_selected_candidate_id_is_llm_normalized_literal": true,
+  "expected_selected_candidate_transition_target": "CLASS_0",
+  "expected_selected_candidate_action_hint": null,
+  "expected_selected_candidate_target_hint": null,
   "expected_allowed_class0_evidence_sources": [
     "user_or_caregiver_emergency_confirmation",
     "triple_hit",
@@ -25,6 +29,7 @@
   ],
   "notes": [
     "Class 2-to-Class 0 transition requires emergency confirmation, triple-hit, or deterministic E001-E005 emergency evidence.",
-    "LLM candidate prompt text alone must not trigger Class 0."
+    "LLM candidate prompt text alone must not trigger Class 0.",
+    "LLM-mode allowance (scenario_manifest_rules.md §7.5): the literal expected_selected_candidate_id ('C3_EMERGENCY_HELP') and prompt ('긴급상황인가요?') ARE stable across modes because the LocalLlmAdapter normalizes any LLM-emitted CLASS_0 candidate to the fixed _FIXED_EMERGENCY_CANDIDATE template. The LLM may decide whether to include an emergency option but never what it says. Verifiers may therefore use the literal id even in llm_generated mode."
   ]
 }

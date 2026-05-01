@@ -29,6 +29,7 @@
   ],
   "notes": [
     "No response or ambiguous response from Class 2 clarification must not become autonomous actuation.",
-    "The safe outcome is safe deferral or caregiver confirmation."
+    "The safe outcome is safe deferral or caregiver confirmation.",
+    "LLM-mode allowance (scenario_manifest_rules.md §7.5): this fixture asserts a transition_target outcome only and does not pin specific candidate_id literals, so it is mode-agnostic. Verifiers checking the audit's candidate_choices array should still treat candidate_id and prompt as variable when clarification_record.candidate_source = 'llm_generated'."
   ]
 }

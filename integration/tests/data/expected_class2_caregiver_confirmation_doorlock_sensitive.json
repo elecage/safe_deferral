@@ -7,7 +7,10 @@
     "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
   ],
   "expected_first_candidate_id": "C2_CAREGIVER_HELP",
+  "expected_first_candidate_id_is_static_mode_literal": true,
   "expected_first_candidate_transition_target": "CAREGIVER_CONFIRMATION",
+  "expected_first_candidate_action_hint": null,
+  "expected_first_candidate_target_hint": null,
   "expected_lighting_candidate_blocked": true,
   "expected_required_caregiver_confirmation": true,
   "expected_validator_required_for_class1_dispatch": true,
@@ -40,6 +43,7 @@
     "doorbell_detected=true is visitor-response context, not door unlock authorization.",
     "Class 2 candidate set for C208 must NOT contain a lighting candidate as the first option (C1_LIGHTING_ASSISTANCE is excluded for caregiver_required_sensitive_path).",
     "Caregiver confirmation belongs to a separately governed manual path; it is NOT autonomous Class 1 validator approval.",
-    "Class 2 notification payload must validate against class2_notification_payload_schema.json with exception_trigger_id=C208."
+    "Class 2 notification payload must validate against class2_notification_payload_schema.json with exception_trigger_id=C208.",
+    "LLM-mode allowance (scenario_manifest_rules.md §7.5): the literal expected_first_candidate_id ('C2_CAREGIVER_HELP') is the static-fallback identifier. In llm_generated mode the LLM may emit any short id, but the adapter enforces caregiver-first ordering for unresolved_reason=caregiver_required_sensitive_path. Verifiers should match on expected_first_candidate_transition_target = CAREGIVER_CONFIRMATION (or its canonical alias SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION) AND expected_first_candidate_action_hint is null."
   ]
 }
