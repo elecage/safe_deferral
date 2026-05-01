@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_TTS_PHASE4_REGRESSION_TESTS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_CLASS2_PHASE_BUDGETS_DASHBOARD_FIDELITY.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_CAREGIVER_TIMEOUT_POLICY_PROMOTION.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_CLASS2_INTEGRATION_P2_2_TIMEOUT_DECOMPOSITION.md`
