@@ -320,6 +320,32 @@ class TestC208VisitorContext:
         result = manager.handle_timeout(session, trigger_id="C208")
         assert result.clarification_record["unresolved_reason"] == "caregiver_required_sensitive_path"
 
+    def test_c208_notification_passes_schema(self, manager):
+        """C208 timeout notification must validate against
+        class2_notification_payload_schema (Issue #1 of 2026-05-01 follow-up)."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("class2_notification_payload_schema.json")
+        session = manager.start_session("C208", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="C208")
+        # Should not raise
+        jsonschema.validate(result.notification_payload, schema)
+        # exception_trigger_id MUST be present and equal to C208 (not None)
+        assert result.notification_payload.get("exception_trigger_id") == "C208"
+
+    def test_non_canonical_trigger_omits_exception_trigger_id(self, manager):
+        """deferral_timeout / arbitrary trigger IDs must omit the field entirely
+        rather than emit None (which fails type=string in the schema)."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("class2_notification_payload_schema.json")
+        session = manager.start_session("deferral_timeout", AUDIT_ID)
+        result = manager.handle_timeout(session, trigger_id="deferral_timeout")
+        assert "exception_trigger_id" not in result.notification_payload
+        jsonschema.validate(result.notification_payload, schema)
+
 
 # ------------------------------------------------------------------
 # selection_source normalisation to schema enum

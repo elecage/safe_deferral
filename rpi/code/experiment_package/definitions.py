@@ -139,7 +139,11 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
         package_id=PackageId.D,
         name_ko="Class 2 Payload Completeness",
         required=False,
-        required_metrics=["payload_completeness_rate", "missing_field_rate"],
+        required_metrics=[
+            "payload_completeness_rate",
+            "missing_field_rate",
+            "notification_readiness_rate",
+        ],
         recommended_scenarios=[
             "class2_insufficient_context_scenario_skeleton.json",
             "class2_caregiver_confirmation_doorlock_sensitive_scenario_skeleton.json",

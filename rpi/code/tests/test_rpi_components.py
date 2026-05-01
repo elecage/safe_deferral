@@ -1081,6 +1081,154 @@ class TestPackageMetricsD:
         assert metrics["schema_violation_count"] == 1
         assert metrics["payload_completeness_rate"] == 0.0
 
+    def test_notification_readiness_rate_present(self):
+        """notification_readiness_rate is reported and reflects present/expected."""
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial(self._valid_notification())
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        assert metrics["notification_readiness_rate"] == 1.0
+        assert metrics["notification_expected_count"] == 1
+
+    def test_notification_readiness_rate_missing_notification(self):
+        """No notification arrived → readiness is 0/expected."""
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial(None)
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        assert metrics["notification_expected_count"] == 1
+        assert metrics["notification_readiness_rate"] == 0.0
+        assert metrics["no_notification_count"] == 1
+
+    def test_notification_not_expected_when_should_notify_false(self):
+        """observation.class2.should_notify_caregiver=false excludes the trial
+        from the readiness denominator."""
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-d-nr-001",
+        )
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": "CLASS_1",
+                       "should_notify_caregiver": False,
+                       "unresolved_reason": "insufficient_context"},
+        }
+        store.complete_trial(trial.trial_id, obs, notification_payload=None)
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        # No notification expected → denominator 0 → readiness 0.0 (no positive evidence)
+        assert metrics["notification_expected_count"] == 0
+        assert metrics["notification_readiness_rate"] == 0.0
+
+
+# ==================================================================
+# PackageRunner — late notification arrival (Issue #4)
+# ==================================================================
+
+class TestNotificationLateArrival:
+    """Runner must wait briefly for notification arrival after observation match,
+    so notifications published shortly AFTER the dashboard observation are still
+    captured into TrialResult.notification_payload."""
+
+    def test_notification_arriving_after_observation_is_captured(self):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        from notification_store import NotificationStore
+        import threading
+        import time as _t
+
+        publishes: list[dict] = []
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {"audit_correlation_id": "x",
+                                  "ingest_timestamp_ms": 0,
+                                  "network_status": "online"},
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = lambda n: publishes.append(
+            dict(n.profile.payload_template)
+        )
+
+        # Observation arrives immediately as a CLASS_2 final snapshot.
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                       "should_notify_caregiver": True,
+                       "unresolved_reason": "timeout_or_no_response"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = obs
+
+        notif_store = NotificationStore()
+
+        # Schedule notification to arrive ~0.3s after the trial publishes.
+        def _late_publish():
+            _t.sleep(0.3)
+            notif_store.add({
+                "audit_correlation_id": None,  # placeholder; will be set below
+                "event_summary": "late",
+                "context_summary": "late",
+                "unresolved_reason": "timeout_or_no_response",
+                "manual_confirmation_path": "test",
+            })
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store, notification_store=notif_store)
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id, package_id="D", node_id="n",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+        )
+        # Inject the actual correlation_id once the publish has happened.
+        deadline = _t.monotonic() + 2.0
+        while _t.monotonic() < deadline:
+            if publishes:
+                break
+            _t.sleep(0.05)
+        corr = publishes[0]["routing_metadata"]["audit_correlation_id"]
+
+        # Schedule the late notification with the right correlation_id.
+        def _emit_after():
+            _t.sleep(0.3)
+            notif_store.add({
+                "audit_correlation_id": corr,
+                "event_summary": "late",
+                "context_summary": "late",
+                "unresolved_reason": "timeout_or_no_response",
+                "manual_confirmation_path": "test",
+            })
+        threading.Thread(target=_emit_after, daemon=True).start()
+
+        # Wait for the trial to complete.
+        deadline = _t.monotonic() + 5.0
+        while _t.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            _t.sleep(0.05)
+        result = store.get_trial(trial.trial_id)
+        assert result.status == "completed"
+        assert result.notification_payload is not None
+        assert result.notification_payload["audit_correlation_id"] == corr
+
 
 class TestPackageMetricsE:
     """_metrics_e must compute doorlock-sensitive validation rates."""
@@ -1550,7 +1698,33 @@ class TestRequiresValidatorReentry:
         )
         return store.complete_trial(trial.trial_id, observation)
 
-    def test_validator_reentry_required_passes_with_validation(self):
+    def test_validator_reentry_required_passes_with_approved_and_ack(self):
+        """approved validator + ACK present → pass."""
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "approved"},
+            "ack": {"dispatch_status": "published", "action": "light_on",
+                    "target_device": "living_room_light"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        result = self._make_trial(True, obs)
+        assert result.pass_ is True
+
+    def test_validator_reentry_required_fails_on_rejected(self):
+        """rejected_escalation must NOT pass even though validator was re-entered:
+        the bounded candidate was inadmissible, so Class 1 transition did not succeed."""
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "rejected_escalation"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        result = self._make_trial(True, obs)
+        assert result.pass_ is False
+
+    def test_validator_reentry_required_fails_without_ack(self):
+        """approved validator but no dispatch ACK → fail (no bounded execution evidence)."""
         obs = {
             "route": {"route_class": "CLASS_2"},
             "validation": {"validation_status": "approved"},
@@ -1558,7 +1732,7 @@ class TestRequiresValidatorReentry:
                        "unresolved_reason": "insufficient_context"},
         }
         result = self._make_trial(True, obs)
-        assert result.pass_ is True
+        assert result.pass_ is False
 
     def test_validator_reentry_required_fails_without_validation(self):
         obs = {
@@ -1622,6 +1796,117 @@ class TestRequiresValidatorReentry:
         }
         store.complete_trial(trial2.trial_id, with_escalation)
         assert store.get_trial(trial2.trial_id).pass_ is True
+
+
+# ==================================================================
+# Compound / aliased expected_transition_target verdict (Issue #3)
+# ==================================================================
+
+class TestCompoundExpectedTransitionTarget:
+    """expected_transition_target may be a single canonical value, an alias
+    (CAREGIVER_CONFIRMATION → SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION), or a
+    compound joined by _OR_ — verdict must accept observed in the parsed set.
+    """
+
+    def _trial_with_target(self, expected, observed_target,
+                           validation_status=None, escalation=False, ack=False):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-tt-c-001",
+            expected_transition_target=expected,
+        )
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": observed_target,
+                       "unresolved_reason": "insufficient_context"},
+        }
+        if validation_status:
+            obs["validation"] = {"validation_status": validation_status}
+        if escalation:
+            obs["escalation"] = {"escalation_status": "pending",
+                                 "notification_channel": "telegram",
+                                 "timestamp_ms": 0}
+        if ack:
+            obs["ack"] = {"dispatch_status": "published"}
+        return store.complete_trial(trial.trial_id, obs)
+
+    def test_compound_or_set_accepts_safe_deferral(self):
+        """CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION accepts
+        observed SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION."""
+        result = self._trial_with_target(
+            "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            validation_status="safe_deferral",
+        )
+        assert result.pass_ is True
+
+    def test_compound_or_set_accepts_class1_with_validation(self):
+        """Compound expectation accepts CLASS_1 (no requires_reentry flag → just
+        observed match passes; no ack required)."""
+        result = self._trial_with_target(
+            "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            "CLASS_1",
+            validation_status="approved",
+        )
+        assert result.pass_ is True
+
+    def test_compound_or_set_accepts_class0_with_escalation(self):
+        result = self._trial_with_target(
+            "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            "CLASS_0",
+            escalation=True,
+        )
+        assert result.pass_ is True
+
+    def test_caregiver_confirmation_alias_canonicalizes(self):
+        """expected=CAREGIVER_CONFIRMATION matches canonical observed
+        SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION."""
+        result = self._trial_with_target(
+            "CAREGIVER_CONFIRMATION",
+            "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            validation_status="safe_deferral",
+        )
+        assert result.pass_ is True
+
+    def test_safe_deferral_alias_canonicalizes(self):
+        result = self._trial_with_target(
+            "SAFE_DEFERRAL",
+            "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+            validation_status="safe_deferral",
+        )
+        assert result.pass_ is True
+
+    def test_unknown_target_still_fails(self):
+        """Unknown observed target outside the parsed set fails."""
+        result = self._trial_with_target(
+            "CLASS_1",
+            "CLASS_0",
+            escalation=True,
+        )
+        assert result.pass_ is False
+
+    def test_parser_helper_maps_aliases(self):
+        from experiment_package.trial_store import _expected_transition_targets
+        assert _expected_transition_targets("CAREGIVER_CONFIRMATION") == {
+            "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+        }
+        assert _expected_transition_targets("SAFE_DEFERRAL") == {
+            "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+        }
+        assert _expected_transition_targets("CLASS_1") == {"CLASS_1"}
+        compound = _expected_transition_targets(
+            "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+        )
+        assert compound == {"CLASS_1", "CLASS_0", "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}
+        assert _expected_transition_targets(None) is None
 
 
 # ==================================================================
