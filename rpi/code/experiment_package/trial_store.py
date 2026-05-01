@@ -46,6 +46,11 @@ class TrialResult:
     observation_payload: Optional[dict] = None
     notification_payload: Optional[dict] = None  # safe_deferral/escalation/class2
     clarification_payload: Optional[dict] = None  # safe_deferral/clarification/interaction
+    # CLASS_2 phase budgets at the moment this trial was created. Set by the
+    # runner so that policy changes after the fact do not retroactively
+    # reinterpret the trial's wait windows. Allows the dashboard to render
+    # truthful phase information even for older trials.
+    class2_phase_budgets_snapshot: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
@@ -72,6 +77,7 @@ class TrialResult:
             "observation_payload": self.observation_payload,
             "notification_payload": self.notification_payload,
             "clarification_payload": self.clarification_payload,
+            "class2_phase_budgets_snapshot": self.class2_phase_budgets_snapshot,
         }
 
 

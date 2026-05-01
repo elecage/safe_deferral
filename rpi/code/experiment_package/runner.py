@@ -228,6 +228,20 @@ class PackageRunner:
             requires_validator_reentry_when_class1=eff_requires_validator_reentry,
         )
 
+        # Snapshot CLASS_2 phase budgets at trial creation time so that policy
+        # changes after the fact do not retroactively reinterpret the trial's
+        # wait windows. Only meaningful for CLASS_2 trials, but harmless to
+        # include otherwise.
+        if expected_route_class == "CLASS_2":
+            trial.class2_phase_budgets_snapshot = {
+                "llm_budget_s": self._class2_llm_budget_s,
+                "user_phase_timeout_s": self._class2_user_phase_timeout_s,
+                "caregiver_phase_timeout_s": self._class2_caregiver_phase_timeout_s,
+                "trial_timeout_slack_s": self._class2_trial_timeout_slack_s,
+                "trial_timeout_s": self._class2_trial_timeout_s,
+                "source": "policy_table.global_constraints + runner module defaults",
+            }
+
         t = threading.Thread(
             target=self._run_trial,
             args=(trial, node_id, profile, correlation_id, trial.scenario_id),
