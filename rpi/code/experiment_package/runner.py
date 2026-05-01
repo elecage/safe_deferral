@@ -77,12 +77,17 @@ class PackageRunner:
         trial_store: TrialStore,
         asset_loader: Optional[RpiAssetLoader] = None,
         notification_store=None,
+        clarification_store=None,
     ) -> None:
         self._vnm = vnm
         self._obs = obs_store
         self._store = trial_store
         self._loader = asset_loader or RpiAssetLoader()
         self._notif = notification_store
+        # Phase 5: optional ClarificationStore so trial_store can compute
+        # class2_llm_quality metrics (candidate_source provenance, user
+        # pickup rate per source).
+        self._clarif = clarification_store
 
     # ------------------------------------------------------------------
     # Public API
@@ -281,16 +286,23 @@ class PackageRunner:
             )
 
             notification = self._await_notification(correlation_id, observation)
+            clarification = self._await_clarification(correlation_id, observation)
 
             if observation is None:
                 log.warning(
                     "Trial %s timed out waiting for audit_correlation_id=%s",
                     trial.trial_id, correlation_id,
                 )
-                self._store.timeout_trial(trial.trial_id, notification_payload=notification)
+                self._store.timeout_trial(
+                    trial.trial_id,
+                    notification_payload=notification,
+                    clarification_payload=clarification,
+                )
             else:
                 self._store.complete_trial(
-                    trial.trial_id, observation, notification_payload=notification,
+                    trial.trial_id, observation,
+                    notification_payload=notification,
+                    clarification_payload=clarification,
                 )
                 log.info(
                     "Trial %s completed: route=%s validation=%s pass=%s latency=%.1fms",
@@ -382,6 +394,34 @@ class PackageRunner:
             notif = self._notif.find_by_correlation_id(correlation_id)
             if notif is not None:
                 return notif
+        return None
+
+    def _await_clarification(
+        self,
+        correlation_id: str,
+        observation: Optional[dict],
+    ) -> Optional[dict]:
+        """Look up the matching clarification record, briefly waiting for late
+        arrivals. Mirrors _await_notification: TelemetryAdapter.publish_class2_update
+        publishes the dashboard observation immediately followed by the
+        clarification record on safe_deferral/clarification/interaction, but the
+        two MQTT round-trips can race so a single store lookup right after the
+        observation match can miss the record. Polls for up to
+        _POST_OBS_NOTIFICATION_GRACE_S; returns None if nothing arrived.
+        """
+        if self._clarif is None:
+            return None
+        rec = self._clarif.find_by_correlation_id(correlation_id)
+        if rec is not None:
+            return rec
+        if observation is None:
+            return None
+        deadline = time.monotonic() + _POST_OBS_NOTIFICATION_GRACE_S
+        while time.monotonic() < deadline:
+            time.sleep(_POLL_INTERVAL_S)
+            rec = self._clarif.find_by_correlation_id(correlation_id)
+            if rec is not None:
+                return rec
         return None
 
     def _simulate_class2_button(

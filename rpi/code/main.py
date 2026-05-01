@@ -47,6 +47,7 @@ except ImportError:
 import paho.mqtt.client as mqtt
 
 from dashboard.app import create_app
+from clarification_store import ClarificationStore
 from notification_store import NotificationStore
 from observation_store import ObservationStore
 from experiment_manager.manager import ExperimentManager
@@ -88,6 +89,7 @@ _MONITOR_TOPICS = [
     "safe_deferral/audit/log",
     "safe_deferral/dashboard/observation",
     "safe_deferral/escalation/class2",  # Class 2 caregiver notification payload (Package D)
+    "safe_deferral/clarification/interaction",  # Class 2 clarification record (Phase 5)
     PRESENCE_TOPIC,   # safe_deferral/node/presence — physical + virtual nodes
 ]
 
@@ -144,12 +146,14 @@ def main() -> None:
     governance_backend = GovernanceBackend()
     obs_store = ObservationStore()
     notif_store = NotificationStore()
+    clarification_store = ClarificationStore()
     trial_store = TrialStore()
     pkg_runner = PackageRunner(
         vnm=vnm,
         obs_store=obs_store,
         trial_store=trial_store,
         notification_store=notif_store,
+        clarification_store=clarification_store,
     )
 
     # --- Dashboard (port 8888) ---
@@ -191,6 +195,7 @@ def main() -> None:
     _OBS_TOPIC = "safe_deferral/dashboard/observation"
     _CMD_TOPIC = "safe_deferral/actuation/command"
     _NOTIF_TOPIC = "safe_deferral/escalation/class2"
+    _CLARIFICATION_TOPIC = "safe_deferral/clarification/interaction"
 
     def on_message(c, userdata, msg):
         try:
@@ -200,6 +205,8 @@ def main() -> None:
                 obs_store.add(payload)
             elif msg.topic == _NOTIF_TOPIC:
                 notif_store.add(payload)
+            elif msg.topic == _CLARIFICATION_TOPIC:
+                clarification_store.add(payload)
             elif msg.topic == _CMD_TOPIC:
                 acks = vnm.handle_command(payload)
                 if acks:
