@@ -31,7 +31,9 @@ ambiguous or insufficient input
 → bounded candidate choices
 → TTS/display/caregiver prompt
 → user/caregiver selection, timeout/no-response, or deterministic evidence
-→ Policy Router re-entry
+→ Deterministic Validator re-entry with confirmed bounded candidate (Class 1 only)
+  | emergency announcement and caregiver notification (Class 0)
+  | safe deferral / caregiver confirmation (timeout, no-response, or ambiguous)
 → CLASS_1 / CLASS_0 / SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION
 ```
 
@@ -97,7 +99,7 @@ The system must not act on a guess. It should present bounded candidates and wai
 - Generate bounded candidate choices where appropriate.
 - Do not execute before user/caregiver confirmation.
 - Record clarification evidence through `safe_deferral/clarification/interaction` when published.
-- Transition only through Policy Router re-entry.
+- Transition only after the runtime re-validates the confirmed bounded candidate (Class 1) or after explicit emergency confirmation/evidence (Class 0); the Policy Router is not re-invoked.
 - Possible outcomes: `CLASS_1`, `CLASS_0`, `SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION`.
 
 ---
@@ -113,7 +115,7 @@ Class 2 transition scenarios should include a block like this:
   "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
   "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
   "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
-  "requires_policy_router_reentry": true,
+  "requires_validator_reentry_when_class1": true,
   "requires_validator_when_class1": true,
   "timeout_must_not_infer_intent": true,
   "clarification_payload_is_not_authorization": true,
@@ -144,7 +146,7 @@ Class 2-related scenarios must answer yes to the following:
 - candidate choices are bounded and at most 4.
 - candidate generation boundary forbids final decision and actuation authority.
 - confirmation_required_before_transition is true.
-- requires_policy_router_reentry is true.
+- requires_validator_reentry_when_class1 is true.
 - requires_validator_when_class1 is true.
 - timeout_must_not_infer_intent is true.
 - clarification_payload_is_not_authorization is true.
@@ -174,7 +176,7 @@ Purpose:
 
 ```text
 User/caregiver selects a low-risk lighting candidate.
-Selection re-enters the Policy Router.
+Runtime re-enters the Deterministic Validator with the confirmed bounded candidate.
 Deterministic Validator approves exactly one low-risk lighting action.
 ```
 
@@ -182,7 +184,7 @@ Must verify:
 
 ```text
 candidate text alone does not authorize actuation
-selection requires Policy Router re-entry
+selection re-enters the Deterministic Validator with the bounded candidate (no Policy Router re-routing)
 Class 1 requires validator approval
 low-risk catalog is not expanded
 ```
@@ -193,7 +195,7 @@ Purpose:
 
 ```text
 User/caregiver confirms emergency help, or deterministic E001~E005 evidence arrives during clarification.
-Policy Router re-entry transitions to Class 0.
+Runtime announces the emergency and dispatches a caregiver notification directly; transition to Class 0 occurs without Policy Router re-routing.
 ```
 
 Must verify:

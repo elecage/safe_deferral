@@ -324,3 +324,48 @@ class TestCompareTypeDefence:
         assert PolicyRouter._compare(55.0, ">=", 50) is True
         assert PolicyRouter._compare(49.9, ">=", 50) is False
         assert PolicyRouter._compare(25, "==", 25) is True
+
+
+# ------------------------------------------------------------------
+# experiment_mode pass-through (Package A intent-recovery comparison)
+# ------------------------------------------------------------------
+
+class TestExperimentModePassthrough:
+    """routing_metadata.experiment_mode must propagate to PolicyRouterResult."""
+
+    def test_default_class1_no_mode(self, router):
+        result = router.route(_base_input())
+        assert result.experiment_mode is None
+
+    def test_class1_with_mode(self, router):
+        inp = _base_input()
+        inp["routing_metadata"]["experiment_mode"] = "rule_only"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_1
+        assert result.experiment_mode == "rule_only"
+
+    def test_class0_with_mode_does_not_invoke_llm(self, router):
+        """Emergency routing must not be affected by experiment_mode."""
+        inp = _base_input(temperature=55.0)
+        inp["routing_metadata"]["experiment_mode"] = "direct_mapping"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_0
+        assert result.llm_invocation_allowed is False
+        assert result.experiment_mode == "direct_mapping"
+
+    def test_class2_with_mode_propagates(self, router):
+        """C208 doorlock-sensitive path still carries the mode for audit."""
+        inp = _base_input(event_type="sensor", event_code="doorbell_detected",
+                          doorbell_detected=True)
+        inp["routing_metadata"]["experiment_mode"] = "llm_assisted"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.experiment_mode == "llm_assisted"
+
+    def test_invalid_mode_value_rejected_by_schema(self, router):
+        """An out-of-enum experiment_mode fails schema → C202 CLASS_2."""
+        inp = _base_input()
+        inp["routing_metadata"]["experiment_mode"] = "bogus"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C202"

@@ -192,7 +192,7 @@ Example:
 Rules:
 
 - Candidate choices are bounded guidance only.
-- User/caregiver selection is evidence for Policy Router re-entry, not validator bypass.
+- User/caregiver selection is confirmed-candidate evidence; CLASS_1 selections re-enter the Deterministic Validator with the bounded candidate and never bypass it.
 - Timeout/no-response must not infer intent.
 - `transition_target` must not directly authorize actuation.
 - `CLASS_1` transition still requires Deterministic Validator approval.

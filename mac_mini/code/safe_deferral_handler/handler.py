@@ -11,7 +11,9 @@ Responsibilities:
 Authority rule (02_safety_and_authority_boundaries.md):
   - Silence/timeout must NEVER be treated as consent.
   - Candidate choices are guidance only; selection is confirmation evidence only.
-  - CLASS_1 transition still requires Policy Router re-entry + Validator approval.
+  - CLASS_1 transition still requires Deterministic Validator approval; the
+    runtime re-validates the confirmed bounded candidate before any dispatch
+    (the Policy Router is not re-invoked).
   - This handler does not dispatch actuators directly.
 """
 

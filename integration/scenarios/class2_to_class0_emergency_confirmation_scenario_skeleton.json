@@ -46,13 +46,13 @@
     },
     {
       "step_id": 5,
-      "action": "reenter_policy_router_for_class0",
-      "description": "Re-enter the Policy Router and transition to Class 0 only when emergency confirmation or deterministic emergency evidence is present."
+      "action": "transition_to_class0_emergency_path",
+      "description": "Transition to Class 0 only when emergency confirmation or deterministic emergency evidence is present. The runtime announces the emergency and dispatches a caregiver notification directly; the Policy Router is not re-invoked."
     },
     {
       "step_id": 6,
       "action": "observe_audit_stream",
-      "description": "Observe audit evidence for clarification, emergency confirmation/evidence, Policy Router re-entry, and Class 0 transition."
+      "description": "Observe audit evidence for clarification, emergency confirmation/evidence, the Class 0 emergency announcement, the caregiver notification dispatch, and the Class 0 transition."
     }
   ],
   "clarification_interaction": {
@@ -82,7 +82,7 @@
     "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_0",
-    "requires_policy_router_reentry": true,
+    "requires_validator_reentry_when_class1": true,
     "requires_validator_when_class1": true,
     "timeout_must_not_infer_intent": true,
     "clarification_payload_is_not_authorization": true,
@@ -97,7 +97,7 @@
     {
       "transition_target": "CLASS_0",
       "condition": "User/caregiver confirms emergency help, triple-hit input occurs, or deterministic E001-E005 emergency evidence arrives.",
-      "allowed_next_path": "policy_router_reentry_then_immediate_emergency_override_path"
+      "allowed_next_path": "immediate_emergency_announcement_and_caregiver_notification_path"
     }
   ],
   "expected_outcomes": {

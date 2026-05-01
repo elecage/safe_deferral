@@ -334,7 +334,7 @@
       "audit_recommended": true,
       "notes": [
         "Candidate choices are guidance only and do not authorize actuation.",
-        "Selection results require Policy Router re-entry.",
+        "Selection results are confirmed-candidate evidence; Class 1 selections re-enter the Deterministic Validator with the bounded candidate and never bypass it.",
         "Class 1 transition still requires Deterministic Validator approval.",
         "Class 0 transition requires deterministic emergency evidence or explicit emergency confirmation.",
         "Timeout/no-response must not infer user intent.",

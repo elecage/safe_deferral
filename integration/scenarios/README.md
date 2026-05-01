@@ -255,8 +255,8 @@ It must not be interpreted as:
 Required interpretation:
 
 ```text
-selection results require Policy Router re-entry
-Class 1 transition still requires Deterministic Validator approval
+selection results are confirmed-candidate evidence
+Class 1 selections re-enter the Deterministic Validator with the bounded candidate and still require validator approval before any low-risk dispatch
 Class 0 transition requires deterministic emergency evidence or explicit emergency confirmation
 timeout/no-response must not infer user intent
 ```
@@ -291,7 +291,7 @@ Authoritative reference:
 common/policies/low_risk_actions.json
 ```
 
-Class 2 can transition to Class 1 only after confirmation, Policy Router re-entry, and Deterministic Validator approval. Scenario files must not represent `door_unlock` or `front_door_lock` as Class 1 autonomous low-risk actions.
+Class 2 can transition to Class 1 only after the user/caregiver confirms a bounded candidate and the Deterministic Validator approves it (the runtime re-enters the validator with the confirmed candidate; it does not re-route through the Policy Router). Scenario files must not represent `door_unlock` or `front_door_lock` as Class 1 autonomous low-risk actions.
 
 ---
 
@@ -322,7 +322,9 @@ ambiguous or insufficient input
 → bounded candidate choices
 → TTS/display/caregiver prompt
 → user/caregiver selection, timeout/no-response, or deterministic evidence
-→ Policy Router re-entry
+→ Deterministic Validator re-entry with confirmed bounded candidate (Class 1 only)
+  | emergency announcement and caregiver notification (Class 0)
+  | safe deferral / caregiver confirmation (timeout, no response, or ambiguous)
 → CLASS_1 / CLASS_0 / SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION
 ```
 
@@ -341,7 +343,7 @@ Class 2 transition scenarios should include a block like this:
   "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
   "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
   "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
-  "requires_policy_router_reentry": true,
+  "requires_validator_reentry_when_class1": true,
   "requires_validator_when_class1": true,
   "timeout_must_not_infer_intent": true,
   "clarification_payload_is_not_authorization": true,

@@ -279,7 +279,7 @@ Class 2 transition scenario는 다음 block을 권장한다.
     "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
-    "requires_policy_router_reentry": true,
+    "requires_validator_reentry_when_class1": true,
     "requires_validator_when_class1": true,
     "timeout_must_not_infer_intent": true,
     "clarification_payload_is_not_authorization": true,

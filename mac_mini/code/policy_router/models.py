@@ -42,3 +42,8 @@ class PolicyRouterResult:
 
     # Pass-through to LLM adapter / validator (pure context only, no routing metadata)
     pure_context_payload: dict
+
+    # Optional experiment mode (Package A intent-recovery comparison).
+    # Honored only by the Class 1 intent-recovery branch. Never enters the LLM
+    # prompt and never affects Class 0 / Class 2 routing decisions.
+    experiment_mode: Optional[str] = None

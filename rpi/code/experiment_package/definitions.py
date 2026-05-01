@@ -104,6 +104,7 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
             "uar_under_faults",
             "misrouting_under_faults",
             "emergency_protection_preservation",
+            "topic_drift_detection_rate",
         ],
         recommended_scenarios=[
             "stale_fault_scenario_skeleton.json",

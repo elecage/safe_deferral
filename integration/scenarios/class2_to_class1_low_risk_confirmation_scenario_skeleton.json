@@ -1,7 +1,7 @@
 {
   "scenario_id": "SCN_CLASS2_TO_CLASS1_LOW_RISK_CONFIRMATION",
   "title": "Class 2 to Class 1 low-risk confirmation transition scenario",
-  "description": "Deterministic scenario skeleton for a Class 2 clarification path where the user or caregiver selects a bounded low-risk lighting candidate. The selection must re-enter the Policy Router and still requires Deterministic Validator approval before Class 1 bounded actuation.",
+  "description": "Deterministic scenario skeleton for a Class 2 clarification path where the user or caregiver selects a bounded low-risk lighting candidate. The runtime re-enters the Deterministic Validator with the confirmed bounded candidate and still requires validator approval before Class 1 bounded actuation. The selection itself is not a Policy Router re-routing event.",
   "category": "class2_transition",
   "mode": "deterministic",
   "input_plane": {
@@ -46,13 +46,13 @@
     },
     {
       "step_id": 5,
-      "action": "reenter_policy_router_and_validate",
-      "description": "Re-enter the Policy Router and require Deterministic Validator approval against the canonical low-risk lighting catalog before any Class 1 dispatch."
+      "action": "reenter_validator_with_confirmed_candidate",
+      "description": "Re-enter the Deterministic Validator with the confirmed bounded candidate (action_hint + target_hint from the selected candidate) and require validator approval against the canonical low-risk lighting catalog before any Class 1 dispatch. The Policy Router is not invoked again."
     },
     {
       "step_id": 6,
       "action": "observe_audit_stream",
-      "description": "Observe audit evidence for candidate presentation, selection, Policy Router re-entry, validator approval, and bounded Class 1 outcome."
+      "description": "Observe audit evidence for candidate presentation, selection, validator re-entry on the confirmed candidate, validator approval, and bounded Class 1 outcome."
     }
   ],
   "clarification_interaction": {
@@ -81,7 +81,7 @@
     "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_1",
-    "requires_policy_router_reentry": true,
+    "requires_validator_reentry_when_class1": true,
     "requires_validator_when_class1": true,
     "timeout_must_not_infer_intent": true,
     "clarification_payload_is_not_authorization": true,
@@ -95,8 +95,8 @@
   "transition_outcomes": [
     {
       "transition_target": "CLASS_1",
-      "condition": "User or caregiver confirms a bounded lighting candidate and the Deterministic Validator approves it after Policy Router re-entry.",
-      "allowed_next_path": "policy_router_reentry_then_validator_then_bounded_low_risk_assistance_path"
+      "condition": "User or caregiver confirms a bounded lighting candidate and the Deterministic Validator approves the confirmed candidate on validator re-entry. The selection itself is not a Policy Router re-routing event.",
+      "allowed_next_path": "validator_reentry_then_bounded_low_risk_assistance_path"
     }
   ],
   "expected_outcomes": {
@@ -113,7 +113,7 @@
     "allowed_action_catalog_ref": "common/policies/low_risk_actions.json"
   },
   "notes": [
-    "This scenario proves that a Class 2 selection does not bypass Policy Router re-entry or Deterministic Validator approval.",
+    "This scenario proves that a Class 2 selection does not bypass Deterministic Validator approval; the confirmed bounded candidate is re-validated against the canonical low-risk catalog before any Class 1 dispatch.",
     "Candidate text alone does not authorize actuation.",
     "Only canonical low-risk lighting actions may be admitted for Class 1 transition.",
     "Doorlock must not be treated as a Class 1 low-risk action."

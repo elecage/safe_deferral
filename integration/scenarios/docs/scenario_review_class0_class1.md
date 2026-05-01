@@ -138,7 +138,7 @@ Class 2 may transition to Class 1 only when:
 ```text
 user/caregiver confirmation exists
 candidate is inside the low-risk catalog
-Policy Router re-entry occurs
+runtime re-enters the Deterministic Validator with the confirmed bounded candidate (no Policy Router re-routing)
 Deterministic Validator approves exactly one admissible low-risk action
 ```
 

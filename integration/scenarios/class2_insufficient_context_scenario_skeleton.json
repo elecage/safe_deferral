@@ -79,12 +79,12 @@
     {
       "step_id": 6,
       "action": "collect_confirmation_or_timeout",
-      "description": "Collect the user's bounded selection input, short voice response, caregiver confirmation, or timeout/no-response result. The confirmation result determines the next routing transition and must re-enter the Policy Router. Timeout/no-response must not infer intent."
+      "description": "Collect the user's bounded selection input, short voice response, caregiver confirmation, or timeout/no-response result. The confirmation result determines the next routing transition. Timeout/no-response must not infer intent."
     },
     {
       "step_id": 7,
       "action": "transition_after_confirmation",
-      "description": "Transition to Class 1 if the user confirms a bounded low-risk assistance request and Deterministic Validator approves after Policy Router re-entry, transition to Class 0 if emergency confirmation or deterministic emergency evidence is present, or remain in safe deferral / caregiver confirmation if the result is still ambiguous or no response is received."
+      "description": "Transition to Class 1 if the user confirms a bounded low-risk assistance request and the Deterministic Validator approves it (the runtime re-enters the validator with the confirmed bounded candidate; the selection is not a Policy Router re-routing event), transition to Class 0 if emergency confirmation or deterministic emergency evidence is present, or remain in safe deferral / caregiver confirmation if the result is still ambiguous or no response is received."
     },
     {
       "step_id": 8,
@@ -119,7 +119,7 @@
     "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
-    "requires_policy_router_reentry": true,
+    "requires_validator_reentry_when_class1": true,
     "requires_validator_when_class1": true,
     "timeout_must_not_infer_intent": true,
     "clarification_payload_is_not_authorization": true,
@@ -135,13 +135,13 @@
       "transition_target": "CLASS_1",
       "condition": "User or caregiver confirms a bounded low-risk assistance request such as lighting assistance.",
       "example_confirmation": "candidate C1_LIGHTING_ASSISTANCE selected",
-      "allowed_next_path": "policy_router_reentry_then_validator_then_bounded_low_risk_assistance_path"
+      "allowed_next_path": "validator_reentry_then_bounded_low_risk_assistance_path"
     },
     {
       "transition_target": "CLASS_0",
       "condition": "User confirms emergency help, provides an emergency-pattern input such as triple-hit, or new deterministic emergency evidence is received from emergency sensors.",
       "example_confirmation": "candidate C3_EMERGENCY_HELP selected or emergency evidence arrives",
-      "allowed_next_path": "policy_router_reentry_then_immediate_emergency_override_path"
+      "allowed_next_path": "immediate_emergency_announcement_and_caregiver_notification_path"
     },
     {
       "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
@@ -172,8 +172,8 @@
     "This scenario represents Class 2 as an insufficient-context clarification and transition state rather than a terminal failure state.",
     "LLM guidance may generate bounded candidate choices, but it must not independently make the final class decision, authorize actuation, or trigger emergency handling.",
     "Clarification interaction evidence uses safe_deferral/clarification/interaction and must not be interpreted as validator approval, actuation command, emergency trigger authority, or doorlock authorization.",
-    "A confirmed low-risk assistance choice may transition to Class 1 only after Policy Router re-entry and Deterministic Validator approval.",
-    "A confirmed emergency choice, triple-hit pattern, or new deterministic emergency evidence may transition to Class 0 emergency handling after Policy Router re-entry.",
+    "A confirmed low-risk assistance choice may transition to Class 1 only after the Deterministic Validator re-validates the bounded confirmed candidate and approves it; the selection alone is not validator approval.",
+    "A confirmed emergency choice, triple-hit pattern, or new deterministic emergency evidence may transition to Class 0 emergency handling directly via the emergency announcement and caregiver notification path; this transition does not re-route through the Policy Router.",
     "No response, ambiguous response, or persistent insufficient context must remain in safe deferral or caregiver confirmation rather than direct autonomous actuation.",
     "llm_invocation_allowed is preserved as a coarse legacy field; llm_decision_invocation_allowed and llm_guidance_generation_allowed provide the preferred interpretation.",
     "Schema-governed context fixtures referenced by this scenario should include environmental_context.doorbell_detected."

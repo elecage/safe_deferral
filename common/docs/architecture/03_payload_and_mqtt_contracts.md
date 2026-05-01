@@ -102,9 +102,10 @@ schema: common/schemas/clarification_interaction_schema.json
 authority_level: class2_interaction_evidence_not_authority
 ```
 
-Selections on this topic are evidence for Policy Router re-entry. They do not
-bypass the Deterministic Validator, create emergency evidence by themselves, or
-authorize actuation.
+Selections on this topic are confirmed-candidate evidence. A confirmed
+Class 1 selection re-enters the Deterministic Validator with the bounded
+candidate; the selection alone does not bypass the validator, create
+emergency evidence by itself, or authorize actuation.
 
 ## 8. Governance Rule
 
