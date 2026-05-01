@@ -348,6 +348,74 @@ Rules:
 - `CLASS_0` 전이는 emergency confirmation, triple-hit, E001~E005 deterministic evidence 조건을 가져야 한다.
 - no response 또는 persistent ambiguity는 Safe Deferral 또는 Caregiver Confirmation으로 이어져야 한다.
 
+### 7.5 LLM Mode Variability Allowance
+
+When `Class2ClarificationManager` adopts LLM-generated candidates
+(`clarification_record.candidate_source = "llm_generated"`), the
+candidate set's `candidate_id` and `prompt` strings are produced by the
+LLM and **vary across runs**. Scenario expected fixtures and verifiers
+must therefore distinguish between **stable contract surfaces** that
+the LocalLlmAdapter enforces and **variable surfaces** that depend on the
+specific LLM response.
+
+Reference: `09_llm_driven_class2_candidate_generation_plan.md` Phase 1
+(adapter-side gating), `10_llm_class2_integration_alignment_plan.md` P2.1
+(this rule).
+
+**Stable contract surfaces (safe to compare literally even in LLM mode):**
+
+- `candidate_transition_target` — must be in
+  `{CLASS_1, CLASS_0, SAFE_DEFERRAL, CAREGIVER_CONFIRMATION,
+  SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION}` (schema-enforced).
+- `action_hint` — for `CLASS_1` candidates, must be in
+  `low_risk_actions.json` (adapter pre-filter drops out-of-catalog).
+- `target_hint` — for `CLASS_1` candidates, must be in the chosen
+  `action_hint`'s `allowed_targets` (adapter pre-filter drops invalid).
+- Caregiver-required-sensitive-path invariant: when
+  `unresolved_reason = "caregiver_required_sensitive_path"`, the **first**
+  candidate's `candidate_transition_target` is always
+  `CAREGIVER_CONFIRMATION` (or its canonical alias
+  `SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION`); the adapter falls back to
+  the static table if the LLM cannot produce a caregiver-first set.
+- CLASS_0 candidates: even in LLM mode the adapter normalizes any
+  CLASS_0 candidate to the fixed template
+  `{candidate_id: "C3_EMERGENCY_HELP", prompt: "긴급상황인가요?",
+   candidate_transition_target: "CLASS_0", action_hint: null,
+   target_hint: null}`. The LLM may decide *whether* to include an
+  emergency option but never *what* it says, so these literals stay
+  fixed across both modes.
+
+**Variable surfaces (do NOT compare literally in LLM mode):**
+
+- `candidate_id` — LLM may emit any short identifier
+  (e.g. `LLM_C1_LIGHT` instead of the static table's
+  `C1_LIGHTING_ASSISTANCE`). Verifier should locate the corresponding
+  candidate by matching on stable surfaces above, then read the actual
+  id from the record for downstream selection / audit.
+- `prompt` — TTS text varies with environmental context. The bounded-
+  variability constraints in `policy_table.global_constraints
+  .class2_conversational_prompt_constraints` cap length, enforce
+  question form, ban forbidden phrasings, and keep vocabulary tier
+  within `plain_korean`, but the literal text is not predictable.
+
+**Static mode literal matching is safe:** When
+`candidate_source = "default_fallback"`, all candidate fields come from
+`Class2ClarificationManager._DEFAULT_CANDIDATES` and are deterministic;
+the historical literal-id matching pattern works as-is.
+
+**Practical guideline for expected fixtures:**
+
+- Express expectations as predicates on stable surfaces. Example: instead
+  of `expected_first_candidate_id == "C2_CAREGIVER_HELP"`, write
+  `expected_first_candidate_transition_target == "CAREGIVER_CONFIRMATION"`
+  AND optionally `expected_first_candidate_action_hint is null`.
+- Where a literal id check is required (CLASS_0 normalization), state
+  explicitly that the literal is enforced by the adapter rule, not by
+  default-fallback coincidence.
+- Optionally include both views: `expected_first_candidate_id_when_static`
+  AND `expected_first_candidate_transition_target` for older verifiers
+  that still match on id literals.
+
 ---
 
 ## 8. expected_outcomes 필드 규칙
