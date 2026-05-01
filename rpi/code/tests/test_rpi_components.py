@@ -1098,9 +1098,11 @@ class TestPackageMetricsD:
         assert metrics["notification_readiness_rate"] == 0.0
         assert metrics["no_notification_count"] == 1
 
-    def test_notification_not_expected_when_should_notify_false(self):
-        """observation.class2.should_notify_caregiver=false excludes the trial
-        from the readiness denominator."""
+    def test_notification_not_expected_excluded_from_all_completeness_metrics(self):
+        """should_notify_caregiver=false trial must be excluded from EVERY
+        notification completeness metric — readiness, no_notification_count,
+        missing_by_field, payload_completeness_rate, and missing_field_rate.
+        Otherwise a normal CLASS_2→CLASS_1 success is wrongly penalised."""
         from experiment_package.trial_store import TrialStore, compute_metrics
         store = TrialStore()
         run = store.create_run(package_id="D", scenario_ids=[],
@@ -1109,21 +1111,84 @@ class TestPackageMetricsD:
             run_id=run.run_id, package_id="D", scenario_id="s",
             fault_profile_id=None, comparison_condition=None,
             expected_route_class="CLASS_2",
-            expected_validation="safe_deferral",
+            expected_validation="approved",
             expected_outcome="class_2_escalation",
             audit_correlation_id="audit-d-nr-001",
         )
         obs = {
             "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "approved"},
+            "ack": {"dispatch_status": "published"},
             "class2": {"transition_target": "CLASS_1",
                        "should_notify_caregiver": False,
                        "unresolved_reason": "insufficient_context"},
         }
         store.complete_trial(trial.trial_id, obs, notification_payload=None)
         metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
-        # No notification expected → denominator 0 → readiness 0.0 (no positive evidence)
         assert metrics["notification_expected_count"] == 0
-        assert metrics["notification_readiness_rate"] == 0.0
+        assert metrics["notification_not_expected_count"] == 1
+        assert metrics["no_notification_count"] == 0
+        assert metrics["payload_completeness_rate"] == 0.0  # 0/0 by convention
+        assert metrics["missing_field_rate"] == 0.0
+        assert all(c == 0 for c in metrics["missing_by_field"].values())
+
+    def test_mixed_run_completeness_only_counts_expected_trials(self):
+        """A mixed run with one notification-expected trial (complete) and one
+        notification-not-expected trial (no notification): completeness must be
+        1.0 because only the expected trial counts."""
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=2)
+        # Trial A: should_notify_caregiver=True with valid notification
+        ta = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-d-mix-a",
+        )
+        store.complete_trial(
+            ta.trial_id,
+            {
+                "route": {"route_class": "CLASS_2"},
+                "validation": {"validation_status": "safe_deferral"},
+                "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                           "should_notify_caregiver": True,
+                           "unresolved_reason": "insufficient_context"},
+            },
+            notification_payload=self._valid_notification(),
+        )
+        # Trial B: should_notify_caregiver=False (CLASS_1 success) with no notification
+        tb = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="approved",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-d-mix-b",
+        )
+        store.complete_trial(
+            tb.trial_id,
+            {
+                "route": {"route_class": "CLASS_2"},
+                "validation": {"validation_status": "approved"},
+                "ack": {"dispatch_status": "published"},
+                "class2": {"transition_target": "CLASS_1",
+                           "should_notify_caregiver": False,
+                           "unresolved_reason": "insufficient_context"},
+            },
+            notification_payload=None,
+        )
+        metrics = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        assert metrics["class2_trials"] == 2
+        assert metrics["notification_expected_count"] == 1
+        assert metrics["notification_not_expected_count"] == 1
+        assert metrics["no_notification_count"] == 0  # the missing one wasn't expected
+        assert metrics["payload_completeness_rate"] == 1.0  # 1 expected, 1 complete
+        assert metrics["missing_field_rate"] == 0.0
+        assert metrics["notification_readiness_rate"] == 1.0
 
 
 # ==================================================================
@@ -1912,6 +1977,155 @@ class TestCompoundExpectedTransitionTarget:
 # ==================================================================
 # NotificationStore — basic ring-buffer behaviour
 # ==================================================================
+
+class TestScenarioContractWithOverride:
+    """When start_trial_async receives expected_transition_target_override, the
+    scenario file's class2_clarification_expectation block must STILL be loaded
+    so requires_validator_reentry_when_class1 is honored. The override only
+    replaces the target value, not the boolean contract."""
+
+    def test_override_preserves_requires_validator_reentry_flag(self, tmp_path):
+        """Scenario declares requires_validator_reentry_when_class1=true; even
+        with target_override, the trial must carry the flag through."""
+        import json
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        from shared.asset_loader import RpiAssetLoader
+
+        # Build a minimal scenario fixture in tmp_path with the contract flag set.
+        scen_dir = tmp_path / "integration" / "scenarios"
+        scen_dir.mkdir(parents=True)
+        scenario_path = scen_dir / "test_class2_validator_reentry_scenario.json"
+        scenario_path.write_text(json.dumps({
+            "scenario_id": "SCN_TEST_VR",
+            "class2_clarification_expectation": {
+                "expected_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                "requires_validator_reentry_when_class1": True,
+            },
+        }))
+
+        loader = MagicMock(spec=RpiAssetLoader)
+        loader.load_scenario.return_value = json.loads(scenario_path.read_text())
+        loader.fixture_exists.return_value = False
+
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {"audit_correlation_id": "x",
+                                  "ingest_timestamp_ms": 0,
+                                  "network_status": "online"},
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = lambda n: None
+
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "approved"},
+            "ack": {"dispatch_status": "published"},
+            "class2": {"transition_target": "CLASS_1",
+                       "should_notify_caregiver": False,
+                       "unresolved_reason": "insufficient_context"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store, asset_loader=loader)
+        run = store.create_run(package_id="A", scenario_ids=["x"],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="A",
+            node_id="n",
+            scenario_id="SCN_TEST_VR",  # has requires_validator_reentry=true
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            # Override target only — boolean contract from the scenario file
+            # must still survive.
+            expected_transition_target_override="CLASS_1",
+        )
+        # Wait for completion
+        import time as _t
+        deadline = _t.monotonic() + 3.0
+        while _t.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            _t.sleep(0.05)
+        result = store.get_trial(trial.trial_id)
+
+        # The contract from the scenario is preserved
+        assert result.requires_validator_reentry_when_class1 is True
+        # And the target override took effect
+        assert result.expected_transition_target == "CLASS_1"
+
+    def test_override_alone_without_scenario_keeps_default_contract(self):
+        """When scenario_id is empty, the contract flag falls back to False
+        (no scenario to load) — override alone does not invent a contract."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {"audit_correlation_id": "x",
+                                  "ingest_timestamp_ms": 0,
+                                  "network_status": "online"},
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = lambda n: None
+
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": "CLASS_1",
+                       "unresolved_reason": "insufficient_context"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store)
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id,
+            package_id="A",
+            node_id="n",
+            scenario_id="",  # no scenario file
+            fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_transition_target_override="CLASS_1",
+        )
+        import time as _t
+        deadline = _t.monotonic() + 3.0
+        while _t.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            _t.sleep(0.05)
+        result = store.get_trial(trial.trial_id)
+        # No scenario → no contract → flag stays False
+        assert result.requires_validator_reentry_when_class1 is False
+        assert result.expected_transition_target == "CLASS_1"
+
 
 class TestNotificationStore:
     def test_add_and_find(self):

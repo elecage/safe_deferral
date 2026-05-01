@@ -112,11 +112,16 @@ class PackageRunner:
             profile.expected_outcome if profile else "class_1_approved"
         )
 
-        # Load expected_transition_target and requires_validator_reentry_when_class1
-        # from scenario's class2_clarification_expectation when declared.
-        eff_transition_target: Optional[str] = expected_transition_target_override
+        # Load the scenario's class2_clarification_expectation block whenever a
+        # scenario_id is set, regardless of whether the caller passed an explicit
+        # transition-target override. The target value may be overridden, but the
+        # boolean contract (requires_validator_reentry_when_class1) and any other
+        # scenario-declared expectation must always survive — otherwise an
+        # override-using caller (fixture-less / API) silently drops the
+        # validator re-entry contract that the scenario declared.
+        eff_transition_target: Optional[str] = None
         eff_requires_validator_reentry: bool = False
-        if expected_route_class == "CLASS_2" and scenario_id and eff_transition_target is None:
+        if expected_route_class == "CLASS_2" and scenario_id:
             try:
                 scenario = self._loader.load_scenario(scenario_id)
                 c2_exp = scenario.get("class2_clarification_expectation") or {}
@@ -129,6 +134,10 @@ class PackageRunner:
                     "Could not load class2_clarification_expectation from %s: %s",
                     scenario_id, exc,
                 )
+        # Apply the explicit override last so the scenario's boolean contract
+        # is preserved.
+        if expected_transition_target_override is not None:
+            eff_transition_target = expected_transition_target_override
 
         correlation_id = f"pkg-{package_id}-{uuid.uuid4().hex[:8]}"
 

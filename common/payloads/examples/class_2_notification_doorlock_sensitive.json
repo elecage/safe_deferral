@@ -1,11 +1,11 @@
 {
   "event_summary": "Visitor-response request may involve doorlock-sensitive actuation.",
   "context_summary": "doorbell_detected=true, user input indicates possible visitor-response intent, doorlock state is tracked only as experiment/audit context.",
-  "unresolved_reason": "Doorlock control is sensitive actuation and is not part of the current autonomous Class 1 low-risk catalog.",
+  "unresolved_reason": "caregiver_required_sensitive_path",
   "manual_confirmation_path": "Caregiver must review and explicitly approve or deny through the governed manual confirmation path before any doorlock command is considered.",
   "audit_correlation_id": "example-doorlock-sensitive-001",
   "timestamp_ms": 1710000000300,
   "notification_channel": "telegram",
-  "source_layer": "validator",
-  "exception_trigger_id": "C203"
+  "source_layer": "class2_clarification_manager",
+  "exception_trigger_id": "C208"
 }
