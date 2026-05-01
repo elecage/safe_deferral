@@ -143,8 +143,16 @@ class Pipeline:
         self._intake = ContextIntake(audit_logger=self._audit)
         self._router = PolicyRouter()
 
+        # Bound the LLM HTTP timeout from policy so the message-handler thread
+        # cannot block indefinitely on a slow / hung Ollama (P0.2 of
+        # 10_llm_class2_integration_alignment_plan.md). Default 8 s aligns
+        # with the Class 2 user clarification window so a slow LLM does not
+        # consume the user's response time.
+        _gc = _loader.load_policy_table().get("global_constraints", {})
+        _llm_timeout_s = int(_gc.get("llm_request_timeout_ms", 8000)) // 1000
         llm_client = (
-            OllamaClient(model=OLLAMA_MODEL, base_url=OLLAMA_URL)
+            OllamaClient(model=OLLAMA_MODEL, base_url=OLLAMA_URL,
+                          timeout_s=_llm_timeout_s)
             if OLLAMA_URL
             else MockLlmClient()
         )

@@ -24,10 +24,22 @@ from experiment_package.trial_store import (
 )
 from shared.asset_loader import RpiAssetLoader
 
-# Default sleep between scenario context publish and the simulated user/emergency
-# selection that drives a CLASS_2 trial to its expected transition. Gives the
-# pipeline time to enter the CLASS_2 clarification session and register a waiter.
-_CLASS2_SELECTION_DRIVE_DELAY_S = 0.5
+# Sleep between detecting the initial CLASS_2 routing snapshot and publishing
+# the synthetic user/emergency selection that drives the trial to its expected
+# transition. The runner already waits for the initial CLASS_2 observation
+# (deterministic), so this sleep only needs to cover the small window between
+# the Mac mini publishing that observation and the _await_user_then_caregiver
+# background thread registering _pending_user_class2.
+#
+# Bumped from 0.5 s → 1.0 s as part of P0.3 of
+# 10_llm_class2_integration_alignment_plan.md to add a comfortable margin
+# above the worker-thread startup time after the LLM-bounded start_session
+# returns. With P0.1 in place, start_session always returns within
+# llm_call_budget_s, after which announce_class2 + escalate_to_class2 +
+# thread spawn complete in milliseconds — but a 1 s margin makes the runner
+# robust to slower CI / virtualised hosts without needing a synchronisation
+# signal.
+_CLASS2_SELECTION_DRIVE_DELAY_S = 1.0
 
 # How long to keep polling the NotificationStore after the observation has
 # already arrived. The Mac mini timeout/caregiver-fallback path emits the

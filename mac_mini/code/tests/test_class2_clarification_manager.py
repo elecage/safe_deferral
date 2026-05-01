@@ -645,3 +645,116 @@ class TestLlmCandidateGeneratorHook:
         validator = jsonschema.Draft7Validator(schema, resolver=resolver)
         errors = list(validator.iter_errors(result.clarification_record))
         assert not errors, "; ".join(e.message for e in errors)
+
+
+# ==================================================================
+# P0.1 — _call_llm_with_budget thread + budget enforcement
+# (10_llm_class2_integration_alignment_plan.md)
+# ==================================================================
+
+class _SlowStubGenerator:
+    """Stub generator whose generate_class2_candidates() blocks for sleep_s
+    before returning. Used to verify the manager's budget actually bounds
+    the wait, not just the underlying HTTP timeout.
+    """
+
+    def __init__(self, sleep_s: float, candidates=None, raise_exc=None):
+        import threading as _t
+        self._sleep = sleep_s
+        self._candidates = candidates
+        self._raise_exc = raise_exc
+        self.calls = 0
+        self.completed = _t.Event()  # set when the runner thread actually finishes
+
+    def generate_class2_candidates(self, **_kwargs):
+        import time as _time
+        from local_llm_adapter.models import Class2CandidateResult
+        self.calls += 1
+        _time.sleep(self._sleep)
+        try:
+            if self._raise_exc is not None:
+                raise self._raise_exc
+            if self._candidates is None:
+                return Class2CandidateResult(
+                    candidates=[], candidate_source="default_fallback",
+                    generated_at_ms=0, model_id="static_default_fallback",
+                )
+            return Class2CandidateResult(
+                candidates=self._candidates, candidate_source="llm_generated",
+                generated_at_ms=0, model_id="slow-stub",
+            )
+        finally:
+            self.completed.set()
+
+
+class TestLlmCallBudget:
+    """Regression: start_session must return within self._llm_call_budget_s
+    even when the LLM hangs, so the MQTT message-handler thread cannot
+    block indefinitely."""
+
+    def _llm_candidates(self):
+        return [{
+            "candidate_id": "BUDGET_C1", "prompt": "테스트?",
+            "candidate_transition_target": "CLASS_1",
+            "action_hint": "light_on", "target_hint": "living_room_light",
+        }]
+
+    def _ctx(self):
+        return {
+            "trigger_event": {"event_type": "button", "event_code": "double_click",
+                              "timestamp_ms": 0},
+            "environmental_context": {"temperature": 22, "illuminance": 50,
+                                       "occupancy_detected": True,
+                                       "smoke_detected": False, "gas_detected": False,
+                                       "doorbell_detected": False},
+            "device_states": {"living_room_light": "off", "bedroom_light": "off",
+                              "living_room_blind": "open", "tv_main": "off"},
+        }
+
+    def _make_manager(self, generator, budget_s):
+        mgr = Class2ClarificationManager(llm_candidate_generator=generator)
+        mgr._llm_call_budget_s = budget_s
+        return mgr
+
+    def test_fast_llm_within_budget_uses_llm_candidates(self):
+        gen = _SlowStubGenerator(sleep_s=0.05, candidates=self._llm_candidates())
+        mgr = self._make_manager(gen, budget_s=1.0)
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        assert getattr(session, "candidate_source") == "llm_generated"
+        assert session.candidate_choices[0].candidate_id == "BUDGET_C1"
+
+    def test_slow_llm_exceeding_budget_falls_back(self):
+        """If LLM takes longer than budget, manager abandons it and uses static.
+        start_session must return within ~budget seconds, not within the LLM duration."""
+        import time as _time
+        gen = _SlowStubGenerator(sleep_s=2.0, candidates=self._llm_candidates())
+        mgr = self._make_manager(gen, budget_s=0.3)
+        t0 = _time.monotonic()
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        elapsed = _time.monotonic() - t0
+        # Generous upper bound — actual budget is 0.3 s.
+        assert elapsed < 1.0, f"start_session blocked for {elapsed:.2f}s; budget was 0.3s"
+        # Static fallback used
+        assert getattr(session, "candidate_source") == "default_fallback"
+        assert session.candidate_choices[0].candidate_id == "C1_LIGHTING_ASSISTANCE"
+
+    def test_llm_exception_falls_back_silently(self):
+        gen = _SlowStubGenerator(sleep_s=0.05, raise_exc=RuntimeError("ollama exploded"))
+        mgr = self._make_manager(gen, budget_s=1.0)
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        assert getattr(session, "candidate_source") == "default_fallback"
+
+    def test_no_pure_context_skips_thread_entirely(self):
+        gen = _SlowStubGenerator(sleep_s=0.05, candidates=self._llm_candidates())
+        mgr = self._make_manager(gen, budget_s=1.0)
+        # No pure_context_payload → no LLM call → no thread spawn
+        session = mgr.start_session("C206", AUDIT_ID)
+        assert gen.calls == 0
+        assert getattr(session, "candidate_source") == "default_fallback"
+
+    def test_budget_loaded_from_policy_table(self):
+        """Default manager (no asset_loader override) computes the budget from
+        global_constraints.llm_request_timeout_ms."""
+        mgr = Class2ClarificationManager()
+        # Shipped policy: llm_request_timeout_ms = 8000 → budget = 8.0 + 0.5
+        assert abs(mgr._llm_call_budget_s - 8.5) < 0.01
