@@ -22,11 +22,15 @@ Authority rule (02_safety_and_authority_boundaries.md):
   - This manager does not dispatch actuators or approve caregiver confirmation.
 """
 
+import logging
+import threading
 import time
 import uuid
 from typing import Optional, Protocol
 
 from class2_clarification_manager.models import Class2Result
+
+log = logging.getLogger(__name__)
 from safe_deferral_handler.models import (
     ClarificationChoice,
     ClarificationSession,
@@ -288,6 +292,16 @@ class Class2ClarificationManager:
         # present, start_session() asks it for contextual candidates first
         # and falls back to _DEFAULT_CANDIDATES on any failure.
         self._llm_generator = llm_candidate_generator
+        # P0.1 of 10_llm_class2_integration_alignment_plan.md: cap how long
+        # start_session is willing to wait on the LLM. Aligned with the
+        # OllamaClient HTTP timeout (llm_request_timeout_ms) plus a small
+        # slack for HTTP teardown. The LLM call runs on a daemon thread
+        # that we join with this budget; if the budget elapses, we abandon
+        # the in-flight request and use the static _DEFAULT_CANDIDATES
+        # table. The MQTT message-handler thread is therefore blocked for
+        # at most this budget, capping emergency-response latency.
+        _llm_timeout_s = int(gc.get("llm_request_timeout_ms", 8000)) / 1000.0
+        self._llm_call_budget_s: float = _llm_timeout_s + 0.5
 
     # ------------------------------------------------------------------
     # Public API
@@ -322,24 +336,16 @@ class Class2ClarificationManager:
         candidate_source = "default_fallback"
         choices_input = candidate_choices
         if choices_input is None and self._llm_generator is not None and pure_context_payload is not None:
-            try:
-                llm_result = self._llm_generator.generate_class2_candidates(
-                    pure_context_payload=pure_context_payload,
-                    unresolved_reason=reason,
-                    max_candidates=self._max_candidates,
-                    audit_correlation_id=audit_correlation_id,
-                )
-                if (
-                    llm_result is not None
-                    and getattr(llm_result, "candidate_source", None) == "llm_generated"
-                    and getattr(llm_result, "candidates", None)
-                ):
-                    choices_input = llm_result.candidates
-                    candidate_source = "llm_generated"
-            except Exception:
-                # Any LLM failure is a silent fallback to the static table —
-                # safety invariant: the static table is always sufficient.
-                pass
+            llm_result = self._call_llm_with_budget(
+                pure_context_payload, reason, audit_correlation_id,
+            )
+            if (
+                llm_result is not None
+                and getattr(llm_result, "candidate_source", None) == "llm_generated"
+                and getattr(llm_result, "candidates", None)
+            ):
+                choices_input = llm_result.candidates
+                candidate_source = "llm_generated"
         choices = self._build_choices(reason, choices_input)
         session = ClarificationSession(
             clarification_id=clarification_id or str(uuid.uuid4()),
@@ -428,6 +434,61 @@ class Class2ClarificationManager:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _call_llm_with_budget(
+        self,
+        pure_context_payload: dict,
+        unresolved_reason: str,
+        audit_correlation_id: str,
+    ):
+        """Run the LLM candidate generator on a daemon thread and join with
+        ``self._llm_call_budget_s``. Returns the result if it arrived in
+        time, ``None`` otherwise.
+
+        Why a thread: ``self._llm_generator.generate_class2_candidates()``
+        ultimately makes an HTTP POST to Ollama. Even with the OllamaClient
+        request timeout policy-bound (P0.2), running it directly on the
+        MQTT message-handler thread blocks every other inbound message —
+        including a Class 0 emergency event — for the full LLM duration.
+        Running it on a daemon thread and bounding the join lets us
+        guarantee start_session returns within ``self._llm_call_budget_s``
+        regardless of LLM behaviour. If the budget elapses we abandon the
+        in-flight request (the daemon thread keeps running until Ollama
+        responds or its own HTTP timeout fires) and fall back to
+        _DEFAULT_CANDIDATES, preserving the safety invariant that the
+        static table is always sufficient.
+        """
+        if self._llm_generator is None:
+            return None
+
+        result_holder: list = []
+
+        def _runner() -> None:
+            try:
+                result_holder.append(self._llm_generator.generate_class2_candidates(
+                    pure_context_payload=pure_context_payload,
+                    unresolved_reason=unresolved_reason,
+                    max_candidates=self._max_candidates,
+                    audit_correlation_id=audit_correlation_id,
+                ))
+            except Exception as exc:  # noqa: BLE001 — silent fallback contract
+                log.warning("Class 2 LLM call raised: %s — using static fallback", exc)
+
+        worker = threading.Thread(
+            target=_runner,
+            daemon=True,
+            name=f"class2-llm-{audit_correlation_id[:8]}" if audit_correlation_id else "class2-llm",
+        )
+        worker.start()
+        worker.join(timeout=self._llm_call_budget_s)
+        if worker.is_alive():
+            log.warning(
+                "Class 2 LLM call exceeded budget %.2fs (audit=%s) — abandoning, "
+                "using static _DEFAULT_CANDIDATES",
+                self._llm_call_budget_s, audit_correlation_id,
+            )
+            return None
+        return result_holder[0] if result_holder else None
 
     def _build_choices(
         self,
