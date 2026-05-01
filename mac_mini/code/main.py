@@ -106,7 +106,38 @@ MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PASS = os.environ.get("MQTT_PASS", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "") or os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-CAREGIVER_RESPONSE_TIMEOUT_S = int(os.environ.get("CAREGIVER_RESPONSE_TIMEOUT_S", "300"))
+def _resolve_caregiver_response_timeout_s() -> int:
+    """Resolve the Phase 2 caregiver Telegram wait budget.
+
+    Resolution order (single source of truth alignment with rpi PackageRunner):
+      1. CAREGIVER_RESPONSE_TIMEOUT_S env var, when set and parseable (operational
+         override for ad-hoc tuning).
+      2. policy_table.global_constraints.caregiver_response_timeout_ms / 1000
+         (canonical default; same field the rpi runner reads).
+      3. Hardcoded 300 (last-resort fallback if both env and policy load fail).
+
+    Read once at module import. Tests that need a different value should set the
+    env before importing main, or override Pipeline.start_session-side timing
+    via direct attribute writes.
+    """
+    env = os.environ.get("CAREGIVER_RESPONSE_TIMEOUT_S")
+    if env:
+        try:
+            return int(env)
+        except ValueError:
+            pass
+    try:
+        from shared.asset_loader import AssetLoader as _AL
+        gc = (_AL().load_policy_table() or {}).get("global_constraints", {}) or {}
+        ms = gc.get("caregiver_response_timeout_ms")
+        if ms is not None:
+            return int(ms) // 1000
+    except Exception:
+        pass
+    return 300
+
+
+CAREGIVER_RESPONSE_TIMEOUT_S = _resolve_caregiver_response_timeout_s()
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
 AUDIT_DB_PATH = os.environ.get(

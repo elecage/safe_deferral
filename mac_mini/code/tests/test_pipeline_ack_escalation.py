@@ -299,6 +299,44 @@ class TestExecuteClass2Transition:
 
 
 # ---------------------------------------------------------------------------
+# main._resolve_caregiver_response_timeout_s — env > policy > 300 fallback
+# ---------------------------------------------------------------------------
+
+class TestResolveCaregiverTimeout:
+    """Verify the env > policy > hardcoded-default resolution order so the
+    Mac mini and the rpi runner stay in sync via policy_table."""
+
+    def test_env_override_wins(self, monkeypatch):
+        import main
+        monkeypatch.setenv("CAREGIVER_RESPONSE_TIMEOUT_S", "42")
+        assert main._resolve_caregiver_response_timeout_s() == 42
+
+    def test_invalid_env_falls_through_to_policy(self, monkeypatch):
+        import main
+        monkeypatch.setenv("CAREGIVER_RESPONSE_TIMEOUT_S", "not-a-number")
+        # Shipped policy: caregiver_response_timeout_ms = 300000 → 300 s
+        assert main._resolve_caregiver_response_timeout_s() == 300
+
+    def test_no_env_uses_policy(self, monkeypatch):
+        import main
+        monkeypatch.delenv("CAREGIVER_RESPONSE_TIMEOUT_S", raising=False)
+        # Shipped policy default
+        assert main._resolve_caregiver_response_timeout_s() == 300
+
+    def test_policy_failure_falls_back_to_300(self, monkeypatch):
+        """If both env and policy load are unavailable, returns 300."""
+        import main
+        monkeypatch.delenv("CAREGIVER_RESPONSE_TIMEOUT_S", raising=False)
+
+        class _BrokenLoader:
+            def load_policy_table(self):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr("shared.asset_loader.AssetLoader", _BrokenLoader)
+        assert main._resolve_caregiver_response_timeout_s() == 300
+
+
+# ---------------------------------------------------------------------------
 # main._build_notification — exception_trigger_id schema gating (Issue #1)
 # ---------------------------------------------------------------------------
 

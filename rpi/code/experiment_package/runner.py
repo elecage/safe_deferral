@@ -61,9 +61,10 @@ _TRIAL_TIMEOUT_S = 30.0
 #      (PR #91 P0.1+P0.2). Default 8 s.
 #   2. User clarification window — the Mac mini's class2_clarification_timeout_ms
 #      from the same policy block. Default 30 s.
-#   3. Caregiver Telegram window — Mac mini's CAREGIVER_RESPONSE_TIMEOUT_S
-#      env (default 300 s). Not currently surfaced in policy_table; the
-#      runner uses the same default as the Mac mini env so they stay in sync.
+#   3. Caregiver Telegram window — policy_table.global_constraints.
+#      caregiver_response_timeout_ms (default 300_000 ms = 300 s). Mac mini
+#      reads the same field (or accepts CAREGIVER_RESPONSE_TIMEOUT_S env
+#      override), so the two stay aligned without manual sync.
 #   4. Telemetry publish slack — small margin so the trial does not time out
 #      while the post-transition observation is still in flight.
 #
@@ -141,11 +142,13 @@ class PackageRunner:
         self._class2_user_phase_timeout_s: float = float(
             gc.get("class2_clarification_timeout_ms", _USER_PHASE_TIMEOUT_DEFAULT_S * 1000)
         ) / 1000.0
-        # Caregiver Telegram window — currently a runner-side default, not a
-        # policy field. Tracked as a follow-up in doc 10's "Out of scope" notes
-        # if a single source of truth for both Mac mini env and runner is
-        # eventually wanted in policy_table.
-        self._class2_caregiver_phase_timeout_s: float = _CAREGIVER_PHASE_TIMEOUT_S
+        # Caregiver Telegram window now sourced from
+        # policy_table.global_constraints.caregiver_response_timeout_ms. Mac
+        # mini reads the same field (with optional env override) so the two
+        # stay aligned without manual sync.
+        self._class2_caregiver_phase_timeout_s: float = float(
+            gc.get("caregiver_response_timeout_ms", _CAREGIVER_PHASE_TIMEOUT_S * 1000)
+        ) / 1000.0
         self._class2_trial_timeout_slack_s: float = _TRIAL_TIMEOUT_CLASS2_SLACK_S
         self._class2_trial_timeout_s: float = (
             self._class2_llm_budget_s
