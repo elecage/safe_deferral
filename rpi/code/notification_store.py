@@ -1,8 +1,8 @@
 """Ring buffer for safe_deferral/escalation/class2 notification payloads.
 
 Mirrors ObservationStore but holds Class 2 caregiver notification payloads so
-Package D (Class 2 Payload Completeness, required_experiments.md §8) can
-validate them against class2_notification_payload_schema.json.
+Package D (Class 2 Notification Payload Completeness, required_experiments.md
+§8) can validate them against class2_notification_payload_schema.json.
 """
 
 import threading

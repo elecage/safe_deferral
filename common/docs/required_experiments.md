@@ -473,7 +473,7 @@ Emergency-focused fault injection 결과는 canonical policy table에 정의된 
 
 ---
 
-## 8. 선택 실험 패키지 D: Class 2 Payload Completeness
+## 8. 선택 실험 패키지 D: Class 2 Notification Payload Completeness
 
 ### 8.1 목적
 
