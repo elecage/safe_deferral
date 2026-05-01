@@ -296,3 +296,108 @@ class TestExecuteClass2Transition:
             pipeline._caregiver.send_notification = original_notify
         assert dispatched == []
         assert notifications == []
+
+
+# ---------------------------------------------------------------------------
+# publish_class2_transition_result()
+# ---------------------------------------------------------------------------
+
+class TestPublishClass2TransitionResult:
+    """TelemetryAdapter.publish_class2_transition_result() emits a snapshot with
+    post_transition_validator_status and post_transition_dispatched set."""
+
+    def _make_adapter(self):
+        with patch("main.AUDIT_DB_PATH", ":memory:"):
+            import main  # noqa: PLC0415
+            from telemetry_adapter.adapter import TelemetryAdapter
+        pub = _MockPublisher()
+        from shared.asset_loader import AssetLoader
+        adapter = TelemetryAdapter(
+            mqtt_publisher=pub,
+            asset_loader=AssetLoader(),
+        )
+        return adapter, pub
+
+    def _make_cr(self, action_hint="light_on", target_hint="living_room_light"):
+        return _make_class2_result("CLASS_1", action_hint=action_hint, target_hint=target_hint)
+
+    def test_approved_fields_in_published_snapshot(self):
+        adapter, pub = self._make_adapter()
+        cr = self._make_cr()
+        adapter.publish_class2_transition_result(
+            "audit-ptr-001", cr,
+            post_transition_validator_status="approved",
+            post_transition_dispatched=True,
+        )
+        assert len(pub.calls) == 1
+        payload = pub.calls[0]["payload"]
+        class2 = payload.get("class2") or {}
+        assert class2.get("post_transition_validator_status") == "approved"
+        assert class2.get("post_transition_dispatched") is True
+
+    def test_not_ready_fields_in_published_snapshot(self):
+        adapter, pub = self._make_adapter()
+        cr = self._make_cr(target_hint=None)
+        adapter.publish_class2_transition_result(
+            "audit-ptr-002", cr,
+            post_transition_validator_status="not_ready",
+            post_transition_dispatched=False,
+        )
+        payload = pub.calls[0]["payload"]
+        class2 = payload.get("class2") or {}
+        assert class2.get("post_transition_validator_status") == "not_ready"
+        assert class2.get("post_transition_dispatched") is False
+
+    def test_audit_correlation_id_in_snapshot(self):
+        adapter, pub = self._make_adapter()
+        cr = self._make_cr()
+        adapter.publish_class2_transition_result(
+            "audit-ptr-003", cr,
+            post_transition_validator_status="approved",
+            post_transition_dispatched=True,
+        )
+        assert pub.calls[0]["payload"].get("audit_correlation_id") == "audit-ptr-003"
+
+
+# ---------------------------------------------------------------------------
+# C1_LIGHTING_ASSISTANCE default candidate has target_hint set (Issue 1)
+# ---------------------------------------------------------------------------
+
+class TestDefaultCandidatesTargetHint:
+    """C1_LIGHTING_ASSISTANCE in _DEFAULT_CANDIDATES must have target_hint set so
+    is_class1_ready=True and CLASS_2→CLASS_1 dispatch fires in practice."""
+
+    def test_insufficient_context_c1_has_target_hint(self):
+        from class2_clarification_manager.manager import _DEFAULT_CANDIDATES
+        c1 = next(
+            c for c in _DEFAULT_CANDIDATES["insufficient_context"]
+            if c["candidate_id"] == "C1_LIGHTING_ASSISTANCE"
+        )
+        assert c1["target_hint"] == "living_room_light"
+        assert c1["action_hint"] == "light_on"
+
+    def test_missing_policy_input_c1_has_target_hint(self):
+        from class2_clarification_manager.manager import _DEFAULT_CANDIDATES
+        c1 = next(
+            c for c in _DEFAULT_CANDIDATES["missing_policy_input"]
+            if c["candidate_id"] == "C1_LIGHTING_ASSISTANCE"
+        )
+        assert c1["target_hint"] == "living_room_light"
+
+    def test_unresolved_conflict_opt_living_room_is_class1_ready(self):
+        from class2_clarification_manager.manager import _DEFAULT_CANDIDATES
+        opt = next(
+            c for c in _DEFAULT_CANDIDATES["unresolved_context_conflict"]
+            if c["candidate_id"] == "OPT_LIVING_ROOM"
+        )
+        assert opt["action_hint"] == "light_on"
+        assert opt["target_hint"] == "living_room_light"
+
+    def test_unresolved_conflict_opt_bedroom_is_class1_ready(self):
+        from class2_clarification_manager.manager import _DEFAULT_CANDIDATES
+        opt = next(
+            c for c in _DEFAULT_CANDIDATES["unresolved_context_conflict"]
+            if c["candidate_id"] == "OPT_BEDROOM"
+        )
+        assert opt["action_hint"] == "light_on"
+        assert opt["target_hint"] == "bedroom_light"

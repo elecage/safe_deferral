@@ -25,6 +25,7 @@ class TrialResult:
     expected_validation: str              # "approved" | "safe_deferral" | "rejected_escalation"
     expected_outcome: str                 # from fault_profile or scenario definition
     expected_transition_target: Optional[str] = None  # "CLASS_1" | "CLASS_0" | None (CLASS_2 only)
+    requires_validator_when_class1: Optional[bool] = None  # True → verify post_transition_validator_status="approved"
 
     # Observed (filled after matching ObservationStore)
     observed_route_class: Optional[str] = None
@@ -52,6 +53,7 @@ class TrialResult:
             "expected_validation": self.expected_validation,
             "expected_outcome": self.expected_outcome,
             "expected_transition_target": self.expected_transition_target,
+            "requires_validator_when_class1": self.requires_validator_when_class1,
             "observed_route_class": self.observed_route_class,
             "observed_validation": self.observed_validation,
             "audit_correlation_id": self.audit_correlation_id,
@@ -158,6 +160,7 @@ class TrialStore:
         expected_outcome: str,
         audit_correlation_id: str,
         expected_transition_target: Optional[str] = None,
+        requires_validator_when_class1: Optional[bool] = None,
     ) -> TrialResult:
         trial = TrialResult(
             trial_id=str(uuid.uuid4()),
@@ -171,6 +174,7 @@ class TrialStore:
             expected_outcome=expected_outcome,
             audit_correlation_id=audit_correlation_id,
             expected_transition_target=expected_transition_target,
+            requires_validator_when_class1=requires_validator_when_class1,
         )
         with self._lock:
             self._trials[trial.trial_id] = trial
@@ -297,6 +301,14 @@ def _is_pass(trial: TrialResult) -> bool:
         if trial.expected_transition_target is not None:
             observed_target = class2_tel.get("transition_target")
             if observed_target != trial.expected_transition_target:
+                return False
+        # If CLASS_1 transition and validator evidence required, verify it was approved
+        if (
+            trial.expected_transition_target == "CLASS_1"
+            and trial.requires_validator_when_class1
+        ):
+            post_val = class2_tel.get("post_transition_validator_status")
+            if post_val != "approved":
                 return False
         return True
 

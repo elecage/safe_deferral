@@ -42,6 +42,33 @@ _CONTEXT_INPUT_TOPIC = "safe_deferral/context/input"
 _CONTRACT_DRIFT_TOPIC = "safe_deferral/_governance_test/contract_drift"
 
 
+_CANONICAL_TRANSITION_TARGETS = {
+    "CLASS_1",
+    "CLASS_0",
+    "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+}
+
+
+def _normalize_expected_transition_target(raw: Optional[str]) -> Optional[str]:
+    """Normalize scenario expected_transition_target to a canonical runtime value.
+
+    - None / empty → None (no target check)
+    - "CAREGIVER_CONFIRMATION" → "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION" (runtime enum value)
+    - canonical values (CLASS_1, CLASS_0, SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION) → pass through
+    - compound values containing "_OR_" (multi-outcome placeholders) → None (no strict check)
+    - anything else → returned as-is
+    """
+    if not raw:
+        return None
+    if raw == "CAREGIVER_CONFIRMATION":
+        return "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+    if raw in _CANONICAL_TRANSITION_TARGETS:
+        return raw
+    if "_OR_" in raw:
+        return None
+    return raw
+
+
 class PackageRunner:
     """Orchestrates experiment trials for packages A~G.
 
@@ -93,14 +120,17 @@ class PackageRunner:
             profile.expected_outcome if profile else "class_1_approved"
         )
 
-        # Load expected_transition_target from scenario's class2_clarification_expectation
-        # when the scenario declares one.  Only relevant for CLASS_2 trials.
+        # Load expected_transition_target and requires_validator_when_class1 from
+        # scenario's class2_clarification_expectation.  Only relevant for CLASS_2 trials.
         eff_transition_target: Optional[str] = None
+        eff_requires_validator: Optional[bool] = None
         if expected_route_class == "CLASS_2" and scenario_id:
             try:
                 scenario = self._loader.load_scenario(scenario_id)
                 c2_exp = scenario.get("class2_clarification_expectation") or {}
-                eff_transition_target = c2_exp.get("expected_transition_target") or None
+                raw_target = c2_exp.get("expected_transition_target") or None
+                eff_transition_target = _normalize_expected_transition_target(raw_target)
+                eff_requires_validator = c2_exp.get("requires_validator_when_class1") or None
             except Exception as exc:
                 log.warning(
                     "Could not load class2_clarification_expectation from %s: %s",
@@ -120,6 +150,7 @@ class PackageRunner:
             expected_outcome=eff_outcome,
             audit_correlation_id=correlation_id,
             expected_transition_target=eff_transition_target,
+            requires_validator_when_class1=eff_requires_validator,
         )
 
         t = threading.Thread(
@@ -236,7 +267,14 @@ class PackageRunner:
                 if trial.expected_route_class == "CLASS_2"
                 else _TRIAL_TIMEOUT_S
             )
-            observation = self._match_observation(correlation_id, trial_timeout)
+            requires_post = bool(
+                trial.expected_transition_target == "CLASS_1"
+                and trial.requires_validator_when_class1
+            )
+            observation = self._match_observation(
+                correlation_id, trial_timeout,
+                requires_post_transition_snapshot=requires_post,
+            )
 
             if observation is None:
                 log.warning(
@@ -350,15 +388,19 @@ class PackageRunner:
         self,
         correlation_id: str,
         timeout_s: float,
+        requires_post_transition_snapshot: bool = False,
     ) -> Optional[dict]:
         """Poll ObservationStore until correlation_id match or timeout.
 
-        For CLASS_2 trials, the Mac mini pipeline publishes two observations:
-          1. An initial snapshot (no class2 block) immediately after routing
-             and TTS announcement (escalate_to_class2 telemetry publish).
+        For CLASS_2 trials, the Mac mini pipeline publishes observations:
+          1. An initial snapshot (no class2 block) immediately after routing.
           2. A final snapshot (with class2 block) after the two-phase wait
              resolves: user button press (Phase 1, ≤15 s), caregiver Telegram
              response (Phase 2, ≤300 s), or full Phase-2 timeout.
+          3. When requires_post_transition_snapshot=True (CLASS_1 transition with
+             requires_validator_when_class1): a post-transition snapshot that also
+             has class2.post_transition_validator_status set, published after
+             _execute_class2_transition() completes validation.
 
         This method waits passively — it does NOT auto-simulate a user button
         press.  Auto-simulation was removed because it unconditionally completed
@@ -377,10 +419,15 @@ class PackageRunner:
                 route_class = (obs.get("route") or {}).get("route_class", "")
                 if route_class != "CLASS_2":
                     return obs  # Non-CLASS_2: first match is final
-                if obs.get("class2"):
-                    return obs  # CLASS_2 with interaction data: final
-                # CLASS_2 without class2 block: Phase 1 or Phase 2 still active.
-                # Keep polling until the final snapshot arrives.
+                class2_block = obs.get("class2") or {}
+                if class2_block:
+                    if not requires_post_transition_snapshot:
+                        return obs  # CLASS_2 with interaction data: final
+                    # Waiting for post-transition validator evidence
+                    if class2_block.get("post_transition_validator_status") is not None:
+                        return obs  # Post-transition snapshot arrived: final
+                # CLASS_2 without class2 block, or waiting for post-transition:
+                # keep polling.
 
             time.sleep(_POLL_INTERVAL_S)
         return best_match  # Return best found (or None) if timeout reached

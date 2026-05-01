@@ -14,7 +14,8 @@ Responsibilities:
 
 Authority rule (02_safety_and_authority_boundaries.md):
   - Candidate selection is confirmation evidence only.
-  - CLASS_1 transition still requires Policy Router re-entry + Validator approval.
+  - CLASS_1 transition requires Deterministic Validator approval on the confirmed bounded candidate
+    (Policy Router re-entry is not required for explicitly selected bounded candidates).
   - CLASS_0 transition requires emergency confirmation or deterministic evidence.
   - Silence/timeout must never be treated as consent.
   - This manager does not dispatch actuators or approve caregiver confirmation.
@@ -75,7 +76,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "prompt": "조명 도움이 필요하신가요?",
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
-            "target_hint": None,
+            "target_hint": "living_room_light",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",
@@ -105,7 +106,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "prompt": "조명 도움이 필요하신가요?",
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
-            "target_hint": None,
+            "target_hint": "living_room_light",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",
@@ -134,14 +135,14 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_id": "OPT_LIVING_ROOM",
             "prompt": "거실 조명을 제어할까요?",
             "candidate_transition_target": "CLASS_1",
-            "action_hint": None,
+            "action_hint": "light_on",
             "target_hint": "living_room_light",
         },
         {
             "candidate_id": "OPT_BEDROOM",
             "prompt": "침실 조명을 제어할까요?",
             "candidate_transition_target": "CLASS_1",
-            "action_hint": None,
+            "action_hint": "light_on",
             "target_hint": "bedroom_light",
         },
         {

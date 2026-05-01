@@ -82,7 +82,7 @@
     "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_0",
-    "requires_policy_router_reentry": true,
+    "requires_policy_router_reentry": false,
     "requires_validator_when_class1": true,
     "timeout_must_not_infer_intent": true,
     "clarification_payload_is_not_authorization": true,

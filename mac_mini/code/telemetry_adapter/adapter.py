@@ -287,6 +287,46 @@ class TelemetryAdapter:
             self._clarification_topic, class2_result.clarification_record, qos=1
         )
 
+    def publish_class2_transition_result(
+        self,
+        audit_correlation_id: str,
+        class2_result: Class2Result,
+        post_transition_validator_status: Optional[str],
+        post_transition_dispatched: Optional[bool],
+    ) -> None:
+        """Publish a post-transition snapshot after CLASS_2→CLASS_1 validation attempt.
+
+        Called from _execute_class2_transition() after the Deterministic Validator
+        runs (or is skipped due to missing hints).  Publishes a standalone snapshot
+        whose class2 block includes post_transition_validator_status and
+        post_transition_dispatched so the RPi trial runner can verify validator
+        evidence when requires_validator_when_class1=True.
+        """
+        unresolved = class2_result.clarification_record.get("unresolved_reason")
+        now_ms = int(time.time() * 1000)
+        class2 = Class2Telemetry(
+            transition_target=class2_result.transition_target.value,
+            should_notify_caregiver=class2_result.should_notify_caregiver,
+            unresolved_reason=unresolved,
+            timestamp_ms=now_ms,
+            post_transition_validator_status=post_transition_validator_status,
+            post_transition_dispatched=post_transition_dispatched,
+        )
+        route = RouteTelemetry(
+            route_class="CLASS_2",
+            trigger_id=None,
+            timestamp_ms=now_ms,
+        )
+        snapshot = TelemetrySnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            generated_at_ms=now_ms,
+            audit_correlation_id=audit_correlation_id,
+            route=route,
+            class2=class2,
+            audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
+        )
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
+
     def reset(self) -> None:
         """Clear all accumulated state (useful between experiment runs)."""
         self._audit_correlation_id = ""

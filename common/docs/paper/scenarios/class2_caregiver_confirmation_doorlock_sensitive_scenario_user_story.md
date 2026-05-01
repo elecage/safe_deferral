@@ -45,6 +45,16 @@ door unlock authorization
 → 아님
 ```
 
+**중요: `doorbell_detected` 위치에 따른 라우팅 차이**
+
+| 위치 | 의미 | Policy Router 결과 |
+|---|---|---|
+| `environmental_context.doorbell_detected=true` (+ button trigger) | 방문자 있는 상태에서 사용자 버튼 입력 | **CLASS_1** (lighting 등 저위험 동작 가능) |
+| `trigger_event.event_type=sensor, event_code=doorbell_detected` | 초인종 자체가 트리거 이벤트 (C208) | **CLASS_2** → caregiver escalation |
+
+즉, `environmental_context.doorbell_detected=true`만으로는 CLASS_2에 진입하지 않는다.
+CLASS_2(C208)는 doorbell sensor 자체가 `trigger_event`로 올 때 발생한다.
+
 따라서 방문자 상황이 있어도 시스템은 도어락을 자동으로 열면 안 된다.
 
 도어락 관련 요청은 민감 액추에이션이므로 Class 2 notification, caregiver confirmation, 또는 별도 governed manual confirmation path로 넘어가야 한다.

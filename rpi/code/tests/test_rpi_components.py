@@ -967,3 +967,121 @@ class TestTrialStoreTransitionTarget:
         """expected_transition_target=None is included as None in to_dict()."""
         store, trial = self._make_class2_trial(expected_transition_target=None)
         assert trial.to_dict()["expected_transition_target"] is None
+
+
+class TestTrialStoreRequiresValidatorWhenClass1:
+    """_is_pass() must verify post_transition_validator_status when requires_validator_when_class1=True."""
+
+    def _make_trial(self, requires_validator=True, post_val_status="approved"):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="D", scenario_ids=["s1"], fault_profile_ids=[], trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s1",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2", expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation", audit_correlation_id="audit-rv-001",
+            expected_transition_target="CLASS_1",
+            requires_validator_when_class1=requires_validator,
+        )
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {
+                "transition_target": "CLASS_1",
+                "should_notify_caregiver": False,
+                "unresolved_reason": "insufficient_context",
+                "timestamp_ms": 0,
+                "post_transition_validator_status": post_val_status,
+                "post_transition_dispatched": post_val_status == "approved",
+            },
+            "generated_at_ms": 1000,
+        }
+        result = store.complete_trial(trial.trial_id, obs)
+        return result
+
+    def test_approved_with_flag_passes(self):
+        """requires_validator_when_class1=True and approved → pass."""
+        result = self._make_trial(requires_validator=True, post_val_status="approved")
+        assert result.pass_ is True
+
+    def test_not_approved_with_flag_fails(self):
+        """requires_validator_when_class1=True and not_ready → fail."""
+        result = self._make_trial(requires_validator=True, post_val_status="not_ready")
+        assert result.pass_ is False
+
+    def test_flag_false_ignores_post_val(self):
+        """requires_validator_when_class1=False → post_transition_validator_status not checked."""
+        result = self._make_trial(requires_validator=False, post_val_status="not_ready")
+        assert result.pass_ is True
+
+    def test_flag_none_ignores_post_val(self):
+        """requires_validator_when_class1=None → post_transition_validator_status not checked."""
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="D", scenario_ids=["s1"], fault_profile_ids=[], trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s1",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2", expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation", audit_correlation_id="audit-rv-002",
+            expected_transition_target="CLASS_1",
+            requires_validator_when_class1=None,
+        )
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "class2": {"transition_target": "CLASS_1", "should_notify_caregiver": False,
+                       "unresolved_reason": "insufficient_context", "timestamp_ms": 0},
+            "generated_at_ms": 1000,
+        }
+        result = store.complete_trial(trial.trial_id, obs)
+        assert result.pass_ is True
+
+    def test_requires_validator_in_to_dict(self):
+        """requires_validator_when_class1 is serialised in to_dict()."""
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(
+            package_id="D", scenario_ids=["s1"], fault_profile_ids=[], trial_count=1,
+        )
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s1",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2", expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation", audit_correlation_id="audit-rv-003",
+            requires_validator_when_class1=True,
+        )
+        assert trial.to_dict()["requires_validator_when_class1"] is True
+
+
+class TestNormalizeExpectedTransitionTarget:
+    """_normalize_expected_transition_target() must canonicalize values from scenario files."""
+
+    def _norm(self, raw):
+        from experiment_package.runner import _normalize_expected_transition_target
+        return _normalize_expected_transition_target(raw)
+
+    def test_none_returns_none(self):
+        assert self._norm(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert self._norm("") is None
+
+    def test_caregiver_confirmation_maps_to_canonical(self):
+        assert self._norm("CAREGIVER_CONFIRMATION") == "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+
+    def test_compound_or_maps_to_none(self):
+        assert self._norm("CLASS_1_OR_CLASS_0_OR_SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION") is None
+
+    def test_class1_passes_through(self):
+        assert self._norm("CLASS_1") == "CLASS_1"
+
+    def test_class0_passes_through(self):
+        assert self._norm("CLASS_0") == "CLASS_0"
+
+    def test_safe_deferral_or_caregiver_passes_through(self):
+        assert self._norm("SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION") == "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"

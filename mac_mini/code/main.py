@@ -814,10 +814,20 @@ class Pipeline:
                         "CLASS_2→CLASS_1 dispatched: command_id=%s",
                         dispatch_result.dispatch_record.command_id,
                     )
+                    self._telemetry.publish_class2_transition_result(
+                        audit_correlation_id, class2_result,
+                        post_transition_validator_status="approved",
+                        post_transition_dispatched=True,
+                    )
                 else:
                     log.warning(
                         "CLASS_2→CLASS_1 validation not approved (%s) — no dispatch",
                         val_result.validation_status.value,
+                    )
+                    self._telemetry.publish_class2_transition_result(
+                        audit_correlation_id, class2_result,
+                        post_transition_validator_status=val_result.validation_status.value,
+                        post_transition_dispatched=False,
                     )
             else:
                 log.warning(
@@ -825,6 +835,11 @@ class Pipeline:
                     "candidate missing target_hint; cannot dispatch",
                     class2_result.action_hint,
                     class2_result.target_hint,
+                )
+                self._telemetry.publish_class2_transition_result(
+                    audit_correlation_id, class2_result,
+                    post_transition_validator_status="not_ready",
+                    post_transition_dispatched=False,
                 )
 
         elif target == TransitionTarget.CLASS_0:

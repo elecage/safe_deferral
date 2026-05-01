@@ -38,6 +38,8 @@ class Class2Telemetry:
     should_notify_caregiver: bool
     unresolved_reason: Optional[str]
     timestamp_ms: int
+    post_transition_validator_status: Optional[str] = None  # "approved"|"safe_deferral"|"rejected_escalation"|"not_ready"
+    post_transition_dispatched: Optional[bool] = None
 
 
 @dataclass

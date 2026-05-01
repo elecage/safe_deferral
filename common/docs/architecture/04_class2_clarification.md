@@ -77,7 +77,9 @@ A Class 2 case may transition to Class 1 only when:
 
 1. clarification provides bounded low-risk intent evidence,
 2. the target action remains inside `low_risk_actions.json`,
-3. Policy Router re-entry occurs,
+3. Deterministic Validator re-entry validates the bounded candidate (Policy Router
+   re-entry is not required when the bounded candidate is explicitly selected through
+   clarification — the Validator is the safety gate for the confirmed candidate),
 4. Deterministic Validator approves the exact admissible action,
 5. dispatch remains limited to the approved low-risk action.
 
