@@ -2513,6 +2513,116 @@ class TestClass2TrialTimeoutDecomposition:
         assert abs(runner._class2_trial_timeout_s - expected) < 0.01
 
 
+class TestNodesEndpointTimingClaim:
+    """The /nodes POST/PUT endpoints round-trip simulated_response_timing_ms
+    so the dashboard modal can edit it. Backward-compat: omitting the field
+    leaves the profile unchanged; explicit null clears it; dict merges over
+    existing keys (so the modal's two known keys never wipe other keys)."""
+
+    def _make_app(self):
+        try:
+            import httpx  # required by starlette.TestClient
+            from fastapi.testclient import TestClient
+        except (ImportError, RuntimeError):
+            pytest.skip("fastapi/httpx not installed")
+        from dashboard.app import create_app
+        return TestClient(create_app())
+
+    def _ctx_body(self, **extra):
+        body = {
+            "node_type": "context_node",
+            "source_node_id": "rpi.virtual_context_node",
+            "publish_topic": "safe_deferral/context/input",
+            "publish_interval_ms": 1000,
+            "repeat_count": 1,
+            "payload_template": {
+                "routing_metadata": {"audit_correlation_id": "t",
+                                     "ingest_timestamp_ms": 0,
+                                     "network_status": "online"},
+                "pure_context_payload": {},
+            },
+        }
+        body.update(extra)
+        return body
+
+    def test_post_omits_field_when_unset(self):
+        client = self._make_app()
+        r = client.post("/nodes", json=self._ctx_body())
+        assert r.status_code == 200
+        body = r.json()
+        assert "simulated_response_timing_ms" not in body
+
+    def test_post_round_trip(self):
+        client = self._make_app()
+        r = client.post("/nodes", json=self._ctx_body(
+            simulated_response_timing_ms={
+                "user_response_ms": 1500,
+                "caregiver_response_ms": 12000,
+            },
+        ))
+        assert r.status_code == 200
+        assert r.json()["simulated_response_timing_ms"] == {
+            "user_response_ms": 1500,
+            "caregiver_response_ms": 12000,
+        }
+
+    def test_post_invalid_type_rejected(self):
+        client = self._make_app()
+        r = client.post("/nodes", json=self._ctx_body(
+            simulated_response_timing_ms="not-an-object",
+        ))
+        assert r.status_code == 400
+
+    def test_put_merges_over_existing(self):
+        """Editing user_response_ms must not wipe caregiver_response_ms or
+        any other key that wasn't part of the modal."""
+        client = self._make_app()
+        post = client.post("/nodes", json=self._ctx_body(
+            simulated_response_timing_ms={
+                "user_response_ms": 1500,
+                "caregiver_response_ms": 12000,
+                "extra_persona_metric_ms": 999,
+            },
+        ))
+        node_id = post.json()["node_id"]
+        # Modal sends only the two known keys with one value changed.
+        put = client.put(f"/nodes/{node_id}", json={
+            "simulated_response_timing_ms": {"user_response_ms": 2000},
+        })
+        assert put.status_code == 200
+        merged = put.json()["simulated_response_timing_ms"]
+        assert merged["user_response_ms"] == 2000
+        assert merged["caregiver_response_ms"] == 12000
+        assert merged["extra_persona_metric_ms"] == 999
+
+    def test_put_explicit_null_clears(self):
+        """Explicit null sets the profile back to unset (dashboard '(unset)')."""
+        client = self._make_app()
+        post = client.post("/nodes", json=self._ctx_body(
+            simulated_response_timing_ms={"user_response_ms": 1500},
+        ))
+        node_id = post.json()["node_id"]
+        put = client.put(f"/nodes/{node_id}",
+                         json={"simulated_response_timing_ms": None})
+        assert put.status_code == 200
+        assert "simulated_response_timing_ms" not in put.json()
+
+    def test_put_omitted_preserves_existing(self):
+        """If the modal doesn't include the field at all, the profile keeps
+        whatever it had (PUT with only other fields edited)."""
+        client = self._make_app()
+        post = client.post("/nodes", json=self._ctx_body(
+            simulated_response_timing_ms={"user_response_ms": 1500},
+        ))
+        node_id = post.json()["node_id"]
+        put = client.put(f"/nodes/{node_id}",
+                         json={"publish_interval_ms": 2000})
+        assert put.status_code == 200
+        assert put.json()["simulated_response_timing_ms"] == {
+            "user_response_ms": 1500,
+        }
+
+
 class TestClass2PhaseBudgetsSnapshot:
     """The runner freezes the policy-derived phase budgets onto each CLASS_2
     trial at creation time, so post-hoc policy changes cannot retroactively
