@@ -483,3 +483,111 @@ class TestGenerateClass2Candidates:
         )
         assert result.candidates[0]["action_hint"] is None
         assert result.candidates[0]["target_hint"] is None
+
+
+# ==================================================================
+# Phase 3 — bounded-variability constraints loaded from policy_table
+# ==================================================================
+
+class TestClass2PromptConstraintsFromPolicy:
+    """LocalLlmAdapter.__init__ must load
+    global_constraints.class2_conversational_prompt_constraints from
+    policy_table.json. Falls back to module defaults when the block is
+    absent (older policy version)."""
+
+    def test_constraints_loaded_from_policy_table(self):
+        """The shipped policy_table includes the block; the adapter exposes it."""
+        adapter = _mock_adapter("{}")
+        c = adapter._class2_prompt_constraints
+        assert c["max_prompt_length_chars"] == 80
+        assert c["prompt_must_be_question"] is True
+        assert c["vocabulary_tier"] == "plain_korean"
+        # forbidden_phrasings must include both Korean and English doorlock tokens
+        assert "도어락" in c["forbidden_phrasings"]
+        assert "doorlock" in c["forbidden_phrasings"]
+        # max_candidate_count comes from the sibling class2_max_candidate_options
+        assert c["max_candidate_count"] == 4
+        # The "_description" annotation in policy_table must NOT survive
+        assert all(not k.startswith("_") for k in c.keys())
+
+    def test_constraints_echoed_in_result_metadata(self):
+        adapter = _mock_adapter(_class2_response(_valid_lighting_candidate()))
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        echoed = result.prompt_constraints_applied
+        # Echoed constraints must match the loaded policy values
+        for key in ("max_prompt_length_chars", "prompt_must_be_question",
+                     "vocabulary_tier", "forbidden_phrasings"):
+            assert echoed[key] == adapter._class2_prompt_constraints[key]
+
+    def test_falls_back_when_policy_block_absent(self, tmp_path, monkeypatch):
+        """If the policy_table lacks class2_conversational_prompt_constraints,
+        the adapter must use the hardcoded fallback so it stays operational
+        on older policy versions."""
+        from local_llm_adapter.adapter import (
+            LocalLlmAdapter,
+            _CLASS2_PROMPT_CONSTRAINTS_FALLBACK,
+        )
+        from shared.asset_loader import AssetLoader
+
+        # Build a minimal stand-in AssetLoader whose policy_table has no
+        # class2_conversational_prompt_constraints block.
+        real = AssetLoader()
+
+        class _StubLoader:
+            def load_schema(self, name): return real.load_schema(name)
+            def make_schema_resolver(self): return real.make_schema_resolver()
+            def load_low_risk_actions(self): return real.load_low_risk_actions()
+            def load_policy_table(self):
+                return {
+                    "global_constraints": {
+                        "class2_max_candidate_options": 4,
+                    },
+                }
+
+        adapter = LocalLlmAdapter(
+            llm_client=MockLlmClient(fixed_response="{}"),
+            asset_loader=_StubLoader(),
+        )
+        for k, v in _CLASS2_PROMPT_CONSTRAINTS_FALLBACK.items():
+            assert adapter._class2_prompt_constraints[k] == v
+        # And max_candidate_count still comes from class2_max_candidate_options
+        assert adapter._class2_prompt_constraints["max_candidate_count"] == 4
+
+    def test_policy_constraints_actually_gate_validation(self, monkeypatch):
+        """A tightened policy max_prompt_length_chars must force candidate rejection
+        even for prompts that were acceptable under the previous cap."""
+        from local_llm_adapter.adapter import LocalLlmAdapter
+        from shared.asset_loader import AssetLoader
+        real = AssetLoader()
+
+        class _StubLoader:
+            def load_schema(self, name): return real.load_schema(name)
+            def make_schema_resolver(self): return real.make_schema_resolver()
+            def load_low_risk_actions(self): return real.load_low_risk_actions()
+            def load_policy_table(self):
+                return {
+                    "global_constraints": {
+                        "class2_max_candidate_options": 4,
+                        "class2_conversational_prompt_constraints": {
+                            "max_prompt_length_chars": 5,  # very tight
+                            "prompt_must_be_question": True,
+                            "vocabulary_tier": "plain_korean",
+                            "forbidden_phrasings": [],
+                        },
+                    },
+                }
+
+        adapter = LocalLlmAdapter(
+            llm_client=MockLlmClient(
+                fixed_response=_class2_response(_valid_lighting_candidate())
+            ),
+            asset_loader=_StubLoader(),
+        )
+        result = adapter.generate_class2_candidates(
+            _ctx(), "insufficient_context", 4, AUDIT_ID,
+        )
+        # Lighting candidate prompt is much longer than 5 chars → rejected.
+        # No other candidates → fallback.
+        assert result.candidate_source == "default_fallback"

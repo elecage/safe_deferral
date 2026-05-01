@@ -45,6 +45,68 @@ must not:
 - bypass caregiver confirmation,
 - bypass validator approval.
 
+### 4.1 Bounded-Variability Constraints
+
+LLM-generated candidate prompts (`prompt` field on each
+`ClarificationChoice`) are subject to **bounded-variability constraints**
+loaded at startup from
+`policy_table.json::global_constraints.class2_conversational_prompt_constraints`.
+The currently shipped values:
+
+| Constraint | Value | Purpose |
+|---|---|---|
+| `max_prompt_length_chars` | `80` | Cognitive-load cap so users with attention / cognitive limits are not overwhelmed |
+| `prompt_must_be_question` | `true` | Interrogative form makes it explicit that a choice is expected |
+| `vocabulary_tier` | `plain_korean` | Restrict to plain spoken Korean — no jargon |
+| `must_include_target_action_in_prompt` | `false` | Reserved for future tightening |
+| `forbidden_phrasings` | doorlock-related and emergency-dispatch-related tokens | Block phrasings that imply autonomous emergency or doorlock authority |
+
+`max_candidate_count` for the LLM path comes from the existing
+`class2_max_candidate_options` field in the same `global_constraints` block
+(currently `4`); the manager and the adapter share that single source of
+truth so they cannot drift.
+
+`LocalLlmAdapter._normalize_class2_candidate()` enforces every constraint.
+Any candidate that violates a constraint is dropped; if all candidates are
+rejected the adapter returns a `default_fallback` result and the manager
+uses its static `_DEFAULT_CANDIDATES` table (see §4.3 below). Operations
+may tighten the constraints by editing `policy_table.json` without
+touching code.
+
+### 4.2 Catalog gating
+
+CLASS_1 candidates with `action_hint` / `target_hint` outside
+`common/policies/low_risk_actions.json` are dropped by the adapter before
+the manager ever sees them. This means the LLM may *suggest* anything the
+context warrants, but only candidates whose `action_hint`+`target_hint` are
+admissible by the canonical low-risk catalog can ever reach the user. The
+catalog is grown by humans through governance, not by the LLM choosing to
+expand its own authority.
+
+CLASS_0 candidates from the LLM are always normalized to a fixed safe
+template (`candidate_id="C3_EMERGENCY_HELP"`, prompt `"긴급상황인가요?"`)
+so the LLM cannot invent emergency rationales. The LLM may decide *whether*
+to include an emergency option, never *what* it says.
+
+### 4.3 Provenance audit (`candidate_source`)
+
+The `clarification_interaction_schema.json` includes an optional
+`candidate_source` enum field with two values:
+
+- `llm_generated` — the candidate set was produced by
+  `LocalLlmAdapter.generate_class2_candidates()` and accepted under all
+  bounded-variability constraints.
+- `default_fallback` — the static `_DEFAULT_CANDIDATES` table was used,
+  either because no LLM generator was registered, or no
+  `pure_context_payload` was supplied (timeout-driven escalations like
+  C205 do not carry one), or the LLM output was rejected.
+
+Audit reviewers can use this field to distinguish LLM-driven sessions from
+fallback ones when reading clarification records. The two paths are
+behaviourally equivalent for the user (both produce bounded candidates the
+manager can present); the distinction matters only for evaluation and for
+debugging LLM regressions.
+
 ## 5. Clarification Interaction Payload
 
 Clarification interaction state is not pure context and not actuation authority.
