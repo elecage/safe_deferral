@@ -25,8 +25,8 @@
     {
       "step_id": 1,
       "action": "publish_context_payload",
-      "description": "Publish an ambiguous but non-emergency context payload that cannot safely resolve the target device without clarification.",
-      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+      "description": "Publish an ambiguous but non-emergency context payload (button double_click, low illuminance, room occupied, living-room light off) that the Policy Router routes to CLASS_2 / C206 insufficient_context.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_to_class1_low_risk_confirmation.json"
     },
     {
       "step_id": 2,
@@ -42,17 +42,19 @@
     {
       "step_id": 4,
       "action": "collect_low_risk_selection",
-      "description": "Collect user or caregiver selection of a low-risk lighting candidate. The selection does not directly authorize actuation."
+      "description": "Collect user or caregiver selection of the bounded low-risk lighting candidate (C1_LIGHTING_ASSISTANCE → action_hint=light_on, target_hint=living_room_light). The selection does not directly authorize actuation.",
+      "payload_fixture": "integration/tests/data/sample_class2_user_selection_class1.json"
     },
     {
       "step_id": 5,
       "action": "reenter_validator_with_confirmed_candidate",
-      "description": "Re-enter the Deterministic Validator with the confirmed bounded candidate (action_hint + target_hint from the selected candidate) and require validator approval against the canonical low-risk lighting catalog before any Class 1 dispatch. The Policy Router is not invoked again."
+      "description": "Re-enter the Deterministic Validator with the confirmed bounded candidate (action_hint + target_hint from the selected candidate) and require validator approval against the canonical low-risk lighting catalog before any Class 1 dispatch. The Policy Router is not invoked again.",
+      "expected_fixture": "integration/tests/data/expected_class2_transition_class1.json"
     },
     {
       "step_id": 6,
       "action": "observe_audit_stream",
-      "description": "Observe audit evidence for candidate presentation, selection, validator re-entry on the confirmed candidate, validator approval, and bounded Class 1 outcome."
+      "description": "Observe audit evidence for candidate presentation, selection, validator re-entry on the confirmed candidate, validator approval, and bounded Class 1 outcome (dispatcher ACK)."
     }
   ],
   "clarification_interaction": {
