@@ -79,14 +79,6 @@ class TestClass1:
         assert result.trigger_id is None
         assert result.unresolved_reason is None
 
-    def test_doorbell_true_does_not_change_class(self, router):
-        """doorbell_detected=True is visitor context, not emergency evidence."""
-        result = router.route(_base_input(
-            event_type="sensor", event_code="doorbell_detected",
-            doorbell_detected=True,
-        ))
-        assert result.route_class == RouteClass.CLASS_1
-
     def test_class1_preserves_pure_context(self, router):
         inp = _base_input()
         result = router.route(inp)
@@ -177,6 +169,49 @@ class TestClass2Staleness:
         ))
         assert result.route_class == RouteClass.CLASS_2
         assert result.trigger_id == "C204"
+
+
+# ------------------------------------------------------------------
+# CLASS_2 — C208 visitor/doorbell context
+# ------------------------------------------------------------------
+
+class TestClass2VisitorContext:
+    def test_doorbell_sensor_event_routes_class2(self, router):
+        """doorbell_detected sensor trigger is visitor-context sensitive → CLASS_2 (C208)."""
+        result = router.route(_base_input(
+            event_type="sensor", event_code="doorbell_detected",
+            doorbell_detected=True,
+        ))
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C208"
+        assert result.unresolved_reason == "visitor_context_sensitive_actuation_required"
+        assert result.llm_invocation_allowed is False
+        assert result.candidate_generation_allowed is True
+
+    def test_doorbell_sensor_event_without_env_flag_still_routes_class2(self, router):
+        """C208 triggers on the trigger_event code alone; env flag value is irrelevant."""
+        result = router.route(_base_input(
+            event_type="sensor", event_code="doorbell_detected",
+            doorbell_detected=False,
+        ))
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C208"
+
+    def test_non_doorbell_sensor_event_stays_class1(self, router):
+        """A regular sensor event (state_changed, threshold_exceeded) is not C208."""
+        result = router.route(_base_input(
+            event_type="sensor", event_code="state_changed",
+        ))
+        assert result.route_class == RouteClass.CLASS_1
+
+    def test_doorbell_in_env_context_without_trigger_event_is_class1(self, router):
+        """doorbell_detected=True in env context does not trigger C208 on its own;
+        only the trigger_event code matters."""
+        result = router.route(_base_input(
+            event_type="button", event_code="single_click",
+            doorbell_detected=True,
+        ))
+        assert result.route_class == RouteClass.CLASS_1
 
 
 # ------------------------------------------------------------------

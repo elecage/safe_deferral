@@ -185,6 +185,22 @@ class PackageRunner:
             # --- Publish ---
             if profile and profile.profile_id == "FAULT_CONTRACT_DRIFT_01":
                 self._publish_contract_drift(payload, correlation_id)
+                # No runtime observation will ever arrive for an unregistered topic.
+                # Complete immediately; _is_pass() treats obs_class=None as a
+                # governance-level pass for this profile.
+                self._store.complete_trial(
+                    trial.trial_id,
+                    {
+                        "audit_correlation_id": correlation_id,
+                        "governance_fault": "FAULT_CONTRACT_DRIFT_01",
+                    },
+                )
+                log.info(
+                    "Trial %s completed: FAULT_CONTRACT_DRIFT_01 — "
+                    "no runtime observation expected (governance pass)",
+                    trial.trial_id,
+                )
+                return
             else:
                 self._publish_normal(node, payload, correlation_id, topic_override)
 
@@ -261,22 +277,18 @@ class PackageRunner:
         record this as a governance-drift artifact.
         """
         try:
-            # Use the MQTT publisher directly (bypassing VirtualNodeManager
-            # topic validation, which is the point of this fault)
             drift_payload = dict(payload)
             drift_payload["_governance_fault"] = "FAULT_CONTRACT_DRIFT_01"
             drift_payload["_drift_topic"] = _CONTRACT_DRIFT_TOPIC
-            # We do NOT publish directly from here; we log this as a
-            # governance artifact. The actual drift verification is done
-            # by the GovernanceBackend, not by sending operational commands.
+            # Log the governance drift artifact. No MQTT publish to any operational
+            # or unregistered topic is performed here; the GovernanceBackend handles
+            # verification. The caller (_run_trial) completes the trial immediately
+            # since no runtime observation will arrive for an unregistered topic.
             log.info(
                 "FAULT_CONTRACT_DRIFT_01: governance drift artifact recorded "
                 "(correlation_id=%s, drift_topic=%s)",
                 correlation_id, _CONTRACT_DRIFT_TOPIC,
             )
-            # For governance drift trials, we don't wait for a dashboard observation
-            # (none will arrive for an unknown topic). We auto-complete with
-            # a governance-level pass if the observation is absent (expected).
         except Exception as exc:
             log.warning("Contract drift publish failed: %s", exc)
 

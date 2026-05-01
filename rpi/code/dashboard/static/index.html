@@ -845,29 +845,14 @@
       <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:16px">
         <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">긴급 이벤트 설정</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group" style="margin:0">
-            <label class="form-label">이벤트 종류</label>
+          <div class="form-group" style="margin:0;grid-column:1/-1">
+            <label class="form-label">이벤트 종류 (E001~E005)</label>
             <select class="form-control" id="emg-type">
-              <option value="smoke_detected">smoke_detected — 화재 감지</option>
-              <option value="gas_detected">gas_detected — 가스 감지</option>
-              <option value="fall_detected">fall_detected — 낙상 감지</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">심각도</label>
-            <select class="form-control" id="emg-severity">
-              <option value="high">high — 높음</option>
-              <option value="medium">medium — 중간</option>
-              <option value="low">low — 낮음</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label class="form-label">발생 위치</label>
-            <select class="form-control" id="emg-location">
-              <option value="living_room">거실</option>
-              <option value="bedroom">침실</option>
-              <option value="kitchen">주방</option>
-              <option value="bathroom">욕실</option>
+              <option value="temperature_threshold">E001 — temperature_threshold (고온 임계값 초과)</option>
+              <option value="triple_hit">E002 — triple_hit (긴급 버튼 3회 연타)</option>
+              <option value="smoke_detected">E003 — smoke_detected (연기 감지)</option>
+              <option value="gas_detected">E004 — gas_detected (가스 감지)</option>
+              <option value="fall_detected">E005 — fall_detected (낙상 감지)</option>
             </select>
           </div>
         </div>
@@ -1711,12 +1696,51 @@ function buildPayloadFromForm(type) {
   if (type === 'actuator_simulator') return {};
 
   if (type === 'emergency_event_node') {
+    const emgType = document.getElementById('emg-type').value;
+    const sourceId = document.getElementById('node-source-id').value || 'rpi.virtual_emergency';
+    // Base environmental context — all required fields with safe defaults
+    const envCtx = {
+      temperature: 22.0,
+      illuminance: 200.0,
+      occupancy_detected: true,
+      smoke_detected: false,
+      gas_detected: false,
+      doorbell_detected: false,
+    };
+    // Map each E001-E005 type to the correct trigger_event and env overrides
+    let triggerEvent;
+    if (emgType === 'temperature_threshold') {
+      triggerEvent = { event_type: 'sensor', event_code: 'threshold_exceeded', timestamp_ms: now };
+      envCtx.temperature = 52.0;
+    } else if (emgType === 'triple_hit') {
+      triggerEvent = { event_type: 'button', event_code: 'triple_hit', timestamp_ms: now };
+    } else if (emgType === 'smoke_detected') {
+      triggerEvent = { event_type: 'sensor', event_code: 'threshold_exceeded', timestamp_ms: now };
+      envCtx.smoke_detected = true;
+    } else if (emgType === 'gas_detected') {
+      triggerEvent = { event_type: 'sensor', event_code: 'threshold_exceeded', timestamp_ms: now };
+      envCtx.gas_detected = true;
+    } else {
+      // fall_detected (E005)
+      triggerEvent = { event_type: 'sensor', event_code: 'fall_detected', timestamp_ms: now };
+    }
     return {
-      event_type: document.getElementById('emg-type').value,
-      severity: document.getElementById('emg-severity').value,
-      timestamp_ms: now,
-      location: document.getElementById('emg-location').value,
-      details: {},
+      source_node_id: sourceId,
+      routing_metadata: {
+        audit_correlation_id: `emg-${now}`,
+        ingest_timestamp_ms: now,
+        network_status: 'online',
+      },
+      pure_context_payload: {
+        trigger_event: triggerEvent,
+        environmental_context: envCtx,
+        device_states: {
+          living_room_light: 'off',
+          bedroom_light: 'off',
+          living_room_blind: 'closed',
+          tv_main: 'off',
+        },
+      },
     };
   }
 
