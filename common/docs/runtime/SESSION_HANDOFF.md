@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_C208_SCHEMA_ENUM_BUGFIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_SCHEMA_COMPLIANCE_AND_C208_BUGFIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_MQTT_TOPIC_WIRING_BUGFIX.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_EMERGENCY_TOPIC_DOORBELL_ROUTING_DRIFT_TRIAL_BUGFIX.md`
