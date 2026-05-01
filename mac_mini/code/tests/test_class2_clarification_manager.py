@@ -475,3 +475,173 @@ class TestClarificationRecordSchemaCompliance:
         )
         errors = self._validate(result.clarification_record, schema_and_resolver)
         assert not errors, "; ".join(e.message for e in errors)
+
+
+# ==================================================================
+# LLM-driven candidate generation hook (Phase 2 of LLM-driven plan)
+# ==================================================================
+
+class _StubLlmGenerator:
+    """In-memory stand-in for LocalLlmAdapter.generate_class2_candidates.
+
+    The real adapter would call out to Ollama; tests use this so they don't
+    block on a network round-trip and can exercise the manager's fallback
+    contract precisely.
+    """
+
+    def __init__(self, candidates=None, raise_exc=None):
+        self._candidates = candidates
+        self._raise_exc = raise_exc
+        self.calls = []
+
+    def generate_class2_candidates(
+        self, pure_context_payload, unresolved_reason, max_candidates,
+        audit_correlation_id="",
+    ):
+        self.calls.append({
+            "pure_context_payload": pure_context_payload,
+            "unresolved_reason": unresolved_reason,
+            "max_candidates": max_candidates,
+            "audit_correlation_id": audit_correlation_id,
+        })
+        if self._raise_exc is not None:
+            raise self._raise_exc
+
+        from local_llm_adapter.models import Class2CandidateResult
+        if self._candidates is None:
+            # Simulate a default_fallback (LLM produced nothing usable)
+            return Class2CandidateResult(
+                candidates=[], candidate_source="default_fallback",
+                generated_at_ms=0, model_id="static_default_fallback",
+                rejection_reason="stub_no_candidates",
+            )
+        return Class2CandidateResult(
+            candidates=self._candidates,
+            candidate_source="llm_generated",
+            generated_at_ms=0,
+            model_id="stub-llm",
+        )
+
+
+class TestLlmCandidateGeneratorHook:
+    def _llm_candidates(self):
+        return [
+            {
+                "candidate_id": "LLM_C1_LIGHT",
+                "prompt": "거실 조명을 켜드릴까요?",
+                "candidate_transition_target": "CLASS_1",
+                "action_hint": "light_on",
+                "target_hint": "living_room_light",
+            },
+            {
+                "candidate_id": "LLM_C2_CAREGIVER",
+                "prompt": "보호자에게 알려드릴까요?",
+                "candidate_transition_target": "CAREGIVER_CONFIRMATION",
+                "action_hint": None,
+                "target_hint": None,
+            },
+        ]
+
+    def _ctx(self):
+        return {
+            "trigger_event": {"event_type": "button", "event_code": "double_click",
+                              "timestamp_ms": 0},
+            "environmental_context": {"temperature": 22, "illuminance": 50,
+                                       "occupancy_detected": True,
+                                       "smoke_detected": False, "gas_detected": False,
+                                       "doorbell_detected": False},
+            "device_states": {"living_room_light": "off", "bedroom_light": "off",
+                              "living_room_blind": "open", "tv_main": "off"},
+        }
+
+    def test_llm_candidates_used_when_generator_present(self):
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session(
+            "C206", AUDIT_ID, pure_context_payload=self._ctx(),
+        )
+        ids = [c.candidate_id for c in session.candidate_choices]
+        assert ids == ["LLM_C1_LIGHT", "LLM_C2_CAREGIVER"]
+        assert getattr(session, "candidate_source") == "llm_generated"
+        assert len(stub.calls) == 1
+        assert stub.calls[0]["unresolved_reason"] == "insufficient_context"
+        assert stub.calls[0]["audit_correlation_id"] == AUDIT_ID
+
+    def test_falls_back_when_generator_returns_default(self):
+        stub = _StubLlmGenerator(candidates=None)  # default_fallback shape
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session(
+            "C206", AUDIT_ID, pure_context_payload=self._ctx(),
+        )
+        # Static defaults for insufficient_context start with C1_LIGHTING_ASSISTANCE
+        assert session.candidate_choices[0].candidate_id == "C1_LIGHTING_ASSISTANCE"
+        assert getattr(session, "candidate_source") == "default_fallback"
+
+    def test_falls_back_when_generator_raises(self):
+        stub = _StubLlmGenerator(raise_exc=RuntimeError("ollama down"))
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session(
+            "C206", AUDIT_ID, pure_context_payload=self._ctx(),
+        )
+        assert session.candidate_choices[0].candidate_id == "C1_LIGHTING_ASSISTANCE"
+        assert getattr(session, "candidate_source") == "default_fallback"
+
+    def test_no_pure_context_means_no_llm_call(self):
+        """Defensive: legacy callers omit pure_context_payload — manager must
+        not attempt to call the LLM in that case."""
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session("C206", AUDIT_ID)  # no pure_context_payload
+        assert stub.calls == []
+        assert getattr(session, "candidate_source") == "default_fallback"
+
+    def test_explicit_candidates_override_skips_llm(self):
+        """An explicit candidate_choices argument always wins."""
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        explicit = [{
+            "candidate_id": "EXPLICIT", "prompt": "테스트?",
+            "candidate_transition_target": "CLASS_1",
+            "action_hint": "light_on", "target_hint": "living_room_light",
+        }]
+        session = mgr.start_session(
+            "C206", AUDIT_ID,
+            candidate_choices=explicit,
+            pure_context_payload=self._ctx(),
+        )
+        assert stub.calls == []  # LLM not called
+        assert session.candidate_choices[0].candidate_id == "EXPLICIT"
+
+    def test_clarification_record_carries_candidate_source_llm(self):
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        result = mgr.submit_selection(session, "LLM_C1_LIGHT", "user_mqtt_button",
+                                       trigger_id="C206")
+        assert result.clarification_record["candidate_source"] == "llm_generated"
+
+    def test_clarification_record_carries_candidate_source_fallback(self):
+        # No LLM generator at all → default_fallback recorded
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        result = mgr.submit_selection(session, "C1_LIGHTING_ASSISTANCE",
+                                       "user_mqtt_button", trigger_id="C206")
+        assert result.clarification_record["candidate_source"] == "default_fallback"
+
+    def test_clarification_record_validates_against_schema(self):
+        """candidate_source field is now in the clarification_interaction_schema —
+        a record with it must still validate."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("clarification_interaction_schema.json")
+        resolver = loader.make_schema_resolver()
+
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        result = mgr.submit_selection(session, "LLM_C1_LIGHT", "user_mqtt_button",
+                                       trigger_id="C206")
+        validator = jsonschema.Draft7Validator(schema, resolver=resolver)
+        errors = list(validator.iter_errors(result.clarification_record))
+        assert not errors, "; ".join(e.message for e in errors)

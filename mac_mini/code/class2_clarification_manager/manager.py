@@ -24,7 +24,7 @@ Authority rule (02_safety_and_authority_boundaries.md):
 
 import time
 import uuid
-from typing import Optional
+from typing import Optional, Protocol
 
 from class2_clarification_manager.models import Class2Result
 from safe_deferral_handler.models import (
@@ -257,14 +257,37 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
 }
 
 
+class Class2CandidateGenerator(Protocol):
+    """Minimal interface a Class 2 candidate generator (e.g. LocalLlmAdapter)
+    must implement so the manager can call it without importing the LLM
+    adapter directly. Returns a Class2CandidateResult-like object with
+    candidates list, candidate_source, and rejection_reason."""
+    def generate_class2_candidates(
+        self,
+        pure_context_payload: dict,
+        unresolved_reason: str,
+        max_candidates: int,
+        audit_correlation_id: str = "",
+    ): ...
+
+
 class Class2ClarificationManager:
-    def __init__(self, asset_loader: Optional[AssetLoader] = None):
+    def __init__(
+        self,
+        asset_loader: Optional[AssetLoader] = None,
+        llm_candidate_generator: Optional["Class2CandidateGenerator"] = None,
+    ) -> None:
         loader = asset_loader or AssetLoader()
         policy = loader.load_policy_table()
         gc = policy["global_constraints"]
         self._timeout_ms: int = gc["class2_clarification_timeout_ms"]
         self._max_attempts: int = gc["class2_max_clarification_attempts"]
         self._max_candidates: int = gc["class2_max_candidate_options"]
+        # Optional LLM-driven candidate generator
+        # (09_llm_driven_class2_candidate_generation_plan.md Phase 2). When
+        # present, start_session() asks it for contextual candidates first
+        # and falls back to _DEFAULT_CANDIDATES on any failure.
+        self._llm_generator = llm_candidate_generator
 
     # ------------------------------------------------------------------
     # Public API
@@ -278,17 +301,47 @@ class Class2ClarificationManager:
         attempt_number: int = 1,
         clarification_id: Optional[str] = None,
         presentation_channel: str = "tts",
+        pure_context_payload: Optional[dict] = None,
     ) -> ClarificationSession:
         """Initialise a Class 2 clarification session.
 
-        trigger_id may be C201-C207 (from Policy Router / Validator) or
+        trigger_id may be C201-C208 (from Policy Router / Validator) or
         'deferral_timeout' (from Safe Deferral Handler escalation).
-        candidate_choices may be supplied by the LLM adapter (MM-02);
-        if None, falls back to defaults for the resolved unresolved_reason.
+
+        Candidate source priority:
+          1. Explicit candidate_choices argument (caller-supplied override).
+          2. LLM-generated candidates when an llm_candidate_generator is
+             registered AND pure_context_payload is provided.
+          3. Static _DEFAULT_CANDIDATES table for the resolved unresolved_reason.
+
+        candidate_source is recorded on the session so the clarification
+        record (built in submit_selection / handle_timeout) can audit which
+        path produced the candidate set.
         """
         reason = _TRIGGER_TO_REASON.get(trigger_id, "insufficient_context")
-        choices = self._build_choices(reason, candidate_choices)
-        return ClarificationSession(
+        candidate_source = "default_fallback"
+        choices_input = candidate_choices
+        if choices_input is None and self._llm_generator is not None and pure_context_payload is not None:
+            try:
+                llm_result = self._llm_generator.generate_class2_candidates(
+                    pure_context_payload=pure_context_payload,
+                    unresolved_reason=reason,
+                    max_candidates=self._max_candidates,
+                    audit_correlation_id=audit_correlation_id,
+                )
+                if (
+                    llm_result is not None
+                    and getattr(llm_result, "candidate_source", None) == "llm_generated"
+                    and getattr(llm_result, "candidates", None)
+                ):
+                    choices_input = llm_result.candidates
+                    candidate_source = "llm_generated"
+            except Exception:
+                # Any LLM failure is a silent fallback to the static table —
+                # safety invariant: the static table is always sufficient.
+                pass
+        choices = self._build_choices(reason, choices_input)
+        session = ClarificationSession(
             clarification_id=clarification_id or str(uuid.uuid4()),
             audit_correlation_id=audit_correlation_id,
             deferral_reason=reason,
@@ -297,6 +350,12 @@ class Class2ClarificationManager:
             timeout_ms=self._timeout_ms,
             attempt_number=attempt_number,
         )
+        # Stash candidate_source on the session so the clarification record
+        # built in submit_selection / handle_timeout can include it.
+        # ClarificationSession is a dataclass without this field; use a
+        # dynamic attribute to avoid changing the shared model.
+        session.candidate_source = candidate_source  # type: ignore[attr-defined]
+        return session
 
     def submit_selection(
         self,
@@ -451,11 +510,15 @@ class Class2ClarificationManager:
         normalised_selection["selection_source"] = self._SELECTION_SOURCE_MAP.get(
             raw_source, raw_source
         )
+        # candidate_source is set by start_session(); default to fallback for
+        # legacy callers that bypass it.
+        candidate_source = getattr(session, "candidate_source", "default_fallback")
         return {
             "clarification_id": session.clarification_id,
             "audit_correlation_id": session.audit_correlation_id,
             "source_layer": "class2_clarification_manager",
             "unresolved_reason": session.deferral_reason,
+            "candidate_source": candidate_source,
             "candidate_choices": [c.to_schema_dict() for c in session.candidate_choices],
             "presentation_channel": session.presentation_channel,
             "selection_result": normalised_selection,
