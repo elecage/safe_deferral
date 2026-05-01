@@ -2294,12 +2294,27 @@ function renderPkgGeneric(metrics, pkgId) {
     el.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div>${metrics.error}</div>`;
     return;
   }
-  // Render metrics as a grid
+  // Render metrics as a grid.
+  // Distinguish ratio metrics (keys ending in _rate, plus a small allow-list of
+  // historical ratio names) from counts/integers, so a count of 1 doesn't get
+  // displayed as 100.0%.
+  const RATIO_KEYS = new Set([
+    'pass_rate',
+    'governance_pass_rate',
+    'topic_drift_detection_rate',
+  ]);
+  const isRatioKey = k => k.endsWith('_rate') || RATIO_KEYS.has(k);
+  const formatMetricValue = (k, v) => {
+    if (typeof v !== 'number') return JSON.stringify(v);
+    if (isRatioKey(k)) return (v * 100).toFixed(1) + '%';
+    if (Number.isInteger(v)) return String(v);
+    return v.toFixed(2);
+  };
   const entries = Object.entries(metrics).filter(([k]) => !['package_id','total'].includes(k));
   el.innerHTML = `<div class="metrics-grid">` +
     `<div class="metric-box"><div class="metric-value">${metrics.total||0}</div><div class="metric-label">총 트라이얼</div></div>` +
     entries.map(([k, v]) => {
-      const display = typeof v === 'number' ? (v <= 1 ? (v*100).toFixed(1)+'%' : v.toFixed(1)) : JSON.stringify(v);
+      const display = formatMetricValue(k, v);
       return `<div class="metric-box"><div class="metric-value" style="font-size:20px">${display}</div><div class="metric-label">${k}</div></div>`;
     }).join('') + `</div>`;
 }

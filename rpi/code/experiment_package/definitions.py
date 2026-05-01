@@ -8,7 +8,7 @@ class PackageId(str, Enum):
     A = "A"  # 정책 분기 정확성 및 안전성
     B = "B"  # 클래스별 지연 시간
     C = "C"  # Fault Injection 강건성
-    D = "D"  # Class 2 Payload Completeness
+    D = "D"  # Class 2 Notification Payload Completeness
     E = "E"  # Doorlock-sensitive Validation
     F = "F"  # Grace Period / False Dispatch Suppression
     G = "G"  # MQTT/Payload Governance
@@ -137,7 +137,7 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
     ),
     PackageId.D: PackageDefinition(
         package_id=PackageId.D,
-        name_ko="Class 2 Payload Completeness",
+        name_ko="Class 2 Notification Payload Completeness",
         required=False,
         required_metrics=[
             "payload_completeness_rate",
@@ -155,8 +155,13 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
         comparison_conditions=[],
         required_node_types=["context_node", "device_state_reporter"],
         description=(
-            "Class 2 에스컬레이션 시 clarification 페이로드 완전성 검증. "
-            "필수 필드 누락률과 페이로드 완전성 비율을 측정한다."
+            "Class 2 에스컬레이션 시 보호자(caregiver) 알림 페이로드 완전성을 "
+            "class2_notification_payload_schema.json 기준으로 검증한다 "
+            "(safe_deferral/escalation/class2 토픽 캡처). "
+            "필수 필드 누락률, 페이로드 완전성 비율, notification readiness rate를 "
+            "측정한다. clarification interaction evidence "
+            "(safe_deferral/clarification/interaction)는 별도 토픽/스키마이며 "
+            "본 패키지의 검증 대상이 아니다."
         ),
         paper_tables=[],
     ),
