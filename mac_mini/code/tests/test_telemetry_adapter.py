@@ -13,6 +13,7 @@ from deterministic_validator.models import (
     ValidationStatus,
     ValidatorResult,
 )
+from local_llm_adapter.models import LLMCandidateResult
 from low_risk_dispatcher.dispatcher import LowRiskDispatcher
 from low_risk_dispatcher.models import DispatchStatus
 from policy_router.models import PolicyRouterResult, RouteClass
@@ -534,3 +535,147 @@ class TestSnapshotToDict:
         d = adapter.get_snapshot().to_dict()
         assert isinstance(d["route"], dict)
         assert "route_class" in d["route"]
+
+
+# ------------------------------------------------------------------
+# Specialized topic publishers
+# ------------------------------------------------------------------
+
+def _llm_result(fallback=False):
+    return LLMCandidateResult(
+        candidate={"proposed_action": "light_on", "target_device": "living_room_light"},
+        is_fallback=fallback,
+        audit_correlation_id=AUDIT_ID,
+        llm_raw_response=None,
+        model_id="mock",
+    )
+
+
+class TestPublishLlmCandidate:
+    def test_sends_to_llm_topic(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_llm_candidate(_llm_result())
+        assert len(pub.calls) == 1
+        assert pub.calls[0]["topic"] == "safe_deferral/llm/candidate_action"
+
+    def test_payload_has_required_fields(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_llm_candidate(_llm_result())
+        p = pub.calls[0]["payload"]
+        for key in ("audit_correlation_id", "proposed_action", "target_device",
+                    "model_id", "is_fallback", "llm_boundary", "timestamp_ms"):
+            assert key in p, f"missing: {key}"
+
+    def test_payload_action_and_target(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_llm_candidate(_llm_result())
+        p = pub.calls[0]["payload"]
+        assert p["proposed_action"] == "light_on"
+        assert p["target_device"] == "living_room_light"
+        assert p["audit_correlation_id"] == AUDIT_ID
+
+    def test_fallback_flag_preserved(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_llm_candidate(_llm_result(fallback=True))
+        assert pub.calls[0]["payload"]["is_fallback"] is True
+
+    def test_llm_boundary_present(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_llm_candidate(_llm_result())
+        boundary = pub.calls[0]["payload"]["llm_boundary"]
+        assert boundary.get("final_decision_allowed") is False
+        assert boundary.get("actuation_authority_allowed") is False
+
+
+class TestPublishValidatorOutput:
+    def test_sends_to_validator_topic(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_validator_output(_validator_result())
+        assert len(pub.calls) == 1
+        assert pub.calls[0]["topic"] == "safe_deferral/validator/output"
+
+    def test_payload_has_required_fields(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_validator_output(_validator_result())
+        p = pub.calls[0]["payload"]
+        for key in ("audit_correlation_id", "timestamp_ms", "validation_status",
+                    "routing_target", "exception_trigger_id"):
+            assert key in p, f"missing: {key}"
+
+    def test_approved_status_in_payload(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_validator_output(_validator_result(ValidationStatus.APPROVED))
+        p = pub.calls[0]["payload"]
+        assert p["validation_status"] == "approved"
+        assert p["audit_correlation_id"] == AUDIT_ID
+
+    def test_safe_deferral_status_in_payload(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_validator_output(_validator_result(ValidationStatus.SAFE_DEFERRAL))
+        p = pub.calls[0]["payload"]
+        assert p["validation_status"] == "safe_deferral"
+
+    def test_approved_payload_has_executable_payload(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        adapter.publish_validator_output(_validator_result(ValidationStatus.APPROVED))
+        p = pub.calls[0]["payload"]
+        assert p["executable_payload"]["action"] == "light_on"
+
+
+class TestPublishClass2UpdateClarification:
+    def _make_class2_result(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", AUDIT_ID)
+        return mgr.handle_timeout(session, trigger_id="C206")
+
+    def test_publish_class2_update_sends_two_topics(self):
+        """publish_class2_update must publish to both observation and clarification/interaction."""
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        result = self._make_class2_result()
+        adapter.publish_class2_update(AUDIT_ID, result)
+        topics = [c["topic"] for c in pub.calls]
+        assert "safe_deferral/dashboard/observation" in topics
+        assert "safe_deferral/clarification/interaction" in topics
+
+    def test_clarification_payload_has_required_fields(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        result = self._make_class2_result()
+        adapter.publish_class2_update(AUDIT_ID, result)
+        clar_call = next(c for c in pub.calls
+                         if c["topic"] == "safe_deferral/clarification/interaction")
+        p = clar_call["payload"]
+        for key in ("clarification_id", "audit_correlation_id", "unresolved_reason",
+                    "candidate_choices", "transition_target", "llm_boundary"):
+            assert key in p, f"missing: {key}"
+
+    def test_clarification_payload_audit_id_matches(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        result = self._make_class2_result()
+        adapter.publish_class2_update(AUDIT_ID, result)
+        clar_call = next(c for c in pub.calls
+                         if c["topic"] == "safe_deferral/clarification/interaction")
+        assert clar_call["payload"]["audit_correlation_id"] == AUDIT_ID
+
+    def test_clarification_payload_llm_boundary_is_not_authority(self):
+        pub = _RecordingPublisher()
+        adapter = TelemetryAdapter(mqtt_publisher=pub)
+        result = self._make_class2_result()
+        adapter.publish_class2_update(AUDIT_ID, result)
+        clar_call = next(c for c in pub.calls
+                         if c["topic"] == "safe_deferral/clarification/interaction")
+        b = clar_call["payload"]["llm_boundary"]
+        assert b["final_decision_allowed"] is False
+        assert b["actuation_authority_allowed"] is False

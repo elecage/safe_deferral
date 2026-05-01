@@ -267,6 +267,7 @@ class Pipeline:
 
         # LLM candidate
         llm_result = self._llm.generate_candidate(ctx, audit_correlation_id=audit_id)
+        self._telemetry.publish_llm_candidate(llm_result)
         log.info("LLM candidate: action=%s target=%s fallback=%s",
                  llm_result.proposed_action, llm_result.target_device, llm_result.is_fallback)
 
@@ -284,6 +285,7 @@ class Pipeline:
 
         # Validate
         val_result = self._validator.validate(candidate, audit_correlation_id=audit_id)
+        self._telemetry.publish_validator_output(val_result)
         self._telemetry.update_validation(val_result)
         log.info("Validation: %s (target=%s)", val_result.validation_status.value,
                  val_result.routing_target.value)

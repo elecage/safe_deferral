@@ -65,6 +65,9 @@ class TelemetryAdapter:
     ) -> None:
         loader = asset_loader or AssetLoader()
         self._observation_topic: str = loader.get_topic("safe_deferral/dashboard/observation")
+        self._llm_topic: str = loader.get_topic("safe_deferral/llm/candidate_action")
+        self._validator_topic: str = loader.get_topic("safe_deferral/validator/output")
+        self._clarification_topic: str = loader.get_topic("safe_deferral/clarification/interaction")
         self._publisher: MqttPublisher = mqtt_publisher or _NoOpPublisher()
         self._audit_reader: Optional[AuditReader] = audit_reader
         self._audit_correlation_id: str = ""
@@ -133,6 +136,32 @@ class TelemetryAdapter:
             notification_channel=result.notification_record.notification_channel,
             timestamp_ms=result.notification_record.sent_at_ms,
         )
+
+    # ------------------------------------------------------------------
+    # Specialized topic publishers (llm, validator, clarification)
+    # ------------------------------------------------------------------
+
+    def publish_llm_candidate(self, llm_result) -> None:
+        """Publish LLM candidate output to safe_deferral/llm/candidate_action."""
+        payload = {
+            "audit_correlation_id": llm_result.audit_correlation_id,
+            "proposed_action": llm_result.proposed_action,
+            "target_device": llm_result.target_device,
+            "model_id": llm_result.model_id,
+            "is_fallback": llm_result.is_fallback,
+            "llm_boundary": llm_result.llm_boundary,
+            "timestamp_ms": int(time.time() * 1000),
+        }
+        self._publisher.publish(self._llm_topic, payload, qos=1)
+
+    def publish_validator_output(self, val_result) -> None:
+        """Publish validator decision to safe_deferral/validator/output."""
+        payload = {
+            "audit_correlation_id": val_result.audit_correlation_id,
+            "timestamp_ms": int(time.time() * 1000),
+            **val_result.to_dict(),
+        }
+        self._publisher.publish(self._validator_topic, payload, qos=1)
 
     # ------------------------------------------------------------------
     # Snapshot / publish
@@ -257,6 +286,9 @@ class TelemetryAdapter:
             audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
         )
         self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
+        self._publisher.publish(
+            self._clarification_topic, class2_result.clarification_record, qos=1
+        )
 
     def reset(self) -> None:
         """Clear all accumulated state (useful between experiment runs)."""
