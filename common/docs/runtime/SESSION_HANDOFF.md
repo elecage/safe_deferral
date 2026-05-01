@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_CLASS2_9ISSUE_BATCH_COMPLETE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_CLASS2_TO_CLASS1_DISPATCH_AND_VALIDATOR_EVIDENCE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_CLASS2_TRANSITION_HANDLER_AND_TRIAL_VERDICT.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_C208_SCHEMA_ENUM_BUGFIX.md`
