@@ -77,7 +77,11 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "prompt": "조명 도움이 필요하신가요?",
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
-            "target_hint": None,
+            # Default to the canonical low-risk catalog living-room target so
+            # is_class1_ready=True and the validator/dispatcher path can run.
+            # Specific living-room vs bedroom disambiguation is handled by the
+            # OPT_LIVING_ROOM/OPT_BEDROOM candidates in unresolved_context_conflict.
+            "target_hint": "living_room_light",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",
@@ -107,7 +111,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "prompt": "조명 도움이 필요하신가요?",
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
-            "target_hint": None,
+            "target_hint": "living_room_light",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",

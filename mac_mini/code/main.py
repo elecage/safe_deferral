@@ -808,26 +808,35 @@ class Pipeline:
                     class2_result.action_hint,
                     class2_result.target_hint,
                 )
+                dispatch_record = None
                 if val_result.validation_status == ValidationStatus.APPROVED:
                     dispatch_result = self._dispatcher.dispatch(val_result)
+                    dispatch_record = dispatch_result.dispatch_record
                     with self._ack_lock:
-                        self._pending_acks[dispatch_result.dispatch_record.command_id] = (
-                            dispatch_result.dispatch_record
-                        )
+                        self._pending_acks[dispatch_record.command_id] = dispatch_record
                     announce_dispatch(
                         self._tts,
-                        dispatch_result.dispatch_record.action,
-                        dispatch_result.dispatch_record.target_device,
+                        dispatch_record.action,
+                        dispatch_record.target_device,
                     )
                     log.info(
                         "CLASS_2→CLASS_1 dispatched: command_id=%s",
-                        dispatch_result.dispatch_record.command_id,
+                        dispatch_record.command_id,
                     )
                 else:
                     log.warning(
                         "CLASS_2→CLASS_1 validation not approved (%s) — no dispatch",
                         val_result.validation_status.value,
                     )
+                # Post-transition outcome snapshot — carries the validator
+                # decision (and ACK on approval) so the experiment runner can
+                # verify validator re-entry actually executed.
+                self._telemetry.publish_class2_to_class1_outcome(
+                    audit_correlation_id=audit_correlation_id,
+                    class2_result=class2_result,
+                    val_result=val_result,
+                    dispatch_record=dispatch_record,
+                )
             else:
                 log.warning(
                     "CLASS_2→CLASS_1: action_hint=%r target_hint=%r — "
@@ -850,6 +859,14 @@ class Pipeline:
                 exception_trigger_id=trigger_id if trigger_id else None,
             )
             esc_result = self._caregiver.send_notification(notification)
+            # Post-transition outcome snapshot — carries escalation status so
+            # the runner can verify the emergency-confirmation path closed.
+            self._telemetry.publish_class2_to_class0_outcome(
+                audit_correlation_id=audit_correlation_id,
+                class2_result=class2_result,
+                esc_result=esc_result,
+                trigger_id=trigger_id,
+            )
             self._telemetry.update_escalation(esc_result)
         # SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION: no autonomous action here
 

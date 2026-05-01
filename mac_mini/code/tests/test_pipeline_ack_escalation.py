@@ -299,6 +299,102 @@ class TestExecuteClass2Transition:
 
 
 # ---------------------------------------------------------------------------
+# Post-transition outcome publish (Issues #2, #4)
+# ---------------------------------------------------------------------------
+
+class TestPostTransitionOutcomePublish:
+    """_execute_class2_transition emits a post-transition dashboard observation
+    with validation evidence (CLASS_1) or escalation evidence (CLASS_0)."""
+
+    def _capture_obs(self, pipeline):
+        captured: list[dict] = []
+        original = pipeline._telemetry._publisher.publish
+        def _wrap(topic, payload, qos=1):
+            if topic.endswith("/dashboard/observation"):
+                captured.append(payload)
+            return original(topic, payload, qos)
+        pipeline._telemetry._publisher.publish = _wrap
+        return captured, original
+
+    def test_class1_outcome_carries_validation_block(self, pipeline):
+        """CLASS_1 transition publishes a snapshot with class2 + validation."""
+        cr = _make_class2_result("CLASS_1", action_hint="light_on",
+                                 target_hint="living_room_light")
+        captured, original = self._capture_obs(pipeline)
+        original_dispatch = pipeline._dispatcher.dispatch
+        def _fake_dispatch(val_result):
+            from low_risk_dispatcher.models import DispatchRecord, DispatchResult, DispatchStatus
+            rec = DispatchRecord(
+                command_id="cmd-pt-001", action="light_on",
+                target_device="living_room_light", requires_ack=True,
+                audit_correlation_id="audit-pt-001",
+                source_decision="validator_output",
+                dispatch_status=DispatchStatus.PUBLISHED,
+                published_at_ms=int(time.time() * 1000),
+                ack_status=None, ack_received_at_ms=None,
+                observed_state=None, ack_timeout_ms=5000,
+            )
+            return DispatchResult(
+                command_id="cmd-pt-001", dispatch_status=DispatchStatus.PUBLISHED,
+                action="light_on", target_device="living_room_light",
+                audit_correlation_id="audit-pt-001",
+                command_payload={}, dispatch_record=rec,
+            )
+        pipeline._dispatcher.dispatch = _fake_dispatch
+        try:
+            pipeline._execute_class2_transition(cr, "audit-pt-001", "C201")
+        finally:
+            pipeline._dispatcher.dispatch = original_dispatch
+            pipeline._telemetry._publisher.publish = original
+            pipeline._pending_acks.pop("cmd-pt-001", None)
+
+        outcome = next(
+            (p for p in captured if p.get("class2") and p.get("validation")), None
+        )
+        assert outcome is not None, f"No post-transition CLASS_1 outcome snapshot in {captured!r}"
+        assert outcome["class2"]["transition_target"] == "CLASS_1"
+        assert outcome["validation"]["validation_status"] == "approved"
+        assert outcome["audit_correlation_id"] == "audit-pt-001"
+
+    def test_class0_outcome_carries_escalation_block(self, pipeline):
+        """CLASS_0 transition publishes a snapshot with class2 + escalation."""
+        cr = _make_class2_result("CLASS_0")
+        captured, original = self._capture_obs(pipeline)
+        original_notify = pipeline._caregiver.send_notification
+        from caregiver_escalation.models import EscalationStatus, EscalationResult, NotificationRecord
+        def _fake_notify(n):
+            rec = NotificationRecord(
+                confirmation_id="conf-pt-002",
+                audit_correlation_id="audit-pt-002",
+                notification_channel="telegram",
+                notification_payload=n,
+                sent_at_ms=int(time.time() * 1000),
+                telegram_message_id=None,
+                escalation_status=EscalationStatus.PENDING,
+            )
+            return EscalationResult(
+                confirmation_id="conf-pt-002",
+                escalation_status=EscalationStatus.PENDING,
+                audit_correlation_id="audit-pt-002",
+                notification_record=rec,
+            )
+        pipeline._caregiver.send_notification = _fake_notify
+        try:
+            pipeline._execute_class2_transition(cr, "audit-pt-002", "EMERGENCY")
+        finally:
+            pipeline._caregiver.send_notification = original_notify
+            pipeline._telemetry._publisher.publish = original
+
+        outcome = next(
+            (p for p in captured if p.get("class2") and p.get("escalation")), None
+        )
+        assert outcome is not None, f"No post-transition CLASS_0 outcome snapshot in {captured!r}"
+        assert outcome["class2"]["transition_target"] == "CLASS_0"
+        assert outcome["escalation"]["escalation_status"] == "pending"
+        assert outcome["escalation"]["notification_channel"] == "telegram"
+
+
+# ---------------------------------------------------------------------------
 # Package A intent-recovery comparison helpers and _handle_class1 dispatch
 # ---------------------------------------------------------------------------
 

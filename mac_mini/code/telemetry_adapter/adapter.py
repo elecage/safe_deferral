@@ -245,6 +245,106 @@ class TelemetryAdapter:
         self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
         return snapshot
 
+    def publish_class2_to_class1_outcome(
+        self,
+        audit_correlation_id: str,
+        class2_result: Class2Result,
+        val_result: "ValidatorResult",
+        dispatch_record: Optional["DispatchRecord"] = None,
+    ) -> TelemetrySnapshot:
+        """Publish a follow-up CLASS_2→CLASS_1 outcome snapshot.
+
+        Emitted by the background two-phase waiter after _execute_class2_transition
+        re-enters the Deterministic Validator with the confirmed bounded candidate.
+        Includes the original CLASS_2 interaction block plus the post-transition
+        validation status (and ACK if dispatch happened) so the experiment runner
+        can verify validator re-entry actually executed.
+        """
+        unresolved = class2_result.clarification_record.get("unresolved_reason")
+        now_ms = int(time.time() * 1000)
+        class2 = Class2Telemetry(
+            transition_target=class2_result.transition_target.value,
+            should_notify_caregiver=class2_result.should_notify_caregiver,
+            unresolved_reason=unresolved,
+            timestamp_ms=now_ms,
+        )
+        route = RouteTelemetry(
+            route_class="CLASS_2",
+            trigger_id=None,
+            timestamp_ms=now_ms,
+        )
+        validation = ValidationTelemetry(
+            validation_status=val_result.validation_status.value,
+            exception_trigger_id=val_result.exception_trigger_id,
+            timestamp_ms=now_ms,
+        )
+        ack: Optional[AckTelemetry] = None
+        if dispatch_record is not None:
+            ack = AckTelemetry(
+                dispatch_status=dispatch_record.dispatch_status.value,
+                action=dispatch_record.action,
+                target_device=dispatch_record.target_device,
+                timestamp_ms=dispatch_record.ack_received_at_ms or dispatch_record.published_at_ms,
+                command_id=dispatch_record.command_id,
+                audit_correlation_id=dispatch_record.audit_correlation_id,
+            )
+        snapshot = TelemetrySnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            generated_at_ms=now_ms,
+            audit_correlation_id=audit_correlation_id,
+            route=route,
+            validation=validation,
+            ack=ack,
+            class2=class2,
+            audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
+        )
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
+        return snapshot
+
+    def publish_class2_to_class0_outcome(
+        self,
+        audit_correlation_id: str,
+        class2_result: Class2Result,
+        esc_result: "EscalationResult",
+        trigger_id: str = "",
+    ) -> TelemetrySnapshot:
+        """Publish a follow-up CLASS_2→CLASS_0 outcome snapshot.
+
+        Emitted by the background two-phase waiter after _execute_class2_transition
+        announces the emergency and dispatches the caregiver notification. Carries
+        the post-transition escalation status so the runner can verify the
+        emergency-confirmation path actually closed.
+        """
+        unresolved = class2_result.clarification_record.get("unresolved_reason")
+        now_ms = int(time.time() * 1000)
+        class2 = Class2Telemetry(
+            transition_target=class2_result.transition_target.value,
+            should_notify_caregiver=class2_result.should_notify_caregiver,
+            unresolved_reason=unresolved,
+            timestamp_ms=now_ms,
+        )
+        route = RouteTelemetry(
+            route_class="CLASS_2",
+            trigger_id=trigger_id or None,
+            timestamp_ms=now_ms,
+        )
+        escalation = EscalationTelemetry(
+            escalation_status=esc_result.escalation_status.value,
+            notification_channel=esc_result.notification_record.notification_channel,
+            timestamp_ms=esc_result.notification_record.sent_at_ms,
+        )
+        snapshot = TelemetrySnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            generated_at_ms=now_ms,
+            audit_correlation_id=audit_correlation_id,
+            route=route,
+            class2=class2,
+            escalation=escalation,
+            audit_event_count=self._audit_reader.count() if self._audit_reader else 0,
+        )
+        self._publisher.publish(self._observation_topic, snapshot.to_dict(), qos=1)
+        return snapshot
+
     def publish_class2_update(
         self,
         audit_correlation_id: str,
