@@ -606,12 +606,14 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
     """Validate Class 2 caregiver notification payloads against the canonical
     class2_notification_payload_schema.json.
 
-    A notification is required for any CLASS_2 trial that the runtime classified
-    as caregiver-bound (i.e. a notification payload was emitted to
-    safe_deferral/escalation/class2). Trials with expected_route_class=CLASS_2
-    that produced no notification are reported as missing notifications, since
-    the spec says Class 2 escalation is supposed to emit a notification payload
-    with at least the four required fields.
+    Completeness denominators are scoped to **notification-expected** trials
+    only (those whose observation declared ``class2.should_notify_caregiver=True``,
+    defaulting True when no snapshot exists). This prevents legitimate
+    Class 2→Class 1 transitions — which by design do NOT emit a caregiver
+    notification — from being counted as missing notifications and dragging
+    payload_completeness_rate to zero. Trials with should_notify_caregiver
+    explicitly false are tracked separately under
+    ``notification_not_expected_count`` for visibility but do not affect rates.
     """
     class2_trials = [t for t in trials if t.expected_route_class == "CLASS_2"]
     total_class2 = len(class2_trials)
@@ -619,9 +621,10 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
     schema_validator = _get_notification_validator()
 
     complete = 0
-    no_notification = 0
+    no_notification = 0  # notification-expected but missing
     notification_expected = 0
     notification_present = 0
+    notification_not_expected = 0
     missing_counts: dict[str, int] = {f: 0 for f in _NOTIFICATION_REQUIRED_FIELDS}
     schema_errors: dict[str, int] = {}
 
@@ -632,8 +635,14 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
         # produced a snapshot also count as expecting a notification.
         c2_block = (t.observation_payload or {}).get("class2") or {}
         should_notify = bool(c2_block.get("should_notify_caregiver", True))
-        if should_notify:
-            notification_expected += 1
+        if not should_notify:
+            notification_not_expected += 1
+            # Notification-not-expected trials must not influence completeness
+            # / missing-field metrics. They are reported only via
+            # notification_not_expected_count.
+            continue
+
+        notification_expected += 1
 
         notif = t.notification_payload
         if not notif:
@@ -641,8 +650,7 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
             for f in _NOTIFICATION_REQUIRED_FIELDS:
                 missing_counts[f] += 1
             continue
-        if should_notify:
-            notification_present += 1
+        notification_present += 1
         # Required-field check (per the schema's required[] block)
         any_missing = False
         for f in _NOTIFICATION_REQUIRED_FIELDS:
@@ -656,20 +664,25 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
         if not any_missing and not errors:
             complete += 1
 
-    total_expected_fields = total_class2 * len(_NOTIFICATION_REQUIRED_FIELDS)
+    total_expected_fields = notification_expected * len(_NOTIFICATION_REQUIRED_FIELDS)
     total_missing = sum(missing_counts.values())
 
     return {
         "package_id": "D",
         "total": total,
         "class2_trials": total_class2,
-        "no_notification_count": no_notification,
         "notification_expected_count": notification_expected,
+        "notification_not_expected_count": notification_not_expected,
+        "no_notification_count": no_notification,
         "notification_readiness_rate": round(
             notification_present / notification_expected if notification_expected else 0.0, 4
         ),
-        "payload_completeness_rate": round(complete / total_class2 if total_class2 else 0.0, 4),
-        "missing_field_rate": round(total_missing / total_expected_fields if total_expected_fields else 0.0, 4),
+        "payload_completeness_rate": round(
+            complete / notification_expected if notification_expected else 0.0, 4
+        ),
+        "missing_field_rate": round(
+            total_missing / total_expected_fields if total_expected_fields else 0.0, 4
+        ),
         "missing_by_field": missing_counts,
         "schema_violation_count": len(schema_errors),
     }
