@@ -2143,3 +2143,298 @@ class TestNotificationStore:
         store.add({"audit_correlation_id": "a", "event_summary": "old"})
         store.add({"audit_correlation_id": "a", "event_summary": "new"})
         assert store.find_by_correlation_id("a")["event_summary"] == "new"
+
+
+# ==================================================================
+# ClarificationStore — basic ring-buffer behaviour (Phase 5)
+# ==================================================================
+
+class TestClarificationStore:
+    def test_add_and_find(self):
+        from clarification_store import ClarificationStore
+        store = ClarificationStore()
+        store.add({"audit_correlation_id": "a", "candidate_source": "llm_generated"})
+        store.add({"audit_correlation_id": "b", "candidate_source": "default_fallback"})
+        assert store.find_by_correlation_id("a")["candidate_source"] == "llm_generated"
+        assert store.find_by_correlation_id("b")["candidate_source"] == "default_fallback"
+        assert store.find_by_correlation_id("nonexistent") is None
+
+    def test_returns_most_recent_match(self):
+        from clarification_store import ClarificationStore
+        store = ClarificationStore()
+        store.add({"audit_correlation_id": "a", "candidate_source": "default_fallback"})
+        store.add({"audit_correlation_id": "a", "candidate_source": "llm_generated"})
+        assert store.find_by_correlation_id("a")["candidate_source"] == "llm_generated"
+
+
+# ==================================================================
+# Package D class2_llm_quality block (Phase 5)
+# ==================================================================
+
+class TestClass2LlmQualityBlock:
+    """Package D's _metrics_d emits a class2_llm_quality sub-block computed
+    from each trial's clarification_payload (the record published on
+    safe_deferral/clarification/interaction)."""
+
+    def _make_class2_trial_with_clar(self, clar):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=["s"],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-q-001",
+        )
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                       "unresolved_reason": "insufficient_context"},
+        }
+        store.complete_trial(trial.trial_id, obs, clarification_payload=clar)
+        return store, run
+
+    def _llm_clar(self, confirmed=True):
+        return {
+            "audit_correlation_id": "audit-q-001",
+            "candidate_source": "llm_generated",
+            "selection_result": {"selection_source": "bounded_input_node",
+                                  "confirmed": confirmed},
+        }
+
+    def _fallback_clar(self, confirmed=True):
+        return {
+            "audit_correlation_id": "audit-q-001",
+            "candidate_source": "default_fallback",
+            "selection_result": {"selection_source": "bounded_input_node",
+                                  "confirmed": confirmed},
+        }
+
+    def test_no_records_returns_zero_block(self):
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial_with_clar(None)
+        m = compute_metrics(store.list_trials_for_run(run.run_id), "D")
+        block = m["class2_llm_quality"]
+        assert block["clarification_record_count"] == 0
+        assert block["llm_generated_count"] == 0
+        assert block["llm_generated_rate"] == 0.0
+        assert block["default_fallback_rate"] == 0.0
+        assert block["llm_user_pickup_rate"] == 0.0
+        assert block["default_fallback_user_pickup_rate"] == 0.0
+
+    def test_llm_generated_session_with_pickup(self):
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial_with_clar(self._llm_clar(confirmed=True))
+        block = compute_metrics(store.list_trials_for_run(run.run_id), "D")["class2_llm_quality"]
+        assert block["clarification_record_count"] == 1
+        assert block["llm_generated_count"] == 1
+        assert block["llm_generated_rate"] == 1.0
+        assert block["default_fallback_rate"] == 0.0
+        assert block["llm_user_pickup_rate"] == 1.0
+
+    def test_llm_generated_session_without_pickup(self):
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial_with_clar(self._llm_clar(confirmed=False))
+        block = compute_metrics(store.list_trials_for_run(run.run_id), "D")["class2_llm_quality"]
+        assert block["llm_generated_rate"] == 1.0
+        assert block["llm_user_pickup_rate"] == 0.0  # selection not confirmed
+
+    def test_default_fallback_session_isolated_from_llm_pickup(self):
+        from experiment_package.trial_store import compute_metrics
+        store, run = self._make_class2_trial_with_clar(self._fallback_clar(confirmed=True))
+        block = compute_metrics(store.list_trials_for_run(run.run_id), "D")["class2_llm_quality"]
+        assert block["default_fallback_rate"] == 1.0
+        assert block["llm_generated_rate"] == 0.0
+        # LLM pickup rate has 0 denominator → 0.0 (not contaminated by fallback pickup)
+        assert block["llm_user_pickup_rate"] == 0.0
+        assert block["default_fallback_user_pickup_rate"] == 1.0
+
+    def test_mixed_run_separates_pickup_per_source(self):
+        """A run with one llm_generated (no pickup) and two default_fallback (one
+        pickup each) must report independent pickup rates per source."""
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=["s"],
+                               fault_profile_ids=[], trial_count=3)
+        cases = [
+            ("audit-mix-1", "llm_generated", False),
+            ("audit-mix-2", "default_fallback", True),
+            ("audit-mix-3", "default_fallback", False),
+        ]
+        for corr, src, confirmed in cases:
+            t = store.create_trial(
+                run_id=run.run_id, package_id="D", scenario_id="s",
+                fault_profile_id=None, comparison_condition=None,
+                expected_route_class="CLASS_2",
+                expected_validation="safe_deferral",
+                expected_outcome="class_2_escalation",
+                audit_correlation_id=corr,
+            )
+            obs = {
+                "route": {"route_class": "CLASS_2"},
+                "validation": {"validation_status": "safe_deferral"},
+                "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                           "unresolved_reason": "insufficient_context"},
+            }
+            clar = {
+                "audit_correlation_id": corr,
+                "candidate_source": src,
+                "selection_result": {"selection_source": "bounded_input_node",
+                                      "confirmed": confirmed},
+            }
+            store.complete_trial(t.trial_id, obs, clarification_payload=clar)
+        block = compute_metrics(store.list_trials_for_run(run.run_id), "D")["class2_llm_quality"]
+        assert block["clarification_record_count"] == 3
+        assert block["llm_generated_count"] == 1
+        assert block["default_fallback_count"] == 2
+        assert block["llm_generated_rate"] == round(1/3, 4)
+        assert block["default_fallback_rate"] == round(2/3, 4)
+        assert block["llm_user_pickup_rate"] == 0.0  # 0/1
+        assert block["default_fallback_user_pickup_rate"] == 0.5  # 1/2
+
+    def test_trial_without_clarification_record_excluded(self):
+        """Trials whose clarification_payload was never captured don't pollute
+        the rates — clarification_record_count is the denominator."""
+        from experiment_package.trial_store import TrialStore, compute_metrics
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=["s"],
+                               fault_profile_ids=[], trial_count=2)
+        # Trial A: with LLM-generated record
+        ta = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-x-1",
+        )
+        store.complete_trial(
+            ta.trial_id,
+            {"route": {"route_class": "CLASS_2"},
+             "validation": {"validation_status": "safe_deferral"},
+             "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                        "unresolved_reason": "insufficient_context"}},
+            clarification_payload={"audit_correlation_id": "audit-x-1",
+                                    "candidate_source": "llm_generated",
+                                    "selection_result": {"confirmed": True,
+                                                          "selection_source": "bounded_input_node"}},
+        )
+        # Trial B: no clarification record
+        tb = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2",
+            expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation",
+            audit_correlation_id="audit-x-2",
+        )
+        store.complete_trial(
+            tb.trial_id,
+            {"route": {"route_class": "CLASS_2"},
+             "validation": {"validation_status": "safe_deferral"},
+             "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                        "unresolved_reason": "insufficient_context"}},
+            clarification_payload=None,
+        )
+        block = compute_metrics(store.list_trials_for_run(run.run_id), "D")["class2_llm_quality"]
+        assert block["clarification_record_count"] == 1  # only A
+        assert block["llm_generated_rate"] == 1.0  # 1/1
+
+
+# ==================================================================
+# PackageRunner — clarification record capture (Phase 5)
+# ==================================================================
+
+class TestClarificationCapture:
+    """Runner forwards a captured clarification record into TrialResult and
+    tolerates late arrivals via _await_clarification grace polling."""
+
+    def test_clarification_arriving_after_observation_is_captured(self):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        from clarification_store import ClarificationStore
+        from notification_store import NotificationStore
+        import threading
+        import time as _t
+
+        publishes: list[dict] = []
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {"audit_correlation_id": "x",
+                                  "ingest_timestamp_ms": 0,
+                                  "network_status": "online"},
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = lambda n: publishes.append(
+            dict(n.profile.payload_template)
+        )
+
+        obs = {
+            "route": {"route_class": "CLASS_2"},
+            "validation": {"validation_status": "safe_deferral"},
+            "class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+                       "should_notify_caregiver": True,
+                       "unresolved_reason": "timeout_or_no_response"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = obs
+
+        notif_store = NotificationStore()
+        clar_store = ClarificationStore()
+
+        store = TrialStore()
+        runner = PackageRunner(
+            vnm, obs_store, store,
+            notification_store=notif_store,
+            clarification_store=clar_store,
+        )
+        run = store.create_run(package_id="D", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = runner.start_trial_async(
+            run_id=run.run_id, package_id="D", node_id="n",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition=None,
+            expected_route_class="CLASS_2",
+        )
+        deadline = _t.monotonic() + 2.0
+        while _t.monotonic() < deadline:
+            if publishes:
+                break
+            _t.sleep(0.05)
+        corr = publishes[0]["routing_metadata"]["audit_correlation_id"]
+
+        # Schedule the late clarification record arrival.
+        def _emit_after():
+            _t.sleep(0.3)
+            clar_store.add({
+                "audit_correlation_id": corr,
+                "candidate_source": "llm_generated",
+                "selection_result": {"confirmed": True,
+                                      "selection_source": "bounded_input_node"},
+            })
+        threading.Thread(target=_emit_after, daemon=True).start()
+
+        deadline = _t.monotonic() + 5.0
+        while _t.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            _t.sleep(0.05)
+        result = store.get_trial(trial.trial_id)
+        assert result.status == "completed"
+        assert result.clarification_payload is not None
+        assert result.clarification_payload["audit_correlation_id"] == corr
+        assert result.clarification_payload["candidate_source"] == "llm_generated"

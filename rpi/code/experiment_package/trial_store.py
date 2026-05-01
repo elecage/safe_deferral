@@ -45,6 +45,7 @@ class TrialResult:
     timestamp_ms: int = field(default_factory=lambda: int(time.time() * 1000))
     observation_payload: Optional[dict] = None
     notification_payload: Optional[dict] = None  # safe_deferral/escalation/class2
+    clarification_payload: Optional[dict] = None  # safe_deferral/clarification/interaction
 
     def to_dict(self) -> dict:
         return {
@@ -70,6 +71,7 @@ class TrialResult:
             "timestamp_ms": self.timestamp_ms,
             "observation_payload": self.observation_payload,
             "notification_payload": self.notification_payload,
+            "clarification_payload": self.clarification_payload,
         }
 
 
@@ -196,6 +198,7 @@ class TrialStore:
         trial_id: str,
         observation: dict,
         notification_payload: Optional[dict] = None,
+        clarification_payload: Optional[dict] = None,
     ) -> Optional[TrialResult]:
         """Fill observed values from an ObservationStore payload and compute verdict."""
         with self._lock:
@@ -205,6 +208,7 @@ class TrialStore:
 
             trial.observation_payload = observation
             trial.notification_payload = notification_payload
+            trial.clarification_payload = clarification_payload
             # Observation payload uses nested structure from Mac mini telemetry:
             #   route.route_class, validation.validation_status, generated_at_ms
             # Fall back to flat keys for forward compatibility.
@@ -236,6 +240,7 @@ class TrialStore:
         self,
         trial_id: str,
         notification_payload: Optional[dict] = None,
+        clarification_payload: Optional[dict] = None,
     ) -> Optional[TrialResult]:
         with self._lock:
             trial = self._trials.get(trial_id)
@@ -244,6 +249,8 @@ class TrialStore:
                 trial.pass_ = False
                 if notification_payload is not None:
                     trial.notification_payload = notification_payload
+                if clarification_payload is not None:
+                    trial.clarification_payload = clarification_payload
             return trial
 
     def list_trials_for_run(self, run_id: str) -> list[TrialResult]:
@@ -685,6 +692,77 @@ def _metrics_d(trials: list[TrialResult], total: int) -> dict:
         ),
         "missing_by_field": missing_counts,
         "schema_violation_count": len(schema_errors),
+        "class2_llm_quality": _class2_llm_quality_block(class2_trials),
+    }
+
+
+def _class2_llm_quality_block(class2_trials: list[TrialResult]) -> dict:
+    """Phase 5 of 09_llm_driven_class2_candidate_generation_plan.md.
+
+    Measures LLM-driven Class 2 candidate generation quality using the
+    ``candidate_source`` field on each trial's clarification_payload (the
+    record published by Mac mini's TelemetryAdapter.publish_class2_update).
+
+    Reported metrics avoid the by-construction-100% pitfalls noted in the
+    design discussion:
+
+    - clarification_record_count : trials whose clarification record was
+      captured (denominator for source distribution).
+    - llm_generated_count / llm_generated_rate : sessions where the LLM
+      adapter produced candidates that survived bounded-variability and
+      catalog gating, so the manager presented LLM candidates.
+    - default_fallback_count / default_fallback_rate : sessions where the
+      static _DEFAULT_CANDIDATES table was used (LLM unavailable, rejected,
+      or no pure_context_payload — e.g. C205 ACK timeout escalations).
+    - llm_user_pickup_rate : among LLM-generated sessions, the fraction
+      where selection_result.confirmed=true (user/caregiver actually
+      selected one of the LLM-presented candidates rather than timing out).
+    - default_fallback_user_pickup_rate : same denominator-numerator shape
+      for default_fallback sessions, so the two are directly comparable.
+    """
+    with_record = [t for t in class2_trials if t.clarification_payload]
+    n = len(with_record)
+    if n == 0:
+        return {
+            "clarification_record_count": 0,
+            "llm_generated_count": 0,
+            "default_fallback_count": 0,
+            "llm_generated_rate": 0.0,
+            "default_fallback_rate": 0.0,
+            "llm_user_pickup_rate": 0.0,
+            "default_fallback_user_pickup_rate": 0.0,
+        }
+
+    llm_sessions = [
+        t for t in with_record
+        if (t.clarification_payload or {}).get("candidate_source") == "llm_generated"
+    ]
+    fallback_sessions = [
+        t for t in with_record
+        if (t.clarification_payload or {}).get("candidate_source") == "default_fallback"
+    ]
+
+    def _confirmed_count(sessions: list[TrialResult]) -> int:
+        return sum(
+            1 for t in sessions
+            if bool(((t.clarification_payload or {}).get("selection_result") or {}).get("confirmed"))
+        )
+
+    llm_picked = _confirmed_count(llm_sessions)
+    fb_picked = _confirmed_count(fallback_sessions)
+
+    return {
+        "clarification_record_count": n,
+        "llm_generated_count": len(llm_sessions),
+        "default_fallback_count": len(fallback_sessions),
+        "llm_generated_rate": round(len(llm_sessions) / n, 4),
+        "default_fallback_rate": round(len(fallback_sessions) / n, 4),
+        "llm_user_pickup_rate": round(
+            llm_picked / len(llm_sessions) if llm_sessions else 0.0, 4
+        ),
+        "default_fallback_user_pickup_rate": round(
+            fb_picked / len(fallback_sessions) if fallback_sessions else 0.0, 4
+        ),
     }
 
 

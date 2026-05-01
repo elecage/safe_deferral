@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_DRIVEN_CLASS2_PHASE5_LLM_QUALITY_METRICS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_DRIVEN_CLASS2_PHASE3_POLICY_BOUND_CONSTRAINTS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_LLM_DRIVEN_CLASS2_CANDIDATE_GENERATION_PHASE1_PHASE2.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-01_DOORLOCK_AND_CLASS2_TO_CLASS0_DEDICATED_FIXTURE_WIRING.md`
