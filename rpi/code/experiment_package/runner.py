@@ -120,10 +120,12 @@ class PackageRunner:
             profile.expected_outcome if profile else "class_1_approved"
         )
 
-        # Load expected_transition_target and requires_validator_when_class1 from
-        # scenario's class2_clarification_expectation.  Only relevant for CLASS_2 trials.
+        # Load CLASS_2-specific expectations from scenario's class2_clarification_expectation.
+        # Only relevant for CLASS_2 trials.
         eff_transition_target: Optional[str] = None
         eff_requires_validator: Optional[bool] = None
+        eff_requires_escalation: Optional[bool] = None
+        eff_auto_simulate: Optional[str] = None
         if expected_route_class == "CLASS_2" and scenario_id:
             try:
                 scenario = self._loader.load_scenario(scenario_id)
@@ -131,6 +133,8 @@ class PackageRunner:
                 raw_target = c2_exp.get("expected_transition_target") or None
                 eff_transition_target = _normalize_expected_transition_target(raw_target)
                 eff_requires_validator = c2_exp.get("requires_validator_when_class1") or None
+                eff_requires_escalation = c2_exp.get("requires_escalation_evidence_when_class0") or None
+                eff_auto_simulate = c2_exp.get("auto_simulate_input") or None
             except Exception as exc:
                 log.warning(
                     "Could not load class2_clarification_expectation from %s: %s",
@@ -151,6 +155,8 @@ class PackageRunner:
             audit_correlation_id=correlation_id,
             expected_transition_target=eff_transition_target,
             requires_validator_when_class1=eff_requires_validator,
+            requires_escalation_evidence_when_class0=eff_requires_escalation,
+            auto_simulate_input=eff_auto_simulate,
         )
 
         t = threading.Thread(
@@ -250,26 +256,49 @@ class PackageRunner:
             else:
                 self._publish_normal(node, payload, correlation_id, topic_override)
 
-            # --- Wait for observation ---
+            # --- Wait for observation, with optional auto-simulation ---
             # CLASS_2 trials go through Phase 1 (user, ≤15 s) then Phase 2
             # (caregiver Telegram, ≤300 s).  Use a longer timeout so the trial
             # runner does not declare timeout before the Mac mini publishes the
             # final class2 interaction snapshot.
             #
-            # Note: we do NOT auto-simulate a user button press here.  Doing so
-            # would complete Phase 1 immediately and prevent Phase 2 (Telegram)
-            # from ever being triggered, which would block caregiver-path tests.
-            # The trial completes naturally when the Mac mini publishes the final
-            # class2 observation (after user response, caregiver response, or the
-            # full Phase-2 timeout).
+            # For scenarios that declare auto_simulate_input (e.g. CLASS_2→CLASS_1
+            # or CLASS_2→CLASS_0), the runner first waits for Phase 1 to become
+            # ready (initial CLASS_2 snapshot present), then sends the simulated
+            # button press.  This drives the transition path automatically without
+            # requiring a real physical button press.  Passive-wait scenarios
+            # (caregiver-confirmation or timeout paths) leave auto_simulate_input=None
+            # so they are not perturbed.
             trial_timeout = (
                 _TRIAL_TIMEOUT_CLASS2_S
                 if trial.expected_route_class == "CLASS_2"
                 else _TRIAL_TIMEOUT_S
             )
+
+            if trial.auto_simulate_input:
+                # Wait until Mac mini enters CLASS_2 Phase 1 (initial snapshot arrives)
+                phase1_ready = self._wait_for_class2_phase1_ready(
+                    correlation_id, timeout_s=10.0
+                )
+                if phase1_ready:
+                    self._simulate_class2_input(
+                        node, correlation_id, event_code=trial.auto_simulate_input
+                    )
+                else:
+                    log.warning(
+                        "Trial %s: CLASS_2 Phase 1 not ready within 10s — "
+                        "skipping auto-simulation (correlation_id=%s)",
+                        trial.trial_id, correlation_id,
+                    )
+
+            # requires_post_transition_snapshot: wait for post-transition evidence
+            # (validator status for CLASS_1, escalation status for CLASS_0).
+            # Use observed_target logic — needs_validator applies to any CLASS_1 obs,
+            # needs_escalation applies to any CLASS_0 obs.  Enable waiting whenever
+            # either flag is set in the trial.
             requires_post = bool(
-                trial.expected_transition_target == "CLASS_1"
-                and trial.requires_validator_when_class1
+                trial.requires_validator_when_class1
+                or trial.requires_escalation_evidence_when_class0
             )
             observation = self._match_observation(
                 correlation_id, trial_timeout,
@@ -345,12 +374,37 @@ class PackageRunner:
         except Exception as exc:
             log.warning("Contract drift publish failed: %s", exc)
 
-    def _simulate_class2_button(self, node, correlation_id: str) -> None:
-        """Simulate user single_click button press during CLASS_2 Phase 1.
+    def _wait_for_class2_phase1_ready(
+        self, correlation_id: str, timeout_s: float = 10.0
+    ) -> bool:
+        """Poll until an initial CLASS_2 snapshot (no class2 block) arrives.
+
+        Returns True when the Mac mini has published the Phase-1 routing snapshot
+        and the CLASS_2 session is active.  Returns False if timeout_s elapses
+        without any CLASS_2 observation appearing.
+        """
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            obs = self._obs.find_by_correlation_id(correlation_id)
+            if obs is not None:
+                route_class = (obs.get("route") or {}).get("route_class", "")
+                if route_class == "CLASS_2":
+                    return True
+            time.sleep(_POLL_INTERVAL_S)
+        return False
+
+    def _simulate_class2_input(
+        self, node, correlation_id: str, event_code: str = "single_click"
+    ) -> None:
+        """Simulate a user button press during an active CLASS_2 Phase 1 session.
 
         Temporarily patches the node's payload_template with event_type=button
-        and event_code=single_click, then publishes once.  The Mac mini pipeline
-        intercepts this as the user's Phase-1 selection and wakes the waiter.
+        and the given event_code, then publishes once.  The Mac mini pipeline
+        intercepts this as a user selection and wakes the Phase-1 waiter.
+
+        event_code values:
+          "single_click" — selects the first candidate (typically C1_LIGHTING_ASSISTANCE)
+          "triple_hit"   — selects the first CLASS_0-targeted candidate (emergency)
 
         The node's original template and state are restored in the finally block.
         """
@@ -362,7 +416,7 @@ class PackageRunner:
         patched.setdefault("pure_context_payload", {})
         patched["pure_context_payload"].setdefault("trigger_event", {})
         patched["pure_context_payload"]["trigger_event"]["event_type"] = "button"
-        patched["pure_context_payload"]["trigger_event"]["event_code"] = "single_click"
+        patched["pure_context_payload"]["trigger_event"]["event_code"] = event_code
         patched["pure_context_payload"]["trigger_event"]["timestamp_ms"] = now_ms
         patched.setdefault("routing_metadata", {})
         patched["routing_metadata"]["audit_correlation_id"] = correlation_id
@@ -375,14 +429,18 @@ class PackageRunner:
         try:
             self._vnm.publish_once(node)
             log.info(
-                "CLASS_2 trial: auto-simulated user button press (single_click) "
-                "correlation_id=%s", correlation_id,
+                "CLASS_2 trial: auto-simulated user input (%s) correlation_id=%s",
+                event_code, correlation_id,
             )
         except Exception as exc:
-            log.warning("CLASS_2 button simulation failed: %s", exc)
+            log.warning("CLASS_2 input simulation failed: %s", exc)
         finally:
             node.profile.payload_template = original_template
             node.state = original_state
+
+    def _simulate_class2_button(self, node, correlation_id: str) -> None:
+        """Legacy alias: simulate single_click. Use _simulate_class2_input() instead."""
+        self._simulate_class2_input(node, correlation_id, event_code="single_click")
 
     def _match_observation(
         self,
@@ -397,15 +455,9 @@ class PackageRunner:
           2. A final snapshot (with class2 block) after the two-phase wait
              resolves: user button press (Phase 1, ≤15 s), caregiver Telegram
              response (Phase 2, ≤300 s), or full Phase-2 timeout.
-          3. When requires_post_transition_snapshot=True (CLASS_1 transition with
-             requires_validator_when_class1): a post-transition snapshot that also
-             has class2.post_transition_validator_status set, published after
-             _execute_class2_transition() completes validation.
-
-        This method waits passively — it does NOT auto-simulate a user button
-        press.  Auto-simulation was removed because it unconditionally completed
-        Phase 1 and prevented Phase 2 (caregiver Telegram) from ever being
-        triggered, blocking caregiver-path experiment trials.
+          3. When requires_post_transition_snapshot=True: a post-transition snapshot
+             whose class2 block also has post_transition_validator_status (CLASS_1)
+             or post_transition_escalation_status (CLASS_0) set.
 
         All other route classes (CLASS_0, CLASS_1) return the first match immediately.
         """
@@ -423,8 +475,12 @@ class PackageRunner:
                 if class2_block:
                     if not requires_post_transition_snapshot:
                         return obs  # CLASS_2 with interaction data: final
-                    # Waiting for post-transition validator evidence
-                    if class2_block.get("post_transition_validator_status") is not None:
+                    # Waiting for post-transition evidence (validator or escalation)
+                    has_post = (
+                        class2_block.get("post_transition_validator_status") is not None
+                        or class2_block.get("post_transition_escalation_status") is not None
+                    )
+                    if has_post:
                         return obs  # Post-transition snapshot arrived: final
                 # CLASS_2 without class2 block, or waiting for post-transition:
                 # keep polling.

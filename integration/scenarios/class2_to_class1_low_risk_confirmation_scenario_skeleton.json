@@ -46,13 +46,13 @@
     },
     {
       "step_id": 5,
-      "action": "reenter_policy_router_and_validate",
-      "description": "Re-enter the Policy Router and require Deterministic Validator approval against the canonical low-risk lighting catalog before any Class 1 dispatch."
+      "action": "validate_bounded_candidate",
+      "description": "Run Deterministic Validator on the confirmed bounded lighting candidate. Policy Router re-entry is not required — the user/caregiver explicitly selected the bounded candidate; the Validator is the safety gate."
     },
     {
       "step_id": 6,
       "action": "observe_audit_stream",
-      "description": "Observe audit evidence for candidate presentation, selection, Policy Router re-entry, validator approval, and bounded Class 1 outcome."
+      "description": "Observe audit evidence for candidate presentation, selection, Deterministic Validator approval, and bounded Class 1 outcome."
     }
   ],
   "clarification_interaction": {
@@ -90,13 +90,15 @@
       "actuation_command",
       "emergency_trigger_authority",
       "doorlock_authorization"
-    ]
+    ],
+    "auto_simulate_input": "single_click",
+    "requires_escalation_evidence_when_class0": false
   },
   "transition_outcomes": [
     {
       "transition_target": "CLASS_1",
-      "condition": "User or caregiver confirms a bounded lighting candidate and the Deterministic Validator approves it after Policy Router re-entry.",
-      "allowed_next_path": "policy_router_reentry_then_validator_then_bounded_low_risk_assistance_path"
+      "condition": "User or caregiver confirms a bounded lighting candidate and the Deterministic Validator approves it.",
+      "allowed_next_path": "validator_then_bounded_low_risk_assistance_path"
     }
   ],
   "expected_outcomes": {

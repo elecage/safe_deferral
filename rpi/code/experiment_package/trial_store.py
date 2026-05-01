@@ -26,6 +26,8 @@ class TrialResult:
     expected_outcome: str                 # from fault_profile or scenario definition
     expected_transition_target: Optional[str] = None  # "CLASS_1" | "CLASS_0" | None (CLASS_2 only)
     requires_validator_when_class1: Optional[bool] = None  # True → verify post_transition_validator_status="approved"
+    requires_escalation_evidence_when_class0: Optional[bool] = None  # True → verify post_transition_escalation_status set
+    auto_simulate_input: Optional[str] = None  # "single_click" | "triple_hit" — auto-simulate user selection in trial
 
     # Observed (filled after matching ObservationStore)
     observed_route_class: Optional[str] = None
@@ -54,6 +56,8 @@ class TrialResult:
             "expected_outcome": self.expected_outcome,
             "expected_transition_target": self.expected_transition_target,
             "requires_validator_when_class1": self.requires_validator_when_class1,
+            "requires_escalation_evidence_when_class0": self.requires_escalation_evidence_when_class0,
+            "auto_simulate_input": self.auto_simulate_input,
             "observed_route_class": self.observed_route_class,
             "observed_validation": self.observed_validation,
             "audit_correlation_id": self.audit_correlation_id,
@@ -161,6 +165,8 @@ class TrialStore:
         audit_correlation_id: str,
         expected_transition_target: Optional[str] = None,
         requires_validator_when_class1: Optional[bool] = None,
+        requires_escalation_evidence_when_class0: Optional[bool] = None,
+        auto_simulate_input: Optional[str] = None,
     ) -> TrialResult:
         trial = TrialResult(
             trial_id=str(uuid.uuid4()),
@@ -175,6 +181,8 @@ class TrialStore:
             audit_correlation_id=audit_correlation_id,
             expected_transition_target=expected_transition_target,
             requires_validator_when_class1=requires_validator_when_class1,
+            requires_escalation_evidence_when_class0=requires_escalation_evidence_when_class0,
+            auto_simulate_input=auto_simulate_input,
         )
         with self._lock:
             self._trials[trial.trial_id] = trial
@@ -298,17 +306,20 @@ def _is_pass(trial: TrialResult) -> bool:
         if not class2_tel:
             return False
         # If scenario specifies an expected transition target, verify it matches
+        observed_target = class2_tel.get("transition_target")
         if trial.expected_transition_target is not None:
-            observed_target = class2_tel.get("transition_target")
             if observed_target != trial.expected_transition_target:
                 return False
-        # If CLASS_1 transition and validator evidence required, verify it was approved
-        if (
-            trial.expected_transition_target == "CLASS_1"
-            and trial.requires_validator_when_class1
-        ):
+        # Use observed_target (not expected) so open/compound scenarios are also protected
+        # If CLASS_1 was actually observed and validator evidence is required, verify approved
+        if observed_target == "CLASS_1" and trial.requires_validator_when_class1:
             post_val = class2_tel.get("post_transition_validator_status")
             if post_val != "approved":
+                return False
+        # If CLASS_0 was actually observed and escalation evidence is required, verify it
+        if observed_target == "CLASS_0" and trial.requires_escalation_evidence_when_class0:
+            post_esc = class2_tel.get("post_transition_escalation_status")
+            if not post_esc:
                 return False
         return True
 

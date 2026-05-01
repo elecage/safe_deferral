@@ -291,16 +291,20 @@ class TelemetryAdapter:
         self,
         audit_correlation_id: str,
         class2_result: Class2Result,
-        post_transition_validator_status: Optional[str],
-        post_transition_dispatched: Optional[bool],
+        post_transition_validator_status: Optional[str] = None,
+        post_transition_dispatched: Optional[bool] = None,
+        post_transition_escalation_status: Optional[str] = None,
     ) -> None:
-        """Publish a post-transition snapshot after CLASS_2→CLASS_1 validation attempt.
+        """Publish a post-transition snapshot after CLASS_2 selection is resolved.
 
-        Called from _execute_class2_transition() after the Deterministic Validator
-        runs (or is skipped due to missing hints).  Publishes a standalone snapshot
-        whose class2 block includes post_transition_validator_status and
-        post_transition_dispatched so the RPi trial runner can verify validator
-        evidence when requires_validator_when_class1=True.
+        Called from _execute_class2_transition() after:
+          - CLASS_1: Deterministic Validator runs (or skipped due to missing hints).
+            Sets post_transition_validator_status and post_transition_dispatched.
+          - CLASS_0: Caregiver escalation notification sent.
+            Sets post_transition_escalation_status.
+
+        The standalone snapshot (same audit_correlation_id) lets the RPi trial
+        runner verify post-transition evidence beyond the initial class2 snapshot.
         """
         unresolved = class2_result.clarification_record.get("unresolved_reason")
         now_ms = int(time.time() * 1000)
@@ -311,6 +315,7 @@ class TelemetryAdapter:
             timestamp_ms=now_ms,
             post_transition_validator_status=post_transition_validator_status,
             post_transition_dispatched=post_transition_dispatched,
+            post_transition_escalation_status=post_transition_escalation_status,
         )
         route = RouteTelemetry(
             route_class="CLASS_2",

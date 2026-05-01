@@ -46,13 +46,13 @@
     },
     {
       "step_id": 5,
-      "action": "reenter_policy_router_for_class0",
-      "description": "Re-enter the Policy Router and transition to Class 0 only when emergency confirmation or deterministic emergency evidence is present."
+      "action": "handle_class0_emergency_transition",
+      "description": "Transition to Class 0 emergency handling. Policy Router re-entry is not required — emergency evidence was confirmed through the bounded Class 2 selection; the pipeline announces the emergency and sends caregiver notification directly."
     },
     {
       "step_id": 6,
       "action": "observe_audit_stream",
-      "description": "Observe audit evidence for clarification, emergency confirmation/evidence, Policy Router re-entry, and Class 0 transition."
+      "description": "Observe audit evidence for clarification, emergency selection/confirmation, caregiver escalation notification, and final Class 0 outcome."
     }
   ],
   "clarification_interaction": {
@@ -83,7 +83,7 @@
     "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
     "expected_transition_target": "CLASS_0",
     "requires_policy_router_reentry": false,
-    "requires_validator_when_class1": true,
+    "requires_validator_when_class1": false,
     "timeout_must_not_infer_intent": true,
     "clarification_payload_is_not_authorization": true,
     "forbidden_interpretations": [
@@ -91,13 +91,15 @@
       "actuation_command",
       "emergency_trigger_authority",
       "doorlock_authorization"
-    ]
+    ],
+    "auto_simulate_input": "triple_hit",
+    "requires_escalation_evidence_when_class0": true
   },
   "transition_outcomes": [
     {
       "transition_target": "CLASS_0",
-      "condition": "User/caregiver confirms emergency help, triple-hit input occurs, or deterministic E001-E005 emergency evidence arrives.",
-      "allowed_next_path": "policy_router_reentry_then_immediate_emergency_override_path"
+      "condition": "User or caregiver confirms an emergency in the Class 2 session (triple-hit button or emergency candidate selection).",
+      "allowed_next_path": "immediate_emergency_override_with_caregiver_notification"
     }
   ],
   "expected_outcomes": {

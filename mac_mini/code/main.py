@@ -857,6 +857,10 @@ class Pipeline:
             )
             esc_result = self._caregiver.send_notification(notification)
             self._telemetry.update_escalation(esc_result)
+            self._telemetry.publish_class2_transition_result(
+                audit_correlation_id, class2_result,
+                post_transition_escalation_status=esc_result.escalation_status.value,
+            )
         # SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION: no autonomous action here
 
     def _escalate_c205(self, audit_correlation_id: str) -> None:

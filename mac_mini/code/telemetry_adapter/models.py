@@ -40,6 +40,7 @@ class Class2Telemetry:
     timestamp_ms: int
     post_transition_validator_status: Optional[str] = None  # "approved"|"safe_deferral"|"rejected_escalation"|"not_ready"
     post_transition_dispatched: Optional[bool] = None
+    post_transition_escalation_status: Optional[str] = None  # CLASS_0 path: escalation_status value
 
 
 @dataclass

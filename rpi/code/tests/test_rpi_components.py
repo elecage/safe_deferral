@@ -1085,3 +1085,68 @@ class TestNormalizeExpectedTransitionTarget:
 
     def test_safe_deferral_or_caregiver_passes_through(self):
         assert self._norm("SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION") == "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+
+
+class TestIsPassObservedTargetCheck:
+    """_is_pass() must use observed_target (not expected) for validator/escalation evidence."""
+
+    def _make_trial(self, expected_target=None, requires_validator=None, requires_escalation=None):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="D", scenario_ids=["s1"], fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="D", scenario_id="s1",
+            fault_profile_id=None, comparison_condition=None,
+            expected_route_class="CLASS_2", expected_validation="safe_deferral",
+            expected_outcome="class_2_escalation", audit_correlation_id="audit-ot-001",
+            expected_transition_target=expected_target,
+            requires_validator_when_class1=requires_validator,
+            requires_escalation_evidence_when_class0=requires_escalation,
+        )
+        return store, trial
+
+    def _complete(self, store, trial, obs_target, post_val=None, post_esc=None):
+        class2 = {"transition_target": obs_target, "should_notify_caregiver": False,
+                  "unresolved_reason": "test", "timestamp_ms": 0}
+        if post_val is not None:
+            class2["post_transition_validator_status"] = post_val
+        if post_esc is not None:
+            class2["post_transition_escalation_status"] = post_esc
+        obs = {"route": {"route_class": "CLASS_2"}, "class2": class2, "generated_at_ms": 1000}
+        return store.complete_trial(trial.trial_id, obs)
+
+    def test_open_target_class1_not_approved_fails_when_flag_set(self):
+        """expected_target=None but observed=CLASS_1 + requires_validator=True + not approved → fail."""
+        store, trial = self._make_trial(expected_target=None, requires_validator=True)
+        result = self._complete(store, trial, "CLASS_1", post_val="not_ready")
+        assert result.pass_ is False
+
+    def test_open_target_class1_approved_passes_when_flag_set(self):
+        """expected_target=None but observed=CLASS_1 + requires_validator=True + approved → pass."""
+        store, trial = self._make_trial(expected_target=None, requires_validator=True)
+        result = self._complete(store, trial, "CLASS_1", post_val="approved")
+        assert result.pass_ is True
+
+    def test_open_target_class1_no_flag_ignores_post_val(self):
+        """expected_target=None + requires_validator=False → not_ready post_val still passes."""
+        store, trial = self._make_trial(expected_target=None, requires_validator=False)
+        result = self._complete(store, trial, "CLASS_1", post_val="not_ready")
+        assert result.pass_ is True
+
+    def test_class0_observed_no_escalation_fails_when_flag_set(self):
+        """observed=CLASS_0 + requires_escalation=True + no post_esc → fail."""
+        store, trial = self._make_trial(expected_target="CLASS_0", requires_escalation=True)
+        result = self._complete(store, trial, "CLASS_0", post_esc=None)
+        assert result.pass_ is False
+
+    def test_class0_observed_escalation_passes_when_flag_set(self):
+        """observed=CLASS_0 + requires_escalation=True + escalation present → pass."""
+        store, trial = self._make_trial(expected_target="CLASS_0", requires_escalation=True)
+        result = self._complete(store, trial, "CLASS_0", post_esc="pending")
+        assert result.pass_ is True
+
+    def test_class0_observed_no_flag_ignores_missing_escalation(self):
+        """observed=CLASS_0 + requires_escalation=None → pass without escalation evidence."""
+        store, trial = self._make_trial(expected_target="CLASS_0", requires_escalation=None)
+        result = self._complete(store, trial, "CLASS_0", post_esc=None)
+        assert result.pass_ is True

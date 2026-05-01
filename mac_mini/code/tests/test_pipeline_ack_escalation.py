@@ -401,3 +401,37 @@ class TestDefaultCandidatesTargetHint:
         )
         assert opt["action_hint"] == "light_on"
         assert opt["target_hint"] == "bedroom_light"
+
+
+class TestPublishClass2TransitionResultClass0:
+    """publish_class2_transition_result() CLASS_0 path emits post_transition_escalation_status."""
+
+    def test_class0_escalation_status_in_snapshot(self, pipeline):
+        cr = _make_class2_result("CLASS_0")
+        pub_calls = []
+        original = pipeline._telemetry._publisher.publish
+        pipeline._telemetry._publisher.publish = lambda t, p, qos=1: pub_calls.append(p)
+        try:
+            pipeline._telemetry.publish_class2_transition_result(
+                "audit-c0-001", cr,
+                post_transition_escalation_status="pending",
+            )
+        finally:
+            pipeline._telemetry._publisher.publish = original
+        assert len(pub_calls) == 1
+        class2 = pub_calls[0].get("class2") or {}
+        assert class2.get("post_transition_escalation_status") == "pending"
+        assert class2.get("post_transition_validator_status") is None
+
+    def test_class0_escalation_none_when_not_set(self, pipeline):
+        cr = _make_class2_result("CLASS_0")
+        pub_calls = []
+        original = pipeline._telemetry._publisher.publish
+        pipeline._telemetry._publisher.publish = lambda t, p, qos=1: pub_calls.append(p)
+        try:
+            pipeline._telemetry.publish_class2_transition_result("audit-c0-002", cr)
+        finally:
+            pipeline._telemetry._publisher.publish = original
+        assert len(pub_calls) == 1
+        class2 = pub_calls[0].get("class2") or {}
+        assert class2.get("post_transition_escalation_status") is None

@@ -128,7 +128,9 @@
       "actuation_command",
       "emergency_trigger_authority",
       "doorlock_authorization"
-    ]
+    ],
+    "auto_simulate_input": null,
+    "requires_escalation_evidence_when_class0": false
   },
   "transition_outcomes": [
     {
