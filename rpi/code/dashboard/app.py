@@ -269,12 +269,19 @@ def create_app(
             "publish_topic",
             "safe_deferral/actuation/ack" if is_simulator else "safe_deferral/context/input",
         )
+        timing_claim = body.get("simulated_response_timing_ms")
+        if timing_claim is not None and not isinstance(timing_claim, dict):
+            raise HTTPException(
+                status_code=400,
+                detail="simulated_response_timing_ms must be an object or null",
+            )
         profile = VirtualNodeProfile(
             profile_id=body.get("profile_id", f"profile_{node_type.value}"),
             payload_template=body.get("payload_template", {}),
             publish_topic=publish_topic,
             publish_interval_ms=int(body.get("publish_interval_ms", 1000)),
             repeat_count=int(body.get("repeat_count", 1)),
+            simulated_response_timing_ms=timing_claim,
         )
         source_node_id = (
             body.get("source_node_id")
@@ -303,12 +310,30 @@ def create_app(
             raise HTTPException(status_code=409, detail="Stop the node before updating")
 
         publish_topic = body.get("publish_topic", node.profile.publish_topic)
+        # Merge incoming timing claim onto existing one so the modal's two
+        # known keys (user_response_ms / caregiver_response_ms) do not wipe
+        # other profile-declared keys. Explicit None in the body clears.
+        if "simulated_response_timing_ms" in body:
+            incoming = body["simulated_response_timing_ms"]
+            if incoming is None:
+                merged_timing = None
+            elif isinstance(incoming, dict):
+                merged_timing = dict(node.profile.simulated_response_timing_ms or {})
+                merged_timing.update(incoming)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="simulated_response_timing_ms must be an object or null",
+                )
+        else:
+            merged_timing = node.profile.simulated_response_timing_ms
         node.profile = VirtualNodeProfile(
             profile_id=body.get("profile_id", node.profile.profile_id),
             payload_template=body.get("payload_template", node.profile.payload_template),
             publish_topic=publish_topic,
             publish_interval_ms=int(body.get("publish_interval_ms", node.profile.publish_interval_ms)),
             repeat_count=int(body.get("repeat_count", node.profile.repeat_count)),
+            simulated_response_timing_ms=merged_timing,
         )
         if "source_node_id" in body:
             try:

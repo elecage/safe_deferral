@@ -962,6 +962,19 @@
           <input type="number" class="form-control" id="node-repeat" value="1" min="0">
         </div>
       </div>
+      <!-- Advisory simulator response timing — declares how long this node
+           is configured to take in each Class 2 phase. Surfaces into the
+           dashboard fidelity card alongside the policy-derived budgets.
+           Both empty → field stored as null; the dashboard shows "(unset)". -->
+      <div id="timing-claim-group" class="form-group" style="margin-top:4px">
+        <label class="form-label">시뮬레이터 응답 시간 <span class="text-dim">(advisory; 비워두면 unset)</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <input type="number" class="form-control" id="node-user-response-ms"
+                 placeholder="user_response_ms" min="0">
+          <input type="number" class="form-control" id="node-caregiver-response-ms"
+                 placeholder="caregiver_response_ms" min="0">
+        </div>
+      </div>
     </div>
 
     <div id="modal-error" style="color:var(--red); font-size:12px; margin-bottom:8px; display:none"></div>
@@ -1586,6 +1599,15 @@ function openNodeModal(nodeId) {
       if (n.node_type === 'actuator_simulator' && n.device_target) {
         document.getElementById('sim-device').value = n.device_target;
       }
+      // Restore advisory timing claim. Profile may have arbitrary keys, but
+      // the modal exposes only user_response_ms / caregiver_response_ms;
+      // other keys are preserved by the backend so editing this node won't
+      // wipe them — saveNode merges instead of overwriting (see body build).
+      const t = n.simulated_response_timing_ms || {};
+      document.getElementById('node-user-response-ms').value =
+        t.user_response_ms != null ? t.user_response_ms : '';
+      document.getElementById('node-caregiver-response-ms').value =
+        t.caregiver_response_ms != null ? t.caregiver_response_ms : '';
     });
   } else {
     document.getElementById('modal-title').textContent = '노드 추가';
@@ -1594,6 +1616,8 @@ function openNodeModal(nodeId) {
     document.getElementById('node-source-id').value = '';
     document.getElementById('node-interval').value = '1000';
     document.getElementById('node-repeat').value = '1';
+    document.getElementById('node-user-response-ms').value = '';
+    document.getElementById('node-caregiver-response-ms').value = '';
     onNodeTypeChange('context_node');
   }
 }
@@ -1628,6 +1652,10 @@ function onNodeTypeChange(type) {
   document.getElementById('form-device-node').style.display  = isDevNode ? '' : 'none';
   document.getElementById('topic-group').style.display       = (isSim || isEnvSensor || isDevNode) ? 'none' : '';
   document.getElementById('interval-group').style.display    = isSim ? 'none' : '';
+  // Advisory timing claim is only meaningful for nodes that go through the
+  // /nodes endpoint (the env/device sim nodes use /sim/nodes/* which does
+  // not accept this field today).
+  document.getElementById('timing-claim-group').style.display = (isEnvSensor || isDevNode) ? 'none' : '';
 
   const topicEl   = document.getElementById('node-topic');
   const sourceEl  = document.getElementById('node-source-id');
@@ -1860,6 +1888,19 @@ async function saveNode() {
     repeat_count: parseInt(document.getElementById('node-repeat').value) || 1,
     payload_template: payloadTemplate,
   };
+
+  // Advisory simulator response timing — both empty → omit field so the
+  // profile keeps whatever it had (or stays unset for new nodes). One or
+  // both filled → send a dict; backend merges over existing on PUT so the
+  // modal's two known keys do not wipe other profile-declared keys.
+  const userMs = document.getElementById('node-user-response-ms').value;
+  const cgMs = document.getElementById('node-caregiver-response-ms').value;
+  if (userMs !== '' || cgMs !== '') {
+    const timing = {};
+    if (userMs !== '') timing.user_response_ms = parseInt(userMs);
+    if (cgMs !== '') timing.caregiver_response_ms = parseInt(cgMs);
+    body.simulated_response_timing_ms = timing;
+  }
 
   if (isSim) {
     body.device_target = document.getElementById('sim-device').value;
