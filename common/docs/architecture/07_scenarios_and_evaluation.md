@@ -155,6 +155,39 @@ Class 2 scenarios should explicitly state:
 - why no autonomous execution occurs until validator/manual approval requirements
   are satisfied.
 
+### 9.1 LLM Variability In Candidate Text
+
+The Class 2 Clarification Manager may obtain candidates from
+`LocalLlmAdapter.generate_class2_candidates()` (with bounded-variability
+constraints from `policy_table.global_constraints.class2_conversational_prompt_constraints`)
+or from the static `_DEFAULT_CANDIDATES` table. Scenarios and expected
+fixtures must therefore treat the following candidate fields as **variable
+across runs** when `clarification_record.candidate_source = "llm_generated"`:
+
+- `candidate_id` — LLM may emit any short identifier (e.g. `LLM_C1_LIGHT`
+  vs the static table's `C1_LIGHTING_ASSISTANCE`).
+- `prompt` — LLM-generated TTS text varies with environmental context.
+
+The following candidate fields remain **stable contract surfaces** the
+adapter enforces, and scenario expectations may compare them safely:
+
+- `candidate_transition_target` — must be in the schema enum
+  (`CLASS_1` / `CLASS_0` / `SAFE_DEFERRAL` / `CAREGIVER_CONFIRMATION`).
+- `action_hint` — must be in `low_risk_actions.json` for `CLASS_1` candidates,
+  otherwise dropped by the adapter.
+- `target_hint` — must be in the action's `allowed_targets` list, otherwise
+  dropped by the adapter.
+
+Expected-fixture matching for LLM-mode trials should therefore loosen
+candidate id / prompt comparison in favour of structural matching on
+`candidate_transition_target` + `action_hint` + `target_hint`. The exact
+fixture-side rule is captured in `integration/scenarios/scenario_manifest_rules.md`
+(planned by `10_llm_class2_integration_alignment_plan.md` P2.1).
+
+For static-mode trials (`candidate_source = "default_fallback"`),
+candidate id and prompt strings are deterministic and the legacy literal
+matching is safe.
+
 ## 10. Fault Scenario Requirements
 
 Fault scenarios should preserve conservative behavior:

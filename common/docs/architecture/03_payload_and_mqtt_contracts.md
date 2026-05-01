@@ -107,6 +107,28 @@ Class 1 selection re-enters the Deterministic Validator with the bounded
 candidate; the selection alone does not bypass the validator, create
 emergency evidence by itself, or authorize actuation.
 
+The clarification record now includes a `candidate_source` field
+(`llm_generated` | `default_fallback`) that indicates whether the manager
+adopted LLM-driven candidates or fell back to the static
+`_DEFAULT_CANDIDATES` table. This field is informational; both sources
+preserve identical safety contracts (validator gating, low-risk catalog,
+emergency template normalization).
+
+The Raspberry Pi evaluation host subscribes to
+`safe_deferral/clarification/interaction` and `safe_deferral/escalation/class2`
+(the Class 2 caregiver notification topic) for **evaluation capture only**.
+Captured payloads land in `ClarificationStore` and `NotificationStore` ring
+buffers consumed by Package D metrics. These RPi-side reads are
+non-authoritative — they do not affect routing, validator approval, or
+actuator commands. Mac mini remains the only authority for any Class 2
+decision.
+
+`common/schemas/class2_candidate_set_schema.json` is the schema for the
+LocalLlmAdapter-internal payload returned by `generate_class2_candidates()`
+to `Class2ClarificationManager`. This payload **never appears on any MQTT
+topic** — it is internal evidence between adapter and manager only. The
+clarification record is the on-the-wire artifact.
+
 ## 8. Governance Rule
 
 Topic-drift reports, payload-validation reports, interface-matrix alignment

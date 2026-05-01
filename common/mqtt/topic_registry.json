@@ -272,7 +272,8 @@
       "subscribers": [
         "mac_mini.outbound_notification_interface",
         "mac_mini.audit_logging_service_observer_optional",
-        "rpi.dashboard_telemetry_bridge_optional"
+        "rpi.dashboard_telemetry_bridge_optional",
+        "rpi.notification_store_evaluation_capture"
       ],
       "subscriber_roles": {
         "runtime_subscriber": [
@@ -280,7 +281,8 @@
         ],
         "observer_subscriber": [
           "mac_mini.audit_logging_service_observer_optional",
-          "rpi.dashboard_telemetry_bridge_optional"
+          "rpi.dashboard_telemetry_bridge_optional",
+          "rpi.notification_store_evaluation_capture"
         ]
       },
       "payload_family": "class_2_notification_payload",
@@ -314,13 +316,15 @@
       "subscribers": [
         "mac_mini.audit_logging_service_observer_optional",
         "rpi.dashboard_telemetry_bridge_optional",
-        "rpi.class2_transition_verifier_optional"
+        "rpi.class2_transition_verifier_optional",
+        "rpi.clarification_store_evaluation_capture"
       ],
       "subscriber_roles": {
         "observer_subscriber": [
           "mac_mini.audit_logging_service_observer_optional",
           "rpi.dashboard_telemetry_bridge_optional",
-          "rpi.class2_transition_verifier_optional"
+          "rpi.class2_transition_verifier_optional",
+          "rpi.clarification_store_evaluation_capture"
         ]
       },
       "payload_family": "clarification_interaction_payload",

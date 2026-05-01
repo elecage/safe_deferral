@@ -108,6 +108,20 @@ The normal operational flow is:
 8. Ambiguous, sensitive, stale, missing, or conflicting cases move to Class 2,
    safe deferral, caregiver escalation, or emergency handling as appropriate.
 
+For Class 2 specifically, the Class 2 Clarification Manager may consult the
+LocalLlmAdapter for **bounded contextual candidate generation** before
+presenting choices through TTS. The LLM call is gated by a budget (default
+8 s, sourced from `policy_table.global_constraints.llm_request_timeout_ms`)
+and runs on a daemon thread so it cannot block the MQTT message-handler
+thread. Any failure or budget overrun silently falls back to the static
+`_DEFAULT_CANDIDATES` table — the static path remains the safety floor.
+Each clarification record carries a `candidate_source` field
+(`llm_generated` | `default_fallback`) so audit reviewers can distinguish
+the two paths after the fact. Detailed contracts and bounded-variability
+constraints live in `04_class2_clarification.md` §4 and the design plan
+docs `09_llm_driven_class2_candidate_generation_plan.md` /
+`10_llm_class2_integration_alignment_plan.md`.
+
 ## 8. Figure and Layout References
 
 Current figure assets live under:
