@@ -2435,6 +2435,24 @@ class TestClass2TrialTimeoutDecomposition:
         )
         assert abs(total - runner._class2_trial_timeout_s) < 0.01
 
+    def test_caregiver_phase_loaded_from_policy(self):
+        """caregiver_response_timeout_ms in policy now drives the runner's
+        Phase 2 budget. Tighter policy → tighter caregiver phase."""
+        runner = self._make_runner({
+            "global_constraints": {
+                "caregiver_response_timeout_ms": 60000,  # 60 s instead of 300
+            }
+        })
+        assert abs(runner._class2_caregiver_phase_timeout_s - 60.0) < 0.01
+
+    def test_caregiver_phase_default_from_shipped_policy(self):
+        """Shipped policy contains caregiver_response_timeout_ms=300000."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        runner = PackageRunner(MagicMock(), MagicMock(), TrialStore())
+        assert abs(runner._class2_caregiver_phase_timeout_s - 300.0) < 0.01
+
     def test_loader_failure_falls_back_to_defaults(self):
         """If asset loader raises, the runner still produces a sensible
         timeout from module defaults."""
