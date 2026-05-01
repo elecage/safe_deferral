@@ -1,0 +1,29 @@
+{
+  "source_node_id": "virtual_node_living_room_button_02",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_class2_to_class0_emergency_confirmation_001",
+    "ingest_timestamp_ms": 1777400000000,
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "button",
+      "event_code": "double_click",
+      "timestamp_ms": 1777399999900
+    },
+    "environmental_context": {
+      "temperature": 24.0,
+      "illuminance": 200,
+      "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
+      "doorbell_detected": false
+    },
+    "device_states": {
+      "living_room_light": "on",
+      "bedroom_light": "off",
+      "living_room_blind": "open",
+      "tv_main": "off"
+    }
+  }
+}

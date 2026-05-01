@@ -1,0 +1,29 @@
+{
+  "source_node_id": "virtual_node_doorbell_sensor_01",
+  "routing_metadata": {
+    "audit_correlation_id": "sample_class2_caregiver_doorlock_sensitive_001",
+    "ingest_timestamp_ms": 1777300000000,
+    "network_status": "online"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "sensor",
+      "event_code": "doorbell_detected",
+      "timestamp_ms": 1777299999900
+    },
+    "environmental_context": {
+      "temperature": 22.0,
+      "illuminance": 80,
+      "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
+      "doorbell_detected": true
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "off"
+    }
+  }
+}
