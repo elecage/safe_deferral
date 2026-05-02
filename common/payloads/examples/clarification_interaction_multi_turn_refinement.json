@@ -1,0 +1,57 @@
+{
+  "_example_purpose": "Class 2 multi-turn refinement (doc 11 Phase 6.0): the user picked C1_LIGHTING_ASSISTANCE on the parent turn, then picked REFINE_BEDROOM on the refinement turn (with bedroom currently off, so action_hint='light_on'). This is the terminal record of the refinement session; it carries refinement_history with the parent → child transition.",
+  "payload_family": "CLASS2_CLARIFICATION_INTERACTION",
+  "schema_ref": "common/schemas/clarification_interaction_schema.json",
+  "clarification_id": "example-class2-refinement-002",
+  "audit_correlation_id": "example-class2-refinement-002",
+  "source_layer": "class2_clarification_manager",
+  "unresolved_reason": "insufficient_context",
+  "candidate_source": "default_fallback",
+  "input_mode": "direct_select",
+  "candidate_choices": [
+    {
+      "candidate_id": "REFINE_LIVING_ROOM",
+      "prompt": "거실 조명을 켜드릴까요?",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "REFINE_BEDROOM",
+      "prompt": "침실 조명을 켜드릴까요?",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true
+    }
+  ],
+  "presentation_channel": "tts",
+  "selection_result": {
+    "selected_candidate_id": "REFINE_BEDROOM",
+    "selection_source": "bounded_input_node",
+    "confirmed": true,
+    "selection_timestamp_ms": 1710000005200
+  },
+  "transition_target": "CLASS_1",
+  "timeout_result": "not_applicable",
+  "refinement_history": [
+    {
+      "turn_index": 1,
+      "parent_candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "refinement_question": "어느 방의 조명을 도와드릴까요?",
+      "selected_candidate_id": "REFINE_BEDROOM",
+      "selection_source": "bounded_input_node",
+      "selection_timestamp_ms": 1710000005200
+    }
+  ],
+  "llm_boundary": {
+    "candidate_generation_only": true,
+    "final_decision_allowed": false,
+    "actuation_authority_allowed": false,
+    "emergency_trigger_authority_allowed": false
+  },
+  "timestamp_ms": 1710000005300,
+  "notes": [
+    "This is the TERMINAL record of the refinement turn. The parent session's record (not shown in this example) was a separate clarification_interaction with selected_candidate_id='C1_LIGHTING_ASSISTANCE' and a transition_target that produced this refinement session.",
+    "refinement_history captures the parent → child transition so audit can reconstruct the two-turn flow from this single terminal record. Refinement is bounded to one turn (max), so this array always has 0 or 1 entry today.",
+    "The refinement_question 'general' wording ('어느 방의 조명을 도와드릴까요?') matches doc 12 §2-B because each per-room choice carries the explicit verb (state-aware: bedroom_light='off' in this example → '켜드릴까요?' + light_on).",
+    "transition_target='CLASS_1' is confirmed-candidate evidence; the runtime re-enters the Deterministic Validator with the bounded candidate before any low-risk dispatch."
+  ]
+}

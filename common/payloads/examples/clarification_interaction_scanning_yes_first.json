@@ -1,0 +1,78 @@
+{
+  "_example_purpose": "Class 2 scanning session that accepted the first option (yes on option 0). Illustrates the four scanning-related optional clarification_interaction fields populated together: input_mode='scanning', scan_history with one yes turn, scan_ordering_applied attributing the deterministic-ranking rule that produced the order, candidate_source recording where the candidate set came from. Plan refs: doc 12 §4.4 (interaction model), §4.6 (deterministic ordering), 04_class2_clarification.md.",
+  "payload_family": "CLASS2_CLARIFICATION_INTERACTION",
+  "schema_ref": "common/schemas/clarification_interaction_schema.json",
+  "clarification_id": "example-class2-scanning-001",
+  "audit_correlation_id": "example-class2-scanning-001",
+  "source_layer": "class2_clarification_manager",
+  "unresolved_reason": "insufficient_context",
+  "candidate_source": "default_fallback",
+  "input_mode": "scanning",
+  "candidate_choices": [
+    {
+      "candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "prompt": "거실 조명을 켜드릴까요?",
+      "candidate_transition_target": "CLASS_1",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "C3_EMERGENCY_HELP",
+      "prompt": "긴급상황인가요?",
+      "candidate_transition_target": "CLASS_0",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "C2_CAREGIVER_HELP",
+      "prompt": "보호자에게 연락할까요?",
+      "candidate_transition_target": "CAREGIVER_CONFIRMATION",
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "C4_CANCEL_OR_WAIT",
+      "prompt": "다른 동작이 필요하신가요?",
+      "candidate_transition_target": "SAFE_DEFERRAL",
+      "requires_confirmation": true
+    }
+  ],
+  "presentation_channel": "tts",
+  "selection_result": {
+    "selected_candidate_id": "C1_LIGHTING_ASSISTANCE",
+    "selection_source": "bounded_input_node",
+    "confirmed": true,
+    "selection_timestamp_ms": 1710000001500
+  },
+  "transition_target": "CLASS_1",
+  "timeout_result": "not_applicable",
+  "scan_history": [
+    {
+      "option_index": 0,
+      "candidate_id": "C1_LIGHTING_ASSISTANCE",
+      "response": "yes",
+      "elapsed_ms": 1500,
+      "input_source": "user_mqtt_button"
+    }
+  ],
+  "scan_ordering_applied": {
+    "rule_source": "policy_table.global_constraints.class2_scan_ordering_rules",
+    "matched_bucket": "C206",
+    "applied_overrides": [],
+    "final_order": [
+      "C1_LIGHTING_ASSISTANCE",
+      "C3_EMERGENCY_HELP",
+      "C2_CAREGIVER_HELP",
+      "C4_CANCEL_OR_WAIT"
+    ]
+  },
+  "llm_boundary": {
+    "candidate_generation_only": true,
+    "final_decision_allowed": false,
+    "actuation_authority_allowed": false,
+    "emergency_trigger_authority_allowed": false
+  },
+  "timestamp_ms": 1710000001600,
+  "notes": [
+    "input_mode='scanning' means each candidate was announced as a separate {n}/{N}. <prompt> utterance and the user answered yes/no per turn. The user answered yes on option 0 in 1500ms, ending the session immediately.",
+    "scan_ordering_applied attributes the order to the C206 bucket of policy_table.global_constraints.class2_scan_ordering_rules. No context_overrides matched (smoke/gas/doorbell all false in this example).",
+    "transition_target='CLASS_1' is confirmed-candidate evidence; the runtime re-enters the Deterministic Validator with the bounded candidate before any low-risk dispatch."
+  ]
+}
