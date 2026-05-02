@@ -64,6 +64,12 @@ from caregiver_escalation.telegram_client import (
     build_inline_keyboard,
 )
 from class2_clarification_manager.manager import Class2ClarificationManager
+from class2_clarification_manager.scan_input_adapter import (
+    DECISION_EMERGENCY,
+    DECISION_IGNORE,
+    DECISION_SUBMIT,
+    interpret_button_event_for_scan,
+)
 from context_intake.intake import ContextIntake
 from context_intake.models import IntakeStatus
 from deterministic_validator.models import ValidationStatus
@@ -85,6 +91,8 @@ from tts.speaker import (
     announce_emergency,
     announce_deferral,
     announce_class2,
+    announce_class2_option,
+    announce_class2_scanning_start,
     announce_class2_selection,
 )
 
@@ -406,26 +414,39 @@ class Pipeline:
             ),
         )
 
-        # Step 1: announce candidate choices to the USER via TTS
-        announce_class2(self._tts, session.candidate_choices)
+        # Step 1+3: announce + spawn the appropriate Phase 1 waiter based on
+        # the session's interaction mode (doc 12 Phase 4). Direct-select uses
+        # one-utterance announce + single user-phase wait. Scanning uses the
+        # per-option preamble + per-option loop.
+        is_scanning = getattr(session, "input_mode", "direct_select") == "scanning"
+        if is_scanning:
+            announce_class2_scanning_start(
+                self._tts, len(session.candidate_choices)
+            )
+            waiter = self._await_user_scanning_then_caregiver
+            mode_label = "scanning"
+        else:
+            announce_class2(self._tts, session.candidate_choices)
+            waiter = self._await_user_then_caregiver
+            mode_label = "direct_select"
 
         # Step 2: publish telemetry immediately so the pipeline worker returns.
         # class2 details are added by the background thread after Phase 1
-        # resolves (user response or 15 s timeout), so the trial runner must
-        # poll until the second observation with class2 data arrives.
+        # resolves (user response or timeout), so the trial runner must poll
+        # until the second observation with class2 data arrives.
         self._telemetry.escalate_to_class2()
 
-        # Step 3: spawn two-phase background waiter and return
+        # Step 3: spawn the appropriate background waiter and return
         threading.Thread(
-            target=self._await_user_then_caregiver,
+            target=waiter,
             args=(session, trigger_id, route_result.audit_correlation_id),
             daemon=True,
             name=f"class2-waiter-{session.clarification_id[:8]}",
         ).start()
         log.info(
-            "CLASS_2 announced — phase-1 user wait started "
+            "CLASS_2 announced (input_mode=%s) — phase-1 user wait started "
             "(user_timeout=%.0fs clarification_id=%s)",
-            self._class2_user_timeout_s, session.clarification_id,
+            mode_label, self._class2_user_timeout_s, session.clarification_id,
         )
 
     # ------------------------------------------------------------------
@@ -514,6 +535,33 @@ class Pipeline:
             return  # User handled it — caregiver not involved
 
         # ---- Phase 2: caregiver Telegram ----
+        self._run_caregiver_phase(
+            session, trigger_id, audit_correlation_id, entry, caregiver_event,
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 2 caregiver wait (extracted so scanning Phase 1 can reuse)
+    # ------------------------------------------------------------------
+    def _run_caregiver_phase(
+        self,
+        session,
+        trigger_id: str,
+        audit_correlation_id: str,
+        entry: dict,
+        caregiver_event,
+    ) -> None:
+        """Phase 2 of CLASS_2 — caregiver Telegram wait.
+
+        Called by both direct-select Phase 1 (after user-phase timeout) and
+        scanning Phase 1 (after all options have been rejected). The session
+        entry remains in _pending_user_class2 so a late user button press is
+        intercepted instead of falling through to the normal pipeline.
+
+        Authority: caregiver selection is recorded for telemetry only — it
+        does not autonomously actuate. The caregiver's choice is an
+        observation, not a dispatch command.
+        """
+        cid = session.clarification_id
         # Keep entry in _pending_user_class2 so any late user button press is
         # still intercepted and does NOT fall through to the normal pipeline.
         with self._user_class2_lock:
@@ -521,7 +569,7 @@ class Pipeline:
             entry["selection"] = None   # reset in case of race
 
         log.info(
-            "CLASS_2 phase-1 timeout — escalating to caregiver "
+            "CLASS_2 phase-1 ended — escalating to caregiver "
             "(clarification_id=%s)", cid,
         )
 
@@ -657,6 +705,174 @@ class Pipeline:
             self._caregiver.send_notification(notification)
 
     # ------------------------------------------------------------------
+    # Scanning Phase 1 — sequential per-option yes/no loop (doc 12 Phase 4)
+    # ------------------------------------------------------------------
+    def _await_user_scanning_then_caregiver(
+        self,
+        session,
+        trigger_id: str,
+        audit_correlation_id: str,
+    ) -> None:
+        """Scanning interaction model.
+
+        Per option in session.candidate_choices:
+          1. announce_class2_option(option_index, candidate, total)
+          2. Wait scan_per_option_timeout for user_event
+          3. Read entry['scan_decision'] (set by _try_handle_as_user_selection
+             via the scan_input_adapter):
+             - ('submit', i, 'yes')      → submit_scan_response('yes') → terminal
+             - ('submit', i, 'no')       → submit_scan_response('no') → advance or final escalate
+             - ('emergency', cand_id)    → submit_selection on the CLASS_0 candidate (fast path)
+             - None (silence)            → handle_scan_silence → advance or final escalate
+
+        Once a terminal Class2Result is returned, dispatch transition + TTS
+        feedback the same way direct-select does. If the user exhausts all
+        options without picking one (last entry was 'no' or silence), the
+        final submit_scan_response / handle_scan_silence ALREADY returns a
+        terminal escalation Class2Result and the caregiver Phase 2 is also
+        run on top so the caregiver can override (e.g., user says no to
+        every option but caregiver still wants to approve a CLASS_1 action).
+        """
+        cid = session.clarification_id
+        user_event = threading.Event()
+        caregiver_event = threading.Event()
+        entry: dict = {
+            "session": session,
+            "event": user_event,
+            "caregiver_event": caregiver_event,
+            "trigger_id": trigger_id,
+            "audit_id": audit_correlation_id,
+            "selection": None,         # set by emergency shortcut (mirrors direct-select)
+            "scan_decision": None,     # set by _try_handle_as_user_selection (scanning)
+            "phase": 1,
+            "input_mode": "scanning",  # marker for _try_handle_as_user_selection
+        }
+        with self._user_class2_lock:
+            self._pending_user_class2[cid] = entry
+
+        per_option_s = (
+            getattr(session, "scan_per_option_timeout_ms", 8000) / 1000.0
+        )
+        n = len(session.candidate_choices)
+
+        terminal_result = None
+        accepted_via_user = False
+
+        for i in range(n):
+            candidate = session.candidate_choices[i]
+            with self._user_class2_lock:
+                entry["scan_decision"] = None
+            user_event.clear()
+
+            announce_class2_option(
+                self._tts, option_index=i, candidate=candidate, total_options=n,
+            )
+            log.info(
+                "CLASS_2 scanning: option %d/%d announced "
+                "(candidate=%s clarification_id=%s)",
+                i + 1, n, candidate.candidate_id, cid,
+            )
+            user_event.wait(timeout=per_option_s)
+
+            with self._user_class2_lock:
+                decision = entry.get("scan_decision")
+
+            if decision is None:
+                # Silence on this option → advance or escalate via manager.
+                terminal_or_session = self._class2.handle_scan_silence(
+                    session, trigger_id=trigger_id,
+                )
+            else:
+                kind = decision[0]
+                if kind == "emergency":
+                    # Triple-hit shortcut — accept the CLASS_0 candidate via
+                    # the existing submit_selection terminal pipeline so the
+                    # outcome matches direct-select emergency handling.
+                    cg_id = decision[1]
+                    with self._user_class2_lock:
+                        self._pending_user_class2.pop(cid, None)
+                    terminal_result = self._class2.submit_selection(
+                        session=session,
+                        selected_candidate_id=cg_id,
+                        selection_source="user_mqtt_button",
+                        trigger_id=trigger_id,
+                    )
+                    chosen = next(
+                        (c for c in session.candidate_choices
+                         if c.candidate_id == cg_id),
+                        None,
+                    )
+                    announce_class2_selection(
+                        self._tts, "user_mqtt_button",
+                        chosen.prompt if chosen else cg_id,
+                    )
+                    self._telemetry.publish_class2_update(
+                        audit_correlation_id, terminal_result,
+                    )
+                    self._execute_class2_transition(
+                        terminal_result, audit_correlation_id, trigger_id,
+                    )
+                    return  # Emergency handled — no caregiver phase needed.
+                # kind == 'submit'
+                _, opt_idx, response = decision
+                terminal_or_session = self._class2.submit_scan_response(
+                    session=session,
+                    option_index=opt_idx,
+                    response=response,
+                    input_source="user_mqtt_button",
+                    trigger_id=trigger_id,
+                )
+
+            from class2_clarification_manager.models import Class2Result
+            if isinstance(terminal_or_session, Class2Result):
+                terminal_result = terminal_or_session
+                # User-side resolved (yes terminal, or final no/silence).
+                # If yes: action_hint set → real CLASS_1; user-side win.
+                # If no/silence on final: escalation candidate → caregiver phase.
+                accepted_via_user = bool(terminal_result.action_hint)
+                break
+            # Otherwise: session advanced (no/silence on non-final). Loop continues.
+
+        # Should always have a terminal_result by here (final no/silence
+        # always returns one). Defensive fallback to handle_timeout.
+        if terminal_result is None:
+            terminal_result = self._class2.handle_timeout(
+                session=session, trigger_id=trigger_id,
+            )
+
+        if accepted_via_user:
+            # User picked a CLASS_1/CLASS_0 action — done.
+            with self._user_class2_lock:
+                self._pending_user_class2.pop(cid, None)
+            chosen = next(
+                (c for c in session.candidate_choices
+                 if c.action_hint == terminal_result.action_hint
+                 and c.target_hint == terminal_result.target_hint),
+                None,
+            )
+            announce_class2_selection(
+                self._tts, "user_mqtt_button",
+                chosen.prompt if chosen else "",
+            )
+            self._telemetry.publish_class2_update(
+                audit_correlation_id, terminal_result,
+            )
+            self._execute_class2_transition(
+                terminal_result, audit_correlation_id, trigger_id,
+            )
+            return
+
+        # User exhausted options without picking a low-risk action → caregiver
+        # Phase 2 (so the caregiver can still override and approve CLASS_1).
+        log.info(
+            "CLASS_2 scanning: user exhausted all %d options — "
+            "escalating to caregiver (clarification_id=%s)", n, cid,
+        )
+        self._run_caregiver_phase(
+            session, trigger_id, audit_correlation_id, entry, caregiver_event,
+        )
+
+    # ------------------------------------------------------------------
     # User button-press → CLASS_2 selection interceptor
     # ------------------------------------------------------------------
     def _try_handle_as_user_selection(self, raw: dict) -> bool:
@@ -706,6 +922,45 @@ class Pipeline:
             return True  # Consume without processing
 
         session = entry["session"]
+
+        # ---- Scanning mode (doc 12 Phase 4) ----
+        # The interpretation table lives in scan_input_adapter; this branch
+        # only translates its decision into the entry/event protocol the
+        # scanning Phase 1 loop is waiting on. Phase 2 (caregiver) is shared
+        # with direct_select and uses the existing 'selection' / event wiring.
+        if entry.get("input_mode") == "scanning" and entry.get("phase", 1) == 1:
+            decision = interpret_button_event_for_scan(event_code, session)
+            if decision.kind == DECISION_IGNORE:
+                log.info(
+                    "CLASS_2 scanning: input ignored (%s) — clarification_id=%s",
+                    decision.reason, clarification_id,
+                )
+                return True  # Consume; do not fall through to normal pipeline
+            with self._user_class2_lock:
+                live_entry = self._pending_user_class2.get(clarification_id)
+                if live_entry is None:
+                    return False
+                if decision.kind == DECISION_SUBMIT:
+                    live_entry["scan_decision"] = (
+                        "submit", decision.option_index, decision.response,
+                    )
+                elif decision.kind == DECISION_EMERGENCY:
+                    live_entry["scan_decision"] = (
+                        "emergency", decision.emergency_candidate_id,
+                    )
+                live_entry["event"].set()  # wake the per-option scanning wait
+            log.info(
+                "CLASS_2 scanning input intercepted: event_code=%s decision=%s "
+                "(clarification_id=%s)",
+                event_code, decision.kind, clarification_id,
+            )
+            return True
+
+        # ---- Direct-select mode (legacy, unchanged) ----
+        # Mapping rules (simple, deterministic):
+        #   single_click → first candidate in the session's choice list
+        #   triple_hit   → first CLASS_0-targeted candidate (emergency)
+        #   other codes  → blocked (do not run normal pipeline)
         selected_id: Optional[str] = None
 
         if event_code == "single_click" and session.candidate_choices:
