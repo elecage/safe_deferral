@@ -32,10 +32,13 @@ common/payloads/
 │   ├── policy_router_input_non_visitor.json
 │   ├── policy_router_input_visitor_doorbell.json
 │   ├── policy_router_input_emergency_temperature.json
+│   ├── policy_router_input_paper_eval_all_modes.json
 │   ├── candidate_action_light_on.json
 │   ├── validator_output_execute_approved_light.json
 │   ├── class_2_notification_doorlock_sensitive.json
 │   ├── clarification_interaction_two_options_pending.json
+│   ├── clarification_interaction_scanning_yes_first.json
+│   ├── clarification_interaction_multi_turn_refinement.json
 │   ├── safe_deferral_request_two_options.json
 │   ├── manual_confirmation_doorlock_approved.json
 │   ├── actuation_command_light_on.json
@@ -80,10 +83,13 @@ Additional templates may be added later for result export, audit events, governa
 | `policy_router_input_non_visitor.json` | `policy_router_input_schema.json` + `context_schema.json` | Non-visitor baseline; `doorbell_detected=false` |
 | `policy_router_input_visitor_doorbell.json` | `policy_router_input_schema.json` + `context_schema.json` | Strict visitor-response context example; doorlock/manual approval/ACK state belongs in fixture annotations, dashboard observation, manual confirmation payloads, or audit artifacts, not in this schema-governed example |
 | `policy_router_input_emergency_temperature.json` | `policy_router_input_schema.json` + `context_schema.json` | E001-style temperature threshold case |
+| `policy_router_input_paper_eval_all_modes.json` | `policy_router_input_schema.json` + `context_schema.json` | Paper-eval matrix variant exercising all four comparison dimensions (D1×D2×D3×D4) in one input shape; reference example only |
 | `candidate_action_light_on.json` | `candidate_action_schema.json` | LLM candidate only, not authority |
 | `validator_output_execute_approved_light.json` | `validator_output_schema.json` | Approved low-risk light action only |
 | `class_2_notification_doorlock_sensitive.json` | `class2_notification_payload_schema.json` | Class 2 notification/manual confirmation review path, not actuation authority |
 | `clarification_interaction_two_options_pending.json` | `clarification_interaction_schema.json` | Class 2 clarification interaction evidence for `safe_deferral/clarification/interaction`, not authorization |
+| `clarification_interaction_scanning_yes_first.json` | `clarification_interaction_schema.json` | Scanning-mode interaction evidence with `scan_history` and `input_mode=scanning` (doc 12); user accepts the first announced option |
+| `clarification_interaction_multi_turn_refinement.json` | `clarification_interaction_schema.json` | Multi-turn refinement interaction evidence with `refinement_history` (doc 11 Phase 6.0); parent + per-room refinement turn |
 
 ---
 
