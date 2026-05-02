@@ -116,7 +116,42 @@ propose changes. They must not:
 
 Governance reports are evidence artifacts, not authorization mechanisms.
 
-## 10. Source Notes
+## 10. Class 2 Modes Preserve Boundaries
+
+The Class 2 layer ships several opt-in interaction modes (docs 11, 12) and
+four orthogonal paper-eval comparison dimensions (doc 12 §4.7 in
+`04_class2_clarification.md`). All of these are presentation / generation /
+ordering choices — none introduce a new authority surface. The invariant
+each mode honours:
+
+- **Same candidate set, same Validator gating.** Whether candidates come
+  from `_DEFAULT_CANDIDATES`, the LLM, or a refinement template, they pass
+  through `Class2ClarificationManager` and a confirmed Class 1 selection
+  re-enters the Deterministic Validator. No mode bypasses validator gating.
+- **Same low-risk catalog.** No mode (including refinement and
+  deterministic ordering) can produce an `(action_hint, target_hint)`
+  outside `low_risk_actions.json`. The catalog grows only via human
+  governance (§4 LLM Boundary above). Refinement templates and ordering
+  rules never inject candidates; ordering is pure permutation.
+- **Silence ≠ consent.** Direct-select per-phase timeout, scanning
+  per-option silence on the final option, and refinement-turn timeout all
+  escalate to caregiver — none of them treat silence as approval.
+- **Authority surface unchanged.** Scanning, multi-turn refinement, and
+  deterministic ordering each add audit fields (`input_mode`,
+  `scan_history`, `refinement_history`, `scan_ordering_applied`) but do
+  not unlock new actuators, new transition targets, or new validator
+  outcomes. Doorlock remains outside autonomous Class 1 across every mode.
+- **Telegram caregiver path unchanged.** Caregiver Phase 2 is shared by
+  all interaction modes via the `_run_caregiver_phase` helper — caregiver
+  still sees the same inline-keyboard candidate set and can still override.
+
+The four routing-metadata comparison fields (`experiment_mode`,
+`class2_candidate_source_mode`, `class2_scan_ordering_mode`,
+`class2_input_mode`) are honored only by the corresponding manager
+branches. They never enter the LLM prompt and never affect Class 0
+emergency triggers, Class 1 routing, or validator authority.
+
+## 11. Source Notes
 
 This active summary consolidates the stable material from:
 

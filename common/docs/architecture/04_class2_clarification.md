@@ -106,7 +106,7 @@ to include an emergency option, never *what* it says.
 ### 4.3 Provenance audit (`candidate_source`)
 
 The `clarification_interaction_schema.json` includes an optional
-`candidate_source` enum field with two values:
+`candidate_source` enum field with three values:
 
 - `llm_generated` — the candidate set was produced by
   `LocalLlmAdapter.generate_class2_candidates()` and accepted under all
@@ -115,12 +115,115 @@ The `clarification_interaction_schema.json` includes an optional
   either because no LLM generator was registered, or no
   `pure_context_payload` was supplied (timeout-driven escalations like
   C205 do not carry one), or the LLM output was rejected.
+- `static_only_forced` — the trial runner explicitly disabled the LLM via
+  `routing_metadata.class2_candidate_source_mode='static_only'` (Package A
+  LLM-vs-static comparison; doc 10 §3.3 P2.3, PR #101). Distinct from
+  `default_fallback` so audit can tell *forced static* apart from *LLM
+  tried and failed*.
 
 Audit reviewers can use this field to distinguish LLM-driven sessions from
-fallback ones when reading clarification records. The two paths are
-behaviourally equivalent for the user (both produce bounded candidates the
-manager can present); the distinction matters only for evaluation and for
-debugging LLM regressions.
+fallback / forced ones when reading clarification records. The three paths
+are behaviourally equivalent for the user (all produce bounded candidates
+the manager can present); the distinction matters only for evaluation and
+for debugging LLM regressions.
+
+### 4.4 Interaction Model (direct_select / scanning)
+
+`policy_table.global_constraints.class2_input_mode` selects how the
+manager presents the candidate set to the user (doc 12). Two modes coexist;
+production default is `direct_select` so existing deployments are unaffected.
+
+- **`direct_select`** (default) — `tts/speaker.announce_class2()` reads ALL
+  candidates in one utterance (`"1번 X, 2번 Y, …"`), and the user picks one
+  by index. The TTS preamble adapts to the candidate set (PR #105): a set
+  with any CLASS_1 option uses a neutral preamble (`"어떻게 도와드릴까요?"`)
+  because the user can resolve themselves; an all-caregiver-bound set
+  (e.g., C208 doorlock-sensitive, C207 deferral-timeout) keeps the
+  caregiver-honest preamble (`"보호자 확인이 필요합니다."`).
+- **`scanning`** (opt-in) — AAC scanning input pattern: each candidate is
+  spoken as a separate `{n}/{N}. {prompt}` utterance and the user answers
+  yes/no per turn. `single_click` = yes to current option, `double_click`
+  = explicit no, silence (per-option timeout) = auto-advance, `triple_hit`
+  = emergency shortcut (CLASS_0 candidate). After all options are
+  rejected, the session falls through to the same caregiver Phase 2 as
+  `direct_select` (caregiver may still override). silence ≠ consent
+  invariant is preserved end-to-end.
+
+Both modes share the same candidate set, the same Deterministic Validator,
+and the same dispatch path. Scanning is presentation-only — no new
+authority surface, no new actuator surface.
+
+### 4.5 Multi-turn Refinement (opt-in)
+
+`policy_table.global_constraints.class2_multi_turn_enabled` (default
+`false`) unlocks a bounded one-turn refinement after the user's initial
+selection (doc 11 Phase 6.0).
+
+- When the user picks a candidate listed in
+  `class2_clarification_manager.refinement_templates._REFINEMENT_TEMPLATES`,
+  the manager returns a NEW `ClarificationSession` with the refinement's
+  candidate set instead of producing a terminal `Class2Result`. Today the
+  only template is `C1_LIGHTING_ASSISTANCE → 거실 / 침실` (state-aware:
+  light off → "켜드릴까요?" + `light_on`; light on → "꺼드릴까요?" + `light_off`).
+- The refinement turn has its own per-turn timeout
+  (`class2_refinement_turn_timeout_ms`, default 30000). Refinement timeout
+  → terminal escalation; the audit record carries the parent → child
+  transition in `refinement_history`.
+- Refinement is bounded to **one** turn (max). A refinement session never
+  refines further, even if the picked refinement candidate happens to
+  match another template.
+
+Multi-turn coexists with scanning: when both flags are on, the refinement
+turn opens a new scanning session over the refinement template's candidates.
+
+### 4.6 Deterministic Scanning Ordering (opt-in)
+
+`policy_table.global_constraints.class2_scan_ordering_mode` (default
+`source_order`) controls scanning candidate order (doc 12 §14).
+
+- **`source_order`** (default) — keep candidates in the order the source
+  layer (static defaults or LLM) produced.
+- **`deterministic`** — apply `class2_scan_ordering_rules` (also in
+  `global_constraints`) to permute candidates BEFORE scanning announces
+  option 0. Pure permutation: ranking never adds, removes, or modifies
+  candidates; only their order changes.
+
+The rules have two parts:
+
+- `by_trigger_id` — maps `trigger_id` to a priority list of
+  `candidate_transition_target` values. Stable-sort places candidates by
+  priority position; ties preserve source order; targets not in the list
+  go to the end preserving source order. `_default` is the fallback bucket.
+- `context_overrides` — ordered list of `{if_field, if_equals, boost_first}`
+  entries. Each matching entry moves `boost_first` to the front of the
+  priority list (later overrides win the front). Examples shipped:
+  `smoke_detected=true → CLASS_0`, `gas_detected=true → CLASS_0`,
+  `doorbell_detected=true → CAREGIVER_CONFIRMATION`.
+
+Audit: when ranking ran, the clarification record carries
+`scan_ordering_applied = {rule_source, matched_bucket, applied_overrides,
+final_order}` so reviewers can reconstruct why a particular order was
+announced.
+
+### 4.7 Paper-Eval Comparison Composition (4 orthogonal dimensions)
+
+Package A's `comparison_conditions` lists nine values across four
+orthogonal comparison spaces. The runner inspects the prefix and routes
+the value to the matching `routing_metadata.*` field (most-specific first):
+
+| Dimension | comparison_condition | routes to | Plan ref |
+|---|---|---|---|
+| Class 1 intent recovery | `direct_mapping` / `rule_only` / `llm_assisted` | `experiment_mode` | PR #79 |
+| Class 2 candidate generation | `class2_static_only` / `class2_llm_assisted` | `class2_candidate_source_mode` | doc 10 §3.3 P2.3 |
+| Class 2 scanning ordering | `class2_scan_source_order` / `class2_scan_deterministic` | `class2_scan_ordering_mode` | doc 12 §14 |
+| Class 2 interaction model | `class2_direct_select_input` / `class2_scanning_input` | `class2_input_mode` | doc 12 §9 Phase 5 |
+
+The four dimensions compose: a paper-eval trial may set any combination
+to isolate one factor while holding the others fixed (e.g., LLM generation
++ deterministic ordering + scanning input). All four `routing_metadata`
+fields are honored only by Class2ClarificationManager (and the validator
+re-entry path for Class 1) — they never enter the LLM prompt and never
+affect Class 0 emergency routing or validator authority.
 
 ## 5. Clarification Interaction Payload
 
@@ -147,7 +250,16 @@ This payload may record:
 - selected choice,
 - timeout/no-response result,
 - transition target,
-- final safe outcome.
+- final safe outcome,
+- `candidate_source` (§4.3 — provenance of the candidate set),
+- `input_mode` (§4.4 — `direct_select` or `scanning`; absence treated as `direct_select` for legacy records),
+- `scan_history` (§4.4 — per-option turn log when scanning ran; absent / empty for direct_select),
+- `scan_ordering_applied` (§4.6 — ordering rule attribution when deterministic ranking ran; absent under source_order),
+- `refinement_history` (§4.5 — parent → child transition entry when multi-turn refinement ran; absent for single-turn sessions).
+
+All five interaction-mode / refinement / ordering fields are optional and
+backward-compatible. Legacy single-turn direct_select records validate
+unchanged.
 
 ## 6. Transition To Class 1
 
