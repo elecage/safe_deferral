@@ -1047,3 +1047,289 @@ class TestRefinementTemplates:
         )
         for parent_id, tpl in _REFINEMENT_TEMPLATES.items():
             assert len(tpl.refinement_question) <= cap, (parent_id, tpl)
+
+
+# ==================================================================
+# Phase 1 — Class 2 scanning input mode (doc 12)
+# ==================================================================
+
+class _StubLoaderForScanning:
+    """AssetLoader stub that overrides only class2_input_mode default.
+    Other policy fields fall back to shipped values so manager keeps
+    its real timeouts, max_attempts, etc."""
+
+    def __init__(self, default_mode: str = "direct_select",
+                 per_option_timeout_ms: int = 8000):
+        from shared.asset_loader import AssetLoader
+        self._real = AssetLoader()
+        self._mode = default_mode
+        self._per_opt_ms = per_option_timeout_ms
+
+    def load_policy_table(self):
+        policy = self._real.load_policy_table()
+        policy["global_constraints"]["class2_input_mode"] = self._mode
+        policy["global_constraints"]["class2_scan_per_option_timeout_ms"] = self._per_opt_ms
+        return policy
+
+    def load_schema(self, name):
+        return self._real.load_schema(name)
+
+    def make_schema_resolver(self):
+        return self._real.make_schema_resolver()
+
+
+class TestScanningSessionInit:
+    """start_session must initialise scanning state when input_mode='scanning'
+    and leave it unset for direct_select sessions (production default)."""
+
+    def test_default_session_is_direct_select(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-scan-1")
+        assert getattr(session, "input_mode") == "direct_select"
+        assert not hasattr(session, "current_option_index")
+        assert not hasattr(session, "scan_history")
+
+    def test_explicit_scanning_initialises_pointer_and_history(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session(
+            "C206", "audit-scan-2", input_mode="scanning",
+        )
+        assert getattr(session, "input_mode") == "scanning"
+        assert getattr(session, "current_option_index") == 0
+        assert getattr(session, "scan_history") == []
+        # Per-option timeout exposed for the scanning caller to drive.
+        assert getattr(session, "scan_per_option_timeout_ms") == 8000
+
+    def test_policy_default_scanning_enables_implicitly(self):
+        """When the deployment sets class2_input_mode='scanning' in policy,
+        every session defaults to scanning without an explicit argument."""
+        mgr = Class2ClarificationManager(asset_loader=_StubLoaderForScanning("scanning"))
+        session = mgr.start_session("C206", "audit-scan-3")
+        assert getattr(session, "input_mode") == "scanning"
+        assert getattr(session, "current_option_index") == 0
+
+    def test_explicit_arg_overrides_policy_default(self):
+        """Trial runner / scenario fixture can force a per-trial mode
+        regardless of the deployment's policy default."""
+        mgr = Class2ClarificationManager(asset_loader=_StubLoaderForScanning("scanning"))
+        session = mgr.start_session(
+            "C206", "audit-scan-4", input_mode="direct_select",
+        )
+        assert getattr(session, "input_mode") == "direct_select"
+        assert not hasattr(session, "current_option_index")
+
+
+class TestScanningResponseFlow:
+    """submit_scan_response must accept yes (terminal), advance on no/silence,
+    and escalate on final-option no/silence (silence ≠ consent invariant)."""
+
+    def _scanning_session(self, mgr=None, audit_id="audit-scan-flow"):
+        mgr = mgr or Class2ClarificationManager()
+        return mgr, mgr.start_session("C206", audit_id, input_mode="scanning")
+
+    def test_yes_on_first_option_terminal_class2_result(self):
+        """response='yes' on the current option produces the terminal
+        Class2Result for that candidate. scan_history records the yes turn."""
+        mgr, session = self._scanning_session()
+        first = session.candidate_choices[0]
+        result = mgr.submit_scan_response(
+            session, option_index=0, response="yes",
+            input_source="user_mqtt_button", elapsed_ms=1234,
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(result, Class2Result)
+        # The terminal action matches the first candidate.
+        assert result.action_hint == first.action_hint
+        # scan_history is in the audit record with one yes entry.
+        history = result.clarification_record.get("scan_history")
+        assert history and len(history) == 1
+        assert history[0]["response"] == "yes"
+        assert history[0]["option_index"] == 0
+        assert history[0]["candidate_id"] == first.candidate_id
+        assert history[0]["elapsed_ms"] == 1234
+        # input_mode attributed.
+        assert result.clarification_record.get("input_mode") == "scanning"
+
+    def test_no_on_non_final_option_advances_session(self):
+        """response='no' on a non-final option returns the same session
+        with current_option_index incremented and a 'no' entry recorded."""
+        mgr, session = self._scanning_session()
+        result = mgr.submit_scan_response(
+            session, option_index=0, response="no",
+            input_source="user_mqtt_button", elapsed_ms=8000,
+        )
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(result, ClarificationSession)
+        assert result is session  # same object, advanced
+        assert getattr(session, "current_option_index") == 1
+        assert getattr(session, "scan_history")[-1]["response"] == "no"
+
+    def test_silence_on_non_final_option_advances(self):
+        """Silence on a non-final option behaves like 'no' (auto-advance)
+        but is recorded distinctly so audit can tell silence from refusal."""
+        mgr, session = self._scanning_session()
+        result = mgr.submit_scan_response(
+            session, option_index=0, response="silence",
+            input_source="timeout", elapsed_ms=8000,
+        )
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(result, ClarificationSession)
+        assert getattr(session, "current_option_index") == 1
+        assert getattr(session, "scan_history")[-1]["response"] == "silence"
+
+    def test_handle_scan_silence_convenience_method(self):
+        mgr, session = self._scanning_session()
+        result = mgr.handle_scan_silence(session, elapsed_ms=8000)
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(result, ClarificationSession)
+        assert getattr(session, "current_option_index") == 1
+        last = getattr(session, "scan_history")[-1]
+        assert last["response"] == "silence"
+        assert last["input_source"] == "timeout"
+
+    def test_no_on_final_option_escalates_to_caregiver(self):
+        """When every option has been rejected, the session escalates to
+        SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION via the existing timeout
+        pipeline. silence ≠ consent invariant preserved."""
+        mgr, session = self._scanning_session()
+        n = len(session.candidate_choices)
+        # Walk through all but the last option as 'no'.
+        for i in range(n - 1):
+            mgr.submit_scan_response(
+                session, option_index=i, response="no",
+                input_source="user_mqtt_button",
+            )
+        # Final 'no' should escalate.
+        result = mgr.submit_scan_response(
+            session, option_index=n - 1, response="no",
+            input_source="user_mqtt_button",
+        )
+        from class2_clarification_manager.models import Class2Result
+        from safe_deferral_handler.models import TransitionTarget
+        assert isinstance(result, Class2Result)
+        assert result.transition_target == TransitionTarget.SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION
+        # All N rejections recorded.
+        history = result.clarification_record["scan_history"]
+        assert len(history) == n
+        assert all(entry["response"] == "no" for entry in history)
+
+    def test_silence_on_final_option_also_escalates(self):
+        """Final-option silence == final-option no — silence never executes."""
+        mgr, session = self._scanning_session()
+        n = len(session.candidate_choices)
+        for i in range(n - 1):
+            mgr.submit_scan_response(
+                session, option_index=i, response="no",
+                input_source="user_mqtt_button",
+            )
+        result = mgr.handle_scan_silence(session)
+        from class2_clarification_manager.models import Class2Result
+        from safe_deferral_handler.models import TransitionTarget
+        assert isinstance(result, Class2Result)
+        assert result.transition_target == TransitionTarget.SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION
+        assert result.clarification_record["scan_history"][-1]["response"] == "silence"
+
+    def test_stale_input_dropped_session_unchanged(self):
+        """Input addressed to a previous option (race) is recorded as
+        'dropped' but does not advance current_option_index."""
+        mgr, session = self._scanning_session()
+        # Advance to option 1 first.
+        mgr.submit_scan_response(
+            session, option_index=0, response="no",
+            input_source="user_mqtt_button",
+        )
+        assert getattr(session, "current_option_index") == 1
+        # Stale 'yes' for option 0 — must NOT accept.
+        result = mgr.submit_scan_response(
+            session, option_index=0, response="yes",
+            input_source="user_mqtt_button",
+        )
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(result, ClarificationSession)
+        assert getattr(session, "current_option_index") == 1
+        # Drop is audit-visible.
+        last = getattr(session, "scan_history")[-1]
+        assert last["response"] == "dropped"
+        assert last["option_index"] == 0
+
+    def test_out_of_range_option_index_recorded_as_dropped(self):
+        """Defensive: an index past the candidate set is also dropped."""
+        mgr, session = self._scanning_session()
+        result = mgr.submit_scan_response(
+            session, option_index=99, response="yes",
+            input_source="user_mqtt_button",
+        )
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(result, ClarificationSession)
+        last = getattr(session, "scan_history")[-1]
+        assert last["response"] == "dropped"
+        assert last["candidate_id"] == "<out_of_range>"
+        assert getattr(session, "current_option_index") == 0
+
+
+class TestScanningGuardsAndSchema:
+    """Defensive guards + schema compliance for scanning records."""
+
+    def test_submit_scan_on_direct_select_session_raises(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-guard-1")  # direct_select
+        with pytest.raises(ValueError, match="non-scanning session"):
+            mgr.submit_scan_response(
+                session, option_index=0, response="yes",
+                input_source="user_mqtt_button",
+            )
+
+    def test_handle_scan_silence_on_direct_select_raises(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-guard-2")
+        with pytest.raises(ValueError, match="non-scanning session"):
+            mgr.handle_scan_silence(session)
+
+    def test_invalid_scan_response_value_raises(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-guard-3", input_mode="scanning")
+        with pytest.raises(ValueError, match="invalid scan response"):
+            mgr.submit_scan_response(
+                session, option_index=0, response="maybe",
+                input_source="user_mqtt_button",
+            )
+
+    def test_scanning_record_validates_against_schema(self):
+        """Records with input_mode='scanning' + scan_history must validate."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("clarification_interaction_schema.json")
+        resolver = loader.make_schema_resolver()
+
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-schema-1", input_mode="scanning")
+        # Reject first, accept second.
+        mgr.submit_scan_response(
+            session, option_index=0, response="no",
+            input_source="user_mqtt_button", elapsed_ms=8000,
+        )
+        result = mgr.submit_scan_response(
+            session, option_index=1, response="yes",
+            input_source="user_mqtt_button", elapsed_ms=2000,
+        )
+        validator = jsonschema.Draft7Validator(schema, resolver=resolver)
+        errors = list(validator.iter_errors(result.clarification_record))
+        assert not errors, "; ".join(e.message for e in errors)
+        # And the record carries both audit fields.
+        assert result.clarification_record["input_mode"] == "scanning"
+        assert len(result.clarification_record["scan_history"]) == 2
+
+    def test_direct_select_records_carry_input_mode_attribution(self):
+        """Direct-select sessions carry input_mode='direct_select' for audit
+        attribution but no scan_history."""
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-schema-2")
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_transition_target == "CLASS_1")
+        result = mgr.submit_selection(
+            session, c1.candidate_id, "user_mqtt_button", trigger_id="C206",
+        )
+        rec = result.clarification_record
+        assert rec.get("input_mode") == "direct_select"
+        assert "scan_history" not in rec

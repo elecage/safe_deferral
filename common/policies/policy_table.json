@@ -23,6 +23,10 @@
     "_class2_multi_turn_description": "Opt-in feature flag for the Class 2 multi-turn refinement path (doc 11 Phase 6.0). When false (default), submit_selection produces a terminal Class2Result exactly as before. When true, submit_selection_or_refine may instead return a refinement ClarificationSession for at most one additional user turn, time-bounded by class2_refinement_turn_timeout_ms. Production single-turn flow is the default; multi-turn must be enabled deliberately during evaluation runs.",
     "class2_multi_turn_enabled": false,
     "class2_refinement_turn_timeout_ms": 30000,
+    "_class2_input_mode_description": "Class 2 interaction model (doc 12). 'direct_select' (default, production behaviour): announce all candidates in one TTS utterance, accept a selected_candidate_id. 'scanning' (AAC scanning input pattern): announce one option at a time, accept {option_index, response} per turn — designed for users with severe motor / cognitive limitations where multi-press menu selection is impractical. Production single-turn direct_select flow is the default; scanning must be enabled deliberately per deployment or evaluation run.",
+    "class2_input_mode": "direct_select",
+    "class2_scan_per_option_timeout_ms": 8000,
+    "class2_scan_user_phase_extension": 1.5,
     "class2_conversational_prompt_constraints": {
       "_description": "Bounded-variability constraints applied to LLM-generated Class 2 clarification candidate prompts (09_llm_driven_class2_candidate_generation_plan.md §5). Operations may tighten these without code changes; LocalLlmAdapter loads them at startup and rejects LLM output that violates any constraint, falling back to the static _DEFAULT_CANDIDATES table on rejection. The accessibility intent is to keep TTS prompts predictable for users with cognitive / attention limits.",
       "max_prompt_length_chars": 80,

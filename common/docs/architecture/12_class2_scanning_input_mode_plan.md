@@ -267,10 +267,125 @@ Phase 1 lands fully tested and audit-correct without any production behaviour ch
 3. **Per-user mode override** — operations may want different modes per user. Add a per-user registry layered above the global policy field. Out of scope here; the API leaves room for it via the optional `input_mode=` parameter.
 4. **Caregiver-side scanning** — caregiver Telegram remains direct-select (inline keyboard). Scanning is user-side only. Confirm this stays the case after Phase 4 lands.
 
-## 13. Source notes
+## 14. Phase 1.5 — Deterministic ranking heuristics (design, implementation deferred)
+
+### 14.1 Why this exists
+
+Phase 1 (the manager state machine in §6) treats candidate ORDER as inherited from whatever produced the candidates:
+
+- `class2_static_only` mode → order is whatever `_DEFAULT_CANDIDATES[reason]` lists.
+- `class2_llm_assisted` mode → order is whatever the LLM returned.
+
+For direct-select that is acceptable (the user sees all options at once). For scanning the order IS the priority — the first option asked is the one the system thinks the user most likely wants. Wrong-first doesn't just waste a few seconds; for a motor-impaired user it costs another full per-option cycle and another binary input.
+
+Phase 1.5 adds a **second, deterministic ranking step** that runs AFTER candidate generation and BEFORE scanning announces option 0. It is intentionally separate from generation so that:
+
+1. **Auditability** — ranking rules are policy text, not LLM judgment. A reviewer can tell why option X was first by reading `policy_table.json`, not by re-running the LLM.
+2. **Comparison capability** — paper evaluation can run two regimes side by side: (a) LLM picks both candidates AND order, (b) LLM picks candidates but deterministic rules pick order. This isolates the LLM's *generation* contribution from its *prioritization* contribution.
+3. **Consistency across modes** — the same rules apply regardless of generation source, so a `class2_static_only` trial and a `class2_llm_assisted` trial that produce the same candidate set scan in the same order. Without this, mode comparison conflates generation-quality and ordering-quality.
+
+### 14.2 Where ranking sits
+
+```
+candidate generation (Phase 1, source = static | LLM)
+        ↓ candidate set, in source-natural order
+ranking step (Phase 1.5, optional)
+        ↓ candidate set, in policy-determined order
+scanning state machine (Phase 1, announces option 0 first)
+```
+
+Ranking is a pure function `(candidates, pure_context_payload, trigger_id) → reordered candidates`. It does not generate or remove candidates; it only permutes.
+
+### 14.3 Rule shape
+
+A new policy field `class2_scan_ordering_rules` carries a list of ordered rules. The first rule that matches sets the priority bucket; later rules can fine-tune within a bucket. Sketch:
+
+```jsonc
+"class2_scan_ordering_rules": {
+  "_description": "Deterministic per-trigger / per-context priority for scanning option order. Applied AFTER candidate generation. Rules are evaluated in order; the first matching rule sets the transition_target priority list. Plan: 12_class2_scanning_input_mode_plan.md §14.",
+  "by_trigger_id": {
+    "C208": ["CAREGIVER_CONFIRMATION", "CLASS_0", "SAFE_DEFERRAL"],
+    "C204": ["SAFE_DEFERRAL", "CAREGIVER_CONFIRMATION", "CLASS_0"],
+    "C206": ["CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"],
+    "C207": ["CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"],
+    "_default": ["CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"]
+  },
+  "context_overrides": [
+    {
+      "if": {"environmental_context.smoke_detected": true},
+      "boost_first": "CLASS_0",
+      "rationale": "Sensor signal of physical risk overrides the trigger-based default — emergency comes first."
+    },
+    {
+      "if": {"environmental_context.gas_detected": true},
+      "boost_first": "CLASS_0",
+      "rationale": "Same as smoke."
+    },
+    {
+      "if": {"environmental_context.doorbell_detected": true},
+      "boost_first": "CAREGIVER_CONFIRMATION",
+      "rationale": "Doorbell context is doorlock-sensitive; caregiver confirmation comes first regardless of trigger."
+    }
+  ]
+}
+```
+
+### 14.4 Rule semantics
+
+1. **Bucket selection by trigger_id**: `by_trigger_id[trigger_id]` (or `_default`) gives a `transition_target` priority list. Candidates are stable-sorted so that those whose `candidate_transition_target` appears earlier in the list come first; ties (same target) preserve source order.
+2. **Context override**: each `context_overrides` entry is checked in order. If its `if` condition matches `pure_context_payload`, the named target is moved to the front of the priority list (preserving the rest). Multiple overrides may stack (later overrides win the front spot).
+3. **Unmatched targets**: candidates with a `candidate_transition_target` not in the priority list go to the END (preserves source order among themselves). This means new transition_target values added later don't break ordering — they just default to last.
+4. **No mutation of candidate identity**: ranking only permutes. action_hint, target_hint, prompt are untouched.
+
+### 14.5 Audit record extension
+
+When ranking is applied, the audit `scan_history` (§5.3) is unchanged in shape, but the manager records the ranking applied as a top-level field on the clarification record:
+
+```jsonc
+"scan_ordering_applied": {
+  "rule_source": "policy_table.global_constraints.class2_scan_ordering_rules",
+  "matched_bucket": "C208",
+  "applied_overrides": ["doorbell_detected→CAREGIVER_CONFIRMATION"],
+  "final_order": ["C2_CAREGIVER_HELP", "C3_EMERGENCY_HELP", "C4_CANCEL_OR_WAIT"]
+}
+```
+
+Single-mode legacy / Phase 1 records (no ranking step) omit this field.
+
+### 14.6 Feature flag and comparison
+
+A new policy flag `class2_scan_ordering_mode`:
+
+- `"source_order"` (Phase 1 default) — no ranking, candidates in source order
+- `"deterministic"` (Phase 1.5) — apply `class2_scan_ordering_rules`
+
+For the paper's LLM-vs-deterministic ordering comparison, the `comparison_condition` namespace gains two values (mirrors PR #101's `class2_static_only` / `class2_llm_assisted` pattern):
+
+- `class2_scan_source_order` — pass through to `class2_scan_ordering_mode = "source_order"`
+- `class2_scan_deterministic` — pass through to `class2_scan_ordering_mode = "deterministic"`
+
+The runner (rpi/code/experiment_package/runner.py) routes these to `routing_metadata.class2_scan_ordering_mode` (new field, optional, schema-validated). The two condition namespaces (candidate source, ordering mode) compose: a trial may simultaneously specify `class2_static_only` AND `class2_scan_deterministic`, isolating the deterministic-ranking contribution under static-source candidates.
+
+### 14.7 What Phase 1.5 implementation will need
+
+- Schema field: `routing_metadata.class2_scan_ordering_mode` (`source_order` | `deterministic`)
+- Policy field: `class2_scan_ordering_mode` (default), `class2_scan_ordering_rules`
+- Manager method: `_apply_scan_ordering(candidates, pure_context_payload, trigger_id) -> reordered candidates`, called by `start_session` when `input_mode == "scanning"` and ordering mode is deterministic
+- Audit field: `scan_ordering_applied` in clarification record when ranking ran
+- Runner: prefix-based routing for the two new comparison_condition values
+- Tests: rule precedence, context-override stacking, unmatched-target tail behaviour, audit record shape, comparison_condition prefix routing
+
+This whole list is intentionally NOT in Phase 1. Phase 1 ships scanning with source-order ranking only, lets us measure how often the source order matches the user's pick, and then Phase 1.5 lands the rules informed by that measurement.
+
+### 14.8 Open question
+
+Should context overrides be allowed to add a target NOT in the original candidate set? E.g., ambient smoke detected during a `class2_caregiver_confirmation` trial — should ranking inject a CLASS_0 candidate even though generation didn't produce one? Recommendation: **no**. Ranking only permutes; injection would blur the boundary with generation. If we want context-driven injection, it belongs in candidate generation (or a new "candidate augmentation" stage), not in ranking.
+
+## 15. Source notes
 
 - AAC scanning literature: Beukelman & Mirenda, *Augmentative and Alternative Communication* (5th ed.), §5 "Selection Techniques".
 - Existing direct-select interaction: `mac_mini/code/class2_clarification_manager/manager.py::submit_selection`, `mac_mini/code/tts/speaker.py::announce_class2`.
 - Multi-turn precedent: `common/docs/architecture/11_class2_multi_turn_refinement_plan.md`.
+- LLM-vs-static comparison precedent (mirrored by §14.6 ordering comparison): `common/docs/architecture/10_llm_class2_integration_alignment_plan.md` §3.3 P2.3, delivered in PR #101.
 - Trial timeout decomposition: PR #94, doc 10 §3.3 P2.2.
 - Input contract: existing `bounded_input_node` payload in `mac_mini/code/main.py`.
