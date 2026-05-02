@@ -1,0 +1,34 @@
+{
+  "_example_purpose": "Package A paper-eval trial illustrating all four orthogonal experiment-mode comparison fields set simultaneously. Plan refs: PR #79, doc 10 §3.3 P2.3 / PR #101, doc 12 §14 / PR #110, doc 12 §9 Phase 5 / PR #111. Production payloads leave these four fields unset; only experiment runners populate them. Paper-eval can vary one dimension while holding the others fixed by toggling individual fields across runs.",
+  "source_node_id": "rpi.simulation_runtime_controlled_mode",
+  "routing_metadata": {
+    "audit_correlation_id": "example-paper-eval-all-modes-001",
+    "ingest_timestamp_ms": 1710000000000,
+    "network_status": "online",
+    "experiment_mode": "llm_assisted",
+    "class2_candidate_source_mode": "llm_assisted",
+    "class2_scan_ordering_mode": "deterministic",
+    "class2_input_mode": "scanning"
+  },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "button",
+      "event_code": "single_click",
+      "timestamp_ms": 1710000000000
+    },
+    "environmental_context": {
+      "temperature": 23.5,
+      "illuminance": 120.0,
+      "occupancy_detected": true,
+      "smoke_detected": false,
+      "gas_detected": false,
+      "doorbell_detected": false
+    },
+    "device_states": {
+      "living_room_light": "off",
+      "bedroom_light": "off",
+      "living_room_blind": "closed",
+      "tv_main": "off"
+    }
+  }
+}

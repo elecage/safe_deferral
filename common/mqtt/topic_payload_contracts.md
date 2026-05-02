@@ -46,6 +46,7 @@ Example:
 
 - `common/payloads/examples/policy_router_input_non_visitor.json`
 - `common/payloads/examples/policy_router_input_visitor_doorbell.json`
+- `common/payloads/examples/policy_router_input_paper_eval_all_modes.json` — Package A trial with all four optional `routing_metadata` experiment-mode fields set (illustrates the four orthogonal paper-eval comparison spaces).
 
 Rules:
 
@@ -56,6 +57,14 @@ Rules:
 - `pure_context_payload.environmental_context.doorbell_detected` is required.
 - `routing_metadata` must not be mixed into LLM prompt context.
 - RPi may publish only in controlled simulation/experiment mode.
+- `routing_metadata` carries four optional experiment-mode fields (defaults apply when unset; production deployments leave them unset). These are honored only by the Class 1 intent-recovery branch (the first) and Class 2 Clarification Manager (the other three). They never enter the LLM prompt and never affect Class 0 emergency routing or validator authority. Plan refs: PR #79 (intent recovery), doc 10 §3.3 P2.3 + PR #101 (candidate source), doc 12 §14 + PR #110 (ordering), doc 12 §9 Phase 5 + PR #111 (interaction model).
+
+| Field | Enum | Honored by | Affects |
+|---|---|---|---|
+| `experiment_mode` | `direct_mapping` / `rule_only` / `llm_assisted` | Mac mini Class 1 intent recovery (`_handle_class1`) | Which intent-recovery branch picks the candidate |
+| `class2_candidate_source_mode` | `static_only` / `llm_assisted` | `Class2ClarificationManager.start_session` | Whether the LLM is consulted for candidate generation |
+| `class2_scan_ordering_mode` | `source_order` / `deterministic` | `Class2ClarificationManager.start_session` (only when `input_mode='scanning'`) | Whether `class2_scan_ordering_rules` permutes the candidate list |
+| `class2_input_mode` | `direct_select` / `scanning` | `Class2ClarificationManager.start_session` | Whether the manager presents candidates one-at-a-time (AAC scanning) or all-at-once |
 
 ### `safe_deferral/emergency/event`
 
@@ -187,7 +196,9 @@ Schema:
 
 Example:
 
-- `common/payloads/examples/clarification_interaction_two_options_pending.json`
+- `common/payloads/examples/clarification_interaction_two_options_pending.json` — direct-select session, single-turn (legacy/baseline).
+- `common/payloads/examples/clarification_interaction_scanning_yes_first.json` — scanning session that accepted the first option, with `input_mode='scanning'` + `scan_history` + `scan_ordering_applied` (deterministic ranking ran).
+- `common/payloads/examples/clarification_interaction_multi_turn_refinement.json` — multi-turn session: parent C1_LIGHTING_ASSISTANCE picked, refinement turn picked REFINE_BEDROOM, terminal CLASS_1. `refinement_history` populated.
 
 Rules:
 
@@ -199,6 +210,15 @@ Rules:
 - `CLASS_0` transition requires deterministic emergency evidence or explicit emergency confirmation.
 - Doorlock authorization is not allowed through this payload.
 - This payload must not be confused with `class_2_notification_payload`, `validator_output`, `actuation_command_payload`, or `pure_context_payload`.
+- The record carries five optional fields recording HOW the session was conducted. All five are informational and backward-compatible (legacy single-turn direct_select records validate unchanged). None changes validator gating, low-risk catalog, or emergency normalization. Plan refs: doc 09 + PR #101 (candidate_source), doc 12 §4.4–§4.6 in `04_class2_clarification.md` (input_mode / scan_history / scan_ordering_applied), doc 11 Phase 6.0 (refinement_history).
+
+| Field | Type | Purpose |
+|---|---|---|
+| `candidate_source` | enum `llm_generated` / `default_fallback` / `static_only_forced` | Provenance of the candidate set. `static_only_forced` distinguishes "runner explicitly disabled LLM" from "LLM tried and failed". |
+| `input_mode` | enum `direct_select` / `scanning` | Class 2 interaction model. Absence = treated as `direct_select` for legacy records. |
+| `scan_history` | array of `{option_index, candidate_id, response: yes/no/silence/dropped, elapsed_ms, input_source}` | Per-option turn log when scanning ran. Empty / absent for direct_select. |
+| `scan_ordering_applied` | object `{rule_source, matched_bucket, applied_overrides, final_order}` | Recorded only when `class2_scan_ordering_mode='deterministic'` ran. |
+| `refinement_history` | array of `{turn_index, parent_candidate_id, refinement_question, selected_candidate_id, selection_source, selection_timestamp_ms}` | Recorded only when multi-turn refinement (doc 11) ran. Today bounded to one entry (max one refinement turn). |
 
 ---
 
