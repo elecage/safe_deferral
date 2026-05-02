@@ -1,0 +1,142 @@
+{
+  "matrix_version": "v1",
+  "matrix_description": "Paper-eval matrix v1 covering the 4-dimensional comparison framework defined by doc 12 §4.7. 12 cells: 1 baseline + 3 Class 1 intent-recovery (D1) + 8 Class 2 candidate-source × ordering × interaction (D2 × D3 × D4). Plan: 13_paper_eval_matrix_plan.md.",
+  "trials_per_cell_default": 30,
+  "package_id": "A",
+  "_dimensions": {
+    "D1_experiment_mode": ["direct_mapping", "rule_only", "llm_assisted"],
+    "D2_class2_candidate_source_mode": ["static_only", "llm_assisted"],
+    "D3_class2_scan_ordering_mode": ["source_order", "deterministic"],
+    "D4_class2_input_mode": ["direct_select", "scanning"]
+  },
+  "cells": [
+    {
+      "cell_id": "BASELINE",
+      "description": "No experiment-mode overrides — every dimension uses the deployment's policy default. Reference cell for paper figures.",
+      "comparison_condition": null,
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C1_D1_DIRECT_MAPPING",
+      "description": "Class 1 intent recovery via direct mapping (PR #79).",
+      "comparison_condition": "direct_mapping",
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C1_D1_RULE_ONLY",
+      "description": "Class 1 intent recovery via rule-only candidate selector.",
+      "comparison_condition": "rule_only",
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C1_D1_LLM_ASSISTED",
+      "description": "Class 1 intent recovery via LLM-assisted candidate generation.",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C2_D2_STATIC_ONLY",
+      "description": "Class 2 candidate generation via static_only (LLM disabled). Direct-select interaction model. No deterministic ordering (source_order applies but is meaningful only under scanning).",
+      "comparison_condition": "class2_static_only",
+      "scenarios": ["class2_insufficient_context_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "C2_D2_LLM_ASSISTED",
+      "description": "Class 2 candidate generation via LLM-assisted. Direct-select interaction model.",
+      "comparison_condition": "class2_llm_assisted",
+      "scenarios": ["class2_insufficient_context_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "C2_D3_SCAN_SOURCE_ORDER",
+      "description": "Scanning interaction model with source_order ordering — candidates announced in candidate-source-natural order.",
+      "comparison_condition": "class2_scan_source_order",
+      "scenarios": ["class2_scanning_user_accept_first_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "C2_D3_SCAN_DETERMINISTIC",
+      "description": "Scanning interaction model with deterministic ordering — class2_scan_ordering_rules permutes candidates before announcement (PR #110).",
+      "comparison_condition": "class2_scan_deterministic",
+      "scenarios": [
+        "class2_deterministic_ordering_c206_bucket_scenario_skeleton.json",
+        "class2_deterministic_ordering_smoke_override_scenario_skeleton.json"
+      ],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "C2_D4_DIRECT_SELECT_INPUT",
+      "description": "Direct-select interaction model — all candidates announced in one TTS utterance, user picks by index. Production default.",
+      "comparison_condition": "class2_direct_select_input",
+      "scenarios": ["class2_insufficient_context_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "C2_D4_SCANNING_INPUT",
+      "description": "Scanning interaction model — AAC sequential per-option presentation (PR #104+). Source-order ordering (default) — paired cell C2_D3_SCAN_DETERMINISTIC isolates the ordering contribution.",
+      "comparison_condition": "class2_scanning_input",
+      "scenarios": [
+        "class2_scanning_user_accept_first_scenario_skeleton.json",
+        "class2_scanning_all_rejected_caregiver_escalation_scenario_skeleton.json",
+        "class2_scanning_triple_hit_emergency_shortcut_scenario_skeleton.json"
+      ],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "C2_MULTI_TURN_REFINEMENT_USER_PICK",
+      "description": "Multi-turn refinement (doc 11 Phase 6.0; opt-in policy class2_multi_turn_enabled=true) — user picks parent C1_LIGHTING_ASSISTANCE then refines bedroom. Direct-select interaction model.",
+      "comparison_condition": "class2_direct_select_input",
+      "scenarios": ["class2_multi_turn_refinement_user_picks_room_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral",
+      "_policy_overrides": {
+        "class2_multi_turn_enabled": true
+      },
+      "_policy_overrides_note": "This cell requires the policy flag to be flipped on at deployment time. The orchestrator (Phase 1) must verify the policy before starting this cell's trials and skip with a clear log if the flag is off."
+    },
+    {
+      "cell_id": "C2_MULTI_TURN_REFINEMENT_TIMEOUT",
+      "description": "Multi-turn refinement timeout path — user picks parent then no response on refinement turn → caregiver escalation. silence ≠ consent invariant exercised.",
+      "comparison_condition": "class2_direct_select_input",
+      "scenarios": ["class2_multi_turn_refinement_turn_timeout_caregiver_escalation_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral",
+      "_policy_overrides": {
+        "class2_multi_turn_enabled": true
+      }
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start so each digest is reproducible. matrix_file_sha is the git SHA of THIS file at sweep start; scenarios_dir_sha is integration/scenarios/; policy_table_sha is common/policies/policy_table.json.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}
