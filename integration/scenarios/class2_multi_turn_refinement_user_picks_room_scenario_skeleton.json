@@ -135,7 +135,11 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_direct_select_input"
+  ],
   "notes": [
+    "comparison_conditions tags 'class2_direct_select_input' because multi-turn refinement is currently exercised under the default direct_select interaction model. The opt-in IS the policy field class2_multi_turn_enabled (declared in multi_turn_refinement_expectation), not a comparison_condition value.",
     "Multi-turn refinement (doc 11 Phase 6.0) is opt-in via policy_table.global_constraints.class2_multi_turn_enabled. Production deployments default to false (single-turn direct_select preserved); paper-eval flips this on per-trial.",
     "Refinement is bounded to ONE turn (max). A refinement session never refines further — even if the picked refinement candidate matches another template (defensive guard in submit_selection_or_refine).",
     "REFINE_BEDROOM's action_hint is state-aware: bedroom_light='off' in this scenario → action_hint='light_on'. If the scenario's input fixture had bedroom_light='on', the same candidate_id would carry action_hint='light_off'.",

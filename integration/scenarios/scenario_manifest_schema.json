@@ -376,6 +376,120 @@
       "items": {
         "type": "string"
       }
+    },
+    "comparison_conditions": {
+      "type": "array",
+      "description": "Optional. Tags which Package A comparison_condition values this scenario is designed to exercise. Mode-agnostic scenarios (most baseline / class0 / class1 / fault) may omit this field; condition-specific scenarios (scanning, deterministic ordering, multi-turn refinement, direct intent recovery, LLM-vs-static generation) should list the conditions they cover. Paper-eval coverage verifier asserts each Package A condition is reached by ≥1 scenario. Source: rpi/code/experiment_package/definitions.py:PACKAGES[PackageId.A].comparison_conditions. Plan: PLAN_2026-05-02_POST_DOC12_CONSISTENCY_BACKFILL.md P2.6.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "direct_mapping",
+          "rule_only",
+          "llm_assisted",
+          "class2_static_only",
+          "class2_llm_assisted",
+          "class2_scan_source_order",
+          "class2_scan_deterministic",
+          "class2_direct_select_input",
+          "class2_scanning_input"
+        ]
+      }
+    },
+    "scan_input_mode_expectation": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional. Scenario-level expectation block for scanning-input-mode tests (PR #115 / doc 12 §4.4). Open shape (additionalProperties: true) so future expectation keys remain valid; the listed properties document the conventional fields used by the P1.3 scenarios.",
+      "properties": {
+        "scenario_comparison_condition": {
+          "type": "string",
+          "const": "class2_scanning_input"
+        },
+        "expected_routing_metadata_class2_input_mode": {
+          "type": "string",
+          "const": "scanning"
+        },
+        "expected_clarification_record_input_mode": {
+          "type": "string",
+          "const": "scanning"
+        },
+        "expected_scan_history_length": {"type": "integer", "minimum": 0},
+        "expected_scan_history_first_response": {
+          "type": "string",
+          "enum": ["yes", "no", "silence", "dropped"]
+        },
+        "expected_scan_history_first_option_index": {
+          "type": "integer", "minimum": 0
+        },
+        "expected_terminal_invokes_caregiver_phase": {"type": "boolean"},
+        "expected_example_record_ref": {"type": "string"},
+        "expected_emergency_shortcut_used": {"type": "boolean"},
+        "expected_emergency_response_latency_matches_direct_select": {"type": "boolean"},
+        "expected_remaining_options_not_announced": {"type": "boolean"},
+        "expected_scan_history_length_equals_candidate_count": {"type": "boolean"},
+        "expected_scan_history_no_yes_response": {"type": "boolean"},
+        "silence_does_not_imply_consent": {"type": "boolean"}
+      }
+    },
+    "multi_turn_refinement_expectation": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional. Scenario-level expectation block for multi-turn refinement tests (PR #116 / doc 11 Phase 6.0). Same open-shape convention as scan_input_mode_expectation.",
+      "properties": {
+        "scenario_requires_policy_field": {
+          "type": "string",
+          "const": "class2_multi_turn_enabled"
+        },
+        "scenario_requires_policy_value": {"type": "boolean", "const": true},
+        "expected_parent_candidate_id": {"type": "string"},
+        "expected_refinement_history_length": {"type": "integer", "minimum": 0},
+        "expected_refinement_history_first_parent_candidate_id": {"type": "string"},
+        "expected_refinement_history_first_selected_candidate_id": {"type": "string"},
+        "expected_terminal_action_hint": {"type": "string"},
+        "expected_terminal_target_hint": {"type": "string"},
+        "expected_example_record_ref": {"type": "string"},
+        "expected_refinement_turn_timed_out": {"type": "boolean"},
+        "expected_terminal_invokes_caregiver_path": {"type": "boolean"},
+        "silence_does_not_imply_consent": {"type": "boolean"}
+      }
+    },
+    "scan_ordering_expectation": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional. Scenario-level expectation block for deterministic scanning-ordering tests (PR #117 / doc 12 §14). Same open-shape convention as the other expectation blocks.",
+      "properties": {
+        "scenario_comparison_condition": {
+          "type": "string",
+          "const": "class2_scan_deterministic"
+        },
+        "scenario_assumes_scanning_input_mode_active": {"type": "boolean"},
+        "expected_routing_metadata_class2_scan_ordering_mode": {
+          "type": "string",
+          "const": "deterministic"
+        },
+        "expected_clarification_record_carries_scan_ordering_applied": {"type": "boolean"},
+        "expected_scan_ordering_applied_matched_bucket": {"type": "string"},
+        "expected_scan_ordering_applied_applied_overrides_count": {
+          "type": "integer", "minimum": 0
+        },
+        "expected_scan_ordering_applied_applied_overrides_count_at_least": {
+          "type": "integer", "minimum": 0
+        },
+        "expected_scan_ordering_applied_first_override_references": {"type": "string"},
+        "expected_scan_ordering_applied_final_order_first_target": {
+          "type": "string",
+          "enum": [
+            "CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION",
+            "SAFE_DEFERRAL", "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+          ]
+        },
+        "expected_scan_ordering_applied_final_order_second_target": {
+          "type": "string",
+          "enum": [
+            "CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION",
+            "SAFE_DEFERRAL", "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"
+          ]
+        }
+      }
     }
   },
   "$defs": {

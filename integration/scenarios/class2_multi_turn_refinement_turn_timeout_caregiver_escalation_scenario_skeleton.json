@@ -143,7 +143,11 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_direct_select_input"
+  ],
   "notes": [
+    "comparison_conditions tags 'class2_direct_select_input' (multi-turn opt-in is via the class2_multi_turn_enabled policy field, not a comparison_condition).",
     "Refinement-turn timeout follows the same silence ≠ consent invariant as initial-turn timeout: the unanswered turn never auto-confirms a candidate, only escalates.",
     "refinement_history is recorded even on the timeout path so audit can distinguish 'user picked parent but didn't refine' from 'user never picked anything' (the latter would be a parent-session timeout escalation without any refinement_history entry).",
     "The caregiver may still override via Telegram inline keyboard — caregiver Phase 2 mechanics are shared with direct-select via _run_caregiver_phase (PR #109).",

@@ -125,7 +125,12 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_scan_deterministic",
+    "class2_scanning_input"
+  ],
   "notes": [
+    "comparison_conditions tags BOTH dimensions because deterministic ordering is meaningful only under scanning.",
     "Context overrides are pure permutation — they move a transition_target to the front of the priority list, never inject new candidates (doc 12 §14.4 + §14.8 explicit boundary). If a target appears in the priority list as a result of the override but no actual candidate has that target, ordering simply doesn't move anything (defensive).",
     "The smoke_detected override is one of three shipped examples; gas_detected → CLASS_0 and doorbell_detected → CAREGIVER work the same way.",
     "Multiple overrides can fire simultaneously — later-declared overrides win the front spot (stack semantics). E.g., if both smoke AND doorbell were true, the doorbell override (later in the list) would put CAREGIVER first.",

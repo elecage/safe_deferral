@@ -129,6 +129,9 @@
     "doorlock_autonomous_execution_allowed": false,
     "canonical_emergency_family": "E001"
   },
+  "comparison_conditions": [
+    "class2_scanning_input"
+  ],
   "notes": [
     "Emergency shortcut preserves direct_select semantics under scanning — the user does not have to wait through N per-option timeouts when an emergency is happening.",
     "scan_input_adapter (PR #108) maps event_code='triple_hit' to DECISION_EMERGENCY with the first CLASS_0-targeted candidate. If the candidate set has no CLASS_0 option (e.g., C208 doorlock-sensitive), the adapter returns DECISION_IGNORE and the loop continues.",

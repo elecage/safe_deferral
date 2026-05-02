@@ -46,7 +46,13 @@
     "allowed_action_catalog_ref": "common/policies/low_risk_actions.json",
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "direct_mapping",
+    "rule_only",
+    "llm_assisted"
+  ],
   "notes": [
+    "comparison_conditions field tags the three Package A intent-recovery comparison values this Class 1 scenario is designed to exercise (PR #79). The same scenario is run three times with different routing_metadata.experiment_mode values for paper-eval. Plan: PLAN_2026-05-02_POST_DOC12_CONSISTENCY_BACKFILL.md P2.6.",
     "This scenario is intended to represent a bounded low-risk assistance path rather than an emergency or direct escalation path.",
     "Exact admissibility assumptions remain defined by canonical policy and schema assets.",
     "Class 1 autonomous execution must remain limited to the canonical low-risk lighting catalog.",

@@ -168,7 +168,13 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_static_only",
+    "class2_llm_assisted",
+    "class2_direct_select_input"
+  ],
   "notes": [
+    "comparison_conditions field tags the three Package A Class 2 dimensions this scenario exercises: candidate generation source (static_only vs llm_assisted) and interaction model (direct_select). Plan: PLAN_2026-05-02_POST_DOC12_CONSISTENCY_BACKFILL.md P2.6.",
     "This scenario represents Class 2 as an insufficient-context clarification and transition state rather than a terminal failure state.",
     "LLM guidance may generate bounded candidate choices, but it must not independently make the final class decision, authorize actuation, or trigger emergency handling.",
     "Clarification interaction evidence uses safe_deferral/clarification/interaction and must not be interpreted as validator approval, actuation command, emergency trigger authority, or doorlock authorization.",
