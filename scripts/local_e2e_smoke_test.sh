@@ -77,14 +77,21 @@ fi
 # pass it to the sweep below. (Older smoke versions assumed we could
 # pick a friendly node_id; that was wrong.)
 
-log "step 2/5: creating virtual context node"
+log "step 2/5: creating + starting virtual context node"
 NODE_PAYLOAD='{"node_type": "context_node", "description": "smoke test virtual node"}'
 node_resp="$(curl -sf -X POST "${DASHBOARD_BASE}/nodes" \
               -H "Content-Type: application/json" -d "$NODE_PAYLOAD" || echo '')"
 [[ -n "$node_resp" ]] || fail "POST /nodes returned empty body" 1
 NODE_ID="$(printf '%s' "$node_resp" | python -c 'import json,sys; print(json.load(sys.stdin).get("node_id",""))')"
 [[ -n "$NODE_ID" ]] || fail "no node_id in /nodes response: $node_resp" 1
-log "  node_id=${NODE_ID}"
+log "  created node_id=${NODE_ID}"
+
+# The PackageRunner's _publish_normal path requires the node to be in
+# RUNNING state — `vnm.publish_once` raises 'Node is not running'
+# otherwise. Started nodes go to RUNNING and stay there until --stop.
+curl -sf -X POST "${DASHBOARD_BASE}/nodes/${NODE_ID}/start" >/dev/null \
+  || fail "POST /nodes/${NODE_ID}/start failed" 1
+log "  started node ${NODE_ID}"
 
 # ----------------------------------------------------------------------
 # 3. Start sweep
