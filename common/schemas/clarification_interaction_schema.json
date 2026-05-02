@@ -238,6 +238,46 @@
         }
       ],
       "description": "Optional fixture or implementation note. Notes are not operational authority."
+    },
+    "refinement_history": {
+      "type": "array",
+      "description": "Optional. Each entry records one refinement turn that occurred between the initial user selection and the terminal Class 2 outcome. Plan reference: 11_class2_multi_turn_refinement_plan.md. Single-turn records (the production default) omit this field; opt-in multi-turn records carry exactly one entry today (max one refinement turn).",
+      "items": {
+        "type": "object",
+        "required": [
+          "turn_index",
+          "parent_candidate_id",
+          "refinement_question",
+          "selected_candidate_id"
+        ],
+        "properties": {
+          "turn_index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based turn index. The initial user selection is turn 0 (implicit); the first refinement turn is 1."
+          },
+          "parent_candidate_id": {
+            "type": "string",
+            "description": "candidate_id of the option the user picked in the previous turn that triggered this refinement."
+          },
+          "refinement_question": {
+            "type": "string",
+            "description": "The question that was announced to the user for this refinement turn. Subject to the same max_prompt_length_chars cap as initial prompts."
+          },
+          "selected_candidate_id": {
+            "type": "string",
+            "description": "candidate_id chosen during this refinement turn, OR a synthetic value (e.g. 'TIMEOUT') when the turn timed out."
+          },
+          "selection_source": {
+            "type": "string",
+            "description": "Where the refinement selection came from (e.g. 'user_mqtt_button', 'timeout')."
+          },
+          "selection_timestamp_ms": {
+            "type": "integer",
+            "description": "Wall-clock ms when the refinement selection was recorded."
+          }
+        }
+      }
     }
   },
   "required": [

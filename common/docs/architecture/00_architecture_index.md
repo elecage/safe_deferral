@@ -24,6 +24,7 @@ Read these documents first for current architecture work:
 9. `08_system_structure_figure_revision_plan.md`
 10. `09_llm_driven_class2_candidate_generation_plan.md`
 11. `10_llm_class2_integration_alignment_plan.md`
+12. `11_class2_multi_turn_refinement_plan.md`
 
 These files are the active navigation layer. They intentionally summarize and
 deduplicate the older numbered notes.
@@ -70,6 +71,7 @@ Current MQTT and payload reference assets:
 | `08_system_structure_figure_revision_plan.md` | Stepwise revision plan for the system structure figure |
 | `09_llm_driven_class2_candidate_generation_plan.md` | Plan for moving Class 2 candidate generation and TTS prompts from a static lookup table to bounded LLM-driven contextual generation, with phased implementation and safety reconciliation |
 | `10_llm_class2_integration_alignment_plan.md` | Integration alignment review after Phases 1-5 of doc 09 landed: operational timing risks (LLM blocking the message-handler thread, OllamaClient timeout > Class 2 user window, runner auto-drive delay), document drift, scenario fixture LLM-variability allowance, and recommended sequencing |
+| `11_class2_multi_turn_refinement_plan.md` | Closure of doc 09 Phase 6 — bounded one-turn refinement after the user's initial CLASS_2 selection. Phase 6.0 (schema + manager API + static refinement template + audit record) implemented behind a feature flag; Phase 6.1 (Mac mini main-loop + TTS wiring) deferred |
 
 System-figure revision working notes live under:
 

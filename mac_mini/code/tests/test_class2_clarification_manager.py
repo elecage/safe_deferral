@@ -628,6 +628,21 @@ class TestLlmCandidateGeneratorHook:
                                        "user_mqtt_button", trigger_id="C206")
         assert result.clarification_record["candidate_source"] == "default_fallback"
 
+    def test_refinement_disabled_by_default(self):
+        """Phase 6.0 multi-turn is opt-in; default policy keeps the path off
+        and submit_selection_or_refine behaves exactly like submit_selection."""
+        mgr = Class2ClarificationManager()
+        assert mgr._multi_turn_enabled is False
+        # Picking C1_LIGHTING_ASSISTANCE (which DOES have a template) still
+        # produces a terminal Class2Result because the flag is off.
+        session = mgr.start_session("C206", AUDIT_ID, pure_context_payload=self._ctx())
+        out = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+            trigger_id="C206",
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(out, Class2Result)
+
     def test_static_only_mode_skips_llm_call(self):
         """Package A LLM-vs-static comparison (doc 10 §3.3 P2.3): when the
         runner sets candidate_source_mode='static_only', the manager must
@@ -809,3 +824,226 @@ class TestLlmCallBudget:
         mgr = Class2ClarificationManager()
         # Shipped policy: llm_request_timeout_ms = 8000 → budget = 8.0 + 0.5
         assert abs(mgr._llm_call_budget_s - 8.5) < 0.01
+
+
+# ==================================================================
+# Phase 6.0 — Class 2 multi-turn refinement (doc 11)
+# ==================================================================
+
+class _StubLoaderForMultiTurn:
+    """AssetLoader stub that overrides only class2_multi_turn_enabled.
+    Other policy fields fall back to the real shipped values so the
+    manager keeps its normal CLASS_2 timeout, max_attempts, etc."""
+
+    def __init__(self, enabled: bool):
+        from shared.asset_loader import AssetLoader
+        self._real = AssetLoader()
+        self._enabled = enabled
+
+    def load_policy_table(self):
+        policy = self._real.load_policy_table()
+        policy["global_constraints"]["class2_multi_turn_enabled"] = self._enabled
+        return policy
+
+    def load_schema(self, name):
+        return self._real.load_schema(name)
+
+    def make_schema_resolver(self):
+        return self._real.make_schema_resolver()
+
+
+class TestMultiTurnRefinementDisabled:
+    """Feature flag off (production default) → submit_selection_or_refine
+    is a pass-through to submit_selection. No Phase 6 surface visible."""
+
+    def test_returns_terminal_result_when_flag_off(self):
+        mgr = Class2ClarificationManager(asset_loader=_StubLoaderForMultiTurn(False))
+        session = mgr.start_session("C206", "audit-mt-off")
+        out = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(out, Class2Result)
+        # Single-turn record must NOT carry refinement_history.
+        assert "refinement_history" not in out.clarification_record
+
+
+class TestMultiTurnRefinementEnabled:
+    """Feature flag on → submit_selection_or_refine returns a refinement
+    ClarificationSession when the chosen candidate has a template."""
+
+    def _mgr(self):
+        return Class2ClarificationManager(asset_loader=_StubLoaderForMultiTurn(True))
+
+    def test_chosen_candidate_with_template_returns_refinement_session(self):
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-1")
+        out = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+        )
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(out, ClarificationSession)
+        assert getattr(out, "is_refinement_turn") is True
+        assert getattr(out, "parent_clarification_id") == session.clarification_id
+        assert getattr(out, "parent_candidate_id") == "C1_LIGHTING_ASSISTANCE"
+        assert getattr(out, "refinement_question") == "어느 방의 조명을 켜드릴까요?"
+        # The refinement set is what the static template defined.
+        ids = [c.candidate_id for c in out.candidate_choices]
+        assert ids == ["REFINE_LIVING_ROOM", "REFINE_BEDROOM"]
+
+    def test_chosen_candidate_without_template_stays_terminal(self):
+        """C2_CAREGIVER_HELP has no refinement template → terminal."""
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-2")
+        out = mgr.submit_selection_or_refine(
+            session, "C2_CAREGIVER_HELP", "user_mqtt_button",
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(out, Class2Result)
+
+    def test_unknown_candidate_id_falls_through_to_timeout(self):
+        """Unknown id behaves like submit_selection — terminal escalation."""
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-3")
+        out = mgr.submit_selection_or_refine(
+            session, "BOGUS_ID", "user_mqtt_button",
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(out, Class2Result)
+
+    def test_refinement_session_resolves_terminally_with_history(self):
+        """Resolving the refinement session via submit_selection produces a
+        terminal Class2Result whose record has exactly one refinement_history
+        entry capturing the parent → refinement transition."""
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-4")
+        refinement = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+        )
+        from safe_deferral_handler.models import ClarificationSession
+        assert isinstance(refinement, ClarificationSession)
+
+        result = mgr.submit_selection(
+            refinement, "REFINE_BEDROOM", "user_mqtt_button",
+            trigger_id="C206",
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(result, Class2Result)
+        # The terminal action must come from the refinement choice.
+        assert result.action_hint == "light_on"
+        assert result.target_hint == "bedroom_light"
+        # refinement_history captures the parent → child step.
+        history = result.clarification_record.get("refinement_history")
+        assert history is not None and len(history) == 1
+        entry = history[0]
+        assert entry["turn_index"] == 1
+        assert entry["parent_candidate_id"] == "C1_LIGHTING_ASSISTANCE"
+        assert entry["selected_candidate_id"] == "REFINE_BEDROOM"
+
+    def test_refinement_session_does_not_refine_again(self):
+        """Multi-turn is bounded to ONE refinement. Calling
+        submit_selection_or_refine on a refinement session must not
+        produce a deeper refinement, even if the picked refinement
+        candidate happens to have its own template (defensive)."""
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-5")
+        refinement = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+        )
+        out = mgr.submit_selection_or_refine(
+            refinement, "REFINE_LIVING_ROOM", "user_mqtt_button",
+        )
+        from class2_clarification_manager.models import Class2Result
+        assert isinstance(out, Class2Result)
+
+    def test_refinement_timeout_terminal_escalation_with_history(self):
+        """Refinement turn timeout → terminal escalation; refinement_history
+        records the unanswered turn so audit can tell the user picked the
+        parent but didn't pick a refinement."""
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-6")
+        refinement = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+        )
+        result = mgr.handle_timeout(refinement, trigger_id="C207")
+        history = result.clarification_record.get("refinement_history")
+        assert history is not None and len(history) == 1
+        # selection_result records the timeout, and the entry mirrors it.
+        sel = result.clarification_record["selection_result"]
+        assert sel.get("confirmed") is False or sel.get("selected_candidate_id") in (None, "TIMEOUT")
+
+    def test_refinement_record_validates_against_schema(self):
+        """The schema must accept records with refinement_history."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("clarification_interaction_schema.json")
+        resolver = loader.make_schema_resolver()
+
+        mgr = self._mgr()
+        session = mgr.start_session("C206", "audit-mt-7")
+        refinement = mgr.submit_selection_or_refine(
+            session, "C1_LIGHTING_ASSISTANCE", "user_mqtt_button",
+        )
+        result = mgr.submit_selection(
+            refinement, "REFINE_LIVING_ROOM", "user_mqtt_button",
+            trigger_id="C206",
+        )
+        validator = jsonschema.Draft7Validator(schema, resolver=resolver)
+        errors = list(validator.iter_errors(result.clarification_record))
+        assert not errors, "; ".join(e.message for e in errors)
+
+
+class TestRefinementTemplates:
+    """Static refinement template integrity."""
+
+    def test_lookup_returns_none_for_unknown_id(self):
+        from class2_clarification_manager.refinement_templates import (
+            get_refinement_template,
+        )
+        assert get_refinement_template("DEFINITELY_NOT_A_REAL_ID") is None
+
+    def test_lookup_returns_template_for_known_id(self):
+        from class2_clarification_manager.refinement_templates import (
+            get_refinement_template,
+        )
+        t = get_refinement_template("C1_LIGHTING_ASSISTANCE")
+        assert t is not None
+        assert len(t.refinement_choices) >= 2
+
+    def test_all_refinement_targets_stay_in_low_risk_catalog(self):
+        """Refinement candidates must not introduce new actuator authority.
+        action_hint must be in the canonical low-risk light_on/light_off set
+        (or None for non-CLASS_1 transitions); target_hint must be one of
+        the canonical lighting targets."""
+        from class2_clarification_manager.refinement_templates import (
+            _REFINEMENT_TEMPLATES,
+        )
+        ALLOWED_ACTIONS = {None, "light_on", "light_off"}
+        ALLOWED_TARGETS = {None, "living_room_light", "bedroom_light"}
+        for parent_id, tpl in _REFINEMENT_TEMPLATES.items():
+            for c in tpl.refinement_choices:
+                assert c.action_hint in ALLOWED_ACTIONS, (parent_id, c)
+                assert c.target_hint in ALLOWED_TARGETS, (parent_id, c)
+
+    def test_refinement_question_within_policy_cap(self):
+        """Refinement questions must respect the same prompt-length cap as
+        initial prompts (Phase 4 invariant)."""
+        import json
+        import pathlib
+        from class2_clarification_manager.refinement_templates import (
+            _REFINEMENT_TEMPLATES,
+        )
+        policy_path = (
+            pathlib.Path(__file__).resolve().parents[3]
+            / "common" / "policies" / "policy_table.json"
+        )
+        with open(policy_path, encoding="utf-8") as f:
+            policy = json.load(f)
+        cap = int(
+            policy["global_constraints"]
+                  ["class2_conversational_prompt_constraints"]
+                  ["max_prompt_length_chars"]
+        )
+        for parent_id, tpl in _REFINEMENT_TEMPLATES.items():
+            assert len(tpl.refinement_question) <= cap, (parent_id, tpl)

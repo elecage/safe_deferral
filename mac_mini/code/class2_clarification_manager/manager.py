@@ -29,6 +29,9 @@ import uuid
 from typing import Optional, Protocol
 
 from class2_clarification_manager.models import Class2Result
+from class2_clarification_manager.refinement_templates import (
+    get_refinement_template,
+)
 
 log = logging.getLogger(__name__)
 from safe_deferral_handler.models import (
@@ -302,6 +305,16 @@ class Class2ClarificationManager:
         # at most this budget, capping emergency-response latency.
         _llm_timeout_s = int(gc.get("llm_request_timeout_ms", 8000)) / 1000.0
         self._llm_call_budget_s: float = _llm_timeout_s + 0.5
+        # Doc 11 Phase 6.0 — opt-in multi-turn refinement. When False
+        # (default), submit_selection_or_refine is identical to
+        # submit_selection. Setting True in policy unlocks the second
+        # turn for candidates listed in refinement_templates.
+        self._multi_turn_enabled: bool = bool(
+            gc.get("class2_multi_turn_enabled", False)
+        )
+        self._refinement_turn_timeout_ms: int = int(
+            gc.get("class2_refinement_turn_timeout_ms", self._timeout_ms)
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -426,6 +439,90 @@ class Class2ClarificationManager:
             clarification_record=record,
             notification_payload=notification,
         )
+
+    def submit_selection_or_refine(
+        self,
+        session: ClarificationSession,
+        selected_candidate_id: str,
+        selection_source: str,
+        selection_timestamp_ms: Optional[int] = None,
+        trigger_id: str = "C206",
+        context_summary: str = "",
+    ):
+        """Multi-turn opt-in entry point (doc 11 Phase 6.0).
+
+        When `class2_multi_turn_enabled` is False, this is identical to
+        `submit_selection` and returns a terminal `Class2Result`.
+
+        When True AND the chosen candidate has a refinement template AND
+        this session has no parent (i.e. is itself the initial turn),
+        returns a NEW `ClarificationSession` representing the refinement
+        turn. The caller (Mac mini main loop) is responsible for
+        announcing the refinement question and collecting the next user
+        selection. Resolving the refinement session via `submit_selection`
+        produces a terminal `Class2Result` whose `clarification_record`
+        carries a `refinement_history` entry.
+
+        Otherwise (no template, or this IS already a refinement turn,
+        or feature flag off), delegates to `submit_selection`.
+        """
+        if not self._multi_turn_enabled:
+            return self.submit_selection(
+                session, selected_candidate_id, selection_source,
+                selection_timestamp_ms, trigger_id, context_summary,
+            )
+
+        # Refinement turns themselves never refine further (max one turn).
+        if getattr(session, "is_refinement_turn", False):
+            return self.submit_selection(
+                session, selected_candidate_id, selection_source,
+                selection_timestamp_ms, trigger_id, context_summary,
+            )
+
+        chosen = next(
+            (c for c in session.candidate_choices if c.candidate_id == selected_candidate_id),
+            None,
+        )
+        if chosen is None:
+            # Unknown candidate id → terminal timeout, identical to submit_selection.
+            return self.submit_selection(
+                session, selected_candidate_id, selection_source,
+                selection_timestamp_ms, trigger_id, context_summary,
+            )
+
+        template = get_refinement_template(chosen.candidate_id)
+        if template is None:
+            # No refinement defined for this candidate → terminal as before.
+            return self.submit_selection(
+                session, selected_candidate_id, selection_source,
+                selection_timestamp_ms, trigger_id, context_summary,
+            )
+
+        ts = selection_timestamp_ms or int(time.time() * 1000)
+        # Build a refinement session. It re-uses ClarificationSession with
+        # a refinement-specific timeout and dynamic attributes carrying
+        # the parent context for audit.
+        refinement = ClarificationSession(
+            clarification_id=str(uuid.uuid4()),
+            audit_correlation_id=session.audit_correlation_id,
+            deferral_reason=session.deferral_reason,
+            candidate_choices=template.refinement_choices,
+            presentation_channel=session.presentation_channel,
+            timeout_ms=self._refinement_turn_timeout_ms,
+            attempt_number=session.attempt_number,
+        )
+        refinement.is_refinement_turn = True  # type: ignore[attr-defined]
+        refinement.parent_clarification_id = session.clarification_id  # type: ignore[attr-defined]
+        refinement.parent_candidate_id = chosen.candidate_id  # type: ignore[attr-defined]
+        refinement.refinement_question = template.refinement_question  # type: ignore[attr-defined]
+        refinement.parent_selection_source = selection_source  # type: ignore[attr-defined]
+        refinement.parent_selection_timestamp_ms = ts  # type: ignore[attr-defined]
+        # Preserve the parent's candidate_source so the terminal record
+        # accurately reflects how the parent's candidates were generated.
+        refinement.candidate_source = getattr(  # type: ignore[attr-defined]
+            session, "candidate_source", "default_fallback"
+        )
+        return refinement
 
     def handle_timeout(
         self,
@@ -589,7 +686,7 @@ class Class2ClarificationManager:
         # candidate_source is set by start_session(); default to fallback for
         # legacy callers that bypass it.
         candidate_source = getattr(session, "candidate_source", "default_fallback")
-        return {
+        record = {
             "clarification_id": session.clarification_id,
             "audit_correlation_id": session.audit_correlation_id,
             "source_layer": "class2_clarification_manager",
@@ -603,6 +700,25 @@ class Class2ClarificationManager:
             "llm_boundary": _LLM_BOUNDARY_CONST,
             "timestamp_ms": int(time.time() * 1000),
         }
+        # Doc 11 Phase 6.0 — when this session is a refinement turn, embed
+        # one entry summarising the parent → refinement transition. The
+        # selected_candidate_id field is the value the user picked (or
+        # "TIMEOUT" when the turn timed out — selection_result already
+        # carries that distinction via timeout_result).
+        if getattr(session, "is_refinement_turn", False):
+            record["refinement_history"] = [{
+                "turn_index": 1,
+                "parent_candidate_id": getattr(session, "parent_candidate_id", ""),
+                "refinement_question": getattr(session, "refinement_question", ""),
+                "selected_candidate_id": normalised_selection.get(
+                    "selected_candidate_id", "TIMEOUT"
+                ),
+                "selection_source": normalised_selection.get("selection_source", ""),
+                "selection_timestamp_ms": normalised_selection.get(
+                    "selection_timestamp_ms", record["timestamp_ms"]
+                ),
+            }]
+        return record
 
     def _build_notification(
         self,
