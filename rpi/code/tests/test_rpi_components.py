@@ -1864,6 +1864,144 @@ class TestClass2InputModePropagation:
 # PackageRunner — auto-drive selection input for CLASS_2 trials
 # ==================================================================
 
+class TestRunnerRefreshesTriggerTimestamp:
+    """Regression: PackageRunner._run_trial must refresh
+    pure_context_payload.trigger_event.timestamp_ms to 'now' before
+    publishing scenario fixtures. Without this, fixtures' hardcoded
+    historic timestamps trip the policy router's freshness check (3s
+    threshold) and every paper-eval Class 1 trial routes to CLASS_2
+    with sensor_staleness_detected (C204) — silently corrupting the
+    measurements. Surfaced by Phase B sweep against real Mac mini
+    stack on 2026-05-03; fixture trigger.timestamp_ms was ~8 days
+    behind wall-clock so all 6 trials should have failed but a few
+    passed via race conditions, masking the bug."""
+
+    def test_existing_trigger_event_gets_now_timestamp(self):
+        """Fixture-shaped payload (with pre-existing trigger_event) must
+        have timestamp_ms updated to current wall-clock time."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        import time as _time
+
+        publishes: list = []
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {"audit_correlation_id": "x",
+                                  "ingest_timestamp_ms": 0,
+                                  "network_status": "online"},
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+
+        def _capture(_node):
+            publishes.append(dict(_node.profile.payload_template))
+        vnm.publish_once.side_effect = _capture
+
+        # Loader returns a fixture with a deeply stale trigger.timestamp_ms.
+        loader = MagicMock()
+        loader.load_scenario.return_value = {
+            "steps": [{"payload_fixture": "fixtures/historic.json"}]
+        }
+        loader.fixture_exists.return_value = True
+        loader.load_fixture.return_value = {
+            "routing_metadata": {"network_status": "online"},
+            "pure_context_payload": {
+                "trigger_event": {
+                    "event_type": "button",
+                    "event_code": "single_click",
+                    "timestamp_ms": 1_000_000_000_000,  # year 2001 — very stale
+                },
+            },
+        }
+
+        obs = MagicMock()
+        obs.find_by_correlation_id.return_value = None
+        store = TrialStore()
+        runner = PackageRunner(
+            vnm=vnm, obs_store=obs, trial_store=store,
+            asset_loader=loader,
+        )
+        run = store.create_run(package_id="A", scenario_ids=["x"],
+                               fault_profile_ids=[], trial_count=1)
+        before_ms = int(_time.time() * 1000)
+        runner.start_trial_async(
+            run_id=run.run_id, package_id="A", node_id="n",
+            scenario_id="x", fault_profile_id=None,
+            comparison_condition=None, expected_route_class="CLASS_1",
+        )
+        # Block briefly for the worker thread to publish + give up on obs.
+        deadline = _time.time() + 2.0
+        while _time.time() < deadline and not publishes:
+            _time.sleep(0.05)
+        assert publishes, "runner did not publish anything"
+        ts = publishes[0]["pure_context_payload"]["trigger_event"]["timestamp_ms"]
+        # Refreshed timestamp must be within a few seconds of when the
+        # trial started — definitely NOT the year-2001 fixture value.
+        assert ts >= before_ms, (
+            f"trigger.timestamp_ms ({ts}) was not refreshed; still earlier "
+            f"than trial start ({before_ms}) → policy router will reject as stale"
+        )
+        assert ts < before_ms + 5_000, (
+            f"trigger.timestamp_ms ({ts}) is suspiciously far in the future"
+        )
+
+    def test_payload_without_trigger_event_is_left_alone(self):
+        """For fixture-less / scenario_id='' trials, the payload may
+        legitimately have no trigger_event yet — the synthetic
+        button-press path fills it in. The runner must NOT create an
+        empty trigger_event during refresh, because downstream code
+        reads event_code from it."""
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+        import time as _time
+
+        publishes: list = []
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {"audit_correlation_id": "x",
+                                  "ingest_timestamp_ms": 0,
+                                  "network_status": "online"},
+            "pure_context_payload": {},  # no trigger_event
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+        from virtual_node_manager.models import VirtualNodeState
+        node.state = VirtualNodeState.CREATED
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+
+        def _capture(_node):
+            publishes.append(dict(_node.profile.payload_template))
+        vnm.publish_once.side_effect = _capture
+
+        obs = MagicMock()
+        obs.find_by_correlation_id.return_value = None
+        store = TrialStore()
+        runner = PackageRunner(vnm=vnm, obs_store=obs, trial_store=store)
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        runner.start_trial_async(
+            run_id=run.run_id, package_id="A", node_id="n",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition=None, expected_route_class="CLASS_1",
+        )
+        deadline = _time.time() + 2.0
+        while _time.time() < deadline and not publishes:
+            _time.sleep(0.05)
+        assert publishes, "runner did not publish anything"
+        # trigger_event must NOT have been created out of thin air.
+        assert "trigger_event" not in publishes[0]["pure_context_payload"], (
+            "runner spuriously created an empty trigger_event"
+        )
+
+
 class TestClass2SelectionAutoDrive:
     """For CLASS_2 trials with expected_transition_target=CLASS_1/CLASS_0,
     runner must publish a synthetic single_click/triple_hit so the trial

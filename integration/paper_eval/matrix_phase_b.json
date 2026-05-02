@@ -1,0 +1,32 @@
+{
+  "matrix_version": "v1-phase-b",
+  "matrix_description": "Phase B intermediate verification matrix. BASELINE + C1 LLM-assisted Class 1 cell, 3 trials each. ~1 minute total on M1 with real Ollama. Used between matrix_smoke (1 trial) and full matrix_v1 (12 cells × 30 trials) to surface Class 1 multi-trial / multi-cell bugs without paying the Class 2 caregiver-timeout cost. Class 2 cells exercised by matrix_v1.",
+  "trials_per_cell_default": 3,
+  "package_id": "A",
+  "cells": [
+    {
+      "cell_id": "BASELINE",
+      "description": "Default policy reference cell.",
+      "comparison_condition": null,
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 3,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C1_D1_LLM_ASSISTED",
+      "description": "Class 1 intent recovery via LLM-assisted candidate generation.",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 3,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}

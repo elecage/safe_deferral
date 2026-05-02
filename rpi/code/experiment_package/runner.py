@@ -305,11 +305,26 @@ class PackageRunner:
 
             # --- Build payload ---
             base_payload, topic_override = self._load_base_payload(scenario_id, node)
+            now_ms = int(time.time() * 1000)
             base_payload.setdefault("routing_metadata", {})
             base_payload["routing_metadata"]["audit_correlation_id"] = correlation_id
-            base_payload["routing_metadata"]["ingest_timestamp_ms"] = int(
-                time.time() * 1000
-            )
+            base_payload["routing_metadata"]["ingest_timestamp_ms"] = now_ms
+            # Refresh pure_context_payload.trigger_event.timestamp_ms to "now"
+            # ONLY when the trigger_event already exists in the payload
+            # (i.e. a real scenario fixture was loaded). Without this refresh,
+            # fixtures' hardcoded historic timestamps trip the policy router's
+            # freshness check (default 3s threshold) on every trial → spurious
+            # CLASS_2 routing with `sensor_staleness_detected` (C204), which
+            # silently corrupts paper-eval Class 1 measurements.
+            #
+            # Guarded by 'in' rather than setdefault because some test paths
+            # (fixture-less / scenario_id="") build a payload with no
+            # trigger_event at all and downstream code (e.g. Class 2 button
+            # press auto-simulation) expects the absence to mean
+            # 'fill in event_code yourself'.
+            ctx = base_payload.get("pure_context_payload")
+            if isinstance(ctx, dict) and isinstance(ctx.get("trigger_event"), dict):
+                ctx["trigger_event"]["timestamp_ms"] = now_ms
             # Package A comparison_condition prefix routing — each prefix
             # selects which routing_metadata field receives the value (after
             # the prefix/suffix is stripped so the schema enum matches).
