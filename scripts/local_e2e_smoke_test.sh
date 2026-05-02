@@ -33,7 +33,6 @@ LAUNCHER="${SCRIPT_DIR}/local_e2e_launcher.sh"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8888}"
 DASHBOARD_BASE="http://localhost:${DASHBOARD_PORT}"
 
-NODE_ID="${SMOKE_NODE_ID:-smoke-virtual-node}"
 MATRIX_PATH="integration/paper_eval/matrix_smoke.json"
 SWEEP_TIMEOUT_S="${SMOKE_SWEEP_TIMEOUT_S:-90}"
 
@@ -73,24 +72,19 @@ fi
 # ----------------------------------------------------------------------
 # 2. Create a virtual node
 # ----------------------------------------------------------------------
+# The /nodes endpoint ignores any node_id supplied by the caller and
+# generates its own UUID — we extract that UUID from the response and
+# pass it to the sweep below. (Older smoke versions assumed we could
+# pick a friendly node_id; that was wrong.)
 
-log "step 2/5: creating virtual context node '${NODE_ID}'"
-NODE_PAYLOAD=$(cat <<EOF
-{
-  "node_id": "${NODE_ID}",
-  "node_type": "context_node",
-  "description": "smoke test virtual node",
-  "publish_topic": "safe_deferral/context/input",
-  "publish_interval_ms": 1000
-}
-EOF
-)
+log "step 2/5: creating virtual context node"
+NODE_PAYLOAD='{"node_type": "context_node", "description": "smoke test virtual node"}'
 node_resp="$(curl -sf -X POST "${DASHBOARD_BASE}/nodes" \
-              -H "Content-Type: application/json" -d "$NODE_PAYLOAD" || true)"
-if [[ -z "$node_resp" ]]; then
-  # Node may already exist from a previous run — that's OK for a smoke test.
-  log "  (node may already exist; continuing)"
-fi
+              -H "Content-Type: application/json" -d "$NODE_PAYLOAD" || echo '')"
+[[ -n "$node_resp" ]] || fail "POST /nodes returned empty body" 1
+NODE_ID="$(printf '%s' "$node_resp" | python -c 'import json,sys; print(json.load(sys.stdin).get("node_id",""))')"
+[[ -n "$NODE_ID" ]] || fail "no node_id in /nodes response: $node_resp" 1
+log "  node_id=${NODE_ID}"
 
 # ----------------------------------------------------------------------
 # 3. Start sweep
