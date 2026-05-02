@@ -1,0 +1,41 @@
+{
+  "matrix_version": "v1-temp-sweep",
+  "matrix_description": "LLM-relevant cells only — BASELINE (LLM Class 1 default mode), C1_D1_LLM_ASSISTED (LLM Class 1 explicit), C2_D2_LLM_ASSISTED (LLM Class 2 candidate generation). All three exercise the LocalLlmAdapter, so temperature × top_p variations directly affect their results. C2_D2_STATIC_ONLY and other Class 2 cells where LLM is bypassed are intentionally excluded — they would just measure noise. Used by scripts/run_temp_sweep.sh to scan a temp × top_p grid.",
+  "trials_per_cell_default": 10,
+  "package_id": "A",
+  "cells": [
+    {
+      "cell_id": "BASELINE",
+      "description": "Default policy reference cell. Calls LLM for Class 1 candidate generation in default mode.",
+      "comparison_condition": null,
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 10,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C1_D1_LLM_ASSISTED",
+      "description": "Class 1 intent recovery via LLM-assisted candidate generation (explicit experiment_mode=llm_assisted).",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 10,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "C2_D2_LLM_ASSISTED",
+      "description": "Class 2 candidate generation via LLM-assisted (LocalLlmAdapter.generate_class2_candidates).",
+      "comparison_condition": "class2_llm_assisted",
+      "scenarios": ["class2_insufficient_context_scenario_skeleton.json"],
+      "trials_per_cell": 10,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}
