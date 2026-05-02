@@ -39,15 +39,13 @@ def _load_json(path):
 def _all_scenario_paths():
     """All scenario manifest JSON files under integration/scenarios/.
 
-    Excludes:
-      - scenario_manifest_schema.json (the schema itself, not a scenario)
-      - sc01_light_on_request.json (a misplaced payload fixture — it's a
-        policy_router_input payload, not a scenario manifest. Out of scope
-        for this PR; cleanup belongs in a separate file-rename PR.)
-    """
+    Excludes scenario_manifest_schema.json (the schema itself, not a
+    scenario). Previously also excluded sc01_light_on_request.json, but
+    that file has been relocated to integration/tests/data/ under the
+    canonical sample_policy_router_input_*.json naming so the exclusion
+    is no longer needed."""
     excluded = {
         "scenario_manifest_schema.json",
-        "sc01_light_on_request.json",
     }
     return [
         p for p in sorted(_SCENARIOS_DIR.glob("*.json"))

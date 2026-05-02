@@ -374,7 +374,7 @@ Mac mini 앱이 실행 중인 상태에서 테스트 컨텍스트 페이로드�
 
 ```bash
 mosquitto_pub -h localhost -p 1883 -t safe_deferral/context/input \
-  -f integration/scenarios/sc01_light_on_request.json
+  -f integration/tests/data/sample_policy_router_input_sc01_light_on_request.json
 ```
 
 Mac mini 터미널 로그에서 다음 흐름이 출력되어야 합니다:
@@ -390,7 +390,7 @@ With the Mac mini app running, publish a test context payload:
 
 ```bash
 mosquitto_pub -h localhost -p 1883 -t safe_deferral/context/input \
-  -f integration/scenarios/sc01_light_on_request.json
+  -f integration/tests/data/sample_policy_router_input_sc01_light_on_request.json
 ```
 
 The Mac mini log should show:

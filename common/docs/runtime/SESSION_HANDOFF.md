@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_RELOCATE_SC01_PAYLOAD_FIXTURE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P3_8_FIXTURE_COMMENT_CLEANUP.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P2_7_DASHBOARD_AUDIT_FIELD_RENDERING.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P2_6_MANIFEST_COMPARISON_CONDITIONS_TAGGING.md`

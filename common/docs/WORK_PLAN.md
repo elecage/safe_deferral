@@ -51,7 +51,7 @@ Phase 4 — 논문 작성
   - 파일: `integration/tests/data/sample_policy_router_input_class2_*.json`
 - [ ] Fault injection 시나리오 픽스처 작성 (staleness, missing_state, conflict)
   - 파일: `integration/tests/data/sample_fault_*.json`
-- [ ] `docs/setup/05_integration_run.md`에서 참조한 `sc01_light_on_request.json` 작성
+- [x] `docs/setup/05_integration_run.md`에서 참조한 `sample_policy_router_input_sc01_light_on_request.json` 작성 (relocated from `integration/scenarios/` to `integration/tests/data/` under canonical `sample_policy_router_input_*.json` naming)
 
 참조 기준:
 - `common/schemas/policy_router_input_schema.json`
