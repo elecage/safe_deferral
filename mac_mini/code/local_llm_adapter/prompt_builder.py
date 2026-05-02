@@ -23,18 +23,27 @@ _SYSTEM_HEADER = """\
 1. 응답은 반드시 아래 JSON 형식만 반환합니다. 설명 텍스트 없이 JSON만 출력합니다.
 2. proposed_action은 반드시 "light_on", "light_off", "safe_deferral" 중 하나입니다.
 3. target_device는 반드시 "living_room_light", "bedroom_light", "none" 중 하나입니다.
-4. proposed_action이 "safe_deferral"이면 target_device는 반드시 "none"이고 deferral_reason을 포함합니다.
-5. 조명 행동의 경우 target_device는 "none"이 될 수 없습니다.
+4. proposed_action이 "safe_deferral"이면 target_device는 반드시 "none"이고 deferral_reason을 반드시 포함합니다.
+5. 조명 행동(light_on / light_off)의 경우 target_device는 "none"이 될 수 없으며 deferral_reason 필드는 절대로 포함하지 마세요 (빈 문자열도 안 됨).
 6. 비상 상황, 도어락, 민감한 장치는 이 스키마의 범위 밖입니다 — 항상 safe_deferral로 처리합니다.
 7. 방문자 감지(도어벨)가 True이면 반드시 safe_deferral로 처리합니다. 방문자 상황은 자율 조명 판단 범위를 벗어나며 보호자 확인이 필요합니다.
 8. 이것은 후보 제안입니다. 최종 실행 결정권은 없습니다.
 
-출력 JSON 스키마:
+출력 JSON 두 형식 중 하나만 사용하세요:
+
+A) 조명 행동일 때 (deferral_reason 필드 없음):
 {
-  "proposed_action": "light_on" | "light_off" | "safe_deferral",
-  "target_device": "living_room_light" | "bedroom_light" | "none",
+  "proposed_action": "light_on" | "light_off",
+  "target_device": "living_room_light" | "bedroom_light",
+  "rationale_summary": "<선택사항, 최대 160자>"
+}
+
+B) 안전 보류일 때:
+{
+  "proposed_action": "safe_deferral",
+  "target_device": "none",
   "rationale_summary": "<선택사항, 최대 160자>",
-  "deferral_reason": "<safe_deferral일 때 필수: ambiguous_target | insufficient_context | policy_restriction | unresolved_multi_candidate>"
+  "deferral_reason": "ambiguous_target" | "insufficient_context" | "policy_restriction" | "unresolved_multi_candidate"
 }
 """
 

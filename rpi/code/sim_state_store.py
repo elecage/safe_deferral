@@ -50,7 +50,7 @@ DEVICE_FIELDS: dict = {
     "living_room_light": ["on", "off"],
     "bedroom_light": ["on", "off"],
     "living_room_blind": ["open", "closed"],
-    "tv_main": ["on", "off", "standby"],
+    "tv_main": ["on", "off", "playing", "standby"],
 }
 
 
