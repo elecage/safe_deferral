@@ -20,6 +20,8 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_LOCAL_MACBOOK_E2E.md`
+1. `common/docs/runtime/PLAN_2026-05-02_LOCAL_MACBOOK_E2E.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_PAPER_EVAL_PHASE4_DASHBOARD_SWEEP_UI.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P2_CONSISTENCY_CLEANUP.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_TTS_SELECTION_LABEL_NATURAL_PHRASING.md`

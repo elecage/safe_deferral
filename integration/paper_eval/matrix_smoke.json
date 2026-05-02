@@ -1,0 +1,23 @@
+{
+  "matrix_version": "v1-smoke",
+  "matrix_description": "Minimal local E2E smoke matrix (1 cell × 1 trial). Used by scripts/local_e2e_smoke_test.sh to verify the full toolchain (sweep → aggregate → digest) end-to-end on a developer laptop in under a minute. NOT for paper-grade measurement — use matrix_v1.json for that.",
+  "trials_per_cell_default": 1,
+  "package_id": "A",
+  "cells": [
+    {
+      "cell_id": "BASELINE",
+      "description": "BASELINE smoke cell — uses the same scenario as matrix_v1.json's BASELINE row but with trials_per_cell=1 so the smoke test finishes in seconds, not minutes.",
+      "comparison_condition": null,
+      "scenarios": ["class1_baseline_scenario_skeleton.json"],
+      "trials_per_cell": 1,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start so the resulting digest is reproducible.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}
