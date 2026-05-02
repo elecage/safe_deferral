@@ -310,13 +310,24 @@ class PackageRunner:
             base_payload["routing_metadata"]["ingest_timestamp_ms"] = int(
                 time.time() * 1000
             )
-            # Package A intent-recovery comparison: propagate the comparison
-            # condition to the Mac mini Pipeline so each condition actually
-            # selects a different intent-recovery branch (direct/rule/llm).
-            if trial.comparison_condition:
-                base_payload["routing_metadata"]["experiment_mode"] = (
-                    trial.comparison_condition
-                )
+            # Package A intent-recovery comparison (Class 1):
+            # comparison_condition ∈ {direct_mapping, rule_only, llm_assisted}
+            # → routing_metadata.experiment_mode (Class 1 intent-recovery branch).
+            #
+            # Package A LLM-vs-static Class 2 comparison (doc 10 §3.3 P2.3):
+            # comparison_condition ∈ {class2_static_only, class2_llm_assisted}
+            # → routing_metadata.class2_candidate_source_mode without the
+            #   "class2_" prefix (so the schema enum matches static_only /
+            #   llm_assisted). The two condition spaces never collide because
+            #   they target different routing branches in the Mac mini.
+            cc = trial.comparison_condition
+            if cc:
+                if cc.startswith("class2_"):
+                    base_payload["routing_metadata"]["class2_candidate_source_mode"] = (
+                        cc[len("class2_"):]
+                    )
+                else:
+                    base_payload["routing_metadata"]["experiment_mode"] = cc
 
             # --- Apply fault profile transform ---
             if profile and profile.profile_id != "FAULT_CONTRACT_DRIFT_01":

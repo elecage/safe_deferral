@@ -67,7 +67,16 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
             "baseline_scenario_skeleton.json",
         ],
         recommended_fault_profiles=[],
-        comparison_conditions=["direct_mapping", "rule_only", "llm_assisted"],
+        # Class 1 intent-recovery comparison (PR #79):
+        #   direct_mapping / rule_only / llm_assisted
+        # Class 2 candidate-generation comparison (doc 10 §3.3 P2.3, this PR):
+        #   class2_static_only / class2_llm_assisted
+        # The runner inspects the prefix and routes the value to either
+        # routing_metadata.experiment_mode or routing_metadata.class2_candidate_source_mode.
+        comparison_conditions=[
+            "direct_mapping", "rule_only", "llm_assisted",
+            "class2_static_only", "class2_llm_assisted",
+        ],
         required_node_types=["context_node", "actuator_simulator"],
         description=(
             "정책 분기 정확성 및 안전성 검증. CLASS_0/1/2 올바른 라우팅 비율, "

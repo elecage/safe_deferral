@@ -401,6 +401,9 @@ class Pipeline:
             trigger_id=trigger_id,
             audit_correlation_id=route_result.audit_correlation_id,
             pure_context_payload=route_result.pure_context_payload,
+            candidate_source_mode=getattr(
+                route_result, "class2_candidate_source_mode", None,
+            ),
         )
 
         # Step 1: announce candidate choices to the USER via TTS

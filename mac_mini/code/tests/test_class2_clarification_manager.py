@@ -628,6 +628,57 @@ class TestLlmCandidateGeneratorHook:
                                        "user_mqtt_button", trigger_id="C206")
         assert result.clarification_record["candidate_source"] == "default_fallback"
 
+    def test_static_only_mode_skips_llm_call(self):
+        """Package A LLM-vs-static comparison (doc 10 §3.3 P2.3): when the
+        runner sets candidate_source_mode='static_only', the manager must
+        NOT call the LLM even if a generator and pure_context_payload are
+        available. The session is recorded as static_only_forced so audit
+        can distinguish 'forced static' from 'LLM tried and failed'."""
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session(
+            "C206", AUDIT_ID,
+            pure_context_payload=self._ctx(),
+            candidate_source_mode="static_only",
+        )
+        assert stub.calls == [], "LLM must not be called under static_only"
+        assert session.candidate_choices[0].candidate_id == "C1_LIGHTING_ASSISTANCE"
+        assert getattr(session, "candidate_source") == "static_only_forced"
+
+    def test_llm_assisted_mode_keeps_default_behaviour(self):
+        """candidate_source_mode='llm_assisted' is the existing default —
+        LLM is consulted; outcome is 'llm_generated' when LLM succeeds."""
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session(
+            "C206", AUDIT_ID,
+            pure_context_payload=self._ctx(),
+            candidate_source_mode="llm_assisted",
+        )
+        assert len(stub.calls) == 1
+        assert getattr(session, "candidate_source") == "llm_generated"
+
+    def test_static_only_record_validates_against_schema(self):
+        """The schema enum must include static_only_forced."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("clarification_interaction_schema.json")
+        resolver = loader.make_schema_resolver()
+
+        stub = _StubLlmGenerator(candidates=self._llm_candidates())
+        mgr = Class2ClarificationManager(llm_candidate_generator=stub)
+        session = mgr.start_session(
+            "C206", AUDIT_ID, pure_context_payload=self._ctx(),
+            candidate_source_mode="static_only",
+        )
+        result = mgr.submit_selection(session, "C1_LIGHTING_ASSISTANCE",
+                                       "user_mqtt_button", trigger_id="C206")
+        assert result.clarification_record["candidate_source"] == "static_only_forced"
+        validator = jsonschema.Draft7Validator(schema, resolver=resolver)
+        errors = list(validator.iter_errors(result.clarification_record))
+        assert not errors, "; ".join(e.message for e in errors)
+
     def test_clarification_record_validates_against_schema(self):
         """candidate_source field is now in the clarification_interaction_schema —
         a record with it must still validate."""

@@ -1599,6 +1599,86 @@ class TestExperimentModePropagation:
         assert "template" in captured, "publish_once was not called"
         meta = captured["template"]["routing_metadata"]
         assert meta.get("experiment_mode") == "rule_only"
+        # The Class 2 mode field MUST stay absent for non-class2_ conditions.
+        assert "class2_candidate_source_mode" not in meta
+
+
+class TestClass2CandidateSourceModePropagation:
+    """Comparison conditions starting with 'class2_' must route to
+    routing_metadata.class2_candidate_source_mode (without the prefix),
+    NOT to experiment_mode. The two condition spaces never collide."""
+
+    def _run_with_condition(self, condition):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+
+        captured = {}
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {
+                "audit_correlation_id": "x",
+                "ingest_timestamp_ms": 0,
+                "network_status": "online",
+            },
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = (
+            lambda _n: captured.update({"template": dict(_n.profile.payload_template)})
+        )
+
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = {
+            "route": {"route_class": "CLASS_1", "timestamp_ms": 0},
+            "validation": {"validation_status": "approved"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store)
+        run = store.create_run(
+            package_id="A", scenario_ids=[], fault_profile_ids=[],
+            trial_count=1, comparison_condition=condition,
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id, package_id="A", node_id="n",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition=condition, expected_route_class="CLASS_1",
+        )
+        import time
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            time.sleep(0.05)
+        assert "template" in captured, "publish_once was not called"
+        return captured["template"]["routing_metadata"]
+
+    def test_class2_static_only_routes_to_class2_mode_field(self):
+        meta = self._run_with_condition("class2_static_only")
+        # Without the "class2_" prefix to match the policy_router schema enum
+        assert meta.get("class2_candidate_source_mode") == "static_only"
+        # Must NOT pollute the Class 1 experiment_mode field
+        assert "experiment_mode" not in meta
+
+    def test_class2_llm_assisted_routes_to_class2_mode_field(self):
+        meta = self._run_with_condition("class2_llm_assisted")
+        assert meta.get("class2_candidate_source_mode") == "llm_assisted"
+        assert "experiment_mode" not in meta
+
+    def test_package_a_definition_lists_new_conditions(self):
+        """Dashboard Package A picker should expose the new condition names."""
+        from experiment_package.definitions import PACKAGES, PackageId
+        conds = PACKAGES[PackageId.A].comparison_conditions
+        assert "class2_static_only" in conds
+        assert "class2_llm_assisted" in conds
 
 
 # ==================================================================

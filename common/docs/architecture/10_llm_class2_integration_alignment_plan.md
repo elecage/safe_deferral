@@ -194,7 +194,7 @@ mode flag is needed only when we want to *force* a comparison.
 | **C** | P1 | All P1 items in one docs-only PR | No code; mechanical |
 | **D** | P2.1 | Expected-fixture variability allowance | Required before any real LLM-mode trial run |
 | **E** | P2.2 | Trial timeout decomposition | Should follow B (uses the new policy timeout) |
-| **F** | P2.3 | Class 2 LLM-vs-static comparison condition | Optional / future paper-evaluation feature |
+| **F** | P2.3 | Class 2 LLM-vs-static comparison condition | Optional / future paper-evaluation feature (delivered 2026-05-02; see SESSION_HANDOFF_2026-05-02_PR_F_CLASS2_CANDIDATE_SOURCE_MODE.md) |
 
 PR B (P0) is the only true safety regression fix. PR C (P1) is housekeeping
 and can land in parallel with B. PRs D-F are evaluation-side improvements

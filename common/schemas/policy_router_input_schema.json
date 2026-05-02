@@ -50,6 +50,14 @@
             "llm_assisted"
           ],
           "description": "Optional experiment mode for Package A intent-recovery comparison. Field is honored only by experiment runners and the Class 1 intent-recovery branch; it must not be passed into the LLM prompt and does not affect Class 0 emergency, Class 2 escalation, or validator authority."
+        },
+        "class2_candidate_source_mode": {
+          "type": "string",
+          "enum": [
+            "static_only",
+            "llm_assisted"
+          ],
+          "description": "Optional experiment mode for Package A Class 2 candidate-generation comparison (10_llm_class2_integration_alignment_plan.md §3.3 P2.3). 'static_only' forces Class2ClarificationManager to skip the LLM and use _DEFAULT_CANDIDATES; 'llm_assisted' is the current default behaviour (LLM with static fallback). Like experiment_mode, this is honored only by experiment runners and the Class 2 candidate-generation branch; it must not be passed into the LLM prompt and does not affect Class 0 emergency, Class 1 routing, or validator authority."
         }
       }
     },

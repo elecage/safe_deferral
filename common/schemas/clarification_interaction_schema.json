@@ -71,9 +71,10 @@
       "type": "string",
       "enum": [
         "llm_generated",
-        "default_fallback"
+        "default_fallback",
+        "static_only_forced"
       ],
-      "description": "Provenance of the candidate set. llm_generated means LocalLlmAdapter.generate_class2_candidates() produced the candidates within bounded-variability constraints; default_fallback means Class2ClarificationManager._DEFAULT_CANDIDATES was used (e.g. on LLM failure or constraint violation). Optional field for backward compatibility; absence means default_fallback for legacy records."
+      "description": "Provenance of the candidate set. llm_generated means LocalLlmAdapter.generate_class2_candidates() produced the candidates within bounded-variability constraints; default_fallback means Class2ClarificationManager._DEFAULT_CANDIDATES was used (e.g. on LLM failure or constraint violation); static_only_forced means the experiment runner explicitly disabled the LLM via routing_metadata.class2_candidate_source_mode='static_only' (Package A LLM-vs-static comparison; doc 10 §3.3 P2.3) — distinct from default_fallback so audit can tell 'forced static' apart from 'LLM tried and failed'. Optional field for backward compatibility; absence means default_fallback for legacy records."
     },
     "candidate_choices": {
       "type": "array",

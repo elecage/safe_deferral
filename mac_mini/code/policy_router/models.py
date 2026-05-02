@@ -47,3 +47,11 @@ class PolicyRouterResult:
     # Honored only by the Class 1 intent-recovery branch. Never enters the LLM
     # prompt and never affects Class 0 / Class 2 routing decisions.
     experiment_mode: Optional[str] = None
+
+    # Optional Class 2 candidate-generation experiment mode (Package A
+    # LLM-vs-static comparison; doc 10 §3.3 P2.3). Honored only by the
+    # Class 2 candidate-generation branch in Class2ClarificationManager.
+    # 'static_only' forces the static _DEFAULT_CANDIDATES table; 'llm_assisted'
+    # is the current default behaviour. Never enters the LLM prompt and
+    # never affects Class 0 emergency, Class 1 routing, or validator authority.
+    class2_candidate_source_mode: Optional[str] = None
