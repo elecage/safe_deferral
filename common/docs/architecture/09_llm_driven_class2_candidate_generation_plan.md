@@ -246,7 +246,14 @@ Optional Table for the paper: "Static vs LLM-driven Class 2 candidate
 generation — ambiguity resolution rate, average TTS round-trips per
 session, caregiver-escalation rate."
 
-### Phase 6 — Multi-turn refinement (deferred)
+### Phase 6 — Multi-turn refinement (Phase 6.0 landed; see doc 11)
+
+**Status update (2026-05-02):** Phase 6.0 (schema, policy, manager API,
+static refinement template, audit record) landed via PR delivering doc
+`11_class2_multi_turn_refinement_plan.md`. The production single-turn flow
+remains unchanged (feature flag `class2_multi_turn_enabled` defaults to
+`false`); Phase 6.1 (Mac mini main-loop wiring + TTS announcement helpers)
+is deferred per doc 11 §7.
 
 The vision mentions "LLM이 대화하고 불확실성을 해소하는 내용". A true
 multi-turn clarification loop (e.g., "Living room? Yes / No → Brightness

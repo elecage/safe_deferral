@@ -20,6 +20,9 @@
     "llm_request_timeout_ms": 8000,
     "_caregiver_response_timeout_ms_description": "Phase 2 (caregiver Telegram inline-keyboard) wait budget for Class 2 escalation. Single source of truth for Mac mini (CAREGIVER_RESPONSE_TIMEOUT_S env defaults to this) and RPi PackageRunner (_class2_caregiver_phase_timeout_s). The Mac mini still allows env-variable override (CAREGIVER_RESPONSE_TIMEOUT_S) for operational ad-hoc tuning, but absent that, this policy value is canonical. Plan reference: 10_llm_class2_integration_alignment_plan.md follow-up to P2.2.",
     "caregiver_response_timeout_ms": 300000,
+    "_class2_multi_turn_description": "Opt-in feature flag for the Class 2 multi-turn refinement path (doc 11 Phase 6.0). When false (default), submit_selection produces a terminal Class2Result exactly as before. When true, submit_selection_or_refine may instead return a refinement ClarificationSession for at most one additional user turn, time-bounded by class2_refinement_turn_timeout_ms. Production single-turn flow is the default; multi-turn must be enabled deliberately during evaluation runs.",
+    "class2_multi_turn_enabled": false,
+    "class2_refinement_turn_timeout_ms": 30000,
     "class2_conversational_prompt_constraints": {
       "_description": "Bounded-variability constraints applied to LLM-generated Class 2 clarification candidate prompts (09_llm_driven_class2_candidate_generation_plan.md §5). Operations may tighten these without code changes; LocalLlmAdapter loads them at startup and rejects LLM output that violates any constraint, falling back to the static _DEFAULT_CANDIDATES table on rejection. The accessibility intent is to keep TTS prompts predictable for users with cognitive / attention limits.",
       "max_prompt_length_chars": 80,
