@@ -1,6 +1,6 @@
 # Paper-Eval Matrix Plan
 
-**Status:** Phases 0–3 shipped (PRs #122 / #123 / #125 / #126). Toolchain complete: matrix file → sweep → aggregator → digest → paper-ready CSV + Markdown. Phase 4 (live dashboard sweep-progress UI) deferred until operational use surfaces a need.
+**Status:** Phases 0–4 shipped (PRs #122 / #123 / #125 / #126 / #131). Toolchain complete and dashboard-driven: matrix file → sweep → aggregator → digest → paper-ready CSV + Markdown, with live per-cell progress + artifact downloads available from the operator dashboard.
 **Plan baseline:** Follow-up to PRs #112–#121 (post-doc-12 consistency backfill complete + sc01 relocation). The 4-dimensional comparison framework defined by PR #79 / #101 / #110 / #111 has docs / contracts / scenarios / verifier coverage. Now the *operational* layer — actually running trials across the matrix and producing paper-ready digests — is the next gap.
 
 ---
@@ -208,9 +208,9 @@ Filename convention: `digest_<matrix_version>_<timestamp>.{csv,md}`. matrix_v2 o
 | 1 | [#123](https://github.com/elecage/safe_deferral/pull/123) | shipped | `paper_eval/sweep.py` orchestrator CLI + library + 17 tests |
 | 2 | [#125](https://github.com/elecage/safe_deferral/pull/125) | shipped | `paper_eval/aggregator.py` cross-run aggregator + 28 tests; sweep additive (`trials_snapshot` + cell metadata in manifest enables fully offline aggregation) |
 | 3 | [#126](https://github.com/elecage/safe_deferral/pull/126) | shipped | `paper_eval/digest.py` CSV (18-col stable schema) + Markdown (3 sub-grids + reproducibility footer) + 21 tests |
-| 4 | — | deferred | Dashboard sweep-progress UI. Decide after operator-CLI is exercised in practice — see §11 open question #2. |
+| 4 | [#131](https://github.com/elecage/safe_deferral/pull/131) | shipped (MVP) | `paper_eval/sweep_runner.py` + 6 dashboard endpoints under `/paper_eval/sweeps/` + ⑤ UI section with live per-cell progress + artifact downloads + 34 tests. Single-slot model; concurrent sweeps + history persistence deferred until usage demands. |
 
-Each implementation PR is self-contained: depends on phase 0 (this design) but not on subsequent phases. Cumulative test count: 66 paper-eval-specific tests, 0 regressions in mac_mini (700/700).
+Each implementation PR is self-contained: depends on phase 0 (this design) but not on subsequent phases. Cumulative test count: 100 paper-eval-specific tests (17 sweep + 9 sweep callback + 8 runner + 28 aggregator + 21 digest + 17 endpoint), 0 regressions in mac_mini (711/711).
 
 End-to-end usage:
 
@@ -242,7 +242,7 @@ PYTHONPATH=rpi/code python -m paper_eval.digest \
 ## 11. Open questions for the maintainer
 
 1. **Trials per cell** — 30 reasonable, or aim for 100 (cleaner stats, ~3× wall time)? **Open** — answer requires running an actual sweep and observing variance. Tooling supports both (`--trials-per-cell N` global override; per-cell override in matrix file). First-sweep findings should be recorded back here, not in handoff history.
-2. **Live dashboard view (Phase 4)** — worth building, or operator-CLI is enough for paper-eval? **Open** — defer decision until operator runs ≥ 1 full sweep and reports whether CLI feedback is sufficient.
+2. **Live dashboard view (Phase 4)** — **Resolved (#131):** shipped as MVP with single-slot model. Concurrent sweeps + history persistence remain deferred — revisit only if operational use surfaces a need (CLI still works for batch / scripted scenarios).
 3. **Matrix v2 versioning** — when paper review surfaces "we need cell X", is v2 a sibling file or a delta on v1? **Recommended (not yet exercised):** sibling. v1 stays immutable; v2 lives at `integration/paper_eval/matrix_v2.json`; the digest filename convention (`digest_<matrix_version>_<ts>.{csv,md}`) means both versions' outputs coexist cleanly in the same `runs/<ts>/digest/` directory.
 
 ## 12. Source notes
