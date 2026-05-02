@@ -205,28 +205,68 @@ Phase 4 verbatim invariant (PR #97) extends naturally: each per-option utterance
 
 ## 8. MQTT Input Contract
 
-Existing `bounded_input_node` payload (direct-select):
+### 8.1 Reality check (corrected from earlier draft)
+
+The earlier sketch in this section showed an idealized `selected_candidate_id` payload field. That was inaccurate — the **actual** Class 2 user-selection input is a button event riding in the standard policy-router input payload:
 
 ```jsonc
 {
-  "selected_candidate_id": "C1_LIGHTING_ASSISTANCE",
-  "audit_correlation_id": "..."
-}
-```
-
-Scanning payload (additive — old direct-select payloads remain valid when input_mode=direct_select):
-
-```jsonc
-{
-  "scan_response": {
-    "option_index": 0,
-    "response": "yes",
-    "audit_correlation_id": "..."
+  "source_node_id": "esp32.bounded_input_node",
+  "routing_metadata": { "audit_correlation_id": "...", ... },
+  "pure_context_payload": {
+    "trigger_event": {
+      "event_type": "button",
+      "event_code": "single_click" | "triple_hit",
+      "timestamp_ms": 1710000000000
+    },
+    ...
   }
 }
 ```
 
-The two top-level keys (`selected_candidate_id` vs `scan_response`) are mutually exclusive; the manager rejects both-present payloads.
+`mac_mini/code/main.py::_try_handle_as_user_selection` intercepts these button events when a Class 2 session is active and maps them to a `selected_candidate_id` internally:
+
+| event_code     | direct-select mapping                                        |
+|----------------|--------------------------------------------------------------|
+| `single_click` | first candidate in the session's list                        |
+| `triple_hit`   | first CLASS_0-targeted candidate (emergency shortcut)        |
+| (other)        | blocked (does not fall through to the normal pipeline)       |
+
+This means the actual physical input vocabulary is already minimal (one or two button gestures). Scanning needs to reinterpret these gestures, not invent a new payload shape.
+
+### 8.2 Scanning interpretation
+
+Under `session.input_mode == "scanning"`, the same button events carry different semantics:
+
+| event_code     | scanning interpretation                                                                |
+|----------------|----------------------------------------------------------------------------------------|
+| `single_click` | "yes" to `session.current_option_index` — accept the currently-announced option        |
+| `double_click` | "no" to `session.current_option_index` — reject explicitly without waiting for timeout |
+| `triple_hit`   | emergency shortcut — accept the first CLASS_0-targeted candidate (same as direct-select) |
+| (silence)      | per-option timeout (`class2_scan_per_option_timeout_ms`) → "silence" → auto-advance     |
+| (other)        | blocked, same as direct-select                                                         |
+
+This keeps the on-the-wire payload schema unchanged. A user with a single switch can answer the system using only `single_click` + silence; a user with two switches gets faster "no" via `double_click`. The Mac mini main loop (Phase 4) computes which `option_index` is current at message-receipt time, so no race between input nodes and the manager.
+
+### 8.3 Adapter helper
+
+Phase 3 adds a small pure helper in `class2_clarification_manager.scan_input_adapter` that maps a (event_code, session) pair to one of:
+
+- `("submit", option_index, response)` — call `submit_scan_response(option_index, response, ...)`
+- `("emergency", candidate_id)` — same as direct-select triple_hit shortcut
+- `(None,)` — ignore / block
+
+This isolates the interpretation rules in one tested place so Phase 4's main-loop wiring is mechanical. The helper is pure — no MQTT coupling, no main-loop coupling — and lets unit tests exercise the full mapping table without standing up the full pipeline.
+
+### 8.4 Why no new schema field
+
+The earlier sketch proposed a `scan_response` payload field. We rejected it because:
+
+1. **No new contract for the input layer.** Adding `scan_response` would force every input node (`esp32.bounded_input_node`, `rpi.simulation_runtime_controlled_mode`, etc.) to know about scanning vs direct-select modes. The current button-event reuse keeps input nodes mode-agnostic — they emit button events and the Mac mini handler interprets per-mode.
+2. **No race surface.** `option_index` carried in the payload would let a stale message accept the wrong option. Computing `current_option_index` at receipt time inside the Mac mini avoids this entirely.
+3. **No backward-compat burden.** `selected_candidate_id` was a sketch, not actual code. Direct-select integration fixtures and devices stay unchanged.
+
+If a future input device wants to declare an explicit `option_index` (e.g., a screen-reader confirmation that knows what was just announced), it can be added later as an optional payload extension; nothing in this design forecloses that.
 
 ## 9. Phase Split
 
