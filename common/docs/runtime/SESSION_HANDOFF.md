@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P1_5_DETERMINISTIC_ORDERING_SCENARIOS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P1_4_MULTI_TURN_REFINEMENT_SCENARIOS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P1_3_SCANNING_INPUT_SCENARIOS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_P0_2_MQTT_CONTRACT_AND_EXAMPLES.md`

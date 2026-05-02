@@ -1,0 +1,134 @@
+{
+  "scenario_id": "SCN_CLASS2_DETERMINISTIC_ORDERING_C206_BUCKET",
+  "title": "Class 2 deterministic ordering — C206 trigger bucket priority (CLASS_1 first)",
+  "description": "Deterministic scenario for the doc 12 §14 Phase 1.5 deterministic ordering layer. With routing_metadata.class2_scan_ordering_mode='deterministic' AND routing_metadata.class2_input_mode='scanning' active, the manager runs apply_scan_ordering after candidate generation. The C206 bucket in policy_table.global_constraints.class2_scan_ordering_rules.by_trigger_id specifies priority [CLASS_1, CLASS_0, CAREGIVER_CONFIRMATION, SAFE_DEFERRAL] — so the CLASS_1 lighting candidate is announced FIRST under scanning. The scan_ordering_applied audit field records matched_bucket='C206', applied_overrides=[] (no context overrides matched), final_order matching the announced order. Scenario asset only — does not authorize actuation.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_scanning_input_mode_enabled": true,
+    "requires_deterministic_scan_ordering_enabled": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish a C206-triggering context payload (button_event with unmapped event_code) drives the policy router into Class 2 with trigger_id='C206'. environmental_context has all risk markers false (smoke=false, gas=false, doorbell=false) so no context override fires.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_scanning_with_deterministic_ordering",
+      "description": "Class2ClarificationManager.start_session(input_mode='scanning', scan_ordering_mode='deterministic') initialises the session. After candidate generation (4 candidates: C1_LIGHTING_ASSISTANCE/CLASS_1, C3_EMERGENCY_HELP/CLASS_0, C2_CAREGIVER_HELP/CAREGIVER, C4_CANCEL_OR_WAIT/SAFE_DEFERRAL), apply_scan_ordering runs with rules=class2_scan_ordering_rules and matches the C206 bucket [CLASS_1, CLASS_0, CAREGIVER_CONFIRMATION, SAFE_DEFERRAL]. session.scan_ordering_audit is set.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "announce_options_in_deterministic_order",
+      "description": "Per-option utterances follow the post-ranking order: '1/4. <C1_LIGHTING prompt>', '2/4. <C3_EMERGENCY prompt>', '3/4. <C2_CAREGIVER prompt>', '4/4. <C4 prompt>'. Note: this is the same as the source order in this case for insufficient_context — the C206 bucket happens to align with the static default order. Other triggers (C204, C207, C208) would re-order differently."
+    },
+    {
+      "step_id": 4,
+      "action": "user_accepts_first_option",
+      "description": "User picks single_click on option 0 → terminal CLASS_1. (The terminal selection itself is not what's tested here — what's tested is the ORDER in which options were presented and the audit attribution.)"
+    },
+    {
+      "step_id": 5,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish the terminal clarification record. scan_ordering_applied carries: rule_source='policy_table.global_constraints.class2_scan_ordering_rules', matched_bucket='C206', applied_overrides=[], final_order=['C1_LIGHTING_ASSISTANCE', 'C3_EMERGENCY_HELP', 'C2_CAREGIVER_HELP', 'C4_CANCEL_OR_WAIT'].",
+      "expected_fixture": "common/payloads/examples/clarification_interaction_scanning_yes_first.json"
+    },
+    {
+      "step_id": 6,
+      "action": "observe_audit_stream",
+      "description": "The integration verifier asserts scan_ordering_applied.matched_bucket='C206' and scan_ordering_applied.final_order matches the candidate_choices order in the announced record."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_OR_LLM_GUIDANCE_LAYER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_PER_OPTION_SEQUENTIAL"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE_SCANNING"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "PER_OPTION_TIMEOUT_AUTO_ADVANCE_THEN_CAREGIVER_ESCALATION_ON_FINAL"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_1",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "scan_ordering_expectation": {
+    "scenario_comparison_condition": "class2_scan_deterministic",
+    "scenario_assumes_scanning_input_mode_active": true,
+    "expected_routing_metadata_class2_scan_ordering_mode": "deterministic",
+    "expected_clarification_record_carries_scan_ordering_applied": true,
+    "expected_scan_ordering_applied_matched_bucket": "C206",
+    "expected_scan_ordering_applied_applied_overrides_count": 0,
+    "expected_scan_ordering_applied_final_order_first_target": "CLASS_1",
+    "expected_scan_ordering_applied_final_order_second_target": "CLASS_0"
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_1",
+      "condition": "C206 bucket places CLASS_1 first; user accepts the first announced option.",
+      "example_confirmation": "single_click on option 0 (deterministically the CLASS_1 lighting candidate)",
+      "allowed_next_path": "validator_reentry_then_bounded_low_risk_assistance_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_1"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "Deterministic ordering (doc 12 §14 Phase 1.5) is opt-in. This scenario asserts the C206 bucket from class2_scan_ordering_rules.by_trigger_id is what produced the order — paper-eval can later swap the bucket value in policy and observe the order change without re-coding scenarios.",
+    "scan_ordering_applied is recorded ONLY when ordering ran (i.e., when both input_mode='scanning' AND scan_ordering_mode='deterministic'). Other modes leave the field absent.",
+    "Same candidate set, same Validator gating — ordering is pure permutation per doc 02 §10 invariant. Audit reviewers can compare scan_ordering_applied.final_order against announced scan_history to confirm no candidate was added or removed.",
+    "If the C206 bucket value changes in policy, this scenario's assertion 'expected_scan_ordering_applied_final_order_first_target=CLASS_1' may need updating — the verifier surfaces that mismatch immediately."
+  ]
+}
