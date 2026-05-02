@@ -336,13 +336,13 @@ mosquitto_sub -h localhost -p 1883 -t "safe_deferral/#" -v
 
 | 노드 | 토픽 |
 |------|------|
-| PN-01 (버튼) | `safe_deferral/context/input` |
-| PN-03 (환경) | `safe_deferral/context/input` |
-| PN-04 (도어벨) | `safe_deferral/context/input` |
-| PN-05 (가스/연기) | `safe_deferral/emergency/event` |
-| PN-06 (낙상) | `safe_deferral/emergency/event` |
-| PN-07 (경보 출력) | `safe_deferral/actuation/ack` 구독 |
-| PN-08 (도어락) | `safe_deferral/actuation/ack` 구독 |
+| PN-01 (버튼) | `safe_deferral/context/input` 발행 |
+| PN-03 (환경) | `safe_deferral/context/input` 발행 |
+| PN-04 (도어벨) | `safe_deferral/context/input` 발행 |
+| PN-05 (가스/연기) | `safe_deferral/emergency/event` 발행 |
+| PN-06 (낙상) | `safe_deferral/emergency/event` 발행 |
+| PN-07 (경보 출력) | `safe_deferral/deferral/request` + `safe_deferral/clarification/interaction` 구독 (안전 보류 / Class 2 명료화 상태를 사용자에게 알림). 선택적으로 `safe_deferral/actuation/ack`도 구독하여 실행 결과 피드백 |
+| PN-08 (도어락) | `safe_deferral/actuation/command` 구독 (validator 승인 + 보호자 manual 경로를 거친 명령만 수신). 실행 후 `safe_deferral/actuation/ack` 발행 |
 
 **English**  
 From a Mac mini or RPi terminal, subscribe to observe node traffic:
@@ -355,13 +355,13 @@ Each connected ESP32 node publishes to its respective topic:
 
 | Node | Topic |
 |------|-------|
-| PN-01 (button) | `safe_deferral/context/input` |
-| PN-03 (env) | `safe_deferral/context/input` |
-| PN-04 (doorbell) | `safe_deferral/context/input` |
-| PN-05 (gas/smoke) | `safe_deferral/emergency/event` |
-| PN-06 (fall) | `safe_deferral/emergency/event` |
-| PN-07 (warning output) | subscribes `safe_deferral/actuation/ack` |
-| PN-08 (doorlock) | subscribes `safe_deferral/actuation/ack` |
+| PN-01 (button) | publishes `safe_deferral/context/input` |
+| PN-03 (env) | publishes `safe_deferral/context/input` |
+| PN-04 (doorbell) | publishes `safe_deferral/context/input` |
+| PN-05 (gas/smoke) | publishes `safe_deferral/emergency/event` |
+| PN-06 (fall) | publishes `safe_deferral/emergency/event` |
+| PN-07 (warning output) | subscribes `safe_deferral/deferral/request` + `safe_deferral/clarification/interaction` (announces safe-deferral / Class 2 clarification state to the user). Optionally also subscribes `safe_deferral/actuation/ack` for execution-result feedback. |
+| PN-08 (doorlock) | subscribes `safe_deferral/actuation/command` (only commands that passed validator approval + caregiver manual path). Publishes `safe_deferral/actuation/ack` after executing. |
 
 ---
 
