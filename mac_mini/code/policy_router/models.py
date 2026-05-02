@@ -63,3 +63,10 @@ class PolicyRouterResult:
     # to permute the candidate set before scanning announces option 0.
     # Independent of class2_candidate_source_mode — composes for paper-eval.
     class2_scan_ordering_mode: Optional[str] = None
+
+    # Optional interaction-model experiment mode (Package A interaction-model
+    # comparison; doc 12 §9 Phase 5). Per-trial override of the policy's
+    # class2_input_mode default. 'direct_select' / 'scanning'. Composes
+    # orthogonally with the two ordering / source comparison modes — the
+    # three condition spaces let paper-eval vary one dimension at a time.
+    class2_input_mode: Optional[str] = None

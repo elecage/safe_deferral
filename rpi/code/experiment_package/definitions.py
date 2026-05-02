@@ -73,17 +73,20 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
         #   class2_static_only / class2_llm_assisted
         # Class 2 scanning ordering comparison (doc 12 §14 Phase 1.5):
         #   class2_scan_source_order / class2_scan_deterministic
+        # Class 2 interaction-model comparison (doc 12 §9 Phase 5):
+        #   class2_direct_select_input / class2_scanning_input
         # The runner inspects the prefix and routes the value to one of:
         #   routing_metadata.experiment_mode (Class 1)
         #   routing_metadata.class2_candidate_source_mode (Class 2 generation)
         #   routing_metadata.class2_scan_ordering_mode (Class 2 ordering)
-        # The three condition spaces compose orthogonally — a paper-eval
-        # trial can fix the source mode and vary the ordering mode (or
-        # vice versa) by combining conditions across runs.
+        #   routing_metadata.class2_input_mode (Class 2 interaction-model)
+        # The four condition spaces compose orthogonally — a paper-eval
+        # trial can vary one dimension while holding the others fixed.
         comparison_conditions=[
             "direct_mapping", "rule_only", "llm_assisted",
             "class2_static_only", "class2_llm_assisted",
             "class2_scan_source_order", "class2_scan_deterministic",
+            "class2_direct_select_input", "class2_scanning_input",
         ],
         required_node_types=["context_node", "actuator_simulator"],
         description=(

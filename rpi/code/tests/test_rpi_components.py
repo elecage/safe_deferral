@@ -1768,6 +1768,98 @@ class TestClass2ScanOrderingModePropagation:
         assert "class2_scan_deterministic" in conds
 
 
+class TestClass2InputModePropagation:
+    """Comparison conditions matching 'class2_*_input' must route to
+    routing_metadata.class2_input_mode (after stripping the 'class2_'
+    prefix and '_input' suffix), and must NOT pollute the other three
+    condition spaces. The four condition spaces compose orthogonally."""
+
+    def _run_with_condition(self, condition):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+
+        captured = {}
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {
+                "audit_correlation_id": "x",
+                "ingest_timestamp_ms": 0,
+                "network_status": "online",
+            },
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = (
+            lambda _n: captured.update({"template": dict(_n.profile.payload_template)})
+        )
+
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = {
+            "route": {"route_class": "CLASS_1", "timestamp_ms": 0},
+            "validation": {"validation_status": "approved"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store)
+        run = store.create_run(
+            package_id="A", scenario_ids=[], fault_profile_ids=[],
+            trial_count=1, comparison_condition=condition,
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id, package_id="A", node_id="n",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition=condition, expected_route_class="CLASS_1",
+        )
+        import time
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            time.sleep(0.05)
+        assert "template" in captured
+        return captured["template"]["routing_metadata"]
+
+    def test_class2_direct_select_input_routes_to_input_mode_field(self):
+        meta = self._run_with_condition("class2_direct_select_input")
+        assert meta.get("class2_input_mode") == "direct_select"
+        # Must NOT pollute the other three condition spaces
+        assert "experiment_mode" not in meta
+        assert "class2_candidate_source_mode" not in meta
+        assert "class2_scan_ordering_mode" not in meta
+
+    def test_class2_scanning_input_routes_to_input_mode_field(self):
+        meta = self._run_with_condition("class2_scanning_input")
+        assert meta.get("class2_input_mode") == "scanning"
+        assert "class2_candidate_source_mode" not in meta
+        assert "class2_scan_ordering_mode" not in meta
+
+    def test_other_class2_prefixes_still_work(self):
+        """Regression: PR #101 / #110 prefix routing must keep working —
+        class2_*_input is more specific (suffix-matched) and checked first,
+        so it doesn't shadow the other class2_* conditions."""
+        meta_static = self._run_with_condition("class2_static_only")
+        assert meta_static.get("class2_candidate_source_mode") == "static_only"
+        assert "class2_input_mode" not in meta_static
+
+        meta_scan = self._run_with_condition("class2_scan_deterministic")
+        assert meta_scan.get("class2_scan_ordering_mode") == "deterministic"
+        assert "class2_input_mode" not in meta_scan
+
+    def test_package_a_definition_lists_input_mode_conditions(self):
+        from experiment_package.definitions import PACKAGES, PackageId
+        conds = PACKAGES[PackageId.A].comparison_conditions
+        assert "class2_direct_select_input" in conds
+        assert "class2_scanning_input" in conds
+
+
 # ==================================================================
 # PackageRunner — auto-drive selection input for CLASS_2 trials
 # ==================================================================

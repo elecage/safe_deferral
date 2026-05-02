@@ -312,9 +312,9 @@ class PackageRunner:
             )
             # Package A comparison_condition prefix routing — each prefix
             # selects which routing_metadata field receives the value (after
-            # the prefix is stripped so the schema enum matches). The three
-            # condition spaces target different Mac mini branches and never
-            # collide:
+            # the prefix/suffix is stripped so the schema enum matches).
+            # The four condition spaces target different Mac mini branches
+            # and never collide. Most-specific prefix wins (checked first):
             #
             #   {direct_mapping, rule_only, llm_assisted}
             #     → routing_metadata.experiment_mode (Class 1 intent recovery, PR #79)
@@ -326,11 +326,19 @@ class PackageRunner:
             #   class2_scan_{source_order, deterministic}
             #     → routing_metadata.class2_scan_ordering_mode
             #       (scanning ordering comparison, doc 12 §14 Phase 1.5)
+            #
+            #   class2_{direct_select, scanning}_input
+            #     → routing_metadata.class2_input_mode
+            #       (interaction-model comparison, doc 12 §9 Phase 5)
             cc = trial.comparison_condition
             if cc:
                 if cc.startswith("class2_scan_"):
                     base_payload["routing_metadata"]["class2_scan_ordering_mode"] = (
                         cc[len("class2_scan_"):]
+                    )
+                elif cc.startswith("class2_") and cc.endswith("_input"):
+                    base_payload["routing_metadata"]["class2_input_mode"] = (
+                        cc[len("class2_"):-len("_input")]
                     )
                 elif cc.startswith("class2_"):
                     base_payload["routing_metadata"]["class2_candidate_source_mode"] = (

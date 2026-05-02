@@ -462,3 +462,50 @@ class TestClass2ScanOrderingModePassthrough:
         result = router.route(inp)
         assert result.class2_candidate_source_mode == "static_only"
         assert result.class2_scan_ordering_mode == "deterministic"
+
+
+# ------------------------------------------------------------------
+# class2_input_mode pass-through
+# (doc 12 §9 Phase 5 — interaction-model comparison)
+# ------------------------------------------------------------------
+
+class TestClass2InputModePassthrough:
+    """routing_metadata.class2_input_mode must propagate so paper-eval
+    trials can override the deployment's default per trial."""
+
+    def test_default_no_mode(self, router):
+        result = router.route(_base_input())
+        assert result.class2_input_mode is None
+
+    def test_class1_with_mode_propagates(self, router):
+        inp = _base_input()
+        inp["routing_metadata"]["class2_input_mode"] = "scanning"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_1
+        assert result.class2_input_mode == "scanning"
+
+    def test_class2_propagates(self, router):
+        inp = _base_input(event_type="button", event_code="unmapped_code")
+        inp["routing_metadata"]["class2_input_mode"] = "direct_select"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.class2_input_mode == "direct_select"
+
+    def test_invalid_mode_rejected_by_schema(self, router):
+        inp = _base_input()
+        inp["routing_metadata"]["class2_input_mode"] = "bogus"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C202"
+
+    def test_all_three_modes_compose(self, router):
+        """Paper-eval may set all three independently to isolate
+        contributions from generation, ordering, and interaction model."""
+        inp = _base_input()
+        inp["routing_metadata"]["class2_candidate_source_mode"] = "llm_assisted"
+        inp["routing_metadata"]["class2_scan_ordering_mode"] = "deterministic"
+        inp["routing_metadata"]["class2_input_mode"] = "scanning"
+        result = router.route(inp)
+        assert result.class2_candidate_source_mode == "llm_assisted"
+        assert result.class2_scan_ordering_mode == "deterministic"
+        assert result.class2_input_mode == "scanning"
