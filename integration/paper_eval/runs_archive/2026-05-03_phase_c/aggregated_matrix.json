@@ -1,0 +1,312 @@
+{
+  "matrix_version": "v1",
+  "matrix_path": "/Users/dsc-nb14/safe_deferral_claude/.claude/worktrees/blissful-haslett-9b88e2/integration/paper_eval/matrix_v1.json",
+  "sweep_started_at_ms": 1777735320031,
+  "sweep_finished_at_ms": 1777743273376,
+  "anchor_commits": {
+    "matrix_file_sha": "ee4b4db0177b367cffa3a9dd4c10e25d626ade1f",
+    "scenarios_dir_sha": "9107bc511f01af4c926eb580213ad41634243b50",
+    "policy_table_sha": "a81b204e76e97ec4bb28ac404168233a84004626"
+  },
+  "cells": [
+    {
+      "cell_id": "BASELINE",
+      "comparison_condition": null,
+      "scenarios": [
+        "class1_baseline_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 30,
+        "CLASS_2": 0,
+        "unknown": 0
+      },
+      "latency_ms_p50": 1677.0,
+      "latency_ms_p95": 2107.0,
+      "class2_clarification_correctness": null,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C1_D1_DIRECT_MAPPING",
+      "comparison_condition": "direct_mapping",
+      "scenarios": [
+        "class1_baseline_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 30,
+        "CLASS_2": 0,
+        "unknown": 0
+      },
+      "latency_ms_p50": 1.0,
+      "latency_ms_p95": 1.0,
+      "class2_clarification_correctness": null,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C1_D1_RULE_ONLY",
+      "comparison_condition": "rule_only",
+      "scenarios": [
+        "class1_baseline_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 30,
+        "CLASS_2": 0,
+        "unknown": 0
+      },
+      "latency_ms_p50": 1.0,
+      "latency_ms_p95": 1.0,
+      "class2_clarification_correctness": null,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C1_D1_LLM_ASSISTED",
+      "comparison_condition": "llm_assisted",
+      "scenarios": [
+        "class1_baseline_scenario_skeleton.json"
+      ],
+      "n_trials": 29,
+      "pass_rate": 0.9655,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 28,
+        "CLASS_2": 1,
+        "unknown": 0
+      },
+      "latency_ms_p50": 1636.0,
+      "latency_ms_p95": 4776.0,
+      "class2_clarification_correctness": null,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C2_D2_STATIC_ONLY",
+      "comparison_condition": "class2_static_only",
+      "scenarios": [
+        "class2_insufficient_context_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 30,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C2_D2_LLM_ASSISTED",
+      "comparison_condition": "class2_llm_assisted",
+      "scenarios": [
+        "class2_insufficient_context_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 30,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C2_D3_SCAN_SOURCE_ORDER",
+      "comparison_condition": "class2_scan_source_order",
+      "scenarios": [
+        "class2_scanning_user_accept_first_scenario_skeleton.json"
+      ],
+      "n_trials": 29,
+      "pass_rate": 0.8966,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 29,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": true,
+      "notes": [
+        "incomplete: 29/30 trials finished"
+      ]
+    },
+    {
+      "cell_id": "C2_D3_SCAN_DETERMINISTIC",
+      "comparison_condition": "class2_scan_deterministic",
+      "scenarios": [
+        "class2_deterministic_ordering_c206_bucket_scenario_skeleton.json",
+        "class2_deterministic_ordering_smoke_override_scenario_skeleton.json"
+      ],
+      "n_trials": 28,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 28,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": true,
+      "notes": [
+        "incomplete: 28/30 trials finished"
+      ]
+    },
+    {
+      "cell_id": "C2_D4_DIRECT_SELECT_INPUT",
+      "comparison_condition": "class2_direct_select_input",
+      "scenarios": [
+        "class2_insufficient_context_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 30,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    },
+    {
+      "cell_id": "C2_D4_SCANNING_INPUT",
+      "comparison_condition": "class2_scanning_input",
+      "scenarios": [
+        "class2_scanning_user_accept_first_scenario_skeleton.json",
+        "class2_scanning_all_rejected_caregiver_escalation_scenario_skeleton.json",
+        "class2_scanning_triple_hit_emergency_shortcut_scenario_skeleton.json"
+      ],
+      "n_trials": 29,
+      "pass_rate": 0.9655,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 29,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": 0.4737,
+      "scan_history_present_count": 19,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": true,
+      "notes": [
+        "incomplete: 29/30 trials finished"
+      ]
+    },
+    {
+      "cell_id": "C2_MULTI_TURN_REFINEMENT_USER_PICK",
+      "comparison_condition": "class2_direct_select_input",
+      "scenarios": [
+        "class2_multi_turn_refinement_user_picks_room_scenario_skeleton.json"
+      ],
+      "n_trials": 28,
+      "pass_rate": 0.9643,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 28,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": true,
+      "notes": [
+        "incomplete: 28/30 trials finished"
+      ]
+    },
+    {
+      "cell_id": "C2_MULTI_TURN_REFINEMENT_TIMEOUT",
+      "comparison_condition": "class2_direct_select_input",
+      "scenarios": [
+        "class2_multi_turn_refinement_turn_timeout_caregiver_escalation_scenario_skeleton.json"
+      ],
+      "n_trials": 30,
+      "pass_rate": 1.0,
+      "by_route_class": {
+        "CLASS_0": 0,
+        "CLASS_1": 0,
+        "CLASS_2": 30,
+        "unknown": 0
+      },
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "class2_clarification_correctness": 1.0,
+      "scan_history_yes_first_rate": null,
+      "scan_history_present_count": 0,
+      "scan_ordering_applied_present_count": 0,
+      "skipped": false,
+      "incomplete": false,
+      "notes": []
+    }
+  ]
+}

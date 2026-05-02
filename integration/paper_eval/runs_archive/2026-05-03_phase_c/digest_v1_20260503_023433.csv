@@ -1,0 +1,13 @@
+cell_id,comparison_condition,scenarios,n_trials,pass_rate,by_route_class_class0,by_route_class_class1,by_route_class_class2,by_route_class_unknown,latency_ms_p50,latency_ms_p95,class2_clarification_correctness,scan_history_yes_first_rate,scan_history_present_count,scan_ordering_applied_present_count,skipped,incomplete,notes
+BASELINE,,class1_baseline_scenario_skeleton.json,30,1.0000,0,30,0,0,1677.0000,2107.0000,,,0,0,false,false,
+C1_D1_DIRECT_MAPPING,direct_mapping,class1_baseline_scenario_skeleton.json,30,1.0000,0,30,0,0,1.0000,1.0000,,,0,0,false,false,
+C1_D1_RULE_ONLY,rule_only,class1_baseline_scenario_skeleton.json,30,1.0000,0,30,0,0,1.0000,1.0000,,,0,0,false,false,
+C1_D1_LLM_ASSISTED,llm_assisted,class1_baseline_scenario_skeleton.json,29,0.9655,0,28,1,0,1636.0000,4776.0000,,,0,0,false,false,
+C2_D2_STATIC_ONLY,class2_static_only,class2_insufficient_context_scenario_skeleton.json,30,1.0000,0,0,30,0,0.0000,0.0000,1.0000,,0,0,false,false,
+C2_D2_LLM_ASSISTED,class2_llm_assisted,class2_insufficient_context_scenario_skeleton.json,30,1.0000,0,0,30,0,0.0000,0.0000,1.0000,,0,0,false,false,
+C2_D3_SCAN_SOURCE_ORDER,class2_scan_source_order,class2_scanning_user_accept_first_scenario_skeleton.json,29,0.8966,0,0,29,0,0.0000,0.0000,1.0000,,0,0,false,true,incomplete: 29/30 trials finished
+C2_D3_SCAN_DETERMINISTIC,class2_scan_deterministic,class2_deterministic_ordering_c206_bucket_scenario_skeleton.json;class2_deterministic_ordering_smoke_override_scenario_skeleton.json,28,1.0000,0,0,28,0,0.0000,0.0000,1.0000,,0,0,false,true,incomplete: 28/30 trials finished
+C2_D4_DIRECT_SELECT_INPUT,class2_direct_select_input,class2_insufficient_context_scenario_skeleton.json,30,1.0000,0,0,30,0,0.0000,0.0000,1.0000,,0,0,false,false,
+C2_D4_SCANNING_INPUT,class2_scanning_input,class2_scanning_user_accept_first_scenario_skeleton.json;class2_scanning_all_rejected_caregiver_escalation_scenario_skeleton.json;class2_scanning_triple_hit_emergency_shortcut_scenario_skeleton.json,29,0.9655,0,0,29,0,0.0000,0.0000,1.0000,0.4737,19,0,false,true,incomplete: 29/30 trials finished
+C2_MULTI_TURN_REFINEMENT_USER_PICK,class2_direct_select_input,class2_multi_turn_refinement_user_picks_room_scenario_skeleton.json,28,0.9643,0,0,28,0,0.0000,0.0000,1.0000,,0,0,false,true,incomplete: 28/30 trials finished
+C2_MULTI_TURN_REFINEMENT_TIMEOUT,class2_direct_select_input,class2_multi_turn_refinement_turn_timeout_caregiver_escalation_scenario_skeleton.json,30,1.0000,0,0,30,0,0.0000,0.0000,1.0000,,0,0,false,false,
