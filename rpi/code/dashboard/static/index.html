@@ -2456,7 +2456,99 @@ function renderPkgATrialDetailBody(t) {
       </div>`;
   };
 
-  return snapBlock + auditBlock
+  // Doc 12 Class 2 audit fields — surfaced as dedicated blocks (P2.7)
+  // so reviewers see structure at a glance instead of having to read the
+  // raw clarification_payload JSON below. Each block reads from the
+  // clarification_payload dict; absent fields produce no block (legacy
+  // single-turn direct_select records render with no scanning blocks).
+  const cp = t.clarification_payload || {};
+  let modeBlock = '';
+  if (cp.input_mode || cp.candidate_source) {
+    const im = cp.input_mode || 'direct_select';
+    const cs = cp.candidate_source || '—';
+    modeBlock = `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">
+          Class 2 Interaction Mode
+          <span style="${dim};font-weight:400">(doc 12 / PR #104+)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">
+          <div style="${dim}">input_mode</div>
+          <div style="${mono}">${escapeHtml(im)}</div>
+          <div style="${dim}">candidate_source</div>
+          <div style="${mono}">${escapeHtml(cs)}</div>
+        </div>
+      </div>`;
+  }
+
+  let scanHistBlock = '';
+  if (Array.isArray(cp.scan_history) && cp.scan_history.length > 0) {
+    const respColor = r => ({
+      yes: 'var(--green)', no: 'var(--text-dim)',
+      silence: 'var(--yellow)', dropped: 'var(--red)',
+    }[r] || 'var(--text)');
+    const respIcon = r => ({
+      yes: '✓', no: '✗', silence: '⏱', dropped: '⚠',
+    }[r] || '?');
+    scanHistBlock = `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">
+          Scan History <span style="${dim};font-weight:400">
+          (per-option turns; ${cp.scan_history.length} entries)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto auto 1fr auto auto;gap:4px 10px;${mono}">
+          ${cp.scan_history.map((e, i) => `
+            <div style="${dim}">${i + 1}.</div>
+            <div>opt ${e.option_index ?? '?'}</div>
+            <div style="word-break:break-all">${escapeHtml(e.candidate_id || '')}</div>
+            <div style="color:${respColor(e.response)}">${respIcon(e.response)} ${escapeHtml(e.response || '')}</div>
+            <div style="${dim}">${e.elapsed_ms != null ? e.elapsed_ms + 'ms' : ''}</div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  let ordAppliedBlock = '';
+  if (cp.scan_ordering_applied && typeof cp.scan_ordering_applied === 'object') {
+    const oa = cp.scan_ordering_applied;
+    const overrides = Array.isArray(oa.applied_overrides) ? oa.applied_overrides : [];
+    const finalOrder = Array.isArray(oa.final_order) ? oa.final_order : [];
+    ordAppliedBlock = `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">
+          Scan Ordering Applied <span style="${dim};font-weight:400">
+          (deterministic ranking · doc 12 §14)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">
+          <div style="${dim}">matched_bucket</div>
+          <div style="${mono}">${escapeHtml(oa.matched_bucket || '—')}</div>
+          <div style="${dim}">overrides</div>
+          <div style="${mono}">${overrides.length === 0 ? '<span style="' + dim + '">none</span>' : overrides.map(escapeHtml).join('; ')}</div>
+          <div style="${dim}">final_order</div>
+          <div style="${mono};word-break:break-all">${finalOrder.map(escapeHtml).join(' → ')}</div>
+        </div>
+      </div>`;
+  }
+
+  let refineBlock = '';
+  if (Array.isArray(cp.refinement_history) && cp.refinement_history.length > 0) {
+    refineBlock = `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">
+          Refinement History <span style="${dim};font-weight:400">
+          (multi-turn · doc 11 Phase 6.0; ${cp.refinement_history.length} turn${cp.refinement_history.length === 1 ? '' : 's'})</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;${mono}">
+          ${cp.refinement_history.map(e => `
+            <div style="${dim}">turn ${e.turn_index ?? '?'}</div>
+            <div style="word-break:break-all">${escapeHtml(e.parent_candidate_id || '')} → ${escapeHtml(e.selected_candidate_id || '')}</div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  return snapBlock + auditBlock + modeBlock + scanHistBlock
+    + ordAppliedBlock + refineBlock
     + renderJson('Notification Payload', t.notification_payload)
     + renderJson('Clarification Payload', t.clarification_payload);
 }
