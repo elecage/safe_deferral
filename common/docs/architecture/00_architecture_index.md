@@ -26,6 +26,7 @@ Read these documents first for current architecture work:
 11. `10_llm_class2_integration_alignment_plan.md`
 12. `11_class2_multi_turn_refinement_plan.md`
 13. `12_class2_scanning_input_mode_plan.md`
+14. `13_paper_eval_matrix_plan.md`
 
 These files are the active navigation layer. They intentionally summarize and
 deduplicate the older numbered notes.
@@ -74,6 +75,7 @@ Current MQTT and payload reference assets:
 | `10_llm_class2_integration_alignment_plan.md` | Integration alignment review after Phases 1-5 of doc 09 landed: operational timing risks (LLM blocking the message-handler thread, OllamaClient timeout > Class 2 user window, runner auto-drive delay), document drift, scenario fixture LLM-variability allowance, and recommended sequencing |
 | `11_class2_multi_turn_refinement_plan.md` | Closure of doc 09 Phase 6 — bounded one-turn refinement after the user's initial CLASS_2 selection. Phase 6.0 (schema + manager API + static refinement template + audit record) implemented behind a feature flag; Phase 6.1 (Mac mini main-loop + TTS wiring) deferred |
 | `12_class2_scanning_input_mode_plan.md` | Design (no code) for adding scanning interaction mode to Class 2 — sequential yes/no per option instead of direct N-way selection. AAC pattern targeting users with severe motor / cognitive limitations. Coexists with direct-select via opt-in policy field. Phase 1 (manager state machine) lands after maintainer alignment on this design |
+| `13_paper_eval_matrix_plan.md` | Operational paper-eval roadmap — 12-cell matrix v1 (Class 1 D1 × Class 2 D2 × D3 × D4 + baseline), sweep orchestrator design, cross-run aggregator, paper digest exporter. 4-PR phase split (sweep → aggregator → digest → optional dashboard UI). Matrix v1 lives at `integration/paper_eval/matrix_v1.json` |
 
 System-figure revision working notes live under:
 
