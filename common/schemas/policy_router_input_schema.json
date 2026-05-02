@@ -58,6 +58,14 @@
             "llm_assisted"
           ],
           "description": "Optional experiment mode for Package A Class 2 candidate-generation comparison (10_llm_class2_integration_alignment_plan.md §3.3 P2.3). 'static_only' forces Class2ClarificationManager to skip the LLM and use _DEFAULT_CANDIDATES; 'llm_assisted' is the current default behaviour (LLM with static fallback). Like experiment_mode, this is honored only by experiment runners and the Class 2 candidate-generation branch; it must not be passed into the LLM prompt and does not affect Class 0 emergency, Class 1 routing, or validator authority."
+        },
+        "class2_scan_ordering_mode": {
+          "type": "string",
+          "enum": [
+            "source_order",
+            "deterministic"
+          ],
+          "description": "Optional experiment mode for Package A scanning-order comparison (12_class2_scanning_input_mode_plan.md §14). 'source_order' (default) keeps candidate order as produced by the candidate-source layer (static defaults or LLM). 'deterministic' applies class2_scan_ordering_rules from policy to permute the candidate order before scanning announces option 0. Honored only by Class2ClarificationManager when input_mode='scanning'; never enters the LLM prompt and does not affect Class 0 / Class 1 routing or validator authority. Independent of class2_candidate_source_mode — the two compose so paper-eval can isolate ordering contribution from generation contribution."
         }
       }
     },

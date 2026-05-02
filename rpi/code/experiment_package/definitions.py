@@ -69,13 +69,21 @@ PACKAGES: dict[PackageId, PackageDefinition] = {
         recommended_fault_profiles=[],
         # Class 1 intent-recovery comparison (PR #79):
         #   direct_mapping / rule_only / llm_assisted
-        # Class 2 candidate-generation comparison (doc 10 §3.3 P2.3, this PR):
+        # Class 2 candidate-generation comparison (doc 10 §3.3 P2.3, PR #101):
         #   class2_static_only / class2_llm_assisted
-        # The runner inspects the prefix and routes the value to either
-        # routing_metadata.experiment_mode or routing_metadata.class2_candidate_source_mode.
+        # Class 2 scanning ordering comparison (doc 12 §14 Phase 1.5):
+        #   class2_scan_source_order / class2_scan_deterministic
+        # The runner inspects the prefix and routes the value to one of:
+        #   routing_metadata.experiment_mode (Class 1)
+        #   routing_metadata.class2_candidate_source_mode (Class 2 generation)
+        #   routing_metadata.class2_scan_ordering_mode (Class 2 ordering)
+        # The three condition spaces compose orthogonally — a paper-eval
+        # trial can fix the source mode and vary the ordering mode (or
+        # vice versa) by combining conditions across runs.
         comparison_conditions=[
             "direct_mapping", "rule_only", "llm_assisted",
             "class2_static_only", "class2_llm_assisted",
+            "class2_scan_source_order", "class2_scan_deterministic",
         ],
         required_node_types=["context_node", "actuator_simulator"],
         description=(

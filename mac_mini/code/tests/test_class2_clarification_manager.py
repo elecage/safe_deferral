@@ -1529,3 +1529,184 @@ class TestRefinementTemplateStateAware:
         assert "도와드릴까요" in t.refinement_question
         assert "켜드릴까요" not in t.refinement_question
         assert "꺼드릴까요" not in t.refinement_question
+
+
+# ==================================================================
+# doc 12 §14 Phase 1.5 — deterministic ordering integrated in manager
+# ==================================================================
+
+class _StubLoaderForOrdering:
+    """AssetLoader stub that overrides only the scanning ordering policy.
+    Other policy fields fall back to shipped values."""
+
+    def __init__(self, ordering_mode: str = "deterministic", rules=None):
+        from shared.asset_loader import AssetLoader
+        self._real = AssetLoader()
+        self._mode = ordering_mode
+        self._rules = rules
+
+    def load_policy_table(self):
+        policy = self._real.load_policy_table()
+        # Force scanning so the manager applies ordering. Keep the rest
+        # of the policy as shipped.
+        policy["global_constraints"]["class2_input_mode"] = "scanning"
+        policy["global_constraints"]["class2_scan_ordering_mode"] = self._mode
+        if self._rules is not None:
+            policy["global_constraints"]["class2_scan_ordering_rules"] = self._rules
+        return policy
+
+    def load_schema(self, name):
+        return self._real.load_schema(name)
+
+    def make_schema_resolver(self):
+        return self._real.make_schema_resolver()
+
+
+class TestScanOrderingManagerIntegration:
+    """When input_mode='scanning' AND scan_ordering_mode='deterministic',
+    start_session reorders candidate_choices using the policy rules and
+    stashes the audit on the session."""
+
+    def test_source_order_keeps_original_candidate_order(self):
+        """Default ordering mode = source_order → no reordering, no audit."""
+        mgr = Class2ClarificationManager(
+            asset_loader=_StubLoaderForOrdering(ordering_mode="source_order"),
+        )
+        session = mgr.start_session("C206", "audit-ord-1")
+        # Should not have ordering audit (source_order skips ranking).
+        assert getattr(session, "scan_ordering_audit", None) is None
+
+    def test_deterministic_reorders_per_trigger_bucket(self):
+        """C208 bucket prioritizes CAREGIVER_CONFIRMATION first → C2 must
+        come before any other CAREGIVER-bound candidate in the order."""
+        rules = {
+            "by_trigger_id": {
+                "C208": ["CAREGIVER_CONFIRMATION", "CLASS_0", "SAFE_DEFERRAL"],
+            }
+        }
+        mgr = Class2ClarificationManager(
+            asset_loader=_StubLoaderForOrdering(rules=rules),
+        )
+        session = mgr.start_session("C208", "audit-ord-2",
+                                     pure_context_payload={
+                                         "trigger_event": {"event_type": "sensor",
+                                                            "event_code": "doorbell_detected",
+                                                            "timestamp_ms": 0},
+                                         "environmental_context": {
+                                             "doorbell_detected": True,
+                                             "smoke_detected": False,
+                                             "gas_detected": False,
+                                         },
+                                         "device_states": {},
+                                     })
+        ids = [c.candidate_id for c in session.candidate_choices]
+        # First candidate must be the CAREGIVER_CONFIRMATION one (C2_CAREGIVER_HELP).
+        assert session.candidate_choices[0].candidate_transition_target == "CAREGIVER_CONFIRMATION"
+        # Audit recorded.
+        audit = getattr(session, "scan_ordering_audit", None)
+        assert audit is not None
+        assert audit["matched_bucket"] == "C208"
+        assert audit["final_order"] == ids
+
+    def test_smoke_context_override_boosts_emergency(self):
+        """When smoke is detected, CLASS_0 should come first regardless
+        of what the trigger-bucket said."""
+        rules = {
+            "by_trigger_id": {"_default": ["CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION"]},
+            "context_overrides": [{
+                "if_field": "environmental_context.smoke_detected",
+                "if_equals": True,
+                "boost_first": "CLASS_0",
+            }],
+        }
+        mgr = Class2ClarificationManager(
+            asset_loader=_StubLoaderForOrdering(rules=rules),
+        )
+        ctx = {
+            "trigger_event": {"event_type": "button",
+                               "event_code": "single_click",
+                               "timestamp_ms": 0},
+            "environmental_context": {
+                "smoke_detected": True, "gas_detected": False,
+                "doorbell_detected": False, "occupancy_detected": True,
+                "temperature": 25, "illuminance": 50,
+            },
+            "device_states": {"living_room_light": "off"},
+        }
+        session = mgr.start_session("C206", "audit-ord-3",
+                                     pure_context_payload=ctx)
+        # First candidate is CLASS_0 (C3_EMERGENCY_HELP).
+        assert session.candidate_choices[0].candidate_transition_target == "CLASS_0"
+        audit = session.scan_ordering_audit
+        assert any("smoke_detected" in s for s in audit["applied_overrides"])
+
+    def test_explicit_arg_overrides_policy_default(self):
+        """scan_ordering_mode='source_order' explicit arg overrides the
+        policy default of deterministic — no reordering happens."""
+        rules = {"by_trigger_id": {"C206": ["CLASS_0", "CLASS_1"]}}
+        mgr = Class2ClarificationManager(
+            asset_loader=_StubLoaderForOrdering(rules=rules),
+        )
+        # Capture source order without ordering for comparison.
+        baseline_session = mgr.start_session(
+            "C206", "audit-ord-4-base",
+            scan_ordering_mode="source_order",
+        )
+        baseline_ids = [c.candidate_id for c in baseline_session.candidate_choices]
+        assert getattr(baseline_session, "scan_ordering_audit", None) is None
+
+        ordered_session = mgr.start_session(
+            "C206", "audit-ord-4-ordered",
+            scan_ordering_mode="deterministic",
+        )
+        ordered_ids = [c.candidate_id for c in ordered_session.candidate_choices]
+        # Same candidate set, but order should reflect the rules.
+        assert sorted(baseline_ids) == sorted(ordered_ids)
+        # First candidate of ordered is CLASS_0.
+        assert ordered_session.candidate_choices[0].candidate_transition_target == "CLASS_0"
+
+    def test_direct_select_skips_ordering_even_when_policy_deterministic(self):
+        """Ordering is meaningful only for scanning. direct_select displays
+        all options at once, so no reordering should happen even if the
+        policy says deterministic."""
+        from shared.asset_loader import AssetLoader
+        real = AssetLoader()
+        class _LoaderDirectSelectDeterministic:
+            def load_policy_table(self):
+                p = real.load_policy_table()
+                p["global_constraints"]["class2_input_mode"] = "direct_select"
+                p["global_constraints"]["class2_scan_ordering_mode"] = "deterministic"
+                return p
+            def load_schema(self, n): return real.load_schema(n)
+            def make_schema_resolver(self): return real.make_schema_resolver()
+
+        mgr = Class2ClarificationManager(
+            asset_loader=_LoaderDirectSelectDeterministic(),
+        )
+        session = mgr.start_session("C206", "audit-ord-5")
+        assert getattr(session, "scan_ordering_audit", None) is None
+
+    def test_ordering_record_validates_against_schema(self):
+        """A clarification record carrying scan_ordering_applied must
+        validate against the schema."""
+        import jsonschema
+        from shared.asset_loader import AssetLoader
+        loader = AssetLoader()
+        schema = loader.load_schema("clarification_interaction_schema.json")
+        resolver = loader.make_schema_resolver()
+
+        rules = {"by_trigger_id": {"C206": ["CLASS_1", "CLASS_0"]}}
+        mgr = Class2ClarificationManager(
+            asset_loader=_StubLoaderForOrdering(rules=rules),
+        )
+        session = mgr.start_session("C206", "audit-ord-6")
+        # Resolve via submit_selection so we get a terminal record.
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_transition_target == "CLASS_1")
+        result = mgr.submit_selection(session, c1.candidate_id, "user_mqtt_button",
+                                       trigger_id="C206")
+        rec = result.clarification_record
+        assert "scan_ordering_applied" in rec
+        validator = jsonschema.Draft7Validator(schema, resolver=resolver)
+        errors = list(validator.iter_errors(rec))
+        assert not errors, "; ".join(e.message for e in errors)

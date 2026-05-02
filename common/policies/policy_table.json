@@ -27,6 +27,42 @@
     "class2_input_mode": "direct_select",
     "class2_scan_per_option_timeout_ms": 8000,
     "class2_scan_user_phase_extension": 1.5,
+    "_class2_scan_ordering_mode_description": "Scanning candidate-order policy (doc 12 §14). 'source_order' (default) = use whatever order the candidate-source layer (static defaults or LLM) produced. 'deterministic' = apply class2_scan_ordering_rules to permute the candidate set before scanning announces option 0. The two modes compose orthogonally with class2_candidate_source_mode so paper-eval can isolate ordering contribution from generation contribution. Honored only when input_mode='scanning'; ignored under direct_select (which already shows all options at once).",
+    "class2_scan_ordering_mode": "source_order",
+    "_class2_scan_ordering_rules_description": "Deterministic per-trigger / per-context priority for scanning option order (doc 12 §14.3). Applied AFTER candidate generation but BEFORE scanning announces option 0. Pure permutation — never adds, removes, or modifies candidates. Rules: (1) by_trigger_id maps trigger_id → ordered list of candidate_transition_target values. The first matching trigger wins; '_default' is used when no specific trigger matched. Candidates are stable-sorted so those whose transition target appears earlier in the list come first; ties preserve source order; targets not in the list go to the end. (2) context_overrides is an ordered list — each entry whose 'if' condition matches pure_context_payload moves its 'boost_first' target to the front of the priority list (later overrides win the front spot).",
+    "class2_scan_ordering_rules": {
+      "by_trigger_id": {
+        "C201": ["CLASS_1", "CAREGIVER_CONFIRMATION", "CLASS_0", "SAFE_DEFERRAL"],
+        "C202": ["CLASS_1", "CAREGIVER_CONFIRMATION", "CLASS_0", "SAFE_DEFERRAL"],
+        "C203": ["CLASS_1", "CAREGIVER_CONFIRMATION", "CLASS_0", "SAFE_DEFERRAL"],
+        "C204": ["SAFE_DEFERRAL", "CAREGIVER_CONFIRMATION", "CLASS_0"],
+        "C205": ["CLASS_1", "CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"],
+        "C206": ["CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"],
+        "C207": ["CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"],
+        "C208": ["CAREGIVER_CONFIRMATION", "CLASS_0", "SAFE_DEFERRAL"],
+        "_default": ["CLASS_1", "CLASS_0", "CAREGIVER_CONFIRMATION", "SAFE_DEFERRAL"]
+      },
+      "context_overrides": [
+        {
+          "if_field": "environmental_context.smoke_detected",
+          "if_equals": true,
+          "boost_first": "CLASS_0",
+          "rationale": "Sensor signal of physical risk (smoke) overrides the trigger-based default — emergency comes first."
+        },
+        {
+          "if_field": "environmental_context.gas_detected",
+          "if_equals": true,
+          "boost_first": "CLASS_0",
+          "rationale": "Sensor signal of physical risk (gas) overrides the trigger-based default — emergency comes first."
+        },
+        {
+          "if_field": "environmental_context.doorbell_detected",
+          "if_equals": true,
+          "boost_first": "CAREGIVER_CONFIRMATION",
+          "rationale": "Doorbell context is doorlock-sensitive; caregiver confirmation comes first regardless of trigger."
+        }
+      ]
+    },
     "class2_conversational_prompt_constraints": {
       "_description": "Bounded-variability constraints applied to LLM-generated Class 2 clarification candidate prompts (09_llm_driven_class2_candidate_generation_plan.md §5). Operations may tighten these without code changes; LocalLlmAdapter loads them at startup and rejects LLM output that violates any constraint, falling back to the static _DEFAULT_CANDIDATES table on rejection. The accessibility intent is to keep TTS prompts predictable for users with cognitive / attention limits.",
       "max_prompt_length_chars": 80,

@@ -1681,6 +1681,93 @@ class TestClass2CandidateSourceModePropagation:
         assert "class2_llm_assisted" in conds
 
 
+class TestClass2ScanOrderingModePropagation:
+    """Comparison conditions starting with 'class2_scan_' must route to
+    routing_metadata.class2_scan_ordering_mode (without the prefix), and
+    must NOT pollute experiment_mode or class2_candidate_source_mode.
+    The three condition spaces compose orthogonally."""
+
+    def _run_with_condition(self, condition):
+        from unittest.mock import MagicMock
+        from experiment_package.runner import PackageRunner
+        from experiment_package.trial_store import TrialStore
+
+        captured = {}
+        node = MagicMock()
+        node.profile.payload_template = {
+            "source_node_id": "test",
+            "routing_metadata": {
+                "audit_correlation_id": "x",
+                "ingest_timestamp_ms": 0,
+                "network_status": "online",
+            },
+            "pure_context_payload": {},
+        }
+        node.profile.publish_topic = "safe_deferral/context/input"
+
+        vnm = MagicMock()
+        vnm.get_node.return_value = node
+        vnm.publish_once.side_effect = (
+            lambda _n: captured.update({"template": dict(_n.profile.payload_template)})
+        )
+
+        obs_store = MagicMock()
+        obs_store.find_by_correlation_id.return_value = {
+            "route": {"route_class": "CLASS_1", "timestamp_ms": 0},
+            "validation": {"validation_status": "approved"},
+            "audit_correlation_id": "x",
+            "generated_at_ms": 1,
+        }
+
+        store = TrialStore()
+        runner = PackageRunner(vnm, obs_store, store)
+        run = store.create_run(
+            package_id="A", scenario_ids=[], fault_profile_ids=[],
+            trial_count=1, comparison_condition=condition,
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id, package_id="A", node_id="n",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition=condition, expected_route_class="CLASS_1",
+        )
+        import time
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            t = store.get_trial(trial.trial_id)
+            if t and t.status != "pending":
+                break
+            time.sleep(0.05)
+        assert "template" in captured
+        return captured["template"]["routing_metadata"]
+
+    def test_class2_scan_source_order_routes_to_ordering_field(self):
+        meta = self._run_with_condition("class2_scan_source_order")
+        # Without the "class2_scan_" prefix to match the schema enum
+        assert meta.get("class2_scan_ordering_mode") == "source_order"
+        # Must NOT pollute the other two condition spaces
+        assert "experiment_mode" not in meta
+        assert "class2_candidate_source_mode" not in meta
+
+    def test_class2_scan_deterministic_routes_to_ordering_field(self):
+        meta = self._run_with_condition("class2_scan_deterministic")
+        assert meta.get("class2_scan_ordering_mode") == "deterministic"
+        assert "experiment_mode" not in meta
+        assert "class2_candidate_source_mode" not in meta
+
+    def test_class2_static_only_still_routes_to_source_field(self):
+        """Regression: PR #101's class2_ prefix must still work — the new
+        class2_scan_ prefix is more specific and checked first."""
+        meta = self._run_with_condition("class2_static_only")
+        assert meta.get("class2_candidate_source_mode") == "static_only"
+        assert "class2_scan_ordering_mode" not in meta
+
+    def test_package_a_definition_lists_ordering_conditions(self):
+        from experiment_package.definitions import PACKAGES, PackageId
+        conds = PACKAGES[PackageId.A].comparison_conditions
+        assert "class2_scan_source_order" in conds
+        assert "class2_scan_deterministic" in conds
+
+
 # ==================================================================
 # PackageRunner — auto-drive selection input for CLASS_2 trials
 # ==================================================================
