@@ -25,6 +25,8 @@ from safe_deferral_handler.models import ClarificationChoice
 from tts.speaker import (
     NoOpSpeaker,
     announce_class2,
+    announce_class2_option,
+    announce_class2_scanning_start,
     announce_class2_selection,
     announce_deferral,
 )
@@ -252,3 +254,95 @@ class TestAnnounceDeferral:
         announce_deferral(sp, reason="missing_policy_input")
         assert len(sp.spoken) == 1
         assert sp.spoken[0]  # non-empty
+
+
+# ==================================================================
+# doc 12 Phase 2 — scanning TTS helpers
+# ==================================================================
+
+class TestAnnounceClass2ScanningStart:
+    """Scanning preamble explains the interaction model once and tells
+    the user how many questions to expect (working-memory budgeting)."""
+
+    def test_speaks_total_count_and_yes_no_hint(self):
+        sp = _RecordingSpeaker()
+        announce_class2_scanning_start(sp, total_options=4)
+        assert len(sp.spoken) == 1
+        text = sp.spoken[0]
+        assert "총 4개" in text
+        assert "예" in text and "아니오" in text
+
+    def test_zero_options_falls_back_to_caregiver(self):
+        """Defensive: 0 options is a degenerate state; caregiver fallback
+        keeps the silence-never-executes invariant."""
+        sp = _RecordingSpeaker()
+        announce_class2_scanning_start(sp, total_options=0)
+        assert "보호자" in sp.spoken[0]
+
+    def test_noop_speaker_safe(self):
+        announce_class2_scanning_start(NoOpSpeaker(), total_options=3)
+
+
+class TestAnnounceClass2Option:
+    """Per-option scanning utterance must (a) carry the candidate prompt
+    verbatim (PR #97 invariant), (b) include a position cue '{n}/{N}',
+    and (c) use 1-based indexing for the user-facing position number."""
+
+    def test_format_includes_position_cue_and_prompt_verbatim(self):
+        sp = _RecordingSpeaker()
+        ch = _choice("C1", "거실 조명을 켜드릴까요?", "CLASS_1")
+        announce_class2_option(sp, option_index=0, candidate=ch, total_options=3)
+        text = sp.spoken[0]
+        assert text.startswith("1/3.")
+        assert "거실 조명을 켜드릴까요?" in text
+
+    def test_position_cue_uses_one_based_index(self):
+        """option_index is 0-based internally; user hears 1-based numbers."""
+        sp = _RecordingSpeaker()
+        ch = _choice("C2", "보호자에게 연락할까요?", "CAREGIVER_CONFIRMATION")
+        announce_class2_option(sp, option_index=2, candidate=ch, total_options=4)
+        assert sp.spoken[0].startswith("3/4.")
+
+    def test_prompt_verbatim_invariant(self):
+        """PR #97 verbatim invariant carries into scanning: every per-option
+        utterance must contain the candidate's prompt as-is."""
+        sp = _RecordingSpeaker()
+        ch = _choice("C0", "긴급상황인가요?", "CLASS_0")
+        announce_class2_option(sp, option_index=1, candidate=ch, total_options=4)
+        assert "긴급상황인가요?" in sp.spoken[0]
+
+    def test_invalid_inputs_raise(self):
+        sp = _RecordingSpeaker()
+        ch = _choice("C1", "거실 조명을 켜드릴까요?", "CLASS_1")
+        with pytest.raises(ValueError):
+            announce_class2_option(sp, option_index=-1, candidate=ch, total_options=3)
+        with pytest.raises(ValueError):
+            announce_class2_option(sp, option_index=0, candidate=ch, total_options=0)
+
+    def test_noop_speaker_safe(self):
+        ch = _choice("C1", "거실 조명을 켜드릴까요?", "CLASS_1")
+        announce_class2_option(NoOpSpeaker(), 0, ch, 3)
+
+
+class TestScanningTTSCompositionFlow:
+    """A typical scanning session: start preamble + N per-option utterances.
+    Verify ordering and that each spoken utterance carries the right
+    position cue and prompt."""
+
+    def test_full_session_utterance_sequence(self):
+        sp = _RecordingSpeaker()
+        choices = [
+            _choice("C1", "거실 조명을 켜드릴까요?", "CLASS_1"),
+            _choice("C0", "긴급상황인가요?", "CLASS_0"),
+            _choice("C4", "다른 동작이 필요하신가요?", "SAFE_DEFERRAL"),
+        ]
+        announce_class2_scanning_start(sp, total_options=len(choices))
+        for i, c in enumerate(choices):
+            announce_class2_option(sp, option_index=i, candidate=c,
+                                    total_options=len(choices))
+        # 1 preamble + 3 per-option = 4 utterances
+        assert len(sp.spoken) == 4
+        assert "총 3개" in sp.spoken[0]
+        for i, c in enumerate(choices, 1):
+            assert sp.spoken[i].startswith(f"{i}/3.")
+            assert c.prompt in sp.spoken[i]

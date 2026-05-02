@@ -20,6 +20,7 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_DOC12_PHASE2_TTS_SCANNING_HELPERS.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_LIGHTING_STATE_AWARE_AND_OTHER_ACTION.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_TTS_PREAMBLE_ADAPTIVE.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-02_DOC12_PHASE1_SCANNING_PLUS_PHASE1_5_DESIGN.md`

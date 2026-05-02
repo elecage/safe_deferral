@@ -239,6 +239,56 @@ def announce_class2(speaker: TtsSpeaker, candidates: list) -> None:
     speaker.speak(text)
 
 
+def announce_class2_scanning_start(speaker: TtsSpeaker, total_options: int) -> None:
+    """Preamble for a Class 2 scanning session (doc 12 Phase 2).
+
+    Spoken ONCE at the start of a scanning session to set the user's
+    expectation that questions will arrive sequentially and a single
+    yes / no per turn is the expected response. Counts the total number
+    of upcoming questions so the user has a sense of progress.
+
+    Subsequent per-option utterances are produced by announce_class2_option.
+    """
+    if total_options <= 0:
+        speaker.speak("보호자 확인이 필요합니다.")
+        return
+    text = (
+        f"질문을 하나씩 드리겠습니다. 총 {total_options}개입니다. "
+        "예 또는 아니오로 답해 주세요."
+    )
+    log.info("TTS announce_class2_scanning_start: %d options", total_options)
+    speaker.speak(text)
+
+
+def announce_class2_option(
+    speaker: TtsSpeaker,
+    option_index: int,
+    candidate,
+    total_options: int,
+) -> None:
+    """One scanning-turn utterance (doc 12 Phase 2).
+
+    Format: '{n}/{N}. {candidate.prompt}' — the leading position cue
+    ('1/3', '2/3', ...) tells the user how many options remain, which
+    is a cognitive aid (working memory budgeting) and an accessibility
+    aid (knowing 'this is the last chance' affects answer choice).
+
+    The candidate.prompt is included verbatim so the Phase 4 verbatim
+    invariant from PR #97 carries forward into scanning mode.
+    """
+    if option_index < 0 or total_options <= 0:
+        raise ValueError(
+            f"invalid option_index={option_index} or total_options={total_options}"
+        )
+    n = option_index + 1  # 1-based for the user
+    text = f"{n}/{total_options}. {candidate.prompt}"
+    log.info(
+        "TTS announce_class2_option: %d/%d candidate_id=%s",
+        n, total_options, getattr(candidate, "candidate_id", "<?>"),
+    )
+    speaker.speak(text)
+
+
 def announce_class2_selection(
     speaker: TtsSpeaker,
     selection_source: str,
