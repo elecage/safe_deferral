@@ -84,6 +84,82 @@ _TRIGGER_SUMMARY: dict[str, str] = {
     "deferral_timeout": "안전 유예 핸들러 타임아웃으로 Class 2 진입",
 }
 
+# Lighting candidates that should be rendered with state-aware prompts
+# (doc 12 step 2-B). Maps candidate_id → (target_device, korean_room_label).
+# Anything in this map is overridden by _state_aware_lighting_candidate so
+# the user hears '거실 조명을 켜드릴까요?' / '꺼드릴까요?' depending on
+# the device's current state in pure_context_payload.device_states.
+_LIGHTING_CANDIDATE_TARGETS: dict[str, tuple] = {
+    "C1_LIGHTING_ASSISTANCE": ("living_room_light", "거실"),
+    "OPT_LIVING_ROOM": ("living_room_light", "거실"),
+    "OPT_BEDROOM": ("bedroom_light", "침실"),
+}
+
+# Reasons whose default set is built around assuming a lighting action.
+# For these, C4_CANCEL_OR_WAIT's prompt is replaced with the more honest
+# '다른 동작이 필요하신가요?' so the user has an explicit safety net for
+# 'system assumed the wrong action'. The candidate_id and transition
+# target are unchanged (still SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION) —
+# escalation behaviour identical to the old 'cancel and wait' path.
+_LIGHTING_REASONS: set = {
+    "insufficient_context",
+    "missing_policy_input",
+    "unresolved_context_conflict",
+}
+
+
+def _state_aware_lighting_candidate(item: dict, device_states: dict) -> dict:
+    """Override a lighting candidate's prompt + action_hint based on the
+    device's current state. Off → '켜드릴까요?' + light_on; On → '꺼드릴까요?'
+    + light_off. Returns a new dict (does not mutate the input)."""
+    target_info = _LIGHTING_CANDIDATE_TARGETS.get(item["candidate_id"])
+    if target_info is None:
+        return item
+    device, room_label = target_info
+    state = str((device_states or {}).get(device, "off")).lower()
+    if state == "on":
+        verb_phrase, action = "꺼드릴까요?", "light_off"
+    else:
+        verb_phrase, action = "켜드릴까요?", "light_on"
+    return {
+        **item,
+        "prompt": f"{room_label} 조명을 {verb_phrase}",
+        "action_hint": action,
+        "target_hint": device,
+    }
+
+
+def _build_default_candidates(reason: str,
+                              pure_context_payload: Optional[dict] = None) -> list:
+    """Apply state-aware overrides on top of the static _DEFAULT_CANDIDATES
+    table for the given reason (doc 12 step 2-B).
+
+    - Lighting candidates listed in _LIGHTING_CANDIDATE_TARGETS get prompts
+      and action_hints rewritten to reflect the device's current state.
+    - For lighting reasons, the C4_CANCEL_OR_WAIT candidate's prompt is
+      replaced with '다른 동작이 필요하신가요?' so the user has an explicit
+      'system assumed wrong action' safety net (transition unchanged —
+      still escalates via SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION).
+    - Non-lighting reasons (sensor_staleness_detected, actuation_ack_timeout,
+      timeout_or_no_response, caregiver_required_sensitive_path) pass
+      through untouched."""
+    raw = _DEFAULT_CANDIDATES.get(reason, [])
+    device_states = (
+        (pure_context_payload or {}).get("device_states")
+        if pure_context_payload else None
+    )
+    is_lighting_reason = reason in _LIGHTING_REASONS
+    out = []
+    for item in raw:
+        if item.get("candidate_id") in _LIGHTING_CANDIDATE_TARGETS:
+            out.append(_state_aware_lighting_candidate(item, device_states or {}))
+        elif is_lighting_reason and item.get("candidate_id") == "C4_CANCEL_OR_WAIT":
+            out.append({**item, "prompt": "다른 동작이 필요하신가요?"})
+        else:
+            out.append(item)
+    return out
+
+
 # Default bounded candidate sets per unresolved_reason
 _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
     "insufficient_context": [
@@ -390,7 +466,7 @@ class Class2ClarificationManager:
             ):
                 choices_input = llm_result.candidates
                 candidate_source = "llm_generated"
-        choices = self._build_choices(reason, choices_input)
+        choices = self._build_choices(reason, choices_input, pure_context_payload)
         session = ClarificationSession(
             clarification_id=clarification_id or str(uuid.uuid4()),
             audit_correlation_id=audit_correlation_id,
@@ -405,6 +481,10 @@ class Class2ClarificationManager:
         # ClarificationSession is a dataclass without this field; use a
         # dynamic attribute to avoid changing the shared model.
         session.candidate_source = candidate_source  # type: ignore[attr-defined]
+        # Stash pure_context_payload too so submit_selection_or_refine can
+        # produce state-aware refinement candidates (doc 12 step 2-B +
+        # PR #102 multi-turn).
+        session.pure_context_payload = pure_context_payload  # type: ignore[attr-defined]
         # Doc 12 Phase 1 — record interaction mode and (when scanning)
         # initialise per-option pointer + history. Default mode comes from
         # policy; explicit input_mode argument overrides it (used by trial
@@ -521,7 +601,10 @@ class Class2ClarificationManager:
                 selection_timestamp_ms, trigger_id, context_summary,
             )
 
-        template = get_refinement_template(chosen.candidate_id)
+        template = get_refinement_template(
+            chosen.candidate_id,
+            pure_context_payload=getattr(session, "pure_context_payload", None),
+        )
         if template is None:
             # No refinement defined for this candidate → terminal as before.
             return self.submit_selection(
@@ -761,8 +844,16 @@ class Class2ClarificationManager:
         self,
         reason: str,
         override: Optional[list],
+        pure_context_payload: Optional[dict] = None,
     ) -> list:
-        raw = override if override is not None else _DEFAULT_CANDIDATES.get(reason, [])
+        # Default candidates flow through _build_default_candidates so
+        # state-aware lighting prompts (doc 12 step 2-B) are applied.
+        # An explicit override (caller-supplied list or LLM output) is
+        # used as-is — the LLM is responsible for its own state awareness.
+        raw = (
+            override if override is not None
+            else _build_default_candidates(reason, pure_context_payload)
+        )
         raw = raw[: self._max_candidates]
         return [
             ClarificationChoice(

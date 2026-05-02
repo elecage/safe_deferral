@@ -378,7 +378,12 @@ _CAREGIVER_LABEL_BY_ID: dict[str, str] = {
     "C1_LIGHTING_ASSISTANCE": "💡 조명 지원 승인",
     "C2_CAREGIVER_HELP":      "👤 보호자 직접 개입",
     "C3_EMERGENCY_HELP":      "🚨 긴급 상황으로 처리",
-    "C4_CANCEL_OR_WAIT":      "⏸ 취소 / 대기",
+    # C4 prompt is context-dependent (doc 12 step 2-B): for lighting
+    # reasons the user hears '다른 동작이 필요하신가요?', for non-lighting
+    # reasons the user hears '취소하고 대기할까요?'. The caregiver-facing
+    # label combines both meanings since the underlying SAFE_DEFERRAL
+    # transition is the same.
+    "C4_CANCEL_OR_WAIT":      "⏸ 취소 / 다른 동작 / 대기",
     "OPT_LIVING_ROOM":        "💡 거실 조명 제어 승인",
     "OPT_BEDROOM":            "💡 침실 조명 제어 승인",
     "OPT_RETRY":              "🔄 재시도 승인",
