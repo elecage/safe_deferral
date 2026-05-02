@@ -25,6 +25,10 @@ class ClarificationChoice:
     this choice leads to if confirmed.
     action_hint / target_hint carry the CLASS_1 action info so Policy
     Router re-entry can be constructed without re-running the LLM.
+    selection_label is a short noun phrase suitable for the
+    post-selection TTS announcement ("사용자가 {label}을/를 선택하셨습니다.").
+    Optional — falls back to prompt-based phrasing when missing (e.g.
+    LLM-generated candidates that did not provide one).
     """
 
     candidate_id: str
@@ -32,6 +36,7 @@ class ClarificationChoice:
     candidate_transition_target: str   # "CLASS_1" | "CLASS_0" | "SAFE_DEFERRAL" | …
     action_hint: Optional[str] = None  # "light_on" | "light_off"  (CLASS_1 only)
     target_hint: Optional[str] = None  # "living_room_light" | "bedroom_light" (CLASS_1 only)
+    selection_label: Optional[str] = None  # short noun phrase for "...을/를 선택" TTS
 
     def to_schema_dict(self) -> dict:
         return {

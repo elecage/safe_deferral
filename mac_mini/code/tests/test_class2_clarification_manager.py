@@ -1470,6 +1470,78 @@ class TestOtherActionSafetyNet:
                 assert "다른 동작" not in c4.prompt
 
 
+class TestSelectionLabelPropagation:
+    """Every default candidate carries a `selection_label` short noun phrase
+    that the post-selection TTS uses to avoid awkward 'X인가요?를 선택' wording.
+    State-aware lighting overrides also produce state-aware labels."""
+
+    def test_every_session_choice_has_selection_label(self):
+        """No matter the trigger, every choice the user can pick must have
+        a non-empty selection_label so the announce_class2_selection path
+        always uses the natural form (label + 을/를 + 선택하셨습니다)."""
+        mgr = Class2ClarificationManager()
+        for trigger in ("C201", "C202", "C203", "C204", "C205", "C206", "C207", "C208"):
+            session = mgr.start_session(
+                trigger, f"audit-label-{trigger}",
+                pure_context_payload=_ctx_with_devices(),
+            )
+            for c in session.candidate_choices:
+                assert c.selection_label, (
+                    f"trigger {trigger} candidate {c.candidate_id} "
+                    f"missing selection_label"
+                )
+
+    def test_state_aware_lighting_label_off_state_says_turn_on(self):
+        """Light is off → label "거실 조명 켜기" (matches state-aware prompt)."""
+        mgr = Class2ClarificationManager()
+        ctx = _ctx_with_devices()
+        ctx["device_states"] = {"living_room_light": "off", "bedroom_light": "off"}
+        session = mgr.start_session("C206", "audit-label-off",
+                                     pure_context_payload=ctx)
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C1_LIGHTING_ASSISTANCE")
+        assert c1.selection_label == "거실 조명 켜기"
+
+    def test_state_aware_lighting_label_on_state_says_turn_off(self):
+        """Light is on → label "거실 조명 끄기"."""
+        mgr = Class2ClarificationManager()
+        ctx = _ctx_with_devices()
+        ctx["device_states"] = {"living_room_light": "on", "bedroom_light": "off"}
+        session = mgr.start_session("C206", "audit-label-on",
+                                     pure_context_payload=ctx)
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C1_LIGHTING_ASSISTANCE")
+        assert c1.selection_label == "거실 조명 끄기"
+
+    def test_lighting_c4_override_sets_label_to_other_action(self):
+        """For lighting reasons C4 prompt becomes '다른 동작이 필요하신가요?'
+        — its selection_label must align ('다른 동작') so TTS doesn't
+        announce '대기' when the user actually asked for a different action."""
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-c4-label",
+                                     pure_context_payload=_ctx_with_devices())
+        c4 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C4_CANCEL_OR_WAIT")
+        assert c4.selection_label == "다른 동작"
+
+    def test_non_lighting_c4_keeps_wait_label(self):
+        """sensor_staleness / actuation_ack_timeout / timeout reasons keep
+        the '대기' label since the prompt is still '취소하고 대기할까요?'."""
+        mgr = Class2ClarificationManager()
+        for trigger in ("C204", "C205", "C207"):
+            session = mgr.start_session(
+                trigger, f"audit-c4-wait-{trigger}",
+                pure_context_payload=_ctx_with_devices(),
+            )
+            c4 = next(
+                (c for c in session.candidate_choices
+                 if c.candidate_id == "C4_CANCEL_OR_WAIT"),
+                None,
+            )
+            if c4 is not None:
+                assert c4.selection_label == "대기"
+
+
 class TestRefinementTemplateStateAware:
     """get_refinement_template renders REFINE_LIVING_ROOM / REFINE_BEDROOM
     candidates state-aware too (doc 12 §2-B + PR #102)."""

@@ -289,26 +289,59 @@ def announce_class2_option(
     speaker.speak(text)
 
 
+def _korean_object_particle(noun: str) -> str:
+    """Pick 을 vs 를 for the given Korean noun.
+
+    Hangul syllable blocks live at U+AC00..U+D7A3. (ord - 0xAC00) % 28 == 0
+    means no jongseong (final consonant) → use 를. Otherwise use 을.
+    Non-Hangul / empty input falls back to 을(를) so it still reads.
+    """
+    if not noun:
+        return "을(를)"
+    last = noun.rstrip()[-1]
+    code = ord(last)
+    if 0xAC00 <= code <= 0xD7A3:
+        return "를" if (code - 0xAC00) % 28 == 0 else "을"
+    return "을(를)"
+
+
 def announce_class2_selection(
     speaker: TtsSpeaker,
     selection_source: str,
     chosen_prompt: str,
+    selection_label: Optional[str] = None,
 ) -> None:
     """Announce who made a CLASS_2 selection and what was chosen.
 
     Called after both user (Phase 1) and caregiver (Phase 2) selections so
     the user receives audible feedback on which option was confirmed.
 
+    Phrasing: "{prefix} {label}{을/를} 선택하셨습니다."
+
     selection_source examples: "user_mqtt_button", "caregiver_telegram_inline_keyboard",
     "user_mqtt_button_late".
-    chosen_prompt: the human-readable prompt string from the selected candidate
-    (e.g. "거실 조명을 켜드릴까요?", "거실 조명을 꺼드릴까요?", "보호자에게 연락할까요?" — state-aware
-    lighting prompts come from _state_aware_lighting_candidate in the manager).
+    chosen_prompt: the human-readable prompt string from the selected
+    candidate, used only as a fallback when selection_label is missing
+    (e.g. LLM-generated candidates that did not provide a label).
+    selection_label: short noun phrase suitable for "...을 선택하셨습니다"
+    (e.g. "거실 조명 켜기", "긴급 상황", "보호자 연락"). When present, it
+    is used directly; the awkward "'<full question>'을(를) 선택" form is
+    avoided.
+
+    The Korean object particle (을/를) is selected automatically based on
+    the final character's jongseong.
     """
     if "caregiver" in selection_source:
         prefix = "보호자가"
     else:
         prefix = "사용자가"
-    text = f"{prefix} '{chosen_prompt}'을(를) 선택했습니다."
+    label = (selection_label or "").strip()
+    if label:
+        particle = _korean_object_particle(label)
+        text = f"{prefix} {label}{particle} 선택하셨습니다."
+    else:
+        # Fallback: legacy phrasing for callers (e.g. LLM candidates) that
+        # did not supply a label. Awkward but never misleading.
+        text = f"{prefix} '{chosen_prompt}'을(를) 선택하셨습니다."
     log.info("TTS announce_class2_selection: %r", text)
     speaker.speak(text)
