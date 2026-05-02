@@ -560,9 +560,20 @@ class Sweeper:
                  cell.cell_id, run_id, cell.trials_per_cell,
                  cell.comparison_condition)
 
-        # Fire trials round-robin across scenarios.
+        # Fire trials SEQUENTIALLY (round-robin across scenarios). Earlier
+        # versions fired all trials up front and then polled for completion;
+        # that broke the policy router's freshness check (default 3s
+        # threshold) because back-pressured trials sat in the MQTT queue
+        # while Mac mini processed the first one (LLM call ~2-6s), and by
+        # the time a backlogged trial reached the router its trigger
+        # timestamp was stale → spurious CLASS_2 routing with C204
+        # `sensor_staleness_detected`. The doc 13 §6 design intent was
+        # already "sequential cells, sequential trials within cell"; this
+        # change brings the implementation in line with it.
         trial_ids = []
+        completed = 0
         for i in range(cell.trials_per_cell):
+            self._check_cancelled()
             scenario_id = cell.scenarios[i % len(cell.scenarios)]
             try:
                 t = self.client.start_trial(
@@ -573,53 +584,59 @@ class Sweeper:
                     expected_validation=cell.expected_validation,
                     comparison_condition=cell.comparison_condition,
                 )
-                trial_ids.append(t["trial_id"])
+                trial_id = t["trial_id"]
+                trial_ids.append(trial_id)
             except requests.RequestException as exc:
                 log.warning(
                     "Cell %s: failed to start trial #%d: %s",
                     cell.cell_id, i + 1, exc,
                 )
+                continue
 
-        # Poll until all trials are non-pending OR per-trial timeout * count
-        # elapses. Per-cell deadline = per_trial_timeout_s × trials_per_cell
-        # (sequential worst case).
-        cell_deadline_s = self.per_trial_timeout_s * cell.trials_per_cell
-        cell_started_mono = time.monotonic()
-        completed = 0
-        last_emitted_completed = -1
-        while time.monotonic() - cell_started_mono < cell_deadline_s:
-            self._check_cancelled()
+            # Wait for THIS trial to reach a non-pending status before
+            # firing the next one. Per-trial deadline guards against a
+            # stuck trial blocking the rest of the cell forever.
+            trial_deadline = time.monotonic() + self.per_trial_timeout_s
+            while time.monotonic() < trial_deadline:
+                self._check_cancelled()
+                try:
+                    run_state = self.client.get_package_run(run_id)
+                except requests.RequestException as exc:
+                    log.warning("Cell %s: polling failed: %s; retrying",
+                                cell.cell_id, exc)
+                    time.sleep(self.poll_interval_s)
+                    continue
+                trials = run_state.get("trials", [])
+                this = next((tt for tt in trials
+                             if tt.get("trial_id") == trial_id), None)
+                if this and this.get("status") not in (None, "pending"):
+                    break
+                time.sleep(self.poll_interval_s)
+
+            # Recompute completed count + emit progress every trial.
             try:
                 run_state = self.client.get_package_run(run_id)
-            except requests.RequestException as exc:
-                log.warning("Cell %s: polling failed: %s; retrying",
-                            cell.cell_id, exc)
-                time.sleep(self.poll_interval_s)
-                continue
-            trials = run_state.get("trials", [])
-            completed = sum(
-                1 for t in trials if t.get("status") not in (None, "pending")
-            )
-            if completed != last_emitted_completed:
-                self._emit(
-                    event_type="cell_progress",
-                    cell_id=cell.cell_id,
-                    cell_index=cell_index,
-                    total_cells=total_cells,
-                    completed_trials=completed,
-                    requested_trials=len(trial_ids),
+                trials = run_state.get("trials", [])
+                completed = sum(
+                    1 for tt in trials
+                    if tt.get("status") not in (None, "pending")
                 )
-                last_emitted_completed = completed
-            if completed >= len(trial_ids):
-                break
-            time.sleep(self.poll_interval_s)
+            except requests.RequestException:
+                pass
+            self._emit(
+                event_type="cell_progress",
+                cell_id=cell.cell_id,
+                cell_index=cell_index,
+                total_cells=total_cells,
+                completed_trials=completed,
+                requested_trials=cell.trials_per_cell,
+            )
 
         incomplete = completed < len(trial_ids)
         if incomplete:
             log.warning(
-                "Cell %s: only %d/%d trials completed before deadline "
-                "(%.0fs); marking incomplete",
-                cell.cell_id, completed, len(trial_ids), cell_deadline_s,
+                "Cell %s: only %d/%d trials reached terminal status",
+                cell.cell_id, completed, len(trial_ids),
             )
 
         # Snapshot metrics

@@ -77,21 +77,43 @@ fi
 # pass it to the sweep below. (Older smoke versions assumed we could
 # pick a friendly node_id; that was wrong.)
 
-log "step 2/5: creating + starting virtual context node"
-NODE_PAYLOAD='{"node_type": "context_node", "description": "smoke test virtual node"}'
-node_resp="$(curl -sf -X POST "${DASHBOARD_BASE}/nodes" \
-              -H "Content-Type: application/json" -d "$NODE_PAYLOAD" || echo '')"
-[[ -n "$node_resp" ]] || fail "POST /nodes returned empty body" 1
-NODE_ID="$(printf '%s' "$node_resp" | python -c 'import json,sys; print(json.load(sys.stdin).get("node_id",""))')"
-[[ -n "$NODE_ID" ]] || fail "no node_id in /nodes response: $node_resp" 1
-log "  created node_id=${NODE_ID}"
+log "step 2/5: creating + starting virtual nodes (context + 2 actuator simulators)"
 
-# The PackageRunner's _publish_normal path requires the node to be in
-# RUNNING state — `vnm.publish_once` raises 'Node is not running'
-# otherwise. Started nodes go to RUNNING and stay there until --stop.
-curl -sf -X POST "${DASHBOARD_BASE}/nodes/${NODE_ID}/start" >/dev/null \
-  || fail "POST /nodes/${NODE_ID}/start failed" 1
-log "  started node ${NODE_ID}"
+# Helper: POST /nodes + POST /nodes/{id}/start. Returns node_id on stdout.
+create_and_start_node() {
+  local payload="$1" label="$2" resp nid
+  resp="$(curl -sf -X POST "${DASHBOARD_BASE}/nodes" \
+           -H 'Content-Type: application/json' -d "$payload" || echo '')"
+  [[ -n "$resp" ]] || { fail "POST /nodes (${label}) empty body" 1; return; }
+  nid="$(printf '%s' "$resp" | python -c 'import json,sys; print(json.load(sys.stdin).get("node_id",""))')"
+  [[ -n "$nid" ]] || { fail "no node_id in /nodes (${label}) response: $resp" 1; return; }
+  curl -sf -X POST "${DASHBOARD_BASE}/nodes/${nid}/start" >/dev/null \
+    || { fail "POST /nodes/${nid}/start (${label}) failed" 1; return; }
+  printf '%s' "$nid"
+}
+
+# 1) context_node — runner publishes the trial's pure_context_payload via
+#    this node's MQTT identity.
+NODE_ID="$(create_and_start_node \
+  '{"node_type":"context_node","description":"smoke test context node"}' \
+  context_node)"
+log "  context: ${NODE_ID}"
+
+# 2+3) actuator_simulator nodes — listen to safe_deferral/actuation/command
+#      and ACK back. Without these, dispatched CLASS_1 commands hit
+#      ACK timeout (~3s) and escalate to CLASS_2 via the C204 trigger,
+#      shifting observed_route_class from CLASS_1 to CLASS_2 and
+#      inflating latency to ~8s. Package A's runner definitions list
+#      both context_node AND actuator_simulator in required_node_types.
+LIVING_ID="$(create_and_start_node \
+  '{"node_type":"actuator_simulator","device_target":"living_room_light","description":"smoke test living room actuator"}' \
+  actuator_simulator_living)"
+log "  actuator (living_room_light): ${LIVING_ID}"
+
+BEDROOM_ID="$(create_and_start_node \
+  '{"node_type":"actuator_simulator","device_target":"bedroom_light","description":"smoke test bedroom actuator"}' \
+  actuator_simulator_bedroom)"
+log "  actuator (bedroom_light):     ${BEDROOM_ID}"
 
 # ----------------------------------------------------------------------
 # 3. Start sweep
