@@ -208,6 +208,21 @@ fi
 
 mkdir -p "$WORKDIR"
 
+# ----------------------------------------------------------------------
+# Source .env so its KEY=VALUE lines become real env vars for the child
+# processes (mac_mini + rpi main.py). This avoids depending on the
+# optional `python-dotenv` package — without it, both stacks would
+# silently fall back to their hardcoded defaults (rpi → mac-mini.local
+# MQTT broker, mac_mini → llama3.1 model) and the operator's .env
+# customisations would be invisibly ignored.
+# `set -a` makes every subsequent variable assignment automatically
+# exported; `set +a` turns it back off.
+log "exporting .env into the launcher's environment"
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
 start_stack() {
   local name="$1" cwd="$2" cmd="$3"
   local pidfile="${WORKDIR}/${name}.pid"
