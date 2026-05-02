@@ -316,6 +316,7 @@ class Class2ClarificationManager:
         clarification_id: Optional[str] = None,
         presentation_channel: str = "tts",
         pure_context_payload: Optional[dict] = None,
+        candidate_source_mode: Optional[str] = None,
     ) -> ClarificationSession:
         """Initialise a Class 2 clarification session.
 
@@ -324,9 +325,15 @@ class Class2ClarificationManager:
 
         Candidate source priority:
           1. Explicit candidate_choices argument (caller-supplied override).
-          2. LLM-generated candidates when an llm_candidate_generator is
-             registered AND pure_context_payload is provided.
-          3. Static _DEFAULT_CANDIDATES table for the resolved unresolved_reason.
+          2. When candidate_source_mode == "static_only" (Package A LLM-vs-static
+             comparison; doc 10 §3.3 P2.3), the LLM call is skipped entirely
+             and candidate_source is recorded as "static_only_forced" so the
+             clarification record can distinguish "explicitly forced" from
+             "LLM failed and we fell back".
+          3. LLM-generated candidates when an llm_candidate_generator is
+             registered AND pure_context_payload is provided AND
+             candidate_source_mode != "static_only".
+          4. Static _DEFAULT_CANDIDATES table for the resolved unresolved_reason.
 
         candidate_source is recorded on the session so the clarification
         record (built in submit_selection / handle_timeout) can audit which
@@ -335,7 +342,15 @@ class Class2ClarificationManager:
         reason = _TRIGGER_TO_REASON.get(trigger_id, "insufficient_context")
         candidate_source = "default_fallback"
         choices_input = candidate_choices
-        if choices_input is None and self._llm_generator is not None and pure_context_payload is not None:
+        force_static = candidate_source_mode == "static_only"
+        if force_static:
+            candidate_source = "static_only_forced"
+        if (
+            choices_input is None
+            and not force_static
+            and self._llm_generator is not None
+            and pure_context_payload is not None
+        ):
             llm_result = self._call_llm_with_budget(
                 pure_context_payload, reason, audit_correlation_id,
             )

@@ -369,3 +369,52 @@ class TestExperimentModePassthrough:
         result = router.route(inp)
         assert result.route_class == RouteClass.CLASS_2
         assert result.trigger_id == "C202"
+
+
+# ------------------------------------------------------------------
+# class2_candidate_source_mode pass-through
+# (Package A LLM-vs-static comparison; doc 10 §3.3 P2.3)
+# ------------------------------------------------------------------
+
+class TestClass2CandidateSourceModePassthrough:
+    """routing_metadata.class2_candidate_source_mode must propagate to
+    PolicyRouterResult so Class2ClarificationManager can honour it."""
+
+    def test_default_no_mode(self, router):
+        result = router.route(_base_input())
+        assert result.class2_candidate_source_mode is None
+
+    def test_class1_with_mode_propagates(self, router):
+        """Even on a CLASS_1 route the field is preserved (it is a
+        per-trial routing-metadata pass-through; it just doesn't affect
+        Class 1 behaviour)."""
+        inp = _base_input()
+        inp["routing_metadata"]["class2_candidate_source_mode"] = "static_only"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_1
+        assert result.class2_candidate_source_mode == "static_only"
+
+    def test_class2_static_only_propagates(self, router):
+        """C208 doorlock-sensitive path carries the mode so the manager
+        can disable LLM and use static defaults."""
+        inp = _base_input(event_type="sensor", event_code="doorbell_detected",
+                          doorbell_detected=True)
+        inp["routing_metadata"]["class2_candidate_source_mode"] = "static_only"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.class2_candidate_source_mode == "static_only"
+
+    def test_class2_llm_assisted_propagates(self, router):
+        inp = _base_input(event_type="button", event_code="unmapped_code")
+        inp["routing_metadata"]["class2_candidate_source_mode"] = "llm_assisted"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.class2_candidate_source_mode == "llm_assisted"
+
+    def test_invalid_mode_rejected_by_schema(self, router):
+        """Out-of-enum value → C202 schema-validation CLASS_2."""
+        inp = _base_input()
+        inp["routing_metadata"]["class2_candidate_source_mode"] = "bogus"
+        result = router.route(inp)
+        assert result.route_class == RouteClass.CLASS_2
+        assert result.trigger_id == "C202"
