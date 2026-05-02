@@ -1387,10 +1387,22 @@ function renderRequiredNodesPanel(required, nodes) {
 // ─────────────────────────────────────────────
 // Nodes
 // ─────────────────────────────────────────────
+// Cache the live policy-derived CLASS_2 phase budgets so renderNodes() can
+// compare each node's declared simulated_response_timing_ms against them.
+// Refreshed by loadNodes() each call so policy edits propagate without a
+// full page reload.
+let _class2BudgetsCache = null;
+
 async function loadNodes() {
   try {
-    const r = await fetch('/nodes');
-    const nodes = await r.json();
+    const [nodesR, budgetsR] = await Promise.all([
+      fetch('/nodes'),
+      fetch('/package_runs/class2_phase_budgets').catch(() => null),
+    ]);
+    const nodes = await nodesR.json();
+    if (budgetsR && budgetsR.ok) {
+      try { _class2BudgetsCache = await budgetsR.json(); } catch { _class2BudgetsCache = null; }
+    }
     renderNodes(nodes);
     renderTopo(nodes);
     if (requiredNodeTypes.length > 0) renderRequiredNodesPanel(requiredNodeTypes, nodes);
@@ -1398,6 +1410,30 @@ async function loadNodes() {
     document.getElementById('node-list').innerHTML = '<div class="empty">노드 불러오기 실패</div>';
   }
   loadNodePresence();  // always refresh unified presence panel alongside virtual nodes
+}
+
+// Map each known timing-claim key to the policy phase budget (in ms) it
+// should be compared against. Keys without a mapping are displayed but not
+// flagged — future persona keys (e.g. extra_persona_metric_ms) stay
+// neutral until policy adds a budget for them.
+const _TIMING_CLAIM_TO_BUDGET_MS = {
+  user_response_ms: b => b && b.user_phase_timeout_s != null
+    ? b.user_phase_timeout_s * 1000 : null,
+  caregiver_response_ms: b => b && b.caregiver_phase_timeout_s != null
+    ? b.caregiver_phase_timeout_s * 1000 : null,
+};
+
+function _compareTimingClaim(key, declaredMs) {
+  const fn = _TIMING_CLAIM_TO_BUDGET_MS[key];
+  if (!fn) return { status: 'neutral', budgetMs: null };
+  const budgetMs = fn(_class2BudgetsCache);
+  if (budgetMs == null || declaredMs == null) {
+    return { status: 'neutral', budgetMs: null };
+  }
+  return {
+    status: declaredMs > budgetMs ? 'exceeds' : 'within',
+    budgetMs,
+  };
 }
 
 function renderNodes(nodes) {
@@ -1419,19 +1455,38 @@ function renderNodes(nodes) {
       ? `<span style="font-size:10px;color:var(--accent);background:rgba(99,102,241,0.15);padding:2px 7px;border-radius:10px;margin-left:4px">자동ACK</span>`
       : '';
     // Surface advisory timing claims declared by the virtual node profile
-    // (simulated_response_timing_ms). When unset, show nothing rather than
-    // fabricating numbers — fidelity comes from the pre-configured profile.
+    // (simulated_response_timing_ms). Each declared key is compared against
+    // the live policy phase budget; if declared exceeds budget, ⚠ is shown
+    // with the policy value in the tooltip so the simulator's intent is
+    // visibly inconsistent with the timing it would actually be allowed.
+    // Unmapped keys (future persona metrics) display neutrally.
     const timing = n.simulated_response_timing_ms;
     let timingRow = '';
     if (timing && typeof timing === 'object') {
-      const parts = Object.entries(timing).map(([k, v]) => {
+      const items = Object.entries(timing).map(([k, v]) => {
         const label = k.replace(/_ms$/, '').replace(/_/g, ' ');
-        return `${label} ${v}ms`;
+        const cmp = _compareTimingClaim(k, v);
+        if (cmp.status === 'exceeds') {
+          return {
+            text: `${label} ${v}ms ⚠`,
+            color: 'var(--red)',
+            title: `${label}: declared ${v}ms exceeds policy budget ${cmp.budgetMs}ms — simulator would over-run the phase window`,
+          };
+        }
+        if (cmp.status === 'within') {
+          return {
+            text: `${label} ${v}ms ✓`,
+            color: 'var(--green)',
+            title: `${label}: declared ${v}ms within policy budget ${cmp.budgetMs}ms`,
+          };
+        }
+        return { text: `${label} ${v}ms`, color: 'var(--text-dim)', title: '' };
       });
-      if (parts.length > 0) {
-        timingRow = `<div style="font-size:10px;color:var(--text-dim);margin-top:6px"
-          title="Profile-declared simulated response timing (advisory; compared with policy-derived budgets in CLASS_2 phase card)">
-          ⏱ ${parts.join(' · ')}</div>`;
+      if (items.length > 0) {
+        const segments = items.map(it =>
+          `<span style="color:${it.color}" title="${it.title}">${it.text}</span>`
+        ).join(' · ');
+        timingRow = `<div style="font-size:10px;color:var(--text-dim);margin-top:6px">⏱ ${segments}</div>`;
       }
     }
     return `<div class="node-card">
