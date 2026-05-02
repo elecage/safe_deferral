@@ -32,6 +32,10 @@ from class2_clarification_manager.models import Class2Result
 from class2_clarification_manager.refinement_templates import (
     get_refinement_template,
 )
+from class2_clarification_manager.scan_ordering import (
+    apply_scan_ordering,
+    ScanOrderingResult,
+)
 
 log = logging.getLogger(__name__)
 from safe_deferral_handler.models import (
@@ -406,6 +410,17 @@ class Class2ClarificationManager:
         self._scan_user_phase_extension: float = float(
             gc.get("class2_scan_user_phase_extension", 1.5)
         )
+        # Doc 12 §14 Phase 1.5 — deterministic scanning ordering. Default
+        # 'source_order' keeps candidate order as produced by the source
+        # layer; 'deterministic' applies _scan_ordering_rules below.
+        # Honored only when input_mode='scanning' (direct_select shows all
+        # options at once so order is cosmetic).
+        self._scan_ordering_mode_default: str = str(
+            gc.get("class2_scan_ordering_mode", "source_order")
+        )
+        self._scan_ordering_rules: dict = (
+            gc.get("class2_scan_ordering_rules") or {}
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -422,6 +437,7 @@ class Class2ClarificationManager:
         pure_context_payload: Optional[dict] = None,
         candidate_source_mode: Optional[str] = None,
         input_mode: Optional[str] = None,
+        scan_ordering_mode: Optional[str] = None,
     ) -> ClarificationSession:
         """Initialise a Class 2 clarification session.
 
@@ -467,6 +483,29 @@ class Class2ClarificationManager:
                 choices_input = llm_result.candidates
                 candidate_source = "llm_generated"
         choices = self._build_choices(reason, choices_input, pure_context_payload)
+        # Doc 12 §14 Phase 1.5 — apply deterministic ordering if scanning
+        # mode is active AND ordering policy is 'deterministic'. The
+        # original source order is preserved when the policy keeps the
+        # default 'source_order'. Direct-select sessions skip ranking
+        # because their order is cosmetic (all options shown at once).
+        effective_input_mode_for_ordering = (
+            input_mode or self._input_mode_default
+        )
+        effective_scan_ordering_mode = (
+            scan_ordering_mode or self._scan_ordering_mode_default
+        )
+        scan_ordering_result: Optional[ScanOrderingResult] = None
+        if (
+            effective_input_mode_for_ordering == "scanning"
+            and effective_scan_ordering_mode == "deterministic"
+        ):
+            scan_ordering_result = apply_scan_ordering(
+                candidates=choices,
+                pure_context_payload=pure_context_payload,
+                trigger_id=trigger_id,
+                rules=self._scan_ordering_rules,
+            )
+            choices = scan_ordering_result.ordered_candidates
         session = ClarificationSession(
             clarification_id=clarification_id or str(uuid.uuid4()),
             audit_correlation_id=audit_correlation_id,
@@ -485,6 +524,11 @@ class Class2ClarificationManager:
         # produce state-aware refinement candidates (doc 12 step 2-B +
         # PR #102 multi-turn).
         session.pure_context_payload = pure_context_payload  # type: ignore[attr-defined]
+        # Stash ordering audit so _build_record can surface
+        # scan_ordering_applied. Only set when ranking actually ran
+        # (input_mode='scanning' AND scan_ordering_mode='deterministic').
+        if scan_ordering_result is not None:
+            session.scan_ordering_audit = scan_ordering_result.to_audit_dict()  # type: ignore[attr-defined]
         # Doc 12 Phase 1 — record interaction mode and (when scanning)
         # initialise per-option pointer + history. Default mode comes from
         # policy; explicit input_mode argument overrides it (used by trial
@@ -958,6 +1002,16 @@ class Class2ClarificationManager:
         if scan_history is not None:
             # Defensive copy so post-build mutation doesn't change the record.
             record["scan_history"] = [dict(entry) for entry in scan_history]
+        # Doc 12 §14.5 — surface ordering audit when deterministic ranking ran.
+        scan_ordering_audit = getattr(session, "scan_ordering_audit", None)
+        if scan_ordering_audit is not None:
+            # Defensive copy so post-build mutation doesn't change the record.
+            record["scan_ordering_applied"] = {
+                "rule_source": scan_ordering_audit["rule_source"],
+                "matched_bucket": scan_ordering_audit["matched_bucket"],
+                "applied_overrides": list(scan_ordering_audit["applied_overrides"]),
+                "final_order": list(scan_ordering_audit["final_order"]),
+            }
         # Doc 11 Phase 6.0 — when this session is a refinement turn, embed
         # one entry summarising the parent → refinement transition. The
         # selected_candidate_id field is the value the user picked (or

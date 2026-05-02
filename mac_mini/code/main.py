@@ -412,6 +412,9 @@ class Pipeline:
             candidate_source_mode=getattr(
                 route_result, "class2_candidate_source_mode", None,
             ),
+            scan_ordering_mode=getattr(
+                route_result, "class2_scan_ordering_mode", None,
+            ),
         )
 
         # Step 1+3: announce + spawn the appropriate Phase 1 waiter based on

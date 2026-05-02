@@ -74,6 +74,7 @@ class PolicyRouter:
         network_status: str = meta["network_status"]
         experiment_mode: Optional[str] = meta.get("experiment_mode")
         class2_candidate_source_mode: Optional[str] = meta.get("class2_candidate_source_mode")
+        class2_scan_ordering_mode: Optional[str] = meta.get("class2_scan_ordering_mode")
 
         trigger: dict = ctx["trigger_event"]
         env: dict = ctx["environmental_context"]
@@ -96,6 +97,7 @@ class PolicyRouter:
                 pure_context_payload=ctx,
                 experiment_mode=experiment_mode,
                 class2_candidate_source_mode=class2_candidate_source_mode,
+                class2_scan_ordering_mode=class2_scan_ordering_mode,
             )
 
         # Step 3: emergency triggers → CLASS_0
@@ -114,6 +116,7 @@ class PolicyRouter:
                 pure_context_payload=ctx,
                 experiment_mode=experiment_mode,
                 class2_candidate_source_mode=class2_candidate_source_mode,
+                class2_scan_ordering_mode=class2_scan_ordering_mode,
             )
 
         # Step 4: C208 — visitor/doorbell sensor event (doorlock-sensitive path)
@@ -146,6 +149,7 @@ class PolicyRouter:
             pure_context_payload=ctx,
             experiment_mode=experiment_mode,
             class2_candidate_source_mode=class2_candidate_source_mode,
+            class2_scan_ordering_mode=class2_scan_ordering_mode,
         )
 
     # ------------------------------------------------------------------
@@ -252,4 +256,5 @@ class PolicyRouter:
             pure_context_payload=raw_input.get("pure_context_payload", {}),
             experiment_mode=meta.get("experiment_mode"),
             class2_candidate_source_mode=meta.get("class2_candidate_source_mode"),
+            class2_scan_ordering_mode=meta.get("class2_scan_ordering_mode"),
         )

@@ -310,19 +310,29 @@ class PackageRunner:
             base_payload["routing_metadata"]["ingest_timestamp_ms"] = int(
                 time.time() * 1000
             )
-            # Package A intent-recovery comparison (Class 1):
-            # comparison_condition ∈ {direct_mapping, rule_only, llm_assisted}
-            # → routing_metadata.experiment_mode (Class 1 intent-recovery branch).
+            # Package A comparison_condition prefix routing — each prefix
+            # selects which routing_metadata field receives the value (after
+            # the prefix is stripped so the schema enum matches). The three
+            # condition spaces target different Mac mini branches and never
+            # collide:
             #
-            # Package A LLM-vs-static Class 2 comparison (doc 10 §3.3 P2.3):
-            # comparison_condition ∈ {class2_static_only, class2_llm_assisted}
-            # → routing_metadata.class2_candidate_source_mode without the
-            #   "class2_" prefix (so the schema enum matches static_only /
-            #   llm_assisted). The two condition spaces never collide because
-            #   they target different routing branches in the Mac mini.
+            #   {direct_mapping, rule_only, llm_assisted}
+            #     → routing_metadata.experiment_mode (Class 1 intent recovery, PR #79)
+            #
+            #   class2_{static_only, llm_assisted}
+            #     → routing_metadata.class2_candidate_source_mode
+            #       (LLM-vs-static candidate generation, doc 10 §3.3 P2.3, PR #101)
+            #
+            #   class2_scan_{source_order, deterministic}
+            #     → routing_metadata.class2_scan_ordering_mode
+            #       (scanning ordering comparison, doc 12 §14 Phase 1.5)
             cc = trial.comparison_condition
             if cc:
-                if cc.startswith("class2_"):
+                if cc.startswith("class2_scan_"):
+                    base_payload["routing_metadata"]["class2_scan_ordering_mode"] = (
+                        cc[len("class2_scan_"):]
+                    )
+                elif cc.startswith("class2_"):
                     base_payload["routing_metadata"]["class2_candidate_source_mode"] = (
                         cc[len("class2_"):]
                     )

@@ -55,3 +55,11 @@ class PolicyRouterResult:
     # is the current default behaviour. Never enters the LLM prompt and
     # never affects Class 0 emergency, Class 1 routing, or validator authority.
     class2_candidate_source_mode: Optional[str] = None
+
+    # Optional scanning ordering experiment mode (Package A scanning-order
+    # comparison; doc 12 §14). Honored only by Class2ClarificationManager
+    # when input_mode='scanning'. 'source_order' (default) keeps candidates
+    # in source order; 'deterministic' applies class2_scan_ordering_rules
+    # to permute the candidate set before scanning announces option 0.
+    # Independent of class2_candidate_source_mode — composes for paper-eval.
+    class2_scan_ordering_mode: Optional[str] = None

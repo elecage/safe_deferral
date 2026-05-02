@@ -280,6 +280,31 @@
         }
       }
     },
+    "scan_ordering_applied": {
+      "type": "object",
+      "description": "Optional. Present only when scanning ran with deterministic ordering (input_mode='scanning' AND policy class2_scan_ordering_mode='deterministic'). Records which rule produced the final candidate order so audit can attribute ordering decisions. Plan: 12_class2_scanning_input_mode_plan.md §14.5.",
+      "properties": {
+        "rule_source": {
+          "type": "string",
+          "description": "Path to the policy field that supplied the ordering rules (always 'policy_table.global_constraints.class2_scan_ordering_rules' for now)."
+        },
+        "matched_bucket": {
+          "type": "string",
+          "description": "trigger_id whose by_trigger_id rule matched, or '_default' when no specific rule matched."
+        },
+        "applied_overrides": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Ordered list of context_overrides that fired (each entry is 'condition→target' for human readability). Empty when no overrides matched."
+        },
+        "final_order": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "candidate_ids in their final post-ranking order. Compare with the scan_history entries to verify the announced order matched this."
+        }
+      },
+      "required": ["rule_source", "final_order"]
+    },
     "refinement_history": {
       "type": "array",
       "description": "Optional. Each entry records one refinement turn that occurred between the initial user selection and the terminal Class 2 outcome. Plan reference: 11_class2_multi_turn_refinement_plan.md. Single-turn records (the production default) omit this field; opt-in multi-turn records carry exactly one entry today (max one refinement turn).",
