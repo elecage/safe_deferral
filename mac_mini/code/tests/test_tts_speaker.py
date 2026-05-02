@@ -119,6 +119,76 @@ class TestAnnounceClass2PromptVerbatim:
         announce_class2(sp, [_choice("C1", "조명 도움이 필요하신가요?")])  # no exception
 
 
+# ==================================================================
+# Trigger-aware preamble (2-A)
+# ==================================================================
+
+class TestAnnounceClass2AdaptivePreamble:
+    """The preamble must adapt to whether the candidate set is
+    user-resolvable (any CLASS_1 option present) or caregiver-bound.
+    Promising 'caregiver confirmation needed' for a candidate set whose
+    first option is the user's own low-risk action is misleading and
+    causes cognitive dissonance."""
+
+    def _has_text(self, sp, fragment):
+        return any(fragment in utt for utt in sp.spoken)
+
+    def test_class1_present_uses_neutral_preamble(self):
+        """When any candidate routes to CLASS_1, the user can resolve it
+        themselves → neutral preamble. The misleading caregiver wording
+        must be absent from the preamble (it may still appear inside an
+        individual candidate prompt, which is fine)."""
+        sp = _RecordingSpeaker()
+        announce_class2(sp, [
+            _choice("C1", "거실 조명을 켜드릴까요?", "CLASS_1"),
+            _choice("C0", "긴급상황인가요?", "CLASS_0"),
+            _choice("CG", "보호자에게 연락할까요?", "CAREGIVER_CONFIRMATION"),
+        ])
+        text = sp.spoken[0]
+        assert "어떻게 도와드릴까요" in text
+        # The preamble itself must not include the caregiver-confirmation
+        # promise. We check that the literal preamble fragment isn't there;
+        # a candidate prompt mentioning '보호자' is unrelated.
+        assert "보호자 확인이 필요합니다. 다음 중 선택해 주세요." not in text
+
+    def test_no_class1_uses_caregiver_preamble(self):
+        """C208 visitor / C207 deferral-timeout candidate sets have no
+        CLASS_1 option. Caregiver-bound preamble is honest there."""
+        sp = _RecordingSpeaker()
+        announce_class2(sp, [
+            _choice("CG", "보호자에게 방문자 확인을 요청할까요?",
+                    "CAREGIVER_CONFIRMATION"),
+            _choice("C0", "긴급상황인가요?", "CLASS_0"),
+            _choice("SD", "취소하고 대기할까요?", "SAFE_DEFERRAL"),
+        ])
+        text = sp.spoken[0]
+        assert "보호자 확인이 필요합니다" in text
+        assert "어떻게 도와드릴까요" not in text
+
+    def test_only_safe_deferral_uses_caregiver_preamble(self):
+        """All-SAFE_DEFERRAL set (degenerate but possible) is not
+        user-resolvable in the action sense — caregiver preamble."""
+        sp = _RecordingSpeaker()
+        announce_class2(sp, [
+            _choice("SD1", "취소할까요?", "SAFE_DEFERRAL"),
+        ])
+        text = sp.spoken[0]
+        assert "보호자 확인이 필요합니다" in text
+
+    def test_preamble_change_does_not_break_verbatim_invariant(self):
+        """Phase 4 verbatim invariant: each candidate's prompt must still
+        appear verbatim regardless of preamble choice."""
+        sp = _RecordingSpeaker()
+        choices = [
+            _choice("C1", "거실 조명을 켜드릴까요?", "CLASS_1"),
+            _choice("CG", "보호자에게 연락할까요?", "CAREGIVER_CONFIRMATION"),
+        ]
+        announce_class2(sp, choices)
+        text = sp.spoken[0]
+        for c in choices:
+            assert c.prompt in text
+
+
 class TestAnnounceClass2SelectionPromptVerbatim:
     """The post-selection announcement must echo the chosen prompt verbatim
     so the user hears exactly the option that was confirmed."""

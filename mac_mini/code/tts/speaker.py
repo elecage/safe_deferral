@@ -204,18 +204,38 @@ def announce_deferral(speaker: TtsSpeaker, reason: str) -> None:
 def announce_class2(speaker: TtsSpeaker, candidates: list) -> None:
     """Read out CLASS_2 candidate choices so the user can hear options.
 
-    Speaks a preamble then each candidate prompt in order.
+    The preamble adapts to the candidate set:
+      - If any candidate routes to CLASS_1 (a low-risk action the user can
+        confirm themselves), a neutral 'how can I help' preamble is used.
+        Promising 'caregiver confirmation needed' here is misleading because
+        most picks won't actually involve the caregiver.
+      - Otherwise (all candidates route to caregiver / emergency / deferral —
+        e.g. C208 doorlock-sensitive, C207 deferral timeout), the
+        caregiver-bound preamble is honest and used.
+
+    Empty candidate set falls back to caregiver preamble (defensive — the
+    only safe announcement when the manager has nothing to offer).
     """
     if not candidates:
         speaker.speak("보호자 확인이 필요합니다.")
         return
 
+    has_user_resolvable = any(
+        getattr(c, "candidate_transition_target", None) == "CLASS_1"
+        for c in candidates
+    )
+    if has_user_resolvable:
+        preamble = "어떻게 도와드릴까요? 다음 중 선택해 주세요."
+    else:
+        preamble = "보호자 확인이 필요합니다. 다음 중 선택해 주세요."
+
     prompts = [c.prompt for c in candidates]
-    parts = ["보호자 확인이 필요합니다. 다음 중 선택해 주세요."]
+    parts = [preamble]
     for i, prompt in enumerate(prompts, 1):
         parts.append(f"{i}번, {prompt}")
     text = " ".join(parts)
-    log.info("TTS announce_class2: %d candidates", len(candidates))
+    log.info("TTS announce_class2: %d candidates (caregiver_preamble=%s)",
+             len(candidates), not has_user_resolvable)
     speaker.speak(text)
 
 
