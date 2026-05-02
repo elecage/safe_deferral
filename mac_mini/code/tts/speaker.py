@@ -302,7 +302,8 @@ def announce_class2_selection(
     selection_source examples: "user_mqtt_button", "caregiver_telegram_inline_keyboard",
     "user_mqtt_button_late".
     chosen_prompt: the human-readable prompt string from the selected candidate
-    (e.g. "조명 도움이 필요하신가요?", "거실 조명을 제어할까요?").
+    (e.g. "거실 조명을 켜드릴까요?", "거실 조명을 꺼드릴까요?", "보호자에게 연락할까요?" — state-aware
+    lighting prompts come from _state_aware_lighting_candidate in the manager).
     """
     if "caregiver" in selection_source:
         prefix = "보호자가"
