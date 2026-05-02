@@ -315,6 +315,21 @@ class Class2ClarificationManager:
         self._refinement_turn_timeout_ms: int = int(
             gc.get("class2_refinement_turn_timeout_ms", self._timeout_ms)
         )
+        # Doc 12 Phase 1 — opt-in scanning input mode. The default
+        # 'direct_select' preserves the existing one-utterance/one-pick
+        # interaction; 'scanning' presents one option at a time and accepts
+        # yes/no per turn (AAC scanning pattern). Per-option budget is
+        # exposed so scanning callers can drive their per-option timeout
+        # consistently with the policy.
+        self._input_mode_default: str = str(
+            gc.get("class2_input_mode", "direct_select")
+        )
+        self._scan_per_option_timeout_ms: int = int(
+            gc.get("class2_scan_per_option_timeout_ms", 8000)
+        )
+        self._scan_user_phase_extension: float = float(
+            gc.get("class2_scan_user_phase_extension", 1.5)
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -330,6 +345,7 @@ class Class2ClarificationManager:
         presentation_channel: str = "tts",
         pure_context_payload: Optional[dict] = None,
         candidate_source_mode: Optional[str] = None,
+        input_mode: Optional[str] = None,
     ) -> ClarificationSession:
         """Initialise a Class 2 clarification session.
 
@@ -389,6 +405,21 @@ class Class2ClarificationManager:
         # ClarificationSession is a dataclass without this field; use a
         # dynamic attribute to avoid changing the shared model.
         session.candidate_source = candidate_source  # type: ignore[attr-defined]
+        # Doc 12 Phase 1 — record interaction mode and (when scanning)
+        # initialise per-option pointer + history. Default mode comes from
+        # policy; explicit input_mode argument overrides it (used by trial
+        # runner / scenario fixtures). Direct-select sessions carry input_mode
+        # too so the audit record can attribute interaction mode uniformly.
+        effective_input_mode = input_mode or self._input_mode_default
+        session.input_mode = effective_input_mode  # type: ignore[attr-defined]
+        if effective_input_mode == "scanning":
+            session.current_option_index = 0  # type: ignore[attr-defined]
+            session.scan_history = []  # type: ignore[attr-defined]
+            # Per-option timeout overrides the session's user-phase timeout
+            # for scanning callers. The original timeout_ms is preserved so
+            # legacy direct-select callers aren't surprised; scanning callers
+            # should consult session.scan_per_option_timeout_ms instead.
+            session.scan_per_option_timeout_ms = self._scan_per_option_timeout_ms  # type: ignore[attr-defined]
         return session
 
     def submit_selection(
@@ -538,6 +569,130 @@ class Class2ClarificationManager:
         """
         ts = timestamp_ms or int(time.time() * 1000)
         return self._timeout_result(session, ts, trigger_id, context_summary)
+
+    # ------------------------------------------------------------------
+    # Scanning (doc 12 Phase 1)
+    # ------------------------------------------------------------------
+
+    def submit_scan_response(
+        self,
+        session: ClarificationSession,
+        option_index: int,
+        response: str,
+        input_source: str,
+        elapsed_ms: int = 0,
+        timestamp_ms: Optional[int] = None,
+        trigger_id: str = "C206",
+        context_summary: str = "",
+    ):
+        """Resolve one scanning turn (doc 12 §6).
+
+        Returns:
+          - Class2Result (terminal) if response='yes' (accept current option),
+            or if response='no'/'silence' on the FINAL option (escalate to
+            caregiver — silence ≠ consent invariant).
+          - The same session (advanced) if response='no'/'silence' on a
+            non-final option. current_option_index is incremented and
+            scan_history records the turn.
+
+        Stale or out-of-order responses (option_index != current_option_index)
+        are appended to scan_history with response='dropped' and the session
+        is returned unchanged. This prevents a slow button-press race from
+        accidentally accepting a previous option.
+        """
+        if getattr(session, "input_mode", "direct_select") != "scanning":
+            raise ValueError(
+                "submit_scan_response called on non-scanning session "
+                f"(input_mode={getattr(session, 'input_mode', None)!r})"
+            )
+        if response not in ("yes", "no", "silence"):
+            raise ValueError(f"invalid scan response: {response!r}")
+
+        ts = timestamp_ms or int(time.time() * 1000)
+        current_index = getattr(session, "current_option_index", 0)
+        history = getattr(session, "scan_history", [])
+
+        # Stale-input drop. Record it for audit but do not advance.
+        if option_index != current_index:
+            history.append({
+                "option_index": int(option_index),
+                "candidate_id": (
+                    session.candidate_choices[option_index].candidate_id
+                    if 0 <= option_index < len(session.candidate_choices)
+                    else "<out_of_range>"
+                ),
+                "response": "dropped",
+                "elapsed_ms": int(elapsed_ms),
+                "input_source": input_source,
+            })
+            session.scan_history = history  # type: ignore[attr-defined]
+            return session
+
+        candidate = session.candidate_choices[current_index]
+        history.append({
+            "option_index": int(current_index),
+            "candidate_id": candidate.candidate_id,
+            "response": response,
+            "elapsed_ms": int(elapsed_ms),
+            "input_source": input_source,
+        })
+        session.scan_history = history  # type: ignore[attr-defined]
+
+        if response == "yes":
+            # Terminal acceptance of the current option. Reuse the existing
+            # submit_selection terminal pipeline so transition resolution,
+            # caregiver-notification logic, and audit-record assembly stay
+            # in one place. The scan_history we just appended is picked up
+            # automatically by _build_record because it reads from the
+            # session attribute.
+            return self.submit_selection(
+                session,
+                selected_candidate_id=candidate.candidate_id,
+                selection_source=input_source,
+                selection_timestamp_ms=ts,
+                trigger_id=trigger_id,
+                context_summary=context_summary,
+            )
+
+        # response in ('no', 'silence') — advance or escalate.
+        if current_index + 1 < len(session.candidate_choices):
+            session.current_option_index = current_index + 1  # type: ignore[attr-defined]
+            return session
+
+        # Final option rejected (or silenced). Silence ≠ consent — escalate
+        # to caregiver via the existing timeout pipeline so the audit record
+        # carries scan_history alongside the standard escalation fields.
+        return self._timeout_result(session, ts, trigger_id, context_summary)
+
+    def handle_scan_silence(
+        self,
+        session: ClarificationSession,
+        elapsed_ms: int = 0,
+        timestamp_ms: Optional[int] = None,
+        trigger_id: str = "C206",
+        context_summary: str = "",
+    ):
+        """Per-option timeout convenience (doc 12 §6).
+
+        Equivalent to submit_scan_response(option_index=current, response='silence',
+        input_source='timeout'). Returned object follows the same union
+        contract as submit_scan_response.
+        """
+        if getattr(session, "input_mode", "direct_select") != "scanning":
+            raise ValueError(
+                "handle_scan_silence called on non-scanning session "
+                f"(input_mode={getattr(session, 'input_mode', None)!r})"
+            )
+        return self.submit_scan_response(
+            session,
+            option_index=getattr(session, "current_option_index", 0),
+            response="silence",
+            input_source="timeout",
+            elapsed_ms=elapsed_ms,
+            timestamp_ms=timestamp_ms,
+            trigger_id=trigger_id,
+            context_summary=context_summary,
+        )
 
     def can_retry(self, session: ClarificationSession) -> bool:
         """True if another clarification attempt is allowed under policy."""
@@ -700,6 +855,18 @@ class Class2ClarificationManager:
             "llm_boundary": _LLM_BOUNDARY_CONST,
             "timestamp_ms": int(time.time() * 1000),
         }
+        # Doc 12 Phase 1 — surface scanning interaction mode and per-option
+        # decision history when present. Direct-select sessions still record
+        # input_mode='direct_select' for audit attribution; scanning sessions
+        # additionally include scan_history (may be empty if the very first
+        # option was accepted before any 'no'/'silence'/'dropped' was logged).
+        input_mode = getattr(session, "input_mode", None)
+        if input_mode is not None:
+            record["input_mode"] = input_mode
+        scan_history = getattr(session, "scan_history", None)
+        if scan_history is not None:
+            # Defensive copy so post-build mutation doesn't change the record.
+            record["scan_history"] = [dict(entry) for entry in scan_history]
         # Doc 11 Phase 6.0 — when this session is a refinement turn, embed
         # one entry summarising the parent → refinement transition. The
         # selected_candidate_id field is the value the user picked (or
