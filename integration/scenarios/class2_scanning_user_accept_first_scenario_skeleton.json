@@ -1,0 +1,139 @@
+{
+  "scenario_id": "SCN_CLASS2_SCANNING_USER_ACCEPT_FIRST",
+  "title": "Class 2 scanning input mode — user accepts first option (single_click)",
+  "description": "Deterministic scenario for the scanning interaction model (doc 12, AAC scanning input pattern). The candidate set is presented one option at a time as separate {n}/{N}. <prompt> utterances. The user replies single_click to accept option 0 (yes), terminating the session immediately with a CLASS_1 transition. Trial run via comparison_condition='class2_scanning_input' which the runner translates to routing_metadata.class2_input_mode='scanning'. Scenario asset only — does not authorize actuation.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_scanning_input_mode_enabled": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an insufficient-context payload that drives the policy router into Class 2. The runner attaches routing_metadata.class2_input_mode='scanning' (from comparison_condition='class2_scanning_input').",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_scanning_state",
+      "description": "Class2ClarificationManager.start_session(input_mode='scanning') initialises current_option_index=0, scan_history=[], and announces the scanning preamble ('질문을 하나씩 드리겠습니다. 총 N개입니다. 예 또는 아니오로 답해 주세요.') via TTS.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "announce_first_option",
+      "description": "The manager calls announce_class2_option(0, candidate_choices[0], total_options=N) which speaks '1/N. <state-aware lighting prompt>' (e.g. '1/4. 거실 조명을 켜드릴까요?')."
+    },
+    {
+      "step_id": 4,
+      "action": "user_accepts_via_single_click",
+      "description": "Within scan_per_option_timeout_ms (default 8000ms), the user publishes a button event with event_code='single_click'. _try_handle_as_user_selection routes to the scanning branch and writes entry['scan_decision']=('submit', 0, 'yes'); the per-option event is signaled."
+    },
+    {
+      "step_id": 5,
+      "action": "submit_scan_response_yes",
+      "description": "submit_scan_response(option_index=0, response='yes', input_source='user_mqtt_button') terminates the session via the existing submit_selection terminal pipeline. The audit record carries input_mode='scanning' and scan_history=[{option_index:0, response:'yes', candidate_id, elapsed_ms, input_source}].",
+      "expected_fixture": "common/payloads/examples/clarification_interaction_scanning_yes_first.json"
+    },
+    {
+      "step_id": 6,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish the terminal clarification record on safe_deferral/clarification/interaction. transition_target='CLASS_1' (the chosen lighting candidate). Validator re-entry is required before any low-risk dispatch."
+    },
+    {
+      "step_id": 7,
+      "action": "observe_audit_stream",
+      "description": "Observe the audit stream and capture the scanning trace including preamble + option-0 announcement + yes response + terminal record. The integration verifier asserts scan_history length=1, response='yes', and input_mode='scanning'."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_OR_LLM_GUIDANCE_LAYER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_PER_OPTION_SEQUENTIAL"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE_SCANNING"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "PER_OPTION_TIMEOUT_AUTO_ADVANCE_THEN_CAREGIVER_ESCALATION_ON_FINAL"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_1",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "scan_input_mode_expectation": {
+    "scenario_comparison_condition": "class2_scanning_input",
+    "expected_routing_metadata_class2_input_mode": "scanning",
+    "expected_clarification_record_input_mode": "scanning",
+    "expected_scan_history_length": 1,
+    "expected_scan_history_first_response": "yes",
+    "expected_scan_history_first_option_index": 0,
+    "expected_terminal_invokes_caregiver_phase": false,
+    "expected_example_record_ref": "common/payloads/examples/clarification_interaction_scanning_yes_first.json"
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_1",
+      "condition": "User accepts the first scanning option via single_click within scan_per_option_timeout_ms.",
+      "example_confirmation": "single_click on option 0 (state-aware lighting candidate)",
+      "allowed_next_path": "validator_reentry_then_bounded_low_risk_assistance_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_1"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "Scanning mode (doc 12) presents candidates one at a time. This scenario covers the happy path: user accepts option 0 immediately via single_click.",
+    "comparison_condition='class2_scanning_input' is the runner-side declaration that translates to routing_metadata.class2_input_mode='scanning' (PR #111 prefix routing).",
+    "scan_history records the single yes turn; no caregiver Phase 2 is invoked because the user resolved Phase 1 with a CLASS_1 acceptance.",
+    "The Deterministic Validator re-enters with the bounded confirmed candidate before any low-risk dispatch — silence ≠ consent and selection ≠ validator approval invariants are preserved end-to-end.",
+    "TTS verbatim invariant (PR #97) carries forward: each per-option utterance contains candidate.prompt as-is."
+  ]
+}

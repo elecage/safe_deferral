@@ -1,0 +1,142 @@
+{
+  "scenario_id": "SCN_CLASS2_SCANNING_ALL_REJECTED_CAREGIVER_ESCALATION",
+  "title": "Class 2 scanning input mode — user rejects all options, caregiver escalation",
+  "description": "Deterministic scenario for the scanning interaction model when the user explicitly rejects every option (or stays silent on every option). After all N options are exhausted, the manager invokes _run_caregiver_phase so the caregiver can still override (e.g., approve a CLASS_1 action even though the user said no). silence ≠ consent invariant is preserved across every turn including the final escalation. Scenario asset only — does not authorize actuation.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_scanning_input_mode_enabled": true,
+    "requires_caregiver_telegram_path_available": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an insufficient-context payload that drives the policy router into Class 2. The runner attaches routing_metadata.class2_input_mode='scanning'.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_scanning_state",
+      "description": "Class2ClarificationManager.start_session(input_mode='scanning') initialises the session and announces the scanning preamble.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "iterate_per_option_no_or_silence",
+      "description": "For each option 0..N-1 the manager calls announce_class2_option then waits scan_per_option_timeout_ms. The user either publishes double_click (explicit no, faster path) or stays silent (per-option timeout = silence, treated as no for advancing). Each turn appends a scan_history entry with response='no' or 'silence'."
+    },
+    {
+      "step_id": 4,
+      "action": "final_option_rejected_or_silenced",
+      "description": "On the final option the same no/silence response triggers terminal escalation — the manager returns a Class2Result whose transition_target is SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION (silence ≠ consent: never auto-confirms even on final option)."
+    },
+    {
+      "step_id": 5,
+      "action": "invoke_caregiver_phase_2",
+      "description": "_run_caregiver_phase is invoked so the caregiver can still override via Telegram inline keyboard (e.g., approve a CLASS_1 lighting action the user rejected). The session entry remains in _pending_user_class2 throughout Phase 2 so a late user button press is still intercepted."
+    },
+    {
+      "step_id": 6,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish the terminal clarification record on safe_deferral/clarification/interaction. scan_history contains N entries (each a no or silence). transition_target reflects either caregiver override result or escalation timeout."
+    },
+    {
+      "step_id": 7,
+      "action": "observe_audit_stream",
+      "description": "Observe the audit stream and capture the full scan_history, caregiver phase invocation, and final transition. The integration verifier asserts scan_history length=N (one per candidate), no entry has response='yes', and _run_caregiver_phase ran."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_OR_LLM_GUIDANCE_LAYER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_PER_OPTION_SEQUENTIAL",
+      "TELEGRAM_INLINE_KEYBOARD_CAREGIVER"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE_SCANNING",
+      "TIMEOUT_OR_NO_RESPONSE",
+      "CAREGIVER_TELEGRAM_KEYBOARD"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "PER_OPTION_TIMEOUT_AUTO_ADVANCE_THEN_CAREGIVER_ESCALATION_ON_FINAL"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "scan_input_mode_expectation": {
+    "scenario_comparison_condition": "class2_scanning_input",
+    "expected_routing_metadata_class2_input_mode": "scanning",
+    "expected_clarification_record_input_mode": "scanning",
+    "expected_scan_history_length_equals_candidate_count": true,
+    "expected_scan_history_no_yes_response": true,
+    "expected_terminal_invokes_caregiver_phase": true,
+    "silence_does_not_imply_consent": true
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "condition": "User rejects every option (no or silence) across the full scanning loop. Escalates to caregiver Phase 2; caregiver may override by approving a CLASS_1 action.",
+      "example_confirmation": "double_click or silence on every option_index 0..N-1",
+      "allowed_next_path": "caregiver_telegram_inline_keyboard_with_optional_class1_override"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "CLASS_1"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "This scenario covers the long-tail scanning path: user rejects every option (or stays silent on every option), and the system falls through to caregiver Phase 2.",
+    "scan_history must record exactly N entries (one per candidate), and none of them may carry response='yes' (otherwise the loop would have terminated earlier).",
+    "_run_caregiver_phase is shared with direct_select Phase 2 (PR #109 extraction), so the caregiver still sees the same Telegram inline keyboard with all candidates and can approve a CLASS_1 action if the user's no was a misclick.",
+    "If the caregiver also fails to respond, the existing handle_timeout / final caregiver notification path produces a SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION terminal — never autonomous execution.",
+    "silence ≠ consent invariant is preserved at every turn, including the final option (the final no/silence does not auto-confirm; it specifically escalates to caregiver)."
+  ]
+}
