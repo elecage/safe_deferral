@@ -1,0 +1,139 @@
+{
+  "scenario_id": "SCN_CLASS2_SCANNING_TRIPLE_HIT_EMERGENCY_SHORTCUT",
+  "title": "Class 2 scanning input mode — triple_hit emergency shortcut",
+  "description": "Deterministic scenario for the scanning interaction model when the user signals an emergency mid-loop. Before the per-option iteration completes, the user publishes a button event with event_code='triple_hit'. The scan_input_adapter (PR #108) maps triple_hit to the first CLASS_0 candidate via the emergency shortcut, the manager terminates immediately with submit_selection on that candidate, and the caregiver Phase 2 is bypassed entirely (emergency intent is unambiguous). Reaction time matches direct_select emergency handling — scanning does NOT add latency to the emergency path. Scenario asset only — does not authorize actuation.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_scanning_input_mode_enabled": true,
+    "requires_class0_emergency_handler": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an insufficient-context payload (button single_click on an unknown event_code, etc.) that drives the policy router into Class 2. The runner attaches routing_metadata.class2_input_mode='scanning'.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_scanning_state",
+      "description": "Class2ClarificationManager.start_session(input_mode='scanning') initialises the session and begins the per-option loop with announce_class2_scanning_start.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "user_signals_emergency_via_triple_hit",
+      "description": "At any point during the scanning loop (option 0 announcement, mid-loop, or before an option completes), the user publishes a button event with event_code='triple_hit'. _try_handle_as_user_selection routes to the scanning branch and calls interpret_button_event_for_scan; the adapter returns a DECISION_EMERGENCY with the first CLASS_0-targeted candidate_id. entry['scan_decision']=('emergency', cand_id) and the per-option event is signaled."
+    },
+    {
+      "step_id": 4,
+      "action": "submit_emergency_selection_immediately",
+      "description": "_await_user_scanning_then_caregiver detects the 'emergency' decision in entry, removes the session from _pending_user_class2, and calls submit_selection on the CLASS_0 candidate via the standard terminal pipeline. announce_class2_selection delivers TTS feedback. The remaining options in the scanning loop are NOT announced (emergency shortcut bypasses them)."
+    },
+    {
+      "step_id": 5,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish the terminal clarification record on safe_deferral/clarification/interaction. transition_target='CLASS_0', selection_source='user_mqtt_button'. scan_history may contain entries for any options that completed before the triple_hit arrived (typically just option 0)."
+    },
+    {
+      "step_id": 6,
+      "action": "execute_class0_transition",
+      "description": "_execute_class2_transition routes the CLASS_0 result to the emergency handler (announce_emergency + caregiver notification). No caregiver Phase 2 wait — emergency intent is unambiguous and handled immediately."
+    },
+    {
+      "step_id": 7,
+      "action": "observe_audit_stream",
+      "description": "Observe the audit stream and capture: scanning preamble, partial scan_history, terminal CLASS_0 transition, emergency announcement. The integration verifier asserts (a) transition_target='CLASS_0', (b) selection_source='user_mqtt_button' (not caregiver), (c) caregiver Phase 2 was NOT invoked."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_OR_LLM_GUIDANCE_LAYER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_PER_OPTION_SEQUENTIAL"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE_SCANNING_TRIPLE_HIT"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "EMERGENCY_SHORTCUT_BYPASSES_PER_OPTION_TIMER"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_0",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "scan_input_mode_expectation": {
+    "scenario_comparison_condition": "class2_scanning_input",
+    "expected_routing_metadata_class2_input_mode": "scanning",
+    "expected_clarification_record_input_mode": "scanning",
+    "expected_terminal_invokes_caregiver_phase": false,
+    "expected_emergency_shortcut_used": true,
+    "expected_emergency_response_latency_matches_direct_select": true,
+    "expected_remaining_options_not_announced": true
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_0",
+      "condition": "User publishes triple_hit during the scanning loop. The emergency shortcut maps to the first CLASS_0-targeted candidate immediately.",
+      "example_confirmation": "triple_hit during scanning",
+      "allowed_next_path": "immediate_emergency_announcement_and_caregiver_notification_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_0"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false,
+    "canonical_emergency_family": "E001"
+  },
+  "notes": [
+    "Emergency shortcut preserves direct_select semantics under scanning — the user does not have to wait through N per-option timeouts when an emergency is happening.",
+    "scan_input_adapter (PR #108) maps event_code='triple_hit' to DECISION_EMERGENCY with the first CLASS_0-targeted candidate. If the candidate set has no CLASS_0 option (e.g., C208 doorlock-sensitive), the adapter returns DECISION_IGNORE and the loop continues.",
+    "caregiver Phase 2 is intentionally NOT invoked — emergency intent is unambiguous and the runtime emits the standard CLASS_0 emergency handling path immediately (announce_emergency + caregiver notification).",
+    "scan_history in the terminal record reflects whatever turns completed before the triple_hit arrived (typically just option 0 or empty).",
+    "canonical_emergency_family='E001' is illustrative — the actual family depends on which CLASS_0 candidate the manager picked from candidate_choices."
+  ]
+}
