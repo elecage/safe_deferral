@@ -1,0 +1,135 @@
+{
+  "scenario_id": "SCN_CLASS2_DETERMINISTIC_ORDERING_SMOKE_OVERRIDE",
+  "title": "Class 2 deterministic ordering — smoke_detected context override boosts CLASS_0 first",
+  "description": "Deterministic scenario for the doc 12 §14 Phase 1.5 context-override mechanism. Same opt-in (input_mode='scanning' + scan_ordering_mode='deterministic'). The trigger is C206 (insufficient context) so the trigger-bucket priority would be [CLASS_1, CLASS_0, CAREGIVER_CONFIRMATION, SAFE_DEFERRAL]. BUT the input fixture has environmental_context.smoke_detected=true. The class2_scan_ordering_rules.context_overrides entry {if_field='environmental_context.smoke_detected', if_equals=true, boost_first='CLASS_0'} fires — CLASS_0 is moved to the front of the priority list. Result: the user hears '1/4. 긴급상황인가요?' first instead of the lighting prompt. scan_ordering_applied records the smoke_detected override having fired. Scenario asset only — does not authorize actuation.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_scanning_input_mode_enabled": true,
+    "requires_deterministic_scan_ordering_enabled": true,
+    "requires_input_with_smoke_detected_true": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload_with_smoke",
+      "description": "Publish a C206-triggering context payload with environmental_context.smoke_detected=true. Critically, the trigger itself is NOT an emergency (trigger_event remains a button event); the smoke signal is a context-only risk marker. Without the override mechanism, this would still route C206 → CLASS_2 with the trigger-bucket priority. Note: in production, smoke_detected=true also typically routes via the policy_router emergency-trigger path before reaching Class 2 — this scenario specifically exercises the case where the policy_router did NOT classify smoke as emergency yet (because, e.g., it doesn't pass the threshold predicate alone and the button event is what arrived first).",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_with_context_override",
+      "description": "Class2ClarificationManager.start_session(input_mode='scanning', scan_ordering_mode='deterministic') runs. apply_scan_ordering reads the C206 bucket [CLASS_1, CLASS_0, CAREGIVER_CONFIRMATION, SAFE_DEFERRAL] then iterates context_overrides. The smoke_detected override fires → CLASS_0 boosted to position 0. Final priority list: [CLASS_0, CLASS_1, CAREGIVER_CONFIRMATION, SAFE_DEFERRAL]. session.scan_ordering_audit.applied_overrides records the smoke fire.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "announce_emergency_first_under_smoke_override",
+      "description": "Per-option utterances follow the post-override order: '1/4. 긴급상황인가요?' (the C3_EMERGENCY_HELP CLASS_0 candidate) FIRST, '2/4. <C1_LIGHTING prompt>', etc. The user hears the emergency option first because the system thinks risk is elevated."
+    },
+    {
+      "step_id": 4,
+      "action": "user_accepts_emergency_option",
+      "description": "User single_click on option 0 → emergency confirmation. Terminal CLASS_0. (The terminal selection itself is not what's specifically tested — what's tested is that the user heard the EMERGENCY option first because of the smoke context override.)"
+    },
+    {
+      "step_id": 5,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "scan_ordering_applied.applied_overrides=['environmental_context.smoke_detected=True→CLASS_0']. final_order starts with the CLASS_0 candidate."
+    },
+    {
+      "step_id": 6,
+      "action": "observe_audit_stream",
+      "description": "The integration verifier asserts (a) scan_ordering_applied.applied_overrides has at least one entry, (b) the first entry references smoke_detected, (c) final_order's first candidate has candidate_transition_target='CLASS_0', (d) terminal transition is CLASS_0 (because that's what the user picked)."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_OR_LLM_GUIDANCE_LAYER",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_PER_OPTION_SEQUENTIAL"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE_SCANNING"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "PER_OPTION_TIMEOUT_AUTO_ADVANCE_THEN_CAREGIVER_ESCALATION_ON_FINAL"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_0",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "scan_ordering_expectation": {
+    "scenario_comparison_condition": "class2_scan_deterministic",
+    "scenario_assumes_scanning_input_mode_active": true,
+    "expected_routing_metadata_class2_scan_ordering_mode": "deterministic",
+    "expected_clarification_record_carries_scan_ordering_applied": true,
+    "expected_scan_ordering_applied_matched_bucket": "C206",
+    "expected_scan_ordering_applied_applied_overrides_count_at_least": 1,
+    "expected_scan_ordering_applied_first_override_references": "smoke_detected",
+    "expected_scan_ordering_applied_final_order_first_target": "CLASS_0"
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_0",
+      "condition": "smoke_detected context override moves CLASS_0 to front of priority list. User hears emergency option first and confirms.",
+      "example_confirmation": "single_click on option 0 (now the CLASS_0 emergency candidate due to smoke override)",
+      "allowed_next_path": "immediate_emergency_announcement_and_caregiver_notification_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_0"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "Context overrides are pure permutation — they move a transition_target to the front of the priority list, never inject new candidates (doc 12 §14.4 + §14.8 explicit boundary). If a target appears in the priority list as a result of the override but no actual candidate has that target, ordering simply doesn't move anything (defensive).",
+    "The smoke_detected override is one of three shipped examples; gas_detected → CLASS_0 and doorbell_detected → CAREGIVER work the same way.",
+    "Multiple overrides can fire simultaneously — later-declared overrides win the front spot (stack semantics). E.g., if both smoke AND doorbell were true, the doorbell override (later in the list) would put CAREGIVER first.",
+    "Even though the user heard CLASS_0 first and picked it, the terminal CLASS_0 transition still flows through the standard emergency handler — same authority path as any other CLASS_0 outcome. Ordering doesn't grant new authority.",
+    "An adjacent scenario family (P1.5 expansion candidate) could exercise doorbell_detected → CAREGIVER first override under C208 trigger — both the bucket and override agree there."
+  ]
+}
