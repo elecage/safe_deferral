@@ -92,7 +92,7 @@ if [[ "${1:-}" == "--stop" ]]; then
       rm -f "$pidfile"
     fi
   done
-  log "done. mosquitto is left running — stop with 'brew services stop mosquitto' if desired."
+  log "done. mosquitto is left running — stop with 'pkill -x mosquitto' if desired."
   exit 0
 fi
 
@@ -130,10 +130,17 @@ if [[ "$NO_MOSQUITTO_START" == "0" ]]; then
   if is_port_listening "$MQTT_PORT"; then
     log "mosquitto already listening on :$MQTT_PORT"
   else
-    log "starting mosquitto via brew services"
-    brew services start mosquitto >/dev/null \
-      || die "brew services failed to start mosquitto. Check 'brew services list'."
-    # Wait up to 10s for it to bind.
+    # Use direct daemon mode (`mosquitto -d`) rather than `brew services
+    # start mosquitto`. Homebrew ships mosquitto 2.x with only
+    # `mosquitto.conf.example` — no `mosquitto.conf` — and the launchd
+    # plist references the missing file, so `brew services` exits with
+    # error code 3 ("Loaded but not Running") on a fresh install. Direct
+    # `-d` uses the built-in defaults (local-only listener — exactly the
+    # security posture we want for this E2E setup) and works on any
+    # mosquitto installation without a config file.
+    log "starting mosquitto in daemon mode (port $MQTT_PORT)"
+    mosquitto -d -p "$MQTT_PORT" \
+      || die "mosquitto -d failed to launch. Run 'mosquitto -v' to see why."
     for _ in $(seq 1 20); do
       is_port_listening "$MQTT_PORT" && break
       sleep 0.5
