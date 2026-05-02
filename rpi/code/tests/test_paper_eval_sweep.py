@@ -266,6 +266,20 @@ class TestSweeperHappyPath:
         assert len(data["cells"]) == 12
         assert "anchor_commits" in data
 
+    def test_manifest_carries_trials_snapshot_for_phase2(self, fast_sweeper):
+        """Phase 2 aggregator must be able to compute pass_rate /
+        by_route_class / latency stats fully offline. That means each
+        non-skipped cell must carry its trials_snapshot in the manifest."""
+        s, _ = fast_sweeper()
+        result = s.run()
+        for cell in result.cells:
+            if cell.skipped:
+                continue
+            assert cell.trials_snapshot is not None
+            assert cell.scenarios   # non-empty for matrix v1 cells
+            assert cell.expected_route_class
+            assert cell.expected_validation
+
 
 class TestSweeperFailureModes:
     """Boundary failure scenarios: dashboard unreachable, missing node,

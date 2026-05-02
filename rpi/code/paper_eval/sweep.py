@@ -104,6 +104,16 @@ class CellRunResult:
     metrics_snapshot: Optional[dict]
     started_at_ms: int
     finished_at_ms: int
+    # Phase 2 enabler: raw trial dicts from GET /package_runs/{run_id} captured
+    # at sweep finish time. Lets the cross-run aggregator (Phase 2) work fully
+    # offline from the sweep manifest — no need to keep the dashboard alive
+    # between sweep finish and digest export.
+    trials_snapshot: Optional[list] = None
+    # Cell-level scenarios + expectations carried into the manifest so the
+    # aggregator can reason about them without re-loading the matrix file.
+    scenarios: list = field(default_factory=list)
+    expected_route_class: Optional[str] = None
+    expected_validation: Optional[str] = None
 
 
 @dataclass
@@ -139,6 +149,10 @@ class SweepResult:
                     "skipped": c.skipped,
                     "skip_reason": c.skip_reason,
                     "metrics_snapshot": c.metrics_snapshot,
+                    "trials_snapshot": c.trials_snapshot,
+                    "scenarios": c.scenarios,
+                    "expected_route_class": c.expected_route_class,
+                    "expected_validation": c.expected_validation,
                     "started_at_ms": c.started_at_ms,
                     "finished_at_ms": c.finished_at_ms,
                 }
@@ -449,6 +463,10 @@ class Sweeper:
                 skipped=True,
                 skip_reason=tag_err,
                 metrics_snapshot=None,
+                trials_snapshot=None,
+                scenarios=list(cell.scenarios),
+                expected_route_class=cell.expected_route_class,
+                expected_validation=cell.expected_validation,
                 started_at_ms=started,
                 finished_at_ms=_now_ms(),
             )
@@ -524,6 +542,16 @@ class Sweeper:
             log.warning("Cell %s: metrics fetch failed: %s",
                         cell.cell_id, exc)
 
+        # Snapshot raw trials so the Phase 2 aggregator can work fully offline
+        # from this manifest (no live dashboard required after sweep finishes).
+        trials_snapshot = None
+        try:
+            run_state = self.client.get_package_run(run_id)
+            trials_snapshot = run_state.get("trials")
+        except requests.RequestException as exc:
+            log.warning("Cell %s: trials snapshot fetch failed: %s",
+                        cell.cell_id, exc)
+
         return CellRunResult(
             cell_id=cell.cell_id,
             comparison_condition=cell.comparison_condition,
@@ -534,6 +562,10 @@ class Sweeper:
             skipped=False,
             skip_reason=None,
             metrics_snapshot=metrics_snapshot,
+            trials_snapshot=trials_snapshot,
+            scenarios=list(cell.scenarios),
+            expected_route_class=cell.expected_route_class,
+            expected_validation=cell.expected_validation,
             started_at_ms=started,
             finished_at_ms=_now_ms(),
         )
