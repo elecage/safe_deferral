@@ -2285,13 +2285,19 @@ function renderPkgA(metrics, trials) {
     <div class="metric-box"><div class="metric-value">${metrics.total || 0}</div><div class="metric-label">총 트라이얼</div></div>
   `;
 
-  // Trial table
+  // Trial table — each row is clickable to expand a hidden detail row
+  // immediately underneath, surfacing per-trial audit fields and (for
+  // CLASS_2 trials) the policy-derived phase budget snapshot frozen at
+  // trial creation time. Snapshot makes historical accuracy visible
+  // even after policy changes; PR #96 added the field, this exposes it.
+  pkgATrialsCache = trials;
   const tbody = document.getElementById('pkg-a-tbody');
   tbody.innerHTML = trials.map((t, i) => {
     const passIcon = t.status === 'pending' ? '⏳' : t.pass_ ? '✅' : '❌';
     const expColor = ROUTE_COLORS[t.expected_route_class] || 'var(--text)';
     const obsColor = ROUTE_COLORS[t.observed_route_class] || 'var(--text-dim)';
-    return `<tr>
+    return `<tr style="cursor:pointer" onclick="togglePkgATrialDetail(${i})"
+                title="클릭하여 상세 보기">
       <td>${i+1}</td>
       <td style="font-size:11px">${(t.scenario_id||'').replace(/\.json$/,'').replace(/_skeleton$/,'').slice(0,20)}</td>
       <td style="font-size:11px;color:var(--yellow)">${t.fault_profile_id ? (FAULT_SHORT_LABEL[t.fault_profile_id]||t.fault_profile_id) : '—'}</td>
@@ -2300,8 +2306,111 @@ function renderPkgA(metrics, trials) {
       <td style="color:${obsColor};font-weight:700">${t.observed_route_class||'…'}</td>
       <td style="font-family:monospace">${t.latency_ms != null ? Math.round(t.latency_ms)+'ms' : '—'}</td>
       <td>${passIcon}</td>
+    </tr>
+    <tr id="pkg-a-detail-${i}" style="display:none;background:var(--surface2)">
+      <td colspan="8" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
     </tr>`;
   }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+}
+
+// ── Per-trial detail row ────────────────────
+let pkgATrialsCache = [];
+
+function togglePkgATrialDetail(idx) {
+  const row = document.getElementById(`pkg-a-detail-${idx}`);
+  if (!row) return;
+  if (row.style.display === '') {
+    row.style.display = 'none';
+    return;
+  }
+  // Lazy-render body the first time this row is opened.
+  const body = document.getElementById(`pkg-a-detail-body-${idx}`);
+  if (body && !body.dataset.rendered) {
+    body.innerHTML = renderPkgATrialDetailBody(pkgATrialsCache[idx]);
+    body.dataset.rendered = '1';
+  }
+  row.style.display = '';
+}
+
+function renderPkgATrialDetailBody(t) {
+  if (!t) return '<div class="text-dim">트라이얼 데이터 없음</div>';
+  const fmtS = v => v == null ? '—' : (+v).toFixed(1) + 's';
+  const dim = 'color:var(--text-dim);font-size:11px';
+  const mono = 'font-family:monospace;font-size:12px';
+
+  // CLASS_2 phase budget snapshot — frozen at trial creation. Source
+  // attribution is emphasized so it's clear the dashboard is replaying
+  // historical truth, not the live runner state.
+  const snap = t.class2_phase_budgets_snapshot;
+  let snapBlock = '';
+  if (snap && typeof snap === 'object') {
+    snapBlock = `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">
+          CLASS_2 Phase Budgets <span style="${dim};font-weight:400">
+          (snapshot · ${snap.source || 'frozen at creation'})</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+          <div><div style="${dim}">LLM Budget</div><div style="${mono}">${fmtS(snap.llm_budget_s)}</div></div>
+          <div><div style="${dim}">User Phase</div><div style="${mono}">${fmtS(snap.user_phase_timeout_s)}</div></div>
+          <div><div style="${dim}">Caregiver Phase</div><div style="${mono}">${fmtS(snap.caregiver_phase_timeout_s)}</div></div>
+          <div><div style="${dim}">Slack</div><div style="${mono}">${fmtS(snap.trial_timeout_slack_s)}</div></div>
+          <div><div style="${dim}">Trial Timeout</div><div style="${mono}">${fmtS(snap.trial_timeout_s)}</div></div>
+        </div>
+      </div>`;
+  }
+
+  // Audit fields and contract markers — useful for debugging routing
+  // verdict differences between expected and observed.
+  const fields = [
+    ['audit_correlation_id', t.audit_correlation_id],
+    ['trial_id', t.trial_id],
+    ['expected_transition_target', t.expected_transition_target],
+    ['expected_validation', t.expected_validation],
+    ['expected_outcome', t.expected_outcome],
+    ['observed_validation', t.observed_validation],
+    ['fail_reason', t.fail_reason],
+    ['requires_validator_reentry_when_class1', t.requires_validator_reentry_when_class1],
+  ].filter(([, v]) => v != null && v !== '');
+  let auditBlock = '';
+  if (fields.length > 0) {
+    auditBlock = `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">Trial Contract / Audit</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px">
+          ${fields.map(([k, v]) => `
+            <div style="${dim}">${k}</div>
+            <div style="${mono};word-break:break-all">${typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  // Notification / clarification payloads — only shown when present.
+  // These are the same structures published over MQTT, exposed verbatim
+  // for audit. Not the place to interpret them; just surface them.
+  const renderJson = (label, obj) => {
+    if (!obj) return '';
+    return `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:4px">${label}</div>
+        <pre style="${mono};background:var(--surface);border:1px solid var(--border);
+            padding:8px;border-radius:6px;overflow-x:auto;max-height:200px;margin:0">${
+          escapeHtml(JSON.stringify(obj, null, 2))
+        }</pre>
+      </div>`;
+  };
+
+  return snapBlock + auditBlock
+    + renderJson('Notification Payload', t.notification_payload)
+    + renderJson('Clarification Payload', t.clarification_payload);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // ── Package B ──────────────────────────────
