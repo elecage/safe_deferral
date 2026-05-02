@@ -125,7 +125,12 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_scan_deterministic",
+    "class2_scanning_input"
+  ],
   "notes": [
+    "comparison_conditions tags BOTH dimensions because deterministic ordering is meaningful only under scanning. The runner sets routing_metadata.class2_scan_ordering_mode='deterministic' for this trial; class2_input_mode='scanning' must also be active (typically set by the deployment policy or by a sibling trial's class2_scanning_input condition).",
     "Deterministic ordering (doc 12 §14 Phase 1.5) is opt-in. This scenario asserts the C206 bucket from class2_scan_ordering_rules.by_trigger_id is what produced the order — paper-eval can later swap the bucket value in policy and observe the order change without re-coding scenarios.",
     "scan_ordering_applied is recorded ONLY when ordering ran (i.e., when both input_mode='scanning' AND scan_ordering_mode='deterministic'). Other modes leave the field absent.",
     "Same candidate set, same Validator gating — ordering is pure permutation per doc 02 §10 invariant. Audit reviewers can compare scan_ordering_applied.final_order against announced scan_history to confirm no candidate was added or removed.",

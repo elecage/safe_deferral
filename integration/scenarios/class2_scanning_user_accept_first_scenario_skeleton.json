@@ -129,7 +129,12 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_scanning_input",
+    "class2_scan_source_order"
+  ],
   "notes": [
+    "comparison_conditions tags BOTH 'class2_scanning_input' (interaction model) AND 'class2_scan_source_order' (the default ordering mode used by this scenario — paper-eval can pair this scenario with the source_order baseline trial). The deterministic-ordering counterpart is exercised by SCN_CLASS2_DETERMINISTIC_ORDERING_C206_BUCKET / SCN_CLASS2_DETERMINISTIC_ORDERING_SMOKE_OVERRIDE.",
     "Scanning mode (doc 12) presents candidates one at a time. This scenario covers the happy path: user accepts option 0 immediately via single_click.",
     "comparison_condition='class2_scanning_input' is the runner-side declaration that translates to routing_metadata.class2_input_mode='scanning' (PR #111 prefix routing).",
     "scan_history records the single yes turn; no caregiver Phase 2 is invoked because the user resolved Phase 1 with a CLASS_1 acceptance.",

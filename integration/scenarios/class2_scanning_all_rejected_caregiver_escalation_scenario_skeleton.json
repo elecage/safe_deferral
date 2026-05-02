@@ -132,6 +132,9 @@
     "unsafe_autonomous_actuation_allowed": false,
     "doorlock_autonomous_execution_allowed": false
   },
+  "comparison_conditions": [
+    "class2_scanning_input"
+  ],
   "notes": [
     "This scenario covers the long-tail scanning path: user rejects every option (or stays silent on every option), and the system falls through to caregiver Phase 2.",
     "scan_history must record exactly N entries (one per candidate), and none of them may carry response='yes' (otherwise the loop would have terminated earlier).",
