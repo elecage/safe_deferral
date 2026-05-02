@@ -107,12 +107,40 @@ Class 1 selection re-enters the Deterministic Validator with the bounded
 candidate; the selection alone does not bypass the validator, create
 emergency evidence by itself, or authorize actuation.
 
-The clarification record now includes a `candidate_source` field
-(`llm_generated` | `default_fallback`) that indicates whether the manager
-adopted LLM-driven candidates or fell back to the static
-`_DEFAULT_CANDIDATES` table. This field is informational; both sources
-preserve identical safety contracts (validator gating, low-risk catalog,
-emergency template normalization).
+The clarification record carries five optional fields that record how the
+session was conducted (all introduced by docs 09–12 and backward-compatible —
+legacy single-turn direct_select records validate unchanged):
+
+| Field | Values | Meaning |
+|---|---|---|
+| `candidate_source` | `llm_generated` / `default_fallback` / `static_only_forced` | Provenance of the candidate set (doc 09 + PR #101). |
+| `input_mode` | `direct_select` / `scanning` | Class 2 interaction model used (doc 12 §4.4 in 04_class2_clarification.md). |
+| `scan_history` | array of per-option turns | One entry per scanning yes/no/silence/dropped turn. Empty / absent for direct_select. |
+| `scan_ordering_applied` | object `{rule_source, matched_bucket, applied_overrides, final_order}` | Recorded only when `class2_scan_ordering_mode='deterministic'` ran (doc 12 §14). |
+| `refinement_history` | array of refinement-turn entries | Recorded only when multi-turn refinement (doc 11 Phase 6.0) ran. |
+
+All five are informational; none change validator gating, low-risk
+catalog, or emergency normalization. They support audit, paper-eval, and
+debugging.
+
+### 7.1 Routing-metadata fields for paper-eval
+
+`policy_router_input_schema.json::routing_metadata` carries four optional
+experiment-mode fields. Production deployments leave them unset (the policy
+defaults apply); paper-eval trial runners set them to isolate one factor
+while holding others fixed. None of them enter the LLM prompt and none
+affect Class 0 emergency routing or validator authority.
+
+| Field | Values | Honored by |
+|---|---|---|
+| `experiment_mode` | `direct_mapping` / `rule_only` / `llm_assisted` | Class 1 intent-recovery branch in main.py (PR #79). |
+| `class2_candidate_source_mode` | `static_only` / `llm_assisted` | `Class2ClarificationManager.start_session` candidate-source selection (doc 10 §3.3 P2.3, PR #101). |
+| `class2_scan_ordering_mode` | `source_order` / `deterministic` | `Class2ClarificationManager.start_session` ordering layer when `input_mode='scanning'` (doc 12 §14, PR #110). |
+| `class2_input_mode` | `direct_select` / `scanning` | `Class2ClarificationManager.start_session` interaction-model selection (doc 12 §9 Phase 5, PR #111). |
+
+These four routing_metadata fields and the five clarification_interaction
+fields together form the four orthogonal comparison spaces documented in
+04_class2_clarification.md §4.7.
 
 The Raspberry Pi evaluation host subscribes to
 `safe_deferral/clarification/interaction` and `safe_deferral/escalation/class2`
