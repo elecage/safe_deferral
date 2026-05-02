@@ -886,7 +886,10 @@ class TestMultiTurnRefinementEnabled:
         assert getattr(out, "is_refinement_turn") is True
         assert getattr(out, "parent_clarification_id") == session.clarification_id
         assert getattr(out, "parent_candidate_id") == "C1_LIGHTING_ASSISTANCE"
-        assert getattr(out, "refinement_question") == "어느 방의 조명을 켜드릴까요?"
+        # Refinement question is generic ('어느 방') because each per-room
+        # choice carries the explicit verb that depends on current state
+        # (doc 12 step 2-B state-aware refinement).
+        assert getattr(out, "refinement_question") == "어느 방의 조명을 도와드릴까요?"
         # The refinement set is what the static template defined.
         ids = [c.candidate_id for c in out.candidate_choices]
         assert ids == ["REFINE_LIVING_ROOM", "REFINE_BEDROOM"]
@@ -1333,3 +1336,196 @@ class TestScanningGuardsAndSchema:
         rec = result.clarification_record
         assert rec.get("input_mode") == "direct_select"
         assert "scan_history" not in rec
+
+
+# ==================================================================
+# Step 2-B — state-aware lighting + "다른 동작" option (doc 12)
+# ==================================================================
+
+def _ctx_with_devices(**device_states):
+    """Minimal pure_context_payload with device_states populated."""
+    return {
+        "trigger_event": {
+            "event_type": "button", "event_code": "single_click",
+            "timestamp_ms": 0,
+        },
+        "environmental_context": {
+            "temperature": 22.0, "illuminance": 200,
+            "occupancy_detected": True, "smoke_detected": False,
+            "gas_detected": False, "doorbell_detected": False,
+        },
+        "device_states": {
+            "living_room_light": "off", "bedroom_light": "off",
+            "living_room_blind": "closed", "tv_main": "off",
+            **device_states,
+        },
+    }
+
+
+class TestStateAwareLightingCandidates:
+    """C1_LIGHTING_ASSISTANCE / OPT_LIVING_ROOM / OPT_BEDROOM should render
+    state-aware prompts and action_hints based on device_states (doc 12 §2-B).
+    Unknown device state defaults to 'off' (so prompt='켜드릴까요?',
+    action_hint='light_on') for backward compat."""
+
+    def test_off_state_yields_turn_on(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session(
+            "C206", "audit-light-1",
+            pure_context_payload=_ctx_with_devices(living_room_light="off"),
+        )
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C1_LIGHTING_ASSISTANCE")
+        assert c1.action_hint == "light_on"
+        assert c1.target_hint == "living_room_light"
+        assert "켜드릴까요" in c1.prompt
+        assert "거실" in c1.prompt
+        # Sanity: policy prompt cap (Phase 4 invariant carried forward).
+        assert len(c1.prompt) <= 80
+
+    def test_on_state_yields_turn_off(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session(
+            "C206", "audit-light-2",
+            pure_context_payload=_ctx_with_devices(living_room_light="on"),
+        )
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C1_LIGHTING_ASSISTANCE")
+        assert c1.action_hint == "light_off"
+        assert "꺼드릴까요" in c1.prompt
+
+    def test_default_off_when_no_pure_context_payload(self):
+        """Backward compat: legacy callers that omit pure_context_payload
+        still get a usable C1 candidate (default off-state semantics)."""
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-light-3")
+        c1 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C1_LIGHTING_ASSISTANCE")
+        assert c1.action_hint == "light_on"
+        assert "켜드릴까요" in c1.prompt
+
+    def test_unresolved_conflict_per_room_state_aware(self):
+        """OPT_LIVING_ROOM / OPT_BEDROOM each respect their own room's state."""
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session(
+            "C203", "audit-light-4",
+            pure_context_payload=_ctx_with_devices(
+                living_room_light="on",
+                bedroom_light="off",
+            ),
+        )
+        opt_lr = next(c for c in session.candidate_choices
+                      if c.candidate_id == "OPT_LIVING_ROOM")
+        opt_br = next(c for c in session.candidate_choices
+                      if c.candidate_id == "OPT_BEDROOM")
+        assert opt_lr.action_hint == "light_off"
+        assert "거실" in opt_lr.prompt and "꺼드릴까요" in opt_lr.prompt
+        assert opt_br.action_hint == "light_on"
+        assert "침실" in opt_br.prompt and "켜드릴까요" in opt_br.prompt
+
+    def test_old_generic_prompt_no_longer_emitted(self):
+        """The previous unnatural '조명 도움이 필요하신가요?' prompt should
+        no longer surface for any default lighting candidate."""
+        mgr = Class2ClarificationManager()
+        for trigger in ("C201", "C202", "C203", "C206"):
+            session = mgr.start_session(trigger, f"audit-prompt-{trigger}",
+                                         pure_context_payload=_ctx_with_devices())
+            for c in session.candidate_choices:
+                assert "조명 도움이 필요하신가요" not in c.prompt
+
+
+class TestOtherActionSafetyNet:
+    """For lighting reasons, C4 candidate's prompt is replaced with
+    '다른 동작이 필요하신가요?' — explicit safety net for 'system assumed
+    wrong action'. candidate_id and transition target unchanged."""
+
+    def test_lighting_reason_renames_c4_prompt(self):
+        mgr = Class2ClarificationManager()
+        session = mgr.start_session("C206", "audit-c4-1",
+                                     pure_context_payload=_ctx_with_devices())
+        c4 = next(c for c in session.candidate_choices
+                  if c.candidate_id == "C4_CANCEL_OR_WAIT")
+        assert "다른 동작이 필요하신가요" in c4.prompt
+        # candidate_id and transition target unchanged for backward compat
+        # (Telegram label, audit, integration fixtures).
+        assert c4.candidate_transition_target == "SAFE_DEFERRAL"
+
+    def test_non_lighting_reason_keeps_cancel_prompt(self):
+        """sensor_staleness / actuation_ack_timeout / timeout_or_no_response
+        / caregiver_required_sensitive_path don't assume a specific action,
+        so 'cancel and wait' wording remains correct."""
+        mgr = Class2ClarificationManager()
+        for trigger in ("C204", "C205", "C207"):
+            session = mgr.start_session(
+                trigger, f"audit-c4-non-{trigger}",
+                pure_context_payload=_ctx_with_devices(),
+            )
+            c4 = next(
+                (c for c in session.candidate_choices
+                 if c.candidate_id == "C4_CANCEL_OR_WAIT"),
+                None,
+            )
+            if c4 is not None:
+                assert "취소하고 대기" in c4.prompt
+                assert "다른 동작" not in c4.prompt
+
+
+class TestRefinementTemplateStateAware:
+    """get_refinement_template renders REFINE_LIVING_ROOM / REFINE_BEDROOM
+    candidates state-aware too (doc 12 §2-B + PR #102)."""
+
+    def test_refinement_off_state_yields_turn_on(self):
+        from class2_clarification_manager.refinement_templates import (
+            get_refinement_template,
+        )
+        t = get_refinement_template(
+            "C1_LIGHTING_ASSISTANCE",
+            pure_context_payload=_ctx_with_devices(
+                living_room_light="off", bedroom_light="off",
+            ),
+        )
+        assert t is not None
+        for c in t.refinement_choices:
+            assert c.action_hint == "light_on"
+            assert "켜드릴까요" in c.prompt
+
+    def test_refinement_per_room_independent_state(self):
+        from class2_clarification_manager.refinement_templates import (
+            get_refinement_template,
+        )
+        t = get_refinement_template(
+            "C1_LIGHTING_ASSISTANCE",
+            pure_context_payload=_ctx_with_devices(
+                living_room_light="on", bedroom_light="off",
+            ),
+        )
+        lr = next(c for c in t.refinement_choices
+                  if c.candidate_id == "REFINE_LIVING_ROOM")
+        br = next(c for c in t.refinement_choices
+                  if c.candidate_id == "REFINE_BEDROOM")
+        assert lr.action_hint == "light_off"
+        assert "꺼드릴까요" in lr.prompt
+        assert br.action_hint == "light_on"
+        assert "켜드릴까요" in br.prompt
+
+    def test_refinement_no_payload_defaults_to_off_state(self):
+        """Backward compat: PR #102 callers passing no payload still get
+        usable refinement candidates (defaults to off-state semantics)."""
+        from class2_clarification_manager.refinement_templates import (
+            get_refinement_template,
+        )
+        t = get_refinement_template("C1_LIGHTING_ASSISTANCE")
+        assert t is not None
+        for c in t.refinement_choices:
+            assert c.action_hint == "light_on"
+
+    def test_refinement_question_is_generic(self):
+        """Per-room choices carry the explicit verb, so the refinement
+        question itself stays generic to fit both on/off cases."""
+        from class2_clarification_manager.refinement_templates import (
+            get_refinement_template,
+        )
+        t = get_refinement_template("C1_LIGHTING_ASSISTANCE")
+        assert "도와드릴까요" in t.refinement_question
+        assert "켜드릴까요" not in t.refinement_question
+        assert "꺼드릴까요" not in t.refinement_question
