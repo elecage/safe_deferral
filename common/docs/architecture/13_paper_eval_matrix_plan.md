@@ -1,6 +1,6 @@
 # Paper-Eval Matrix Plan
 
-**Status:** Phase 0 design (this PR). Implementation phases land separately after maintainer alignment.
+**Status:** Phases 0–3 shipped (PRs #122 / #123 / #125 / #126). Toolchain complete: matrix file → sweep → aggregator → digest → paper-ready CSV + Markdown. Phase 4 (live dashboard sweep-progress UI) deferred until operational use surfaces a need.
 **Plan baseline:** Follow-up to PRs #112–#121 (post-doc-12 consistency backfill complete + sc01 relocation). The 4-dimensional comparison framework defined by PR #79 / #101 / #110 / #111 has docs / contracts / scenarios / verifier coverage. Now the *operational* layer — actually running trials across the matrix and producing paper-ready digests — is the next gap.
 
 ---
@@ -120,36 +120,44 @@ Each cell declares `expected_route_class` / `expected_validation` / `expected_ou
 
 The matrix v1 file lives at `integration/paper_eval/matrix_v1.json`. All future matrix versions are immutable: matrix_v2 lives alongside, never overwriting v1.
 
-## 6. Sweep orchestrator (Phase 1)
+## 6. Sweep orchestrator (Phase 1) — shipped #123
 
-CLI + library:
+CLI + library at `rpi/code/paper_eval/sweep.py`. Implementation diverges from the original sketch in two minor ways noted below.
 
 ```
 python -m paper_eval.sweep \
     --matrix integration/paper_eval/matrix_v1.json \
-    --output integration/paper_eval/runs/$(date +%Y%m%d_%H%M%S)/ \
-    [--trials-per-cell N] \
-    [--cells CELL_A,CELL_B] \
-    [--dashboard-url http://localhost:8000]
+    --output runs/$(date +%Y%m%d_%H%M%S)/ \
+    --node-id <virtual-context-node-id> \
+    [--scenarios-dir integration/scenarios] \
+    [--dashboard-url http://localhost:8000] \
+    [--poll-interval 2.0] \
+    [--per-trial-timeout 600.0] \
+    [-v]
 ```
 
 Behavior:
-- Parses matrix file; resolves anchor_commits from git.
-- For each cell:
-  - Validates cell scenarios carry the required `comparison_conditions[]` tag (cross-check via existing P2.6 verifier logic).
-  - Calls `POST /package_runs` once per scenario per cell.
-  - Polls `GET /package_runs/{id}/metrics` until completion (or abort timeout).
-  - Records `{cell_id, run_id, scenario_id, completed_at_ms, metrics_snapshot}` into the output dir.
-- Writes `output/sweep_manifest.json` listing every run produced.
+- Parses matrix file; resolves `anchor_commits` from git (matrix file SHA, scenarios dir SHA, policy_table SHA).
+- Pre-flight: `GET /health` + `GET /nodes` checked before any cell — fails fast if dashboard unreachable or `--node-id` not registered.
+- For each cell, sequentially:
+  - Validates cell scenarios carry the required `comparison_conditions[]` tag (P2.6 invariant). Tag-missing → cell skipped + reason recorded; rest of sweep continues.
+  - Calls `POST /package_runs` **once per cell** (not per scenario — the dashboard contract treats one run as the cell-scoped unit; trials within fan out round-robin across `cell.scenarios`).
+  - Fires `cell.trials_per_cell` trials via `POST /package_runs/{run_id}/trial`.
+  - Polls `GET /package_runs/{run_id}` (not `/metrics`) until all trials are non-pending or per-cell deadline (`per_trial_timeout × trials_per_cell` — sequential worst case).
+  - Snapshots `metrics_snapshot` (`/metrics`) **and** `trials_snapshot` (raw trial dicts from `/package_runs/{run_id}`) into the manifest. The trials_snapshot enables fully offline Phase 2 aggregation — no live dashboard needed after sweep finishes.
+- Writes `output/sweep_manifest.json` with one cell entry containing `{cell_id, run_id, requested_trials, completed_trials, incomplete, skipped, skip_reason, metrics_snapshot, trials_snapshot, scenarios, expected_route_class, expected_validation, started_at_ms, finished_at_ms}` per cell.
 
 Failure modes (each kept observable, never silent):
-- Cell scenario tag missing → orchestrator refuses to run the cell, prints which scenario failed validation.
-- Run never completes → orchestrator records partial result + `incomplete: true`.
-- Dashboard unreachable → orchestrator exits with non-zero before any matrix progress.
+- Cell scenario tag missing → cell skipped, reason recorded in manifest, sweep continues.
+- Run never completes → `incomplete: true` flag set on cell entry.
+- Dashboard unreachable / requested node missing → `RuntimeError` before any matrix progress; CLI exit code 1.
+- Some cells skipped/incomplete → CLI exit code 2 (success but with caveats); 0 only if all cells aggregated cleanly.
 
-## 7. Cross-run aggregator (Phase 2)
+Not yet implemented (deferred to operations-driven needs): `--trials-per-cell N` global override, `--cells CELL_A,CELL_B` subset, concurrent cells, resume.
 
-Reads `sweep_manifest.json` + each run's exported metrics, joins on `cell_id`, produces:
+## 7. Cross-run aggregator (Phase 2) — shipped #125
+
+`rpi/code/paper_eval/aggregator.py`. Reads `sweep_manifest.json` (specifically the `trials_snapshot` field added in Phase 2) and produces:
 
 ```python
 @dataclass
@@ -157,39 +165,72 @@ class CellResult:
     cell_id: str
     comparison_condition: Optional[str]
     scenarios: list[str]
-    n_trials: int
-    pass_rate: float
-    by_route_class: dict[str, int]
-    latency_ms_p50: float
-    latency_ms_p95: float
-    class2_clarification_correctness: Optional[float]   # if Class 2 cells
-    scan_history_yes_first_rate: Optional[float]        # if scanning cells
-    scan_ordering_applied_match_rate: Optional[float]   # if deterministic-ordering cells
-    anchor_commits: dict
+    n_trials: int                                   # completed trials only
+    pass_rate: Optional[float]                      # None if n_trials == 0
+    by_route_class: dict                            # {CLASS_0, CLASS_1, CLASS_2, unknown}
+    latency_ms_p50: Optional[float]
+    latency_ms_p95: Optional[float]
+    class2_clarification_correctness: Optional[float]   # None unless cell has CLASS_2-expected trials
+    scan_history_yes_first_rate: Optional[float]        # None unless trials carry scan_history
+    scan_history_present_count: int
+    scan_ordering_applied_present_count: int
+    skipped: bool
+    incomplete: bool
+    notes: list                                     # human-readable diagnostics
 ```
 
-`AggregatedMatrix.cells: list[CellResult]` is the result; matrix-shape access via `.cell_by_dimensions(d1, d2, d3, d4)` for paper figure assembly.
+`AggregatedMatrix.cells: list[CellResult]` plus `cell_by_id(cell_id)` lookup. Cell ordering matches the manifest (which matches the matrix file).
 
-## 8. Paper digest exporter (Phase 3)
+Notes vs the original sketch:
+- `pass_rate`, `latency_ms_p50/p95`, `class2_clarification_correctness`, `scan_history_yes_first_rate` are `Optional[float]` (not `float`) — `None` when the cell has no applicable trials, distinct from `0.0` which would falsely imply "0% rate".
+- `scan_ordering_applied_match_rate` deferred → replaced by `scan_ordering_applied_present_count`. Match-rate (applied vs expected ordering) belongs in Phase 3 once the digest needs it; v1 just measures presence.
+- `anchor_commits` is on `AggregatedMatrix`, not on each `CellResult` — it applies to the whole sweep.
+- `cell_by_dimensions(d1, d2, d3, d4)` deferred until paper figure code actually needs that lookup shape; `cell_by_id()` covers current digest needs.
 
-Two outputs:
+CLI: `python -m paper_eval.aggregator --manifest <sweep_manifest.json> --output <aggregated_matrix.json>`. Exit codes mirror sweep (0 / 1 / 2).
 
-- **CSV** — one row per cell, columns = all `CellResult` fields (paper authors can pivot in their preferred tool).
-- **Markdown** — paper-ready table grouped by sub-grid (Class 1 D1 / Class 2 D2×D3×D4 / baseline). Includes anchor_commits in the table footer for reproducibility.
+## 8. Paper digest exporter (Phase 3) — shipped #126
 
-Filename convention: `output/digest_v1_$(matrix_version)_$(timestamp).{csv,md}`.
+`rpi/code/paper_eval/digest.py`. Reads `aggregated_matrix.json` and emits two paper-ready files:
 
-## 9. Phase split (5 PRs after this design)
+- **CSV** — one row per cell, 18-column stable schema (`_CSV_COLUMNS`). Append-only column order so paper figure code that indexes by name keeps working when new metrics get added. `None` → empty string (spreadsheet numeric parsing safe).
+- **Markdown** — paper-ready table grouped by sub-grid (Baseline / Class 1 D1 / Class 2 D2×D3×D4). Cells whose `cell_id` doesn't match any sub-grid land in an "Other cells" section (no silent drops). `None` → em-dash (visually distinct from zero). Footer carries `anchor_commits` (matrix_file_sha / scenarios_dir_sha / policy_table_sha) + sweep window timing — same anchors → same input → digest regenerable.
 
-| Phase | PR | Deliverable |
-|-------|-----|-------------|
-| 0 | this PR | Design doc + matrix_v1.json + handoff |
-| 1 | next | `paper_eval/sweep.py` orchestrator CLI + library + tests |
-| 2 | after | `paper_eval/aggregator.py` cross-run aggregator + tests |
-| 3 | after | `paper_eval/digest.py` CSV + Markdown exporter + tests |
-| 4 | optional | Dashboard sweep-progress UI (deferred until Phases 1–3 prove the toolchain) |
+CLI: `python -m paper_eval.digest --aggregated <aggregated_matrix.json> --output-dir <dir> [--timestamp <ts>]`.
 
-Each implementation PR is self-contained: it depends on phase 0 (this design) but not on subsequent phases. Phases 1, 2, 3 can land in any order if needed.
+Filename convention: `digest_<matrix_version>_<timestamp>.{csv,md}`. matrix_v2 outputs coexist with v1 in the same directory.
+
+## 9. Phase split (4 PRs after this design)
+
+| Phase | PR | Status | Deliverable |
+|-------|-----|---|-------------|
+| 0 | [#122](https://github.com/elecage/safe_deferral/pull/122) | shipped | Design doc + `integration/paper_eval/matrix_v1.json` + handoff |
+| 1 | [#123](https://github.com/elecage/safe_deferral/pull/123) | shipped | `paper_eval/sweep.py` orchestrator CLI + library + 17 tests |
+| 2 | [#125](https://github.com/elecage/safe_deferral/pull/125) | shipped | `paper_eval/aggregator.py` cross-run aggregator + 28 tests; sweep additive (`trials_snapshot` + cell metadata in manifest enables fully offline aggregation) |
+| 3 | [#126](https://github.com/elecage/safe_deferral/pull/126) | shipped | `paper_eval/digest.py` CSV (18-col stable schema) + Markdown (3 sub-grids + reproducibility footer) + 21 tests |
+| 4 | — | deferred | Dashboard sweep-progress UI. Decide after operator-CLI is exercised in practice — see §11 open question #2. |
+
+Each implementation PR is self-contained: depends on phase 0 (this design) but not on subsequent phases. Cumulative test count: 66 paper-eval-specific tests, 0 regressions in mac_mini (700/700).
+
+End-to-end usage:
+
+```bash
+# 1. Run sweep
+PYTHONPATH=rpi/code python -m paper_eval.sweep \
+    --matrix integration/paper_eval/matrix_v1.json \
+    --output runs/<ts>/ --node-id <virtual-node-id>
+
+# 2. Aggregate
+PYTHONPATH=rpi/code python -m paper_eval.aggregator \
+    --manifest runs/<ts>/sweep_manifest.json \
+    --output runs/<ts>/aggregated_matrix.json
+
+# 3. Digest
+PYTHONPATH=rpi/code python -m paper_eval.digest \
+    --aggregated runs/<ts>/aggregated_matrix.json \
+    --output-dir runs/<ts>/digest/
+# → runs/<ts>/digest/digest_v1_<ts>.{csv,md}
+```
 
 ## 10. Anti-goals
 
@@ -200,9 +241,9 @@ Each implementation PR is self-contained: it depends on phase 0 (this design) bu
 
 ## 11. Open questions for the maintainer
 
-1. **Trials per cell** — 30 reasonable, or aim for 100 (cleaner stats, ~3× wall time)? Defer until first sweep tells us actual variance.
-2. **Live dashboard view (Phase 4)** — worth building, or operator-CLI is enough for paper-eval? Defer until Phases 1–3 are in use.
-3. **Matrix v2 versioning** — when paper review surfaces "we need cell X", is v2 a sibling file or a delta on v1? Recommend sibling so v1 stays reproducible.
+1. **Trials per cell** — 30 reasonable, or aim for 100 (cleaner stats, ~3× wall time)? **Open** — answer requires running an actual sweep and observing variance. Tooling supports both (`--trials-per-cell N` global override; per-cell override in matrix file). First-sweep findings should be recorded back here, not in handoff history.
+2. **Live dashboard view (Phase 4)** — worth building, or operator-CLI is enough for paper-eval? **Open** — defer decision until operator runs ≥ 1 full sweep and reports whether CLI feedback is sufficient.
+3. **Matrix v2 versioning** — when paper review surfaces "we need cell X", is v2 a sibling file or a delta on v1? **Recommended (not yet exercised):** sibling. v1 stays immutable; v2 lives at `integration/paper_eval/matrix_v2.json`; the digest filename convention (`digest_<matrix_version>_<ts>.{csv,md}`) means both versions' outputs coexist cleanly in the same `runs/<ts>/digest/` directory.
 
 ## 12. Source notes
 
