@@ -18,6 +18,8 @@ from paper_eval.sweep import (
     Cell,
     DashboardClient,
     MatrixSpec,
+    SweepCancelled,
+    SweepProgressEvent,
     Sweeper,
     SweepResult,
     _validate_cell_scenario_tags,
@@ -406,3 +408,151 @@ class TestCLI:
             "--per-trial-timeout", "1",
         ])
         assert rc == 1
+
+
+# ==================================================================
+# Phase 4 enabler — progress callback + cancel hook
+# ==================================================================
+
+class TestProgressCallback:
+    """Sweeper emits SweepProgressEvent at lifecycle points so a UI can
+    render live state. Both hooks default to no-op (backward compat for
+    existing callers)."""
+
+    def test_callback_default_is_noop(self, fast_sweeper):
+        # Existing tests don't pass progress_callback — they must keep
+        # working without modification (backward compat invariant).
+        s, _ = fast_sweeper()
+        result = s.run()
+        assert len(result.cells) == 12   # unchanged behaviour
+
+    def test_emits_sweep_started_then_completed(self, tmp_path):
+        events = []
+        client = _fake_client()
+        s = Sweeper(
+            matrix_path=_REAL_MATRIX, scenarios_dir=_REAL_SCENARIOS,
+            output_dir=tmp_path / "out", dashboard_url="http://fake",
+            node_id="node-001", client=client, poll_interval_s=0.0,
+            progress_callback=events.append,
+        )
+        s.run()
+        types = [e.event_type for e in events]
+        assert types[0] == "sweep_started"
+        assert types[-1] == "sweep_completed"
+        # First sweep_started carries total_cells.
+        assert events[0].total_cells == 12
+
+    def test_each_cell_emits_started_and_completed(self, tmp_path):
+        events = []
+        client = _fake_client()
+        s = Sweeper(
+            matrix_path=_REAL_MATRIX, scenarios_dir=_REAL_SCENARIOS,
+            output_dir=tmp_path / "out", dashboard_url="http://fake",
+            node_id="node-001", client=client, poll_interval_s=0.0,
+            progress_callback=events.append,
+        )
+        s.run()
+        started = [e for e in events if e.event_type == "cell_started"]
+        completed = [e for e in events if e.event_type == "cell_completed"]
+        assert len(started) == 12
+        assert len(completed) == 12
+        # cell_index is 0-based and contiguous.
+        assert [e.cell_index for e in started] == list(range(12))
+
+    def test_skipped_cell_emits_cell_skipped_with_reason(self, tmp_path):
+        # Build a synthetic 1-cell matrix that fails tag validation.
+        m = {
+            "matrix_version": "v0", "matrix_description": "",
+            "package_id": "A", "trials_per_cell_default": 1,
+            "cells": [{
+                "cell_id": "BAD",
+                "comparison_condition": "class2_scanning_input",
+                "scenarios": ["class1_baseline_scenario_skeleton.json"],
+                "trials_per_cell": 1,
+                "expected_route_class": "CLASS_2",
+                "expected_validation": "safe_deferral",
+            }],
+        }
+        synth = tmp_path / "m.json"
+        synth.write_text(json.dumps(m))
+        events = []
+        client = _fake_client()
+        s = Sweeper(
+            matrix_path=synth, scenarios_dir=_REAL_SCENARIOS,
+            output_dir=tmp_path / "out", dashboard_url="http://fake",
+            node_id="node-001", client=client, poll_interval_s=0.0,
+            progress_callback=events.append,
+        )
+        s.run()
+        skipped = [e for e in events if e.event_type == "cell_skipped"]
+        assert len(skipped) == 1
+        assert skipped[0].cell_id == "BAD"
+        assert "does not tag" in (skipped[0].skip_reason or "")
+
+    def test_progress_events_carry_completed_count(self, tmp_path):
+        events = []
+        client = _fake_client()
+        s = Sweeper(
+            matrix_path=_REAL_MATRIX, scenarios_dir=_REAL_SCENARIOS,
+            output_dir=tmp_path / "out", dashboard_url="http://fake",
+            node_id="node-001", client=client, poll_interval_s=0.0,
+            progress_callback=events.append,
+        )
+        s.run()
+        progress = [e for e in events if e.event_type == "cell_progress"]
+        # At least one progress event per cell (matrix v1 has 12 cells × 30
+        # trials; fake client completes after 1 poll → exactly one progress
+        # per cell with completed=requested).
+        assert len(progress) >= 12
+        last = [e for e in progress if e.completed_trials and e.completed_trials > 0][-1]
+        assert last.completed_trials == last.requested_trials
+
+    def test_callback_exception_does_not_break_sweep(self, fast_sweeper):
+        def bad_cb(_e):
+            raise RuntimeError("ui crashed")
+        s, _ = fast_sweeper()
+        s._progress_cb = bad_cb
+        # Sweep must complete despite callback exceptions (UI bug ≠ data loss).
+        result = s.run()
+        assert len(result.cells) == 12
+
+
+class TestCancelHook:
+    """cancel_check() is polled between cells AND inside the per-cell poll
+    loop. When it returns True, the sweep raises SweepCancelled."""
+
+    def test_cancel_before_first_cell(self, tmp_path):
+        client = _fake_client()
+        s = Sweeper(
+            matrix_path=_REAL_MATRIX, scenarios_dir=_REAL_SCENARIOS,
+            output_dir=tmp_path / "out", dashboard_url="http://fake",
+            node_id="node-001", client=client, poll_interval_s=0.0,
+            cancel_check=lambda: True,
+        )
+        with pytest.raises(SweepCancelled):
+            s.run()
+        client.create_package_run.assert_not_called()
+
+    def test_cancel_after_one_cell(self, tmp_path):
+        client = _fake_client()
+        cancel_after = {"n": 0}
+        def check():
+            cancel_after["n"] += 1
+            # Allow first cell to finish (~1 between-cell check), then cancel.
+            return cancel_after["n"] > 1
+        s = Sweeper(
+            matrix_path=_REAL_MATRIX, scenarios_dir=_REAL_SCENARIOS,
+            output_dir=tmp_path / "out", dashboard_url="http://fake",
+            node_id="node-001", client=client, poll_interval_s=0.0,
+            cancel_check=check,
+        )
+        with pytest.raises(SweepCancelled):
+            s.run()
+        # At least one cell ran before cancellation.
+        assert client.create_package_run.call_count >= 1
+        assert client.create_package_run.call_count < 12
+
+    def test_no_cancel_check_default_runs_all(self, fast_sweeper):
+        s, _ = fast_sweeper()   # cancel_check defaults to no-op
+        result = s.run()
+        assert len(result.cells) == 12

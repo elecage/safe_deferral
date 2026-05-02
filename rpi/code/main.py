@@ -25,6 +25,7 @@ Environment variables (loaded from ~/smarthome_workspace/.env):
 import json
 import logging
 import os
+import pathlib
 import sys
 import threading
 import time
@@ -156,6 +157,17 @@ def main() -> None:
         clarification_store=clarification_store,
     )
 
+    # Paper-eval matrix sweep runner (Phase 4 MVP). Talks to this same
+    # dashboard via HTTP at localhost:DASHBOARD_PORT.
+    from paper_eval.sweep_runner import SweepRunner
+    repo_root = pathlib.Path(__file__).resolve().parents[2]
+    sweep_runner = SweepRunner(
+        repo_root=repo_root,
+        scenarios_dir=repo_root / "integration" / "scenarios",
+        runs_root=repo_root / "integration" / "paper_eval" / "runs",
+        dashboard_url=f"http://localhost:{DASHBOARD_PORT}",
+    )
+
     # --- Dashboard (port 8888) ---
     dashboard_app = create_app(
         experiment_manager=experiment_mgr,
@@ -169,6 +181,7 @@ def main() -> None:
         package_runner=pkg_runner,
         node_presence_registry=presence_registry,
         sim_state=sim_state,
+        sweep_runner=sweep_runner,
     )
     _start_fastapi(dashboard_app, DASHBOARD_PORT, "dashboard")
 

@@ -336,6 +336,9 @@
     <div class="nav-item" id="nav-results" onclick="gotoSection('results')">
       <div class="nav-step">4</div> 결과 분석
     </div>
+    <div class="nav-item" id="nav-paper-eval" onclick="gotoSection('paper-eval')">
+      <div class="nav-step">5</div> Paper-Eval Sweep
+    </div>
   </nav>
 
   <main>
@@ -750,6 +753,124 @@
       </div>
     </div>
 
+    <!-- ⑤ Paper-Eval Matrix Sweep -->
+    <div class="section" id="section-paper-eval">
+      <div class="section-title">⑤ Paper-Eval Matrix Sweep</div>
+      <div class="section-desc">
+        매트릭스 정의(예: <code>integration/paper_eval/matrix_v1.json</code>)의 12개 셀을
+        순차적으로 실행하고 sweep manifest → aggregated matrix → 논문용 CSV/Markdown digest를 생성합니다.
+        한 번에 하나의 sweep만 실행됩니다 (single-slot).
+      </div>
+
+      <!-- Sweep config form -->
+      <div class="card mb-20">
+        <div class="card-title">새 sweep 시작</div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-width:640px">
+          <div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">
+              매트릭스 파일 (repo-relative or absolute path)
+            </div>
+            <input class="form-control" id="pe-matrix-path"
+                   value="integration/paper_eval/matrix_v1.json" style="width:100%">
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">
+                Virtual node ID (대시보드 등록된 노드)
+              </div>
+              <input class="form-control" id="pe-node-id" placeholder="예: virtual-context-node-1"
+                     style="width:100%">
+            </div>
+            <div style="width:140px">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">
+                trial timeout (초)
+              </div>
+              <input class="form-control" id="pe-trial-timeout" type="number"
+                     value="600" min="1" style="width:100%">
+            </div>
+            <div style="width:120px">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">
+                poll 주기 (초)
+              </div>
+              <input class="form-control" id="pe-poll-interval" type="number"
+                     value="2" min="0" step="0.1" style="width:100%">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button class="btn btn-primary" id="btn-pe-start" onclick="paperEvalStart()">
+              ▶ Sweep 시작
+            </button>
+            <button class="btn btn-danger" id="btn-pe-cancel"
+                    onclick="paperEvalCancel()" disabled>
+              ⏹ 진행 중인 sweep 취소
+            </button>
+            <button class="btn btn-ghost" onclick="paperEvalRefresh()">새로고침</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sweep status header -->
+      <div class="card mb-20">
+        <div class="card-title">현재 sweep 상태</div>
+        <div id="pe-status-bar" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+          <div class="run-status-box"><div class="rs-label">상태</div>
+            <div class="rs-value" id="pe-status">idle</div></div>
+          <div class="run-status-box"><div class="rs-label">sweep ID</div>
+            <div class="rs-value" id="pe-sweep-id" style="font-size:13px">—</div></div>
+          <div class="run-status-box"><div class="rs-label">진행 셀</div>
+            <div class="rs-value" id="pe-progress-cells">0 / 0</div></div>
+          <div class="run-status-box"><div class="rs-label">시작</div>
+            <div class="rs-value" id="pe-started-at" style="font-size:12px">—</div></div>
+          <div class="run-status-box"><div class="rs-label">종료</div>
+            <div class="rs-value" id="pe-finished-at" style="font-size:12px">—</div></div>
+        </div>
+        <div id="pe-error" style="color:var(--red);font-size:12px;display:none;margin-top:8px"></div>
+      </div>
+
+      <!-- Per-cell progress table -->
+      <div class="card mb-20">
+        <div class="card-title">셀별 진행률</div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>#</th><th>cell_id</th><th>상태</th>
+              <th>진행</th><th>비고</th>
+            </tr></thead>
+            <tbody id="pe-cells-tbody">
+              <tr><td colspan="5" class="empty">sweep을 시작하면 여기에 12개 셀이 나타납니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Artifact downloads (visible only when paths exist) -->
+      <div class="card mb-20" id="pe-artifacts-card" style="display:none">
+        <div class="card-title">결과 artifacts</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <div>
+            📄 <a href="/paper_eval/sweeps/current/manifest"
+                  target="_blank" id="pe-link-manifest">sweep_manifest.json</a>
+            <span style="color:var(--text-dim);margin-left:6px">— Phase 1 raw output</span>
+          </div>
+          <div>
+            📄 <a href="/paper_eval/sweeps/current/aggregated"
+                  target="_blank" id="pe-link-aggregated">aggregated_matrix.json</a>
+            <span style="color:var(--text-dim);margin-left:6px">— Phase 2 cross-run aggregation</span>
+          </div>
+          <div>
+            📊 <a href="/paper_eval/sweeps/current/digest.csv"
+                  target="_blank" id="pe-link-csv">digest_*.csv</a>
+            <span style="color:var(--text-dim);margin-left:6px">— Phase 3 paper-ready (one row per cell)</span>
+          </div>
+          <div>
+            📝 <a href="/paper_eval/sweeps/current/digest.md"
+                  target="_blank" id="pe-link-md">digest_*.md</a>
+            <span style="color:var(--text-dim);margin-left:6px">— Phase 3 paper-ready (sub-grid grouped)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1025,6 +1146,157 @@ function gotoSection(name) {
   if (name === 'run') { updateRunSummary(); loadRunStatus(); loadRunNodes(); startObsFeed(); if (currentPackageRunId) startTrialPoll(); }
   if (name !== 'run') { stopObsFeed(); stopTrialPoll(); }
   if (name === 'results') { loadResultRuns(); }
+  if (name === 'paper-eval') { paperEvalRefresh(); startPaperEvalPoll(); }
+  else { stopPaperEvalPoll(); }
+}
+
+// ─────────────────────────────────────────────
+// Paper-Eval Matrix Sweep (Phase 4 MVP)
+// ─────────────────────────────────────────────
+let _paperEvalPollTimer = null;
+
+function startPaperEvalPoll() {
+  if (_paperEvalPollTimer) return;
+  _paperEvalPollTimer = setInterval(paperEvalRefresh, 2000);
+}
+function stopPaperEvalPoll() {
+  if (_paperEvalPollTimer) { clearInterval(_paperEvalPollTimer); _paperEvalPollTimer = null; }
+}
+
+async function paperEvalStart() {
+  const matrixPath = document.getElementById('pe-matrix-path').value.trim();
+  const nodeId = document.getElementById('pe-node-id').value.trim();
+  const trialTimeout = parseFloat(document.getElementById('pe-trial-timeout').value) || 600;
+  const pollInterval = parseFloat(document.getElementById('pe-poll-interval').value) || 2;
+  if (!matrixPath || !nodeId) {
+    alert('매트릭스 경로와 node ID를 모두 입력해주세요.');
+    return;
+  }
+  try {
+    const r = await fetch('/paper_eval/sweeps', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        matrix_path: matrixPath, node_id: nodeId,
+        per_trial_timeout_s: trialTimeout, poll_interval_s: pollInterval,
+      }),
+    });
+    if (!r.ok) {
+      const detail = await r.json().catch(() => ({}));
+      alert('Sweep 시작 실패: ' + (detail.detail || r.status));
+      return;
+    }
+    paperEvalRefresh();
+  } catch (e) {
+    alert('Sweep 시작 중 오류: ' + e);
+  }
+}
+
+async function paperEvalCancel() {
+  if (!confirm('진행 중인 sweep을 취소하시겠습니까? (현재 셀이 끝나기 전 안전 지점에서 중단)')) return;
+  try {
+    await fetch('/paper_eval/sweeps/current/cancel', {method: 'POST'});
+    paperEvalRefresh();
+  } catch (e) {
+    alert('취소 실패: ' + e);
+  }
+}
+
+function _peFmtTime(ms) {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  return d.toLocaleTimeString();
+}
+function _peStatusColor(s) {
+  switch (s) {
+    case 'running': return 'var(--accent, #3b82f6)';
+    case 'completed': return 'var(--green, #22c55e)';
+    case 'cancelling': case 'cancelled': return 'var(--orange, #f59e0b)';
+    case 'failed': return 'var(--red, #ef4444)';
+    default: return 'var(--text-dim)';
+  }
+}
+
+async function paperEvalRefresh() {
+  try {
+    const r = await fetch('/paper_eval/sweeps/current');
+    if (r.status === 503) {
+      document.getElementById('pe-status').textContent = '미설정';
+      document.getElementById('pe-error').style.display = 'block';
+      document.getElementById('pe-error').textContent =
+        '대시보드에 sweep_runner가 wiring되지 않았습니다 (테스트 환경일 수 있음).';
+      return;
+    }
+    if (!r.ok) return;
+    const s = await r.json();
+    _renderPaperEvalState(s);
+  } catch (e) {
+    // network blip — quietly ignore; next poll will retry
+  }
+}
+
+function _renderPaperEvalState(s) {
+  const status = s.status || 'idle';
+  const statusEl = document.getElementById('pe-status');
+  statusEl.textContent = status;
+  statusEl.style.color = _peStatusColor(status);
+
+  document.getElementById('pe-sweep-id').textContent = s.sweep_id || '—';
+  const cells = s.cells || [];
+  const total = s.total_cells != null ? s.total_cells : cells.length;
+  const done = cells.filter(c => c.status === 'completed' || c.status === 'skipped').length;
+  document.getElementById('pe-progress-cells').textContent = `${done} / ${total || '?'}`;
+  document.getElementById('pe-started-at').textContent = _peFmtTime(s.started_at_ms);
+  document.getElementById('pe-finished-at').textContent = _peFmtTime(s.finished_at_ms);
+
+  // Error
+  const errEl = document.getElementById('pe-error');
+  if (s.error) {
+    errEl.style.display = 'block';
+    errEl.textContent = '오류: ' + s.error;
+  } else {
+    errEl.style.display = 'none';
+  }
+
+  // Buttons
+  document.getElementById('btn-pe-start').disabled =
+    (status === 'running' || status === 'cancelling');
+  document.getElementById('btn-pe-cancel').disabled = (status !== 'running');
+
+  // Per-cell table
+  const tbody = document.getElementById('pe-cells-tbody');
+  if (cells.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">${
+      status === 'idle' ? 'sweep을 시작하면 여기에 셀이 나타납니다.' : '셀 정보 대기 중…'
+    }</td></tr>`;
+  } else {
+    tbody.innerHTML = cells.map((c, i) => {
+      const idx = (c.cell_index != null ? c.cell_index : i) + 1;
+      const progress = c.requested_trials > 0
+        ? `${c.completed_trials || 0} / ${c.requested_trials}`
+        : '—';
+      const stColor = c.status === 'completed' ? 'var(--green)'
+        : c.status === 'running' ? 'var(--accent)'
+        : c.status === 'skipped' ? 'var(--orange)'
+        : 'var(--text-dim)';
+      const note = c.skipped || c.skip_reason
+        ? `<span style="color:var(--orange)">skipped: ${c.skip_reason || ''}</span>`
+        : (c.incomplete ? '<span style="color:var(--orange)">incomplete</span>' : '');
+      return `<tr>
+        <td>${idx}</td>
+        <td><code>${c.cell_id}</code></td>
+        <td><span style="color:${stColor}">${c.status}</span></td>
+        <td>${progress}</td>
+        <td>${note}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Artifact links
+  const hasArtifacts = s.manifest_path || s.aggregated_path
+                       || s.digest_csv_path || s.digest_md_path;
+  document.getElementById('pe-artifacts-card').style.display =
+    hasArtifacts ? '' : 'none';
 }
 
 // ─────────────────────────────────────────────

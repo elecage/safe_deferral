@@ -37,7 +37,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, Optional
 
 import requests
 
@@ -57,6 +57,37 @@ _KNOWN_COMPARISON_CONDITIONS = frozenset({
 _DEFAULT_DASHBOARD_URL = "http://localhost:8000"
 _DEFAULT_POLL_INTERVAL_S = 2.0
 _DEFAULT_TRIAL_TIMEOUT_S = 600.0
+
+
+# ---------------------------------------------------------------------------
+# Progress events (Phase 4 enabler — emitted by Sweeper.run when a callback
+# is supplied; CLI usage ignores them by default)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SweepProgressEvent:
+    """One observable transition during a sweep. Consumers (dashboard
+    SweepRunner, CLI verbose mode) treat these as append-only journal
+    entries — never mutate fields after emit. event_type values:
+        sweep_started, cell_started, cell_skipped, cell_progress,
+        cell_completed, sweep_completed.
+    """
+
+    event_type: str
+    cell_id: Optional[str] = None
+    cell_index: Optional[int] = None         # 0-based; only set on cell_*
+    total_cells: Optional[int] = None
+    completed_trials: Optional[int] = None
+    requested_trials: Optional[int] = None
+    skip_reason: Optional[str] = None
+    incomplete: Optional[bool] = None
+    timestamp_ms: int = field(default_factory=lambda: int(time.time() * 1000))
+
+
+class SweepCancelled(RuntimeError):
+    """Raised inside Sweeper.run() when cancel_check() returns True. The
+    caller (CLI / SweepRunner) catches and finalises a partial manifest."""
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -389,6 +420,8 @@ class Sweeper:
         client: Optional[DashboardClient] = None,
         poll_interval_s: float = _DEFAULT_POLL_INTERVAL_S,
         per_trial_timeout_s: float = _DEFAULT_TRIAL_TIMEOUT_S,
+        progress_callback: Optional[Callable] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
     ):
         self.matrix_path = matrix_path
         self.scenarios_dir = scenarios_dir
@@ -399,6 +432,24 @@ class Sweeper:
         self.client = client or DashboardClient(dashboard_url)
         self.poll_interval_s = poll_interval_s
         self.per_trial_timeout_s = per_trial_timeout_s
+        # Phase 4 hooks (additive; both default no-op).
+        # progress_callback: receives SweepProgressEvent at lifecycle points
+        # so a UI can render live progress without polling individual runs.
+        # cancel_check: called between cells AND inside the per-cell poll
+        # loop; raises SweepCancelled when it returns True so the runner
+        # can finalise a partial manifest.
+        self._progress_cb = progress_callback or (lambda _e: None)
+        self._cancel_check = cancel_check or (lambda: False)
+
+    def _emit(self, **kw) -> None:
+        try:
+            self._progress_cb(SweepProgressEvent(**kw))
+        except Exception:
+            log.exception("progress callback raised; continuing sweep")
+
+    def _check_cancelled(self) -> None:
+        if self._cancel_check():
+            raise SweepCancelled("sweep cancelled by caller")
 
     # ------------------------------------------------------------------
     # Top-level sweep
@@ -436,23 +487,48 @@ class Sweeper:
             started_at_ms=_now_ms(),
             finished_at_ms=0,
         )
-        for cell in spec.cells:
-            cell_result = self._run_cell(spec, cell)
+        total = len(spec.cells)
+        self._emit(event_type="sweep_started", total_cells=total)
+        for idx, cell in enumerate(spec.cells):
+            self._check_cancelled()
+            cell_result = self._run_cell(spec, cell, cell_index=idx,
+                                         total_cells=total)
             result.cells.append(cell_result)
         result.finished_at_ms = _now_ms()
+        self._emit(
+            event_type="sweep_completed",
+            total_cells=total,
+            incomplete=any(c.incomplete for c in result.cells),
+        )
         return result
 
     # ------------------------------------------------------------------
     # Per-cell run
     # ------------------------------------------------------------------
 
-    def _run_cell(self, spec: MatrixSpec, cell: Cell) -> CellRunResult:
+    def _run_cell(self, spec: MatrixSpec, cell: Cell,
+                  cell_index: Optional[int] = None,
+                  total_cells: Optional[int] = None) -> CellRunResult:
         """Validate, create run, fire trials, poll to completion."""
         started = _now_ms()
+        self._emit(
+            event_type="cell_started",
+            cell_id=cell.cell_id,
+            cell_index=cell_index,
+            total_cells=total_cells,
+            requested_trials=cell.trials_per_cell,
+        )
         # Pre-validation: scenario tagging (P2.6 invariant)
         tag_err = _validate_cell_scenario_tags(cell, self.scenarios_dir)
         if tag_err is not None:
             log.warning("Skipping cell %s: %s", cell.cell_id, tag_err)
+            self._emit(
+                event_type="cell_skipped",
+                cell_id=cell.cell_id,
+                cell_index=cell_index,
+                total_cells=total_cells,
+                skip_reason=tag_err,
+            )
             return CellRunResult(
                 cell_id=cell.cell_id,
                 comparison_condition=cell.comparison_condition,
@@ -508,9 +584,11 @@ class Sweeper:
         # elapses. Per-cell deadline = per_trial_timeout_s × trials_per_cell
         # (sequential worst case).
         cell_deadline_s = self.per_trial_timeout_s * cell.trials_per_cell
-        cell_started = time.monotonic()
+        cell_started_mono = time.monotonic()
         completed = 0
-        while time.monotonic() - cell_started < cell_deadline_s:
+        last_emitted_completed = -1
+        while time.monotonic() - cell_started_mono < cell_deadline_s:
+            self._check_cancelled()
             try:
                 run_state = self.client.get_package_run(run_id)
             except requests.RequestException as exc:
@@ -522,6 +600,16 @@ class Sweeper:
             completed = sum(
                 1 for t in trials if t.get("status") not in (None, "pending")
             )
+            if completed != last_emitted_completed:
+                self._emit(
+                    event_type="cell_progress",
+                    cell_id=cell.cell_id,
+                    cell_index=cell_index,
+                    total_cells=total_cells,
+                    completed_trials=completed,
+                    requested_trials=len(trial_ids),
+                )
+                last_emitted_completed = completed
             if completed >= len(trial_ids):
                 break
             time.sleep(self.poll_interval_s)
@@ -552,7 +640,7 @@ class Sweeper:
             log.warning("Cell %s: trials snapshot fetch failed: %s",
                         cell.cell_id, exc)
 
-        return CellRunResult(
+        cell_result = CellRunResult(
             cell_id=cell.cell_id,
             comparison_condition=cell.comparison_condition,
             run_id=run_id,
@@ -569,6 +657,16 @@ class Sweeper:
             started_at_ms=started,
             finished_at_ms=_now_ms(),
         )
+        self._emit(
+            event_type="cell_completed",
+            cell_id=cell.cell_id,
+            cell_index=cell_index,
+            total_cells=total_cells,
+            completed_trials=completed,
+            requested_trials=cell.trials_per_cell,
+            incomplete=incomplete,
+        )
+        return cell_result
 
     # ------------------------------------------------------------------
     # Manifest writing

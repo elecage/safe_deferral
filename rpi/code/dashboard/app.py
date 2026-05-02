@@ -54,6 +54,7 @@ def create_app(
     package_runner: Optional[PackageRunner] = None,
     node_presence_registry: Optional[NodePresenceRegistry] = None,
     sim_state=None,  # Optional[SimStateStore]
+    sweep_runner=None,  # Optional[paper_eval.sweep_runner.SweepRunner]
 ) -> "FastAPI":
     if not _FASTAPI_AVAILABLE:
         raise ImportError("fastapi is required for the dashboard app")
@@ -90,6 +91,11 @@ def create_app(
         _sss = None
         ENV_SENSOR_FIELDS = {}
         DEVICE_FIELDS = {}
+
+    # Paper-eval sweep runner (Phase 4 MVP). Optional: tests inject a fake;
+    # production wires a real runner in main.py. None means the
+    # /paper_eval/sweeps endpoints respond with 503.
+    _sweep_runner = sweep_runner
 
     # ------------------------------------------------------------------
     # Health check — instant response, no IO
@@ -916,6 +922,114 @@ def create_app(
         if entry is None:
             raise HTTPException(status_code=404, detail=f"Node {node_id!r} not tracked")
         return entry.to_dict()
+
+    # ------------------------------------------------------------------
+    # Paper-eval matrix sweep (Phase 4 MVP)
+    # ------------------------------------------------------------------
+    # All endpoints return 503 when sweep_runner is None (i.e. tests /
+    # configurations that don't wire it). The runner is single-slot —
+    # only one sweep can be in flight at a time.
+
+    def _require_sweep_runner():
+        if _sweep_runner is None:
+            raise HTTPException(
+                status_code=503,
+                detail="paper-eval sweep runner not configured on this dashboard",
+            )
+
+    @app.post("/paper_eval/sweeps",
+              summary="Start a paper-eval matrix sweep (single-slot)")
+    def start_sweep(body: dict):
+        _require_sweep_runner()
+        matrix_path_str = body.get("matrix_path")
+        node_id = body.get("node_id")
+        if not matrix_path_str or not node_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Required: matrix_path (str), node_id (str)",
+            )
+        matrix_path = pathlib.Path(matrix_path_str)
+        if not matrix_path.is_absolute():
+            # Resolve relative paths against the dashboard's repo_root for
+            # consistency with other paper_eval CLI usage.
+            matrix_path = (_sweep_runner._repo_root / matrix_path).resolve()
+        if not matrix_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"matrix file not found: {matrix_path}",
+            )
+        try:
+            return _sweep_runner.start(
+                matrix_path=matrix_path,
+                node_id=node_id,
+                per_trial_timeout_s=float(body.get("per_trial_timeout_s", 600.0)),
+                poll_interval_s=float(body.get("poll_interval_s", 2.0)),
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+
+    @app.get("/paper_eval/sweeps/current",
+             summary="Current sweep status + per-cell progress")
+    def get_current_sweep():
+        _require_sweep_runner()
+        return _sweep_runner.get_state()
+
+    @app.post("/paper_eval/sweeps/current/cancel",
+              summary="Cancel the running sweep at the next safe point")
+    def cancel_current_sweep():
+        _require_sweep_runner()
+        return _sweep_runner.cancel()
+
+    def _require_artifact(state: dict, key: str, label: str) -> pathlib.Path:
+        path_str = state.get(key)
+        if not path_str:
+            raise HTTPException(
+                status_code=404,
+                detail=f"{label} not yet produced (sweep status={state.get('status')})",
+            )
+        p = pathlib.Path(path_str)
+        if not p.exists():
+            raise HTTPException(
+                status_code=410,
+                detail=f"{label} path recorded but file no longer exists: {p}",
+            )
+        return p
+
+    @app.get("/paper_eval/sweeps/current/manifest",
+             summary="Download sweep_manifest.json for the current/last sweep")
+    def get_current_manifest():
+        _require_sweep_runner()
+        state = _sweep_runner.get_state()
+        path = _require_artifact(state, "manifest_path", "manifest")
+        return JSONResponse(content=__import__("json").loads(path.read_text(encoding="utf-8")))
+
+    @app.get("/paper_eval/sweeps/current/aggregated",
+             summary="Download aggregated_matrix.json for the current/last sweep")
+    def get_current_aggregated():
+        _require_sweep_runner()
+        state = _sweep_runner.get_state()
+        path = _require_artifact(state, "aggregated_path", "aggregated matrix")
+        return JSONResponse(content=__import__("json").loads(path.read_text(encoding="utf-8")))
+
+    @app.get("/paper_eval/sweeps/current/digest.csv",
+             summary="Download digest CSV (paper-ready, one row per cell)",
+             response_class=PlainTextResponse)
+    def get_current_digest_csv():
+        _require_sweep_runner()
+        state = _sweep_runner.get_state()
+        path = _require_artifact(state, "digest_csv_path", "digest CSV")
+        return PlainTextResponse(path.read_text(encoding="utf-8"),
+                                 media_type="text/csv")
+
+    @app.get("/paper_eval/sweeps/current/digest.md",
+             summary="Download digest Markdown (paper-ready, sub-grid grouped)",
+             response_class=PlainTextResponse)
+    def get_current_digest_md():
+        _require_sweep_runner()
+        state = _sweep_runner.get_state()
+        path = _require_artifact(state, "digest_md_path", "digest Markdown")
+        return PlainTextResponse(path.read_text(encoding="utf-8"),
+                                 media_type="text/markdown")
 
     # ------------------------------------------------------------------
     # Static files (after all routes so /docs still works)
