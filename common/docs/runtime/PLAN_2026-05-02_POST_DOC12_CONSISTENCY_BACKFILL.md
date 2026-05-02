@@ -114,3 +114,30 @@ Each P0 PR creates the reference material the later PRs cite. P1 builds on P0 (s
 ## 7. Active starting point
 
 **PR #1 begins immediately after this plan + audit handoff merge.** Branch name: `claude/p0-1-docs-01-04-backfill`.
+
+---
+
+## 8. Completion (added 2026-05-02 by P3.8)
+
+All 8 PRs have landed:
+
+| Tier | PR # | Branch | Title |
+|------|------|--------|-------|
+| Plan | [#112](https://github.com/elecage/safe_deferral/pull/112) | `claude/post-doc12-consistency-backfill-plan` | docs: post-doc-12 architecture audit + 8-PR backfill plan |
+| P0.1 | [#113](https://github.com/elecage/safe_deferral/pull/113) | `claude/p0-1-docs-01-04-backfill` | docs(architecture): backfill docs 01–04 with doc 12 features |
+| P0.2 | [#114](https://github.com/elecage/safe_deferral/pull/114) | `claude/p0-2-mqtt-contract-and-examples` | docs(mqtt): MQTT contract reference + 3 example payloads |
+| P1.3 | [#115](https://github.com/elecage/safe_deferral/pull/115) | `claude/p1-3-scanning-input-scenarios` | test(scenarios): scanning input scenarios |
+| P1.4 | [#116](https://github.com/elecage/safe_deferral/pull/116) | `claude/p1-4-multi-turn-refinement-scenarios` | test(scenarios): multi-turn refinement scenarios |
+| P1.5 | [#117](https://github.com/elecage/safe_deferral/pull/117) | `claude/p1-5-deterministic-ordering-scenarios` | test(scenarios): deterministic ordering scenarios |
+| P2.6 | [#118](https://github.com/elecage/safe_deferral/pull/118) | `claude/p2-6-manifest-comparison-conditions-tagging` | test(scenarios): manifest schema + comparison_conditions tagging |
+| P2.7 | [#119](https://github.com/elecage/safe_deferral/pull/119) | `claude/p2-7-dashboard-audit-field-rendering` | feat(dashboard): dedicated audit-field blocks |
+| P3.8 | (pending PR for this commit) | `claude/p3-8-fixture-comment-cleanup` | docs/test: fixture comment cleanup + plan completion note |
+
+Aggregate impact:
+- **mac_mini fast suite**: 560 (pre-backfill) → 700 (+140 cumulative across the 8 PRs)
+- **rpi suite**: 160 → 168 (+8)
+- **Production behaviour**: byte-identical (all changes were docs / scenarios / tests / dashboard read-only display). No canonical policy / schema / runtime / authority surface modified beyond a single optional manifest field in P2.6.
+- **Scenarios added**: 7 new (3 scanning, 2 multi-turn, 2 ordering); manifest schema gains `comparison_conditions[]` + 3 formal `*_expectation` blocks.
+- **Audit-trail**: every PR has a corresponding `SESSION_HANDOFF_2026-05-02_*` document in `common/docs/runtime/`.
+
+This plan can now be considered closed — kept in place as a historical record of the post-doc-12 cleanup effort. Future similar backfill efforts should follow this same plan-then-execute cadence.

@@ -169,7 +169,13 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
     "insufficient_context": [
         {
             "candidate_id": "C1_LIGHTING_ASSISTANCE",
-            "prompt": "조명 도움이 필요하신가요?",
+            # NOTE: this prompt is a structural placeholder. C1_LIGHTING_ASSISTANCE
+            # is listed in _LIGHTING_CANDIDATE_TARGETS so _state_aware_lighting_candidate
+            # ALWAYS overrides this with the state-aware text ('거실 조명을 켜드릴까요?'
+            # / '거실 조명을 꺼드릴까요?' depending on device_states). The placeholder
+            # below is what a caller sees only if it bypasses _build_default_candidates
+            # (legacy path; kept neutral so the legacy emission is at least sensible).
+            "prompt": "조명을 도와드릴까요?",
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
             # Default to the canonical low-risk catalog living-room target so
@@ -203,7 +209,9 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
     "missing_policy_input": [
         {
             "candidate_id": "C1_LIGHTING_ASSISTANCE",
-            "prompt": "조명 도움이 필요하신가요?",
+            # Placeholder — overridden by _state_aware_lighting_candidate.
+            # See the structural note on the insufficient_context entry above.
+            "prompt": "조명을 도와드릴까요?",
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
             "target_hint": "living_room_light",

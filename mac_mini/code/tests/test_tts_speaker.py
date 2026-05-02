@@ -80,7 +80,12 @@ class TestAnnounceClass2PromptVerbatim:
     def test_each_prompt_appears_verbatim(self):
         sp = _RecordingSpeaker()
         choices = [
-            _choice("C1", "조명 도움이 필요하신가요?"),
+            # Use the post-state-aware-refactor prompt shape (PR #106) so the
+            # fixture matches what the manager actually emits today. The
+            # speaker's verbatim invariant is independent of the prompt text;
+            # the test could use any string, but mirroring real prompts keeps
+            # the fixture instructive.
+            _choice("C1", "거실 조명을 켜드릴까요?"),
             _choice("C2", "보호자에게 연락할까요?", "CAREGIVER_CONFIRMATION"),
             _choice("C3", "긴급상황인가요?", "CLASS_0"),
         ]
@@ -118,7 +123,7 @@ class TestAnnounceClass2PromptVerbatim:
     def test_noop_speaker_does_not_raise(self):
         """Silent backend must not affect correctness — Phase 4 design note."""
         sp = NoOpSpeaker()
-        announce_class2(sp, [_choice("C1", "조명 도움이 필요하신가요?")])  # no exception
+        announce_class2(sp, [_choice("C1", "거실 조명을 켜드릴까요?")])  # no exception
 
 
 # ==================================================================
