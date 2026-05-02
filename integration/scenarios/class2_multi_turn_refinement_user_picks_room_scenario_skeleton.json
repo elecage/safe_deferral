@@ -1,0 +1,145 @@
+{
+  "scenario_id": "SCN_CLASS2_MULTI_TURN_REFINEMENT_USER_PICKS_ROOM",
+  "title": "Class 2 multi-turn refinement — user picks parent then refines bedroom (CLASS_1)",
+  "description": "Deterministic scenario for the doc 11 multi-turn refinement path. Requires policy_table.global_constraints.class2_multi_turn_enabled=true (default false; opt-in feature flag). The user picks C1_LIGHTING_ASSISTANCE on the parent turn; because that candidate has a refinement template (refinement_templates._REFINEMENT_TEMPLATES['C1_LIGHTING_ASSISTANCE']), the manager returns a NEW ClarificationSession with refinement candidates {REFINE_LIVING_ROOM, REFINE_BEDROOM}. The user then picks REFINE_BEDROOM on the refinement turn, producing a terminal CLASS_1 result. The audit record carries refinement_history with one entry capturing the parent → child transition. Scenario asset only — does not authorize actuation.",
+  "category": "class2_insufficient_context",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_class2_multi_turn_enabled_in_policy": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an insufficient-context payload that drives the policy router into Class 2 with bedroom_light='off' so the refinement choice for bedroom resolves state-aware to action_hint='light_on'.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_clarification_state",
+      "description": "Class2ClarificationManager.start_session(input_mode='direct_select') initialises the parent session. candidate_choices includes C1_LIGHTING_ASSISTANCE which has a refinement template registered.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "user_picks_parent_c1_lighting_assistance",
+      "description": "The user selects C1_LIGHTING_ASSISTANCE on the parent turn. The manager calls submit_selection_or_refine; because (a) class2_multi_turn_enabled=true, (b) the chosen candidate has a refinement template, and (c) the session is not itself a refinement, the manager returns a NEW ClarificationSession (not a terminal Class2Result). The new session has is_refinement_turn=True, parent_clarification_id set, parent_candidate_id='C1_LIGHTING_ASSISTANCE', refinement_question populated, candidate_choices=[REFINE_LIVING_ROOM, REFINE_BEDROOM] (state-aware per current device_states)."
+    },
+    {
+      "step_id": 4,
+      "action": "announce_refinement_question_and_choices",
+      "description": "TTS announces the refinement question ('어느 방의 조명을 도와드릴까요?') followed by each per-room choice. Refinement turn timeout = class2_refinement_turn_timeout_ms (default 30000) — the turn is bounded to one user response."
+    },
+    {
+      "step_id": 5,
+      "action": "user_picks_refine_bedroom",
+      "description": "The user selects REFINE_BEDROOM. The manager.submit_selection on the refinement session produces a terminal Class2Result with action_hint='light_on' (state-aware; bedroom_light='off') and target_hint='bedroom_light'."
+    },
+    {
+      "step_id": 6,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish the terminal clarification record on safe_deferral/clarification/interaction. The record carries refinement_history=[{turn_index:1, parent_candidate_id:'C1_LIGHTING_ASSISTANCE', refinement_question:'어느 방의 조명을 도와드릴까요?', selected_candidate_id:'REFINE_BEDROOM', selection_source:'bounded_input_node', selection_timestamp_ms:...}]. transition_target='CLASS_1'.",
+      "expected_fixture": "common/payloads/examples/clarification_interaction_multi_turn_refinement.json"
+    },
+    {
+      "step_id": 7,
+      "action": "validator_reentry_with_bounded_candidate",
+      "description": "The Deterministic Validator re-enters with the confirmed bounded candidate (action_hint='light_on', target_hint='bedroom_light'). The selection alone is not validator approval — validator gating still applies."
+    },
+    {
+      "step_id": 8,
+      "action": "observe_audit_stream",
+      "description": "Observe the audit stream and capture: parent session selection, refinement session creation, refinement turn announcement + selection, terminal record with refinement_history. The integration verifier asserts (a) refinement_history length=1 (refinement is bounded to one turn max), (b) parent_candidate_id matches the parent selection, (c) selected_candidate_id matches the refinement turn's user pick, (d) terminal transition is CLASS_1."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_AND_REFINEMENT_TEMPLATES",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_OR_VOICE_OUTPUT"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "REFINEMENT_TURN_TIMEOUT_THEN_CAREGIVER_ESCALATION"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "CLASS_1",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "multi_turn_refinement_expectation": {
+    "scenario_requires_policy_field": "class2_multi_turn_enabled",
+    "scenario_requires_policy_value": true,
+    "expected_parent_candidate_id": "C1_LIGHTING_ASSISTANCE",
+    "expected_refinement_history_length": 1,
+    "expected_refinement_history_first_parent_candidate_id": "C1_LIGHTING_ASSISTANCE",
+    "expected_refinement_history_first_selected_candidate_id": "REFINE_BEDROOM",
+    "expected_terminal_action_hint": "light_on",
+    "expected_terminal_target_hint": "bedroom_light",
+    "expected_example_record_ref": "common/payloads/examples/clarification_interaction_multi_turn_refinement.json"
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "CLASS_1",
+      "condition": "User picks parent C1_LIGHTING_ASSISTANCE then refines to REFINE_BEDROOM. Terminal CLASS_1 with state-aware action.",
+      "example_confirmation": "C1_LIGHTING_ASSISTANCE on parent turn, REFINE_BEDROOM on refinement turn",
+      "allowed_next_path": "validator_reentry_then_bounded_low_risk_assistance_path"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "CLASS_1"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "Multi-turn refinement (doc 11 Phase 6.0) is opt-in via policy_table.global_constraints.class2_multi_turn_enabled. Production deployments default to false (single-turn direct_select preserved); paper-eval flips this on per-trial.",
+    "Refinement is bounded to ONE turn (max). A refinement session never refines further — even if the picked refinement candidate matches another template (defensive guard in submit_selection_or_refine).",
+    "REFINE_BEDROOM's action_hint is state-aware: bedroom_light='off' in this scenario → action_hint='light_on'. If the scenario's input fixture had bedroom_light='on', the same candidate_id would carry action_hint='light_off'.",
+    "refinement_history captures the parent → child transition in a single record; the parent session's record is separate (not shown here).",
+    "transition_target='CLASS_1' is confirmed-candidate evidence; validator re-entry is required before any low-risk dispatch — selection ≠ validator approval invariant preserved."
+  ]
+}

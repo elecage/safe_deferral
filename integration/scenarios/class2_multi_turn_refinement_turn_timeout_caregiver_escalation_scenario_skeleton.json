@@ -1,0 +1,152 @@
+{
+  "scenario_id": "SCN_CLASS2_MULTI_TURN_REFINEMENT_TURN_TIMEOUT_CAREGIVER_ESCALATION",
+  "title": "Class 2 multi-turn refinement — refinement turn timeout escalates to caregiver",
+  "description": "Deterministic scenario for the doc 11 multi-turn refinement long-tail path. Same opt-in policy (class2_multi_turn_enabled=true). The user picks C1_LIGHTING_ASSISTANCE on the parent turn opening a refinement session. The user then DOES NOT respond within class2_refinement_turn_timeout_ms. The manager calls handle_timeout on the refinement session producing a terminal Class2Result with transition_target=SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION. The audit record carries refinement_history with the unanswered turn (selection_source='timeout' / synthetic 'TIMEOUT' selected_candidate_id). silence ≠ consent invariant preserved across refinement-turn timeout. Scenario asset only — does not authorize actuation.",
+  "category": "class2_timeout",
+  "mode": "deterministic",
+  "input_plane": {
+    "protocol": "mqtt",
+    "ingress_topic": "safe_deferral/context/input",
+    "clarification_interaction_topic": "safe_deferral/clarification/interaction",
+    "audit_topic": "safe_deferral/audit/log"
+  },
+  "preconditions": {
+    "requires_mac_mini_runtime": true,
+    "requires_rpi_evaluation_runtime": true,
+    "requires_synced_phase0_assets": true,
+    "requires_time_sync_healthy": true,
+    "requires_mqtt_registry_alignment": true,
+    "requires_policy_schema_alignment": true,
+    "requires_class2_clarification_manager": true,
+    "requires_user_feedback_output": true,
+    "requires_bounded_selection_input": true,
+    "requires_class2_multi_turn_enabled_in_policy": true,
+    "requires_caregiver_telegram_path_available": true
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "action": "publish_context_payload",
+      "description": "Publish an insufficient-context payload that drives the policy router into Class 2.",
+      "payload_fixture": "integration/tests/data/sample_policy_router_input_class2_insufficient_context.json"
+    },
+    {
+      "step_id": 2,
+      "action": "enter_class2_clarification_state",
+      "description": "Class2ClarificationManager.start_session initialises the parent session with C1_LIGHTING_ASSISTANCE included in candidate_choices.",
+      "expected_fixture": "integration/tests/data/expected_routing_class2.json"
+    },
+    {
+      "step_id": 3,
+      "action": "user_picks_parent_c1_lighting_assistance",
+      "description": "User picks C1_LIGHTING_ASSISTANCE. submit_selection_or_refine returns a refinement ClarificationSession (because flag is on AND template exists)."
+    },
+    {
+      "step_id": 4,
+      "action": "announce_refinement_question_and_choices",
+      "description": "TTS announces the refinement question and two per-room choices."
+    },
+    {
+      "step_id": 5,
+      "action": "user_does_not_respond_within_refinement_turn_timeout",
+      "description": "The user provides no input within class2_refinement_turn_timeout_ms (default 30000ms). The Mac mini's refinement-turn waiter expires."
+    },
+    {
+      "step_id": 6,
+      "action": "handle_timeout_on_refinement_session",
+      "description": "Manager.handle_timeout(session=refinement_session, trigger_id='C207') returns a terminal Class2Result. transition_target='SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION'. The terminal record's refinement_history captures the unanswered turn — _build_record reads selection_result (which carries the synthetic timeout marker) and produces a refinement_history entry with selected_candidate_id reflecting the timeout."
+    },
+    {
+      "step_id": 7,
+      "action": "publish_clarification_interaction_evidence",
+      "description": "Publish the terminal clarification record on safe_deferral/clarification/interaction. refinement_history is populated with the unanswered turn so audit can tell 'the user picked the parent but never picked a refinement' apart from 'the user never picked anything'."
+    },
+    {
+      "step_id": 8,
+      "action": "caregiver_escalation_path",
+      "description": "The terminal SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION result triggers the caregiver notification path. The caregiver may still confirm a CLASS_1 action via Telegram inline keyboard if appropriate."
+    },
+    {
+      "step_id": 9,
+      "action": "observe_audit_stream",
+      "description": "Observe the audit stream and capture: parent selection, refinement session creation, refinement turn timeout, caregiver escalation. The integration verifier asserts (a) refinement_history length=1 with the timed-out turn, (b) terminal transition is SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION, (c) caregiver notification was published."
+    }
+  ],
+  "clarification_interaction": {
+    "class2_role": "clarification_transition_state",
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "candidate_generation_actor": "STATIC_DEFAULTS_AND_REFINEMENT_TEMPLATES",
+    "candidate_generation_boundary": "candidate_generation_only_no_final_decision_no_actuation_authority",
+    "presentation_channels": [
+      "TTS_OR_VOICE_OUTPUT",
+      "TELEGRAM_INLINE_KEYBOARD_CAREGIVER"
+    ],
+    "selection_inputs": [
+      "BOUNDED_INPUT_NODE",
+      "TIMEOUT_OR_NO_RESPONSE",
+      "CAREGIVER_TELEGRAM_KEYBOARD"
+    ],
+    "confirmation_required_before_transition": true,
+    "timeout_behavior": "REFINEMENT_TURN_TIMEOUT_THEN_CAREGIVER_ESCALATION"
+  },
+  "class2_clarification_expectation": {
+    "enabled": true,
+    "clarification_topic": "safe_deferral/clarification/interaction",
+    "clarification_schema_ref": "common/schemas/clarification_interaction_schema.json",
+    "example_payload_ref": "common/payloads/examples/clarification_interaction_two_options_pending.json",
+    "expected_transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+    "requires_validator_reentry_when_class1": true,
+    "requires_validator_when_class1": true,
+    "timeout_must_not_infer_intent": true,
+    "clarification_payload_is_not_authorization": true,
+    "forbidden_interpretations": [
+      "validator_approval",
+      "actuation_command",
+      "emergency_trigger_authority",
+      "doorlock_authorization"
+    ]
+  },
+  "multi_turn_refinement_expectation": {
+    "scenario_requires_policy_field": "class2_multi_turn_enabled",
+    "scenario_requires_policy_value": true,
+    "expected_parent_candidate_id": "C1_LIGHTING_ASSISTANCE",
+    "expected_refinement_history_length": 1,
+    "expected_refinement_history_first_parent_candidate_id": "C1_LIGHTING_ASSISTANCE",
+    "expected_refinement_turn_timed_out": true,
+    "expected_terminal_invokes_caregiver_path": true,
+    "silence_does_not_imply_consent": true
+  },
+  "transition_outcomes": [
+    {
+      "transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "condition": "User picks parent C1_LIGHTING_ASSISTANCE then does not respond to the refinement turn within class2_refinement_turn_timeout_ms.",
+      "example_confirmation": "C1_LIGHTING_ASSISTANCE on parent, no response on refinement turn",
+      "allowed_next_path": "caregiver_telegram_inline_keyboard_with_optional_class1_override"
+    }
+  ],
+  "expected_outcomes": {
+    "route_class": "CLASS_2",
+    "routing_target": "CLASS_2",
+    "class2_role": "clarification_transition_state",
+    "llm_invocation_allowed": false,
+    "llm_decision_invocation_allowed": false,
+    "llm_guidance_generation_allowed": "policy_constrained_only",
+    "candidate_generation_allowed": true,
+    "candidate_generation_authorizes_actuation": false,
+    "confirmation_required_before_transition": true,
+    "allowed_transition_targets": [
+      "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION",
+      "CLASS_1"
+    ],
+    "unsafe_autonomous_actuation_allowed": false,
+    "doorlock_autonomous_execution_allowed": false
+  },
+  "notes": [
+    "Refinement-turn timeout follows the same silence ≠ consent invariant as initial-turn timeout: the unanswered turn never auto-confirms a candidate, only escalates.",
+    "refinement_history is recorded even on the timeout path so audit can distinguish 'user picked parent but didn't refine' from 'user never picked anything' (the latter would be a parent-session timeout escalation without any refinement_history entry).",
+    "The caregiver may still override via Telegram inline keyboard — caregiver Phase 2 mechanics are shared with direct-select via _run_caregiver_phase (PR #109).",
+    "If the caregiver also fails to respond, the standard caregiver-no-response notification path produces a final SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION terminal — never autonomous execution."
+  ]
+}
