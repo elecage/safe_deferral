@@ -89,7 +89,15 @@ def create_governance_app(
 
     @app.get("/governance/proposals", summary="List topic proposals")
     def list_proposals(status: Optional[str] = None):
-        sf = ProposalStatus(status) if status else None
+        if status:
+            try:
+                sf = ProposalStatus(status)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid status: {status}"
+                )
+        else:
+            sf = None
         return [p.to_dict() for p in _backend.list_proposals(status_filter=sf)]
 
     @app.post("/governance/proposals", summary="Create a draft proposal")
