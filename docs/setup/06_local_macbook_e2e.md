@@ -11,7 +11,7 @@
 | Component | Install command (macOS / homebrew) | Notes |
 |---|---|---|
 | Homebrew | https://brew.sh | for `brew install` to work |
-| Mosquitto MQTT broker | `brew install mosquitto` | Started automatically by the launcher via `brew services start mosquitto`. |
+| Mosquitto MQTT broker | `brew install mosquitto` | Started automatically by the launcher in daemon mode (`mosquitto -d -p 1883`). The launcher does NOT use `brew services` because Homebrew 2.x ships mosquitto without a `mosquitto.conf` (only `.example`) and the launchd plist references the missing file → `brew services start` exits with error code 3 on fresh installs. Direct daemon mode uses mosquitto's built-in defaults (local-only listener, which is exactly the security posture we want here). |
 | Ollama | https://ollama.com | Download the macOS app and run it. |
 | llama3.2 model | `ollama pull llama3.2` | The Mac mini stack defaults to this model (#128 verified 0% fallback). |
 | Python ≥ 3.9 | macOS-bundled is fine | The launcher checks for `paho.mqtt`, `fastapi`, `jsonschema`, `requests`. |
@@ -137,7 +137,7 @@ pip install paho-mqtt fastapi uvicorn jsonschema requests python-dotenv
 **Stop everything:**
 ```bash
 ./scripts/local_e2e_launcher.sh --stop
-brew services stop mosquitto   # optional — leave running if other sessions use it
+pkill -x mosquitto             # optional — leave running if other sessions use it
 ```
 
 ## 7. Boundary notes
