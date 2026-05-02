@@ -40,15 +40,16 @@ def _state_aware_room_choice(
     device's current state (off → light_on, on → light_off)."""
     state = str((device_states or {}).get(target_device, "off")).lower()
     if state == "on":
-        verb_phrase, action = "꺼드릴까요?", "light_off"
+        verb_phrase, action, label_verb = "꺼드릴까요?", "light_off", "끄기"
     else:
-        verb_phrase, action = "켜드릴까요?", "light_on"
+        verb_phrase, action, label_verb = "켜드릴까요?", "light_on", "켜기"
     return ClarificationChoice(
         candidate_id=candidate_id,
         prompt=f"{room_label} 조명을 {verb_phrase}",
         candidate_transition_target="CLASS_1",
         action_hint=action,
         target_hint=target_device,
+        selection_label=f"{room_label} 조명 {label_verb}",
     )
 
 

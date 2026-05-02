@@ -532,7 +532,9 @@ class Pipeline:
                 None,
             )
             announce_class2_selection(
-                self._tts, "user_mqtt_button", chosen.prompt if chosen else user_selected_id
+                self._tts, "user_mqtt_button",
+                chosen.prompt if chosen else user_selected_id,
+                selection_label=getattr(chosen, "selection_label", None),
             )
             # Publish the final CLASS_2 interaction snapshot so the trial
             # runner can detect that interaction completed.
@@ -649,6 +651,7 @@ class Pipeline:
                     announce_class2_selection(
                         self._tts, "user_mqtt_button_late",
                         chosen.prompt if chosen else late_user_selected_id,
+                        selection_label=getattr(chosen, "selection_label", None),
                     )
                     self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
                     self._execute_class2_transition(class2_result, audit_correlation_id, trigger_id)
@@ -673,6 +676,7 @@ class Pipeline:
                     announce_class2_selection(
                         self._tts, "caregiver_telegram_inline_keyboard",
                         chosen.prompt if chosen else caregiver_selected_id,
+                        selection_label=getattr(chosen, "selection_label", None),
                     )
                     self._telemetry.publish_class2_update(audit_correlation_id, class2_result)
                     self._execute_class2_transition(class2_result, audit_correlation_id, trigger_id)
@@ -811,6 +815,7 @@ class Pipeline:
                     announce_class2_selection(
                         self._tts, "user_mqtt_button",
                         chosen.prompt if chosen else cg_id,
+                        selection_label=getattr(chosen, "selection_label", None),
                     )
                     self._telemetry.publish_class2_update(
                         audit_correlation_id, terminal_result,
@@ -859,6 +864,7 @@ class Pipeline:
             announce_class2_selection(
                 self._tts, "user_mqtt_button",
                 chosen.prompt if chosen else "",
+                selection_label=getattr(chosen, "selection_label", None),
             )
             self._telemetry.publish_class2_update(
                 audit_correlation_id, terminal_result,

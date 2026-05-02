@@ -115,21 +115,25 @@ _LIGHTING_REASONS: set = {
 def _state_aware_lighting_candidate(item: dict, device_states: dict) -> dict:
     """Override a lighting candidate's prompt + action_hint based on the
     device's current state. Off → '켜드릴까요?' + light_on; On → '꺼드릴까요?'
-    + light_off. Returns a new dict (does not mutate the input)."""
+    + light_off. Also produces a state-aware selection_label
+    ('거실 조명 켜기' / '거실 조명 끄기') so the post-selection TTS
+    confirmation reads naturally. Returns a new dict (does not mutate
+    the input)."""
     target_info = _LIGHTING_CANDIDATE_TARGETS.get(item["candidate_id"])
     if target_info is None:
         return item
     device, room_label = target_info
     state = str((device_states or {}).get(device, "off")).lower()
     if state == "on":
-        verb_phrase, action = "꺼드릴까요?", "light_off"
+        verb_phrase, action, label_verb = "꺼드릴까요?", "light_off", "끄기"
     else:
-        verb_phrase, action = "켜드릴까요?", "light_on"
+        verb_phrase, action, label_verb = "켜드릴까요?", "light_on", "켜기"
     return {
         **item,
         "prompt": f"{room_label} 조명을 {verb_phrase}",
         "action_hint": action,
         "target_hint": device,
+        "selection_label": f"{room_label} 조명 {label_verb}",
     }
 
 
@@ -158,7 +162,15 @@ def _build_default_candidates(reason: str,
         if item.get("candidate_id") in _LIGHTING_CANDIDATE_TARGETS:
             out.append(_state_aware_lighting_candidate(item, device_states or {}))
         elif is_lighting_reason and item.get("candidate_id") == "C4_CANCEL_OR_WAIT":
-            out.append({**item, "prompt": "다른 동작이 필요하신가요?"})
+            # Override prompt to the lighting-context safety net wording AND
+            # the selection_label so the post-selection TTS doesn't say
+            # "사용자가 대기를 선택" when the actual semantic is "system
+            # assumed the wrong action".
+            out.append({
+                **item,
+                "prompt": "다른 동작이 필요하신가요?",
+                "selection_label": "다른 동작",
+            })
         else:
             out.append(item)
     return out
@@ -183,6 +195,11 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             # Specific living-room vs bedroom disambiguation is handled by the
             # OPT_LIVING_ROOM/OPT_BEDROOM candidates in unresolved_context_conflict.
             "target_hint": "living_room_light",
+            # Placeholder label — _state_aware_lighting_candidate replaces
+            # it with state-aware "거실 조명 켜기" / "거실 조명 끄기" before
+            # the user hears the announcement. The label below is the legacy
+            # path's fallback (kept neutral but spoken-friendly).
+            "selection_label": "조명 제어",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",
@@ -190,6 +207,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_0",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "긴급 상황",
         },
         {
             "candidate_id": "C2_CAREGIVER_HELP",
@@ -197,6 +215,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "보호자 연락",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -204,6 +223,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
     "missing_policy_input": [
@@ -215,6 +235,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_1",
             "action_hint": "light_on",
             "target_hint": "living_room_light",
+            "selection_label": "조명 제어",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",
@@ -222,6 +243,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_0",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "긴급 상황",
         },
         {
             "candidate_id": "C2_CAREGIVER_HELP",
@@ -229,6 +251,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "보호자 연락",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -236,6 +259,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
     "unresolved_context_conflict": [
@@ -245,6 +269,9 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_1",
             "action_hint": None,
             "target_hint": "living_room_light",
+            # Overridden by _state_aware_lighting_candidate to "거실 조명 켜기"
+            # / "거실 조명 끄기" depending on device state.
+            "selection_label": "거실 조명",
         },
         {
             "candidate_id": "OPT_BEDROOM",
@@ -252,6 +279,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_1",
             "action_hint": None,
             "target_hint": "bedroom_light",
+            "selection_label": "침실 조명",
         },
         {
             "candidate_id": "C2_CAREGIVER_HELP",
@@ -259,6 +287,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "보호자 연락",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -266,6 +295,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
     "sensor_staleness_detected": [
@@ -275,6 +305,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "보호자 연락",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -282,6 +313,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
     "actuation_ack_timeout": [
@@ -291,6 +323,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_1",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "다시 시도",
         },
         {
             "candidate_id": "C2_CAREGIVER_HELP",
@@ -298,6 +331,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "보호자 연락",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -305,6 +339,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
     "timeout_or_no_response": [
@@ -314,6 +349,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "보호자 연락",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -321,6 +357,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
     # C208: visitor/doorbell detected — doorlock-sensitive path.
@@ -333,6 +370,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CAREGIVER_CONFIRMATION",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "방문자 확인 요청",
         },
         {
             "candidate_id": "C3_EMERGENCY_HELP",
@@ -340,6 +378,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "CLASS_0",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "긴급 상황",
         },
         {
             "candidate_id": "C4_CANCEL_OR_WAIT",
@@ -347,6 +386,7 @@ _DEFAULT_CANDIDATES: dict[str, list[dict]] = {
             "candidate_transition_target": "SAFE_DEFERRAL",
             "action_hint": None,
             "target_hint": None,
+            "selection_label": "대기",
         },
     ],
 }
@@ -914,6 +954,7 @@ class Class2ClarificationManager:
                 candidate_transition_target=item["candidate_transition_target"],
                 action_hint=item.get("action_hint"),
                 target_hint=item.get("target_hint"),
+                selection_label=item.get("selection_label"),
             )
             for item in raw
         ]

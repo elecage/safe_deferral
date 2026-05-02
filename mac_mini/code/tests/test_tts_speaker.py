@@ -196,9 +196,11 @@ class TestAnnounceClass2AdaptivePreamble:
             assert c.prompt in text
 
 
-class TestAnnounceClass2SelectionPromptVerbatim:
-    """The post-selection announcement must echo the chosen prompt verbatim
-    so the user hears exactly the option that was confirmed."""
+class TestAnnounceClass2SelectionFallback:
+    """When the caller cannot supply a selection_label (e.g. legacy code
+    path or LLM-generated candidate without a label), the announcement
+    falls back to embedding the full prompt verbatim so the user still
+    hears what was confirmed (awkward but never misleading)."""
 
     def test_user_selection_includes_chosen_prompt(self):
         sp = _RecordingSpeaker()
@@ -215,6 +217,61 @@ class TestAnnounceClass2SelectionPromptVerbatim:
         text = sp.spoken[0]
         assert "보호자가" in text
         assert "보호자에게 연락할까요?" in text
+
+
+class TestAnnounceClass2SelectionLabel:
+    """When a candidate carries `selection_label`, the announcement uses the
+    natural noun-phrase form ("사용자가 긴급 상황을 선택하셨습니다.") rather
+    than echoing the full question prompt."""
+
+    def test_label_form_used_when_provided(self):
+        sp = _RecordingSpeaker()
+        announce_class2_selection(
+            sp, "user_mqtt_button",
+            chosen_prompt="긴급상황인가요?",
+            selection_label="긴급 상황",
+        )
+        text = sp.spoken[0]
+        # Natural form — label + 을 (jongseong present in 황) + 선택하셨습니다
+        assert text == "사용자가 긴급 상황을 선택하셨습니다."
+        # Awkward verbatim prompt must NOT appear anywhere
+        assert "긴급상황인가요?" not in text
+
+    def test_label_picks_eul_for_jongseong(self):
+        sp = _RecordingSpeaker()
+        # "보호자 연락" ends in 락 (jongseong ㄱ) → 을
+        announce_class2_selection(
+            sp, "user_mqtt_button", "보호자에게 연락할까요?",
+            selection_label="보호자 연락",
+        )
+        assert sp.spoken[0] == "사용자가 보호자 연락을 선택하셨습니다."
+
+    def test_label_picks_reul_for_no_jongseong(self):
+        sp = _RecordingSpeaker()
+        # "조명 제어" ends in 어 (no jongseong) → 를
+        announce_class2_selection(
+            sp, "user_mqtt_button", "조명을 도와드릴까요?",
+            selection_label="조명 제어",
+        )
+        assert sp.spoken[0] == "사용자가 조명 제어를 선택하셨습니다."
+
+    def test_caregiver_prefix_with_label(self):
+        sp = _RecordingSpeaker()
+        announce_class2_selection(
+            sp, "caregiver_telegram_inline_keyboard",
+            "보호자에게 연락할까요?",
+            selection_label="보호자 연락",
+        )
+        assert sp.spoken[0] == "보호자가 보호자 연락을 선택하셨습니다."
+
+    def test_empty_label_falls_back_to_prompt(self):
+        sp = _RecordingSpeaker()
+        announce_class2_selection(
+            sp, "user_mqtt_button", "거실 조명을 켜드릴까요?",
+            selection_label="",
+        )
+        text = sp.spoken[0]
+        assert "거실 조명을 켜드릴까요?" in text   # fallback used
 
 
 # ==================================================================
