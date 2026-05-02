@@ -189,6 +189,11 @@ MQTT_PASS=
 OLLAMA_URL=http://localhost:11434/api/generate
 OLLAMA_MODEL=llama3.2
 
+# LLM sampling parameters — paper-eval sweeps may override these to vary
+# stochasticity. Defaults match historic hardcoded values.
+OLLAMA_TEMPERATURE=0.2
+# OLLAMA_TOP_P=     # leave empty → Ollama default (0.9). Set 0.0–1.0 to fix.
+
 # false → keep the launcher quiet. Set true to hear macOS `say` output.
 TTS_ENABLED=false
 TTS_VOICE=Yuna

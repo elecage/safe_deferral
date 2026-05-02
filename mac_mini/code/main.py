@@ -148,6 +148,13 @@ def _resolve_caregiver_response_timeout_s() -> int:
 CAREGIVER_RESPONSE_TIMEOUT_S = _resolve_caregiver_response_timeout_s()
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
+# Sampling parameters — paper-eval sweeps vary these across temp×top_p
+# grids to quantify how LLM stochasticity affects routing accuracy.
+# Defaults preserve historic behaviour (temperature=0.2, top_p unset →
+# Ollama default 0.9).
+OLLAMA_TEMPERATURE = float(os.environ.get("OLLAMA_TEMPERATURE", "0.2"))
+_top_p_str = os.environ.get("OLLAMA_TOP_P", "").strip()
+OLLAMA_TOP_P = float(_top_p_str) if _top_p_str else None
 AUDIT_DB_PATH = os.environ.get(
     "AUDIT_DB_PATH",
     str(Path.home() / "smarthome_workspace" / "audit.db"),
@@ -191,7 +198,9 @@ class Pipeline:
         _llm_timeout_s = int(_gc.get("llm_request_timeout_ms", 8000)) // 1000
         llm_client = (
             OllamaClient(model=OLLAMA_MODEL, base_url=OLLAMA_URL,
-                          timeout_s=_llm_timeout_s)
+                          timeout_s=_llm_timeout_s,
+                          temperature=OLLAMA_TEMPERATURE,
+                          top_p=OLLAMA_TOP_P)
             if OLLAMA_URL
             else MockLlmClient()
         )
@@ -1355,7 +1364,10 @@ def main() -> None:
         "configured" if TELEGRAM_TOKEN else "NoOp (TELEGRAM_BOT_TOKEN not set)",
         CAREGIVER_RESPONSE_TIMEOUT_S,
     )
-    log.info("LLM: %s @ %s", OLLAMA_MODEL, OLLAMA_URL)
+    log.info("LLM: %s @ %s  (temp=%.2f top_p=%s)",
+             OLLAMA_MODEL, OLLAMA_URL,
+             OLLAMA_TEMPERATURE,
+             f"{OLLAMA_TOP_P:.2f}" if OLLAMA_TOP_P is not None else "(default)")
     log.info("TTS: enabled=%s voice=%s", os.environ.get("TTS_ENABLED", "true"), os.environ.get("TTS_VOICE", "Yuna"))
 
     # Create MQTT client; publish via a holder so Pipeline can reference it
