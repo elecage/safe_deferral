@@ -379,13 +379,23 @@ class LocalLlmAdapter:
         Raises ValueError / jsonschema.ValidationError on failure so that
         generate_candidate() can catch and return the safe fallback.
 
-        Null values are stripped before validation: LLMs often include
-        optional fields as null (e.g. deferral_reason: null when not
-        deferring), which fails 'type: string' schema checks.
+        Null and empty-string values are stripped before validation: LLMs
+        following the prompt's JSON example often echo every optional field
+        even when the if/then schema says they must be absent. For
+        candidate_action_schema specifically, the LLM tends to emit
+        `deferral_reason: ""` (or null) on light_on/light_off responses,
+        which trips the schema's `not.required: ["deferral_reason"]` clause
+        and would otherwise force a 100% safe-deferral fallback in
+        production. Treating "" as semantically absent matches None handling
+        and keeps valid candidates from being rejected.
         """
         candidate = self._extract_json(raw)
-        # Strip null values — optional fields absent is valid; null is not
-        candidate = {k: v for k, v in candidate.items() if v is not None}
+        # Strip None and empty-string values — both are semantically
+        # 'field absent' under the candidate_action_schema if/then rules.
+        candidate = {
+            k: v for k, v in candidate.items()
+            if v is not None and v != ""
+        }
         validator = jsonschema.Draft7Validator(self._schema, resolver=self._resolver)
         errors = list(validator.iter_errors(candidate))
         if errors:

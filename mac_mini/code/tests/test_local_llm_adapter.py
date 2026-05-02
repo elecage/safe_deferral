@@ -126,6 +126,26 @@ class TestValidOutput:
         result = adapter.generate_candidate(_ctx(), AUDIT_ID)
         assert result.llm_raw_response == raw
 
+    def test_light_on_with_empty_deferral_reason_is_accepted(self):
+        # Real Ollama llama3.2 reproducibly emits `deferral_reason: ""` for
+        # light_on/light_off responses (it follows the prompt's JSON example
+        # too literally). The schema's `not.required: ["deferral_reason"]`
+        # clause for non-deferral actions would otherwise reject this and
+        # force a 100% fallback rate in production. _parse_and_validate
+        # treats "" as field-absent (parallel to its None handling).
+        with_empty = json.dumps({
+            "proposed_action": "light_on",
+            "target_device": "living_room_light",
+            "rationale_summary": "lights off, user requested on",
+            "deferral_reason": "",
+        })
+        adapter = _mock_adapter(with_empty)
+        result = adapter.generate_candidate(_ctx(), AUDIT_ID)
+        assert result.is_fallback is False
+        assert result.proposed_action == "light_on"
+        assert result.target_device == "living_room_light"
+        assert "deferral_reason" not in result.candidate
+
 
 # ------------------------------------------------------------------
 # Fallback on invalid LLM output
