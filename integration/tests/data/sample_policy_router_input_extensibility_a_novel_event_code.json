@@ -1,6 +1,4 @@
 {
-  "_purpose": "Paper-eval Extensibility Axis A fixture (required_experiments §5.8). Models a button event_code (triple_hit) that is canonical-schema-valid but is NOT in the Mac mini's _DIRECT_MAPPING_TABLE (which only knows single_click / double_click / long_press). The environmental_context describes a context where the rule_only heuristic ALSO cannot act: living_room_light is already 'on' so rule_only's only rule (low light + occupied + living_off) does not fire. The user's actual intent — implied by occupancy + bedroom_light being off + ambient low — is to turn on the bedroom light. This is the kind of input drift LLM-assisted intent recovery is meant to handle: the perception layer needs to identify 'user wants bedroom light' from context, while direct_mapping and rule_only correctly defer. The matrix's expected_route_class=CLASS_1 reflects the user's actual intent, so deterministic modes will register pass_rate=0 (they correctly defer to safe-deferral, observed CLASS_2) while llm_assisted should register a high pass_rate.",
-
   "source_node_id": "virtual_node_extensibility_axis_a",
   "routing_metadata": {
     "audit_correlation_id": "sample_extensibility_a_case_001",
@@ -10,7 +8,7 @@
   "pure_context_payload": {
     "trigger_event": {
       "event_type": "button",
-      "event_code": "triple_hit",
+      "event_code": "single_click",
       "timestamp_ms": 1777103999900
     },
     "environmental_context": {

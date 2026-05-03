@@ -46,7 +46,8 @@
                   "single_click",
                   "double_click",
                   "long_press",
-                  "triple_hit"
+                  "triple_hit",
+                  "quadruple_click"
                 ]
               }
             }
