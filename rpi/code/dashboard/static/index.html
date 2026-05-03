@@ -686,14 +686,15 @@
             <div class="card-title">Table 1 — Policy-routing Results (패키지 A)</div>
             <div id="pkg-a-metrics-grid" class="metrics-grid" style="margin-bottom:16px"></div>
             <div class="text-dim" style="font-size:11px;margin-bottom:8px">
-              <b>Pass</b>는 strict (expected_route_class == observed). <b>Match</b>는 soft — system이 expected_validation에 맞는 action 도달 (Class 2 경유 포함). <b>Intent</b>는 semantic — scenario.user_intent와 final action·target 정확 일치. <b>Final action</b>은 실제 ack로 dispatch된 action·target.
+              세 layer로 비교: <b>Routing</b> (기대 route ↔ 관찰 route → Pass), <b>Actuation</b> (system이 actuation에 도달했는지 → Match), <b>Semantic</b> (기대 intent ↔ Final action 정확 일치 → Intent). scenario.user_intent가 없으면 intent 컬럼은 "—".
             </div>
             <div style="overflow-x:auto">
               <table id="pkg-a-table">
                 <thead><tr>
                   <th>#</th><th>시나리오</th><th>폴트</th><th>조건</th>
-                  <th>기대</th><th>관찰</th>
-                  <th>경로</th><th>Final action</th>
+                  <th>기대 route</th><th>관찰 route</th>
+                  <th>경로</th>
+                  <th>기대 intent</th><th>Final action</th>
                   <th>지연(ms)</th><th>Pass</th><th>Match</th><th>Intent</th>
                 </tr></thead>
                 <tbody id="pkg-a-tbody"></tbody>
@@ -2704,9 +2705,19 @@ function renderPkgA(metrics, trials) {
       : intentVal === null ? '—'
       : intentVal ? '✅' : '❌';
     const intent = t.user_intent_snapshot || {};
+    const intentText = intent.action
+      ? `${intent.action} → ${intent.target_device || 'none'}`
+      : '—';
     const intentTitle = intent.action
       ? `scenario.user_intent: ${intent.action}→${intent.target_device || 'none'}`
       : 'scenario에 user_intent 없음 (legacy)';
+    // Color-code expected intent vs final action: green when they match,
+    // red when both are present but differ, dim when intent is unmeasured.
+    let intentTextColor = 'var(--text-dim)';
+    if (intent.action) {
+      intentTextColor = (act === intent.action && tgt === intent.target_device)
+        ? 'var(--green)' : 'var(--red)';
+    }
     return `<tr style="cursor:pointer" onclick="togglePkgATrialDetail(${i})"
                 title="클릭하여 상세 보기">
       <td>${i+1}</td>
@@ -2716,16 +2727,17 @@ function renderPkgA(metrics, trials) {
       <td style="color:${expColor};font-weight:700">${t.expected_route_class}</td>
       <td style="color:${obsColor};font-weight:700">${t.observed_route_class||'…'}</td>
       <td style="font-size:11px">${path}</td>
+      <td style="font-size:11px;color:${intentTextColor}" title="${intentTitle}">${intentText}</td>
       <td style="font-size:11px">${finalAction}</td>
       <td style="font-family:monospace">${t.latency_ms != null ? Math.round(t.latency_ms)+'ms' : '—'}</td>
-      <td title="strict pass: expected_route_class == observed_route_class">${passIcon}</td>
-      <td title="outcome match: system reached the action prescribed by expected_validation, regardless of route">${matchIcon}</td>
-      <td title="${intentTitle}">${intentIcon}</td>
+      <td title="strict pass: expected_route_class == observed_route_class (routing fidelity)">${passIcon}</td>
+      <td title="outcome match: system reached the action prescribed by expected_validation, regardless of route (actuation fidelity)">${matchIcon}</td>
+      <td title="${intentTitle} — Intent match: scenario.user_intent와 final action·target 정확 일치 (semantic fidelity)">${intentIcon}</td>
     </tr>
     <tr id="pkg-a-detail-${i}" style="display:none;background:var(--surface2)">
-      <td colspan="12" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
+      <td colspan="13" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+  }).join('') || '<tr><td colspan="13" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
 }
 
 function _trialIntentMatch(t) {
