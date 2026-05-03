@@ -51,6 +51,30 @@ _CSV_COLUMNS = (
     "scan_ordering_applied_present_count",
     "skipped",
     "incomplete",
+    # Trajectory / final-action breakdown — derived from each trial's
+    # observation_history so a cell where the LLM legitimately deferred
+    # and the system reached a useful action through CLASS_2 is no longer
+    # collapsed to a binary fail. Counts are over ALL trials (including
+    # timeouts), so columns sum to the cell's `requested_trials`.
+    "outcome_path_class1_direct",
+    "outcome_path_class2_to_class1",
+    "outcome_path_class2_to_class0",
+    "outcome_path_class2_safe_deferral",
+    "outcome_path_class2_unresolved",
+    "outcome_path_class0_direct",
+    "outcome_path_timeout",
+    "outcome_path_no_observation",
+    "final_action_light_on",
+    "final_action_light_off",
+    "final_action_safe_deferral",
+    "final_action_none",
+    "final_target_living_room_light",
+    "final_target_bedroom_light",
+    "final_target_none",
+    # Soft 'system reached design intent' verdict, complementary to the
+    # strict pass_rate. See aggregator._trial_outcome_match for the
+    # definition. None when n_trials == 0.
+    "outcome_match_rate",
     "notes",
 )
 
@@ -127,6 +151,9 @@ def _flatten_cell_for_csv(cell: dict) -> dict:
     """Flatten nested by_route_class dict + serialise list fields so each
     CellResult fits in one CSV row."""
     by_rc = cell.get("by_route_class") or {}
+    paths = cell.get("outcome_path_distribution") or {}
+    actions = cell.get("final_action_distribution") or {}
+    targets = cell.get("final_target_distribution") or {}
     return {
         "cell_id": cell.get("cell_id", ""),
         "comparison_condition": cell.get("comparison_condition") or "",
@@ -151,6 +178,24 @@ def _flatten_cell_for_csv(cell: dict) -> dict:
         ),
         "skipped": "true" if cell.get("skipped") else "false",
         "incomplete": "true" if cell.get("incomplete") else "false",
+        "outcome_path_class1_direct": paths.get("class1_direct", 0),
+        "outcome_path_class2_to_class1": paths.get("class2_to_class1", 0),
+        "outcome_path_class2_to_class0": paths.get("class2_to_class0", 0),
+        "outcome_path_class2_safe_deferral": paths.get("class2_safe_deferral", 0),
+        "outcome_path_class2_unresolved": paths.get("class2_unresolved", 0),
+        "outcome_path_class0_direct": paths.get("class0_direct", 0),
+        "outcome_path_timeout": paths.get("timeout", 0),
+        "outcome_path_no_observation": paths.get("no_observation", 0),
+        "final_action_light_on": actions.get("light_on", 0),
+        "final_action_light_off": actions.get("light_off", 0),
+        "final_action_safe_deferral": actions.get("safe_deferral", 0),
+        "final_action_none": actions.get("none", 0),
+        "final_target_living_room_light": targets.get("living_room_light", 0),
+        "final_target_bedroom_light": targets.get("bedroom_light", 0),
+        "final_target_none": targets.get("none", 0),
+        "outcome_match_rate": _format_optional_number(
+            cell.get("outcome_match_rate")
+        ),
         "notes": " | ".join(cell.get("notes") or []),
     }
 
@@ -180,33 +225,63 @@ def _md_format_optional(v, suffix: str = "") -> str:
     return f"{v}{suffix}"
 
 
+def _md_format_distribution(dist: dict, keys: tuple) -> str:
+    """Render a small histogram as a compact 'k1=n1, k2=n2' string. Keys
+    with zero counts are omitted to keep the cell short. Returns '—' when
+    every count is zero so the column reads as 'no signal' rather than '0'."""
+    if not dist:
+        return "—"
+    parts = []
+    for k in keys:
+        v = dist.get(k, 0)
+        if v:
+            parts.append(f"{k}={v}")
+    if not parts:
+        return "—"
+    return ", ".join(parts)
+
+
 def _md_table_for_cells(cells: list) -> list:
     """Render a list of cells as a Markdown table. Returns the table as a
     list of lines so the caller can interleave headers / footers cleanly.
 
-    Columns chosen for paper-table density: cell_id, condition, n,
-    pass_rate, p50/p95 latency, Class 2 clarification correctness, scan
-    history yes-first rate. The full per-route-class breakdown lives in
-    the CSV — including it in the markdown table makes rows too wide.
+    Columns chosen for paper-table density. The strict pass_rate is kept,
+    but the trajectory + final-action columns let a reader see WHERE
+    'failed' trials ended up (e.g. CLASS_2 escalated to CLASS_1 via
+    clarification, vs deferred to caregiver, vs timed out). The full
+    per-route-class breakdown still lives in the CSV.
     """
     if not cells:
         return ["_(no cells in this sub-grid)_", ""]
     lines = [
-        "| cell_id | condition | n | pass | p50 ms | p95 ms | class2 ✓ | scan-yes-first | notes |",
-        "|---|---|---:|---:|---:|---:|---:|---:|---|",
+        "| cell_id | condition | n | pass | match | p50 ms | p95 ms | trajectory | final action | notes |",
+        "|---|---|---:|---:|---:|---:|---:|---|---|---|",
     ]
+    _path_keys = (
+        "class1_direct", "class2_to_class1", "class2_to_class0",
+        "class2_safe_deferral", "class2_unresolved",
+        "class0_direct", "timeout", "no_observation",
+    )
+    _action_keys = ("light_on", "light_off", "safe_deferral", "none")
     for c in cells:
         notes = "; ".join(c.get("notes") or []) or "—"
+        trajectory = _md_format_distribution(
+            c.get("outcome_path_distribution") or {}, _path_keys,
+        )
+        final_action = _md_format_distribution(
+            c.get("final_action_distribution") or {}, _action_keys,
+        )
         lines.append(
-            "| `{cid}` | {cond} | {n} | {pr} | {p50} | {p95} | {c2} | {scan} | {notes} |".format(
+            "| `{cid}` | {cond} | {n} | {pr} | {om} | {p50} | {p95} | {traj} | {fa} | {notes} |".format(
                 cid=c.get("cell_id", ""),
                 cond=c.get("comparison_condition") or "_(default)_",
                 n=c.get("n_trials", 0),
                 pr=_md_format_optional(c.get("pass_rate")),
+                om=_md_format_optional(c.get("outcome_match_rate")),
                 p50=_md_format_optional(c.get("latency_ms_p50")),
                 p95=_md_format_optional(c.get("latency_ms_p95")),
-                c2=_md_format_optional(c.get("class2_clarification_correctness")),
-                scan=_md_format_optional(c.get("scan_history_yes_first_rate")),
+                traj=trajectory,
+                fa=final_action,
                 notes=notes,
             )
         )

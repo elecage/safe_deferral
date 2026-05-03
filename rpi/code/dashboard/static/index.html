@@ -829,15 +829,20 @@
 
       <!-- Per-cell progress table -->
       <div class="card mb-20">
-        <div class="card-title">셀별 진행률</div>
+        <div class="card-title">셀별 진행률 + 결과 분석</div>
+        <div class="text-dim" style="font-size:11px;margin-bottom:8px">
+          sweep이 끝나면 strict pass_rate 외에 trajectory(실제 어느 경로로 갔는지)와 final action(시스템이 무엇을 실행했는지) 분포가 표시됩니다.
+        </div>
         <div style="overflow-x:auto">
           <table>
             <thead><tr>
               <th>#</th><th>cell_id</th><th>상태</th>
-              <th>진행</th><th>비고</th>
+              <th>진행</th><th>pass</th><th>match</th>
+              <th>trajectory</th><th>final action</th>
+              <th>비고</th>
             </tr></thead>
             <tbody id="pe-cells-tbody">
-              <tr><td colspan="5" class="empty">sweep을 시작하면 여기에 12개 셀이 나타납니다.</td></tr>
+              <tr><td colspan="9" class="empty">sweep을 시작하면 여기에 셀이 나타납니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1229,13 +1234,44 @@ async function paperEvalRefresh() {
     }
     if (!r.ok) return;
     const s = await r.json();
-    _renderPaperEvalState(s);
+    // Once the sweep finishes, the aggregated_matrix.json carries the
+    // observation_history-derived breakdowns (trajectory + final action
+    // + final target distributions). Fetch it lazily so trial-grade
+    // analysis is visible alongside the strict pass/fail.
+    let agg = null;
+    if (s.status === 'completed' && s.aggregated_path) {
+      try {
+        const ar = await fetch('/paper_eval/sweeps/current/aggregated');
+        if (ar.ok) agg = await ar.json();
+      } catch (e) { /* lazy fetch failure is non-fatal */ }
+    }
+    _renderPaperEvalState(s, agg);
   } catch (e) {
     // network blip — quietly ignore; next poll will retry
   }
 }
 
-function _renderPaperEvalState(s) {
+// Compact histogram → 'k1=n1, k2=n2' string. Zero-count buckets are
+// dropped so cells stay short. Used for the per-cell trajectory and
+// final-action columns.
+function _peFmtDist(dist, keys) {
+  if (!dist) return '—';
+  const parts = [];
+  for (const k of keys) {
+    const v = dist[k] || 0;
+    if (v) parts.push(`${k}=${v}`);
+  }
+  return parts.length ? parts.join(', ') : '—';
+}
+
+const _PE_PATH_KEYS = [
+  'class1_direct', 'class2_to_class1', 'class2_to_class0',
+  'class2_safe_deferral', 'class2_unresolved',
+  'class0_direct', 'timeout', 'no_observation',
+];
+const _PE_ACTION_KEYS = ['light_on', 'light_off', 'safe_deferral', 'none'];
+
+function _renderPaperEvalState(s, agg) {
   const status = s.status || 'idle';
   const statusEl = document.getElementById('pe-status');
   statusEl.textContent = status;
@@ -1263,10 +1299,19 @@ function _renderPaperEvalState(s) {
     (status === 'running' || status === 'cancelling');
   document.getElementById('btn-pe-cancel').disabled = (status !== 'running');
 
+  // Build a cell_id -> aggregated entry map so the per-cell row can show
+  // strict pass + trajectory + final action together.
+  const aggByCell = {};
+  if (agg && Array.isArray(agg.cells)) {
+    for (const a of agg.cells) {
+      aggByCell[a.cell_id] = a;
+    }
+  }
+
   // Per-cell table
   const tbody = document.getElementById('pe-cells-tbody');
   if (cells.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">${
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">${
       status === 'idle' ? 'sweep을 시작하면 여기에 셀이 나타납니다.' : '셀 정보 대기 중…'
     }</td></tr>`;
   } else {
@@ -1282,11 +1327,26 @@ function _renderPaperEvalState(s) {
       const note = c.skipped || c.skip_reason
         ? `<span style="color:var(--orange)">skipped: ${c.skip_reason || ''}</span>`
         : (c.incomplete ? '<span style="color:var(--orange)">incomplete</span>' : '');
+      const aggCell = aggByCell[c.cell_id];
+      const passCell = (aggCell && aggCell.pass_rate != null)
+        ? aggCell.pass_rate.toFixed(4) : '—';
+      const matchCell = (aggCell && aggCell.outcome_match_rate != null)
+        ? aggCell.outcome_match_rate.toFixed(4) : '—';
+      const traj = aggCell
+        ? _peFmtDist(aggCell.outcome_path_distribution, _PE_PATH_KEYS)
+        : '—';
+      const finalAction = aggCell
+        ? _peFmtDist(aggCell.final_action_distribution, _PE_ACTION_KEYS)
+        : '—';
       return `<tr>
         <td>${idx}</td>
         <td><code>${c.cell_id}</code></td>
         <td><span style="color:${stColor}">${c.status}</span></td>
         <td>${progress}</td>
+        <td style="font-variant-numeric:tabular-nums" title="strict pass: expected_route_class == observed_route_class">${passCell}</td>
+        <td style="font-variant-numeric:tabular-nums" title="outcome match: system reached the action prescribed by expected_validation, regardless of which route_class got there">${matchCell}</td>
+        <td style="font-size:11px">${traj}</td>
+        <td style="font-size:11px">${finalAction}</td>
         <td>${note}</td>
       </tr>`;
     }).join('');

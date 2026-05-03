@@ -14,13 +14,19 @@ import pytest
 from paper_eval.aggregator import (
     AggregatedMatrix,
     CellResult,
+    _action_target_distributions,
     _aggregate_cell,
     _by_route_class,
     _class2_clarification_correctness,
     _completed_trials,
+    _outcome_match_rate,
+    _outcome_path_distribution,
     _percentile,
     _scan_history_yes_first_rate,
     _scan_ordering_applied_present_count,
+    _trial_final_action_target,
+    _trial_outcome_match,
+    _trial_outcome_path,
     aggregate,
     load_sweep_manifest,
     main,
@@ -525,3 +531,453 @@ class TestCLI:
             "--output", str(tmp_path / "out.json"),
         ])
         assert rc == 2
+
+
+# ==================================================================
+# Trajectory + final action distributions (Problem C — observation_history)
+# ==================================================================
+
+class TestTrialOutcomePath:
+    """_trial_outcome_path classifies a trial by what trajectory it took,
+    derived from observation_history (PR #149 Fix 2). Each completed trial
+    must map to exactly one canonical bucket so the per-cell distribution
+    is well-defined."""
+
+    def test_timeout_status_is_timeout_path(self):
+        assert _trial_outcome_path({"status": "timeout"}) == "timeout"
+
+    def test_empty_history_no_observation(self):
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [],
+        }) == "no_observation"
+
+    def test_class1_direct_first_route_is_class1_no_class2_block(self):
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_1"},
+                 "validation": {"validation_status": "approved"}},
+            ],
+        }) == "class1_direct"
+
+    def test_class0_direct_first_route_is_class0(self):
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_0"}},
+            ],
+        }) == "class0_direct"
+
+    def test_class2_to_class1_when_transition_target_class1(self):
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target": "CLASS_1"}},
+            ],
+        }) == "class2_to_class1"
+
+    def test_class2_to_class0_when_transition_target_class0(self):
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target": "CLASS_0"}},
+            ],
+        }) == "class2_to_class0"
+
+    def test_class2_safe_deferral_when_transition_target_safe(self):
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+            ],
+        }) == "class2_safe_deferral"
+
+    def test_class2_unresolved_when_class2_route_no_transition(self):
+        """A trial that escalated to CLASS_2 but no class2 transition
+        snapshot was recorded (e.g. trial budget ran out before the user
+        phase completed) goes to a discoverable 'unresolved' bucket so it
+        does not silently lump with safe_deferral."""
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+            ],
+        }) == "class2_unresolved"
+
+    def test_legacy_observation_payload_fallback(self):
+        """Trials from before PR #149 only have observation_payload (single
+        snapshot), no observation_history. _trial_outcome_path must still
+        classify them so historical archives can be re-aggregated."""
+        assert _trial_outcome_path({
+            "status": "completed",
+            "observation_history": [],
+            "observation_payload": {"route": {"route_class": "CLASS_1"}},
+        }) == "class1_direct"
+
+
+class TestTrialFinalActionTarget:
+    """_trial_final_action_target reads the actually-dispatched action and
+    target from the observation history's ack block. Falls back to class2
+    transition's action_hint / target_hint when no ACK fired."""
+
+    def test_timeout_returns_none_pair(self):
+        assert _trial_final_action_target({"status": "timeout"}) == ("none", "none")
+
+    def test_empty_history_returns_none_pair(self):
+        assert _trial_final_action_target({
+            "status": "completed", "observation_history": [],
+        }) == ("none", "none")
+
+    def test_ack_in_history_wins(self):
+        assert _trial_final_action_target({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_1"},
+                 "ack": {"action": "light_on", "target_device": "bedroom_light"}},
+            ],
+        }) == ("light_on", "bedroom_light")
+
+    def test_class2_transition_action_hint_when_no_ack(self):
+        """When the class2 transition recorded action_hint/target_hint but
+        no ack was published (e.g. validator rejected, or CLASS_2→
+        SAFE_DEFERRAL), the candidate's action_hint is the most informative
+        thing we can show as the 'attempted final action'."""
+        assert _trial_final_action_target({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {
+                    "transition_target": "CLASS_1",
+                    "action_hint": "light_on",
+                    "target_hint": "bedroom_light",
+                }},
+            ],
+        }) == ("light_on", "bedroom_light")
+
+    def test_class2_safe_deferral_with_no_action_returns_none_pair(self):
+        """A pure SAFE_DEFERRAL Class 2 transition does not carry
+        action_hint — the trial executed nothing actionable."""
+        assert _trial_final_action_target({
+            "status": "completed",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target": "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+            ],
+        }) == ("none", "none")
+
+    def test_newest_ack_wins_when_multiple(self):
+        """Multiple snapshots with ack — the newest one is what the system
+        actually did last."""
+        assert _trial_final_action_target({
+            "status": "completed",
+            "observation_history": [
+                {"ack": {"action": "light_on", "target_device": "bedroom_light"}},
+                {"ack": {"action": "light_off", "target_device": "living_room_light"}},
+            ],
+        }) == ("light_off", "living_room_light")
+
+
+class TestTrialOutcomeMatch:
+    """The soft 'system reached design intent' verdict per trial. True when
+    strict pass is True, or final action satisfies expected_validation."""
+
+    def test_strict_pass_always_matches(self):
+        assert _trial_outcome_match({
+            "pass_": True, "expected_validation": "approved",
+        }) is True
+        assert _trial_outcome_match({
+            "pass_": True, "expected_validation": "safe_deferral",
+        }) is True
+
+    def test_approved_intent_matches_when_actuator_action(self):
+        # Strict fail but ack reached light_on → matches.
+        assert _trial_outcome_match({
+            "pass_": False,
+            "expected_validation": "approved",
+            "observation_history": [
+                {"ack": {"action": "light_on", "target_device": "bedroom_light"}},
+            ],
+        }) is True
+        assert _trial_outcome_match({
+            "pass_": False,
+            "expected_validation": "approved",
+            "observation_history": [
+                {"ack": {"action": "light_off", "target_device": "living_room_light"}},
+            ],
+        }) is True
+
+    def test_approved_intent_does_not_match_when_no_actuation(self):
+        assert _trial_outcome_match({
+            "pass_": False,
+            "expected_validation": "approved",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target":
+                             "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+            ],
+        }) is False
+
+    def test_safe_deferral_intent_matches_when_no_actuation(self):
+        # rule_only / direct_mapping cells whose expected_validation is
+        # safe_deferral consider 'system did not actuate' as success.
+        assert _trial_outcome_match({
+            "pass_": False,
+            "expected_validation": "safe_deferral",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target":
+                             "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+            ],
+        }) is True
+
+    def test_safe_deferral_intent_does_not_match_when_actuator_fired(self):
+        # direct_mapping over-acting fails the safety intent.
+        assert _trial_outcome_match({
+            "pass_": False,
+            "expected_validation": "safe_deferral",
+            "observation_history": [
+                {"route": {"route_class": "CLASS_1"},
+                 "ack": {"action": "light_on", "target_device": "living_room_light"}},
+            ],
+        }) is False
+
+    def test_timeout_does_not_match(self):
+        assert _trial_outcome_match({
+            "status": "timeout", "pass_": False,
+            "expected_validation": "approved",
+        }) is False
+
+    def test_outcome_match_rate_none_on_empty_input(self):
+        assert _outcome_match_rate([]) is None
+
+
+class TestDistributions:
+    """Per-cell distributions over a list of trials. Canonical buckets are
+    always present (with 0 when absent) so digest tables can render
+    consistent columns across cells."""
+
+    def test_outcome_path_distribution_canonical_keys_present(self):
+        d = _outcome_path_distribution([])
+        for key in (
+            "class0_direct", "class1_direct", "class2_to_class1",
+            "class2_to_class0", "class2_safe_deferral",
+            "class2_unresolved", "no_observation", "timeout",
+        ):
+            assert key in d
+            assert d[key] == 0
+
+    def test_outcome_path_distribution_counts_correctly(self):
+        trials = [
+            {"status": "completed", "observation_history": [
+                {"route": {"route_class": "CLASS_1"}}]},
+            {"status": "completed", "observation_history": [
+                {"route": {"route_class": "CLASS_1"}}]},
+            {"status": "completed", "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target":
+                            "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}}]},
+            {"status": "timeout"},
+        ]
+        d = _outcome_path_distribution(trials)
+        assert d["class1_direct"] == 2
+        assert d["class2_safe_deferral"] == 1
+        assert d["timeout"] == 1
+        # other buckets stay at zero
+        assert d["class0_direct"] == 0
+
+    def test_action_target_distributions_canonical_keys_present(self):
+        actions, targets = _action_target_distributions([])
+        for key in ("light_on", "light_off", "safe_deferral", "none"):
+            assert key in actions
+            assert actions[key] == 0
+        for key in ("living_room_light", "bedroom_light", "none"):
+            assert key in targets
+            assert targets[key] == 0
+
+    def test_action_target_distributions_counts_acks(self):
+        trials = [
+            {"status": "completed", "observation_history": [
+                {"ack": {"action": "light_on", "target_device": "bedroom_light"}}]},
+            {"status": "completed", "observation_history": [
+                {"ack": {"action": "light_on", "target_device": "living_room_light"}}]},
+            {"status": "timeout"},
+        ]
+        actions, targets = _action_target_distributions(trials)
+        assert actions["light_on"] == 2
+        assert actions["none"] == 1
+        assert targets["bedroom_light"] == 1
+        assert targets["living_room_light"] == 1
+        assert targets["none"] == 1
+
+
+class TestAggregateCellWithDistributions:
+    """_aggregate_cell now records outcome_path / final_action / final_target
+    distributions on the CellResult. Distributions are computed over ALL
+    trials (incl. timeouts) so the histogram sums to the cell's
+    requested_trials — invariant the digest CSV depends on."""
+
+    def test_cell_result_carries_distributions(self):
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "llm_assisted",
+            "scenarios": ["s.json"],
+            "trials_snapshot": [
+                {"status": "completed", "pass_": True,
+                 "observed_route_class": "CLASS_1",
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_1"},
+                      "validation": {"validation_status": "approved"},
+                      "ack": {"action": "light_on", "target_device": "bedroom_light"}},
+                 ]},
+                {"status": "completed", "pass_": False,
+                 "observed_route_class": "CLASS_2",
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_2"}},
+                     {"class2": {"transition_target":
+                                  "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+                 ]},
+                {"status": "timeout", "pass_": False},
+            ],
+        }
+        result = _aggregate_cell(cell_dict)
+        # Strict pass_rate unchanged (1 of 2 completed trials passed).
+        assert result.pass_rate == 0.5
+        # Distributions cover every trial (3 total).
+        assert result.outcome_path_distribution["class1_direct"] == 1
+        assert result.outcome_path_distribution["class2_safe_deferral"] == 1
+        assert result.outcome_path_distribution["timeout"] == 1
+        path_total = sum(result.outcome_path_distribution.values())
+        assert path_total == 3
+        assert result.final_action_distribution["light_on"] == 1
+        assert result.final_action_distribution["none"] == 2
+        assert result.final_target_distribution["bedroom_light"] == 1
+        assert result.final_target_distribution["none"] == 2
+
+    def test_cell_result_carries_outcome_match_rate(self):
+        """outcome_match_rate is the soft 'system reached design intent'
+        verdict — True when strict pass, OR (expected approved AND final
+        action is light_on/off), OR (expected safe_deferral AND no
+        actuation)."""
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "llm_assisted",
+            "scenarios": [],
+            "trials_snapshot": [
+                # strict pass — counts toward outcome_match
+                {"status": "completed", "pass_": True,
+                 "expected_validation": "approved",
+                 "observation_history": [
+                     {"ack": {"action": "light_on", "target_device": "bedroom_light"}},
+                 ]},
+                # strict fail (CLASS_2 route observed) but reached actuation
+                # via class2_to_class1 transition — counts toward outcome_match
+                {"status": "completed", "pass_": False,
+                 "expected_validation": "approved",
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_2"}},
+                     {"class2": {"transition_target": "CLASS_1"},
+                      "ack": {"action": "light_on", "target_device": "living_room_light"}},
+                 ]},
+                # strict fail and no actuation — does NOT count
+                {"status": "completed", "pass_": False,
+                 "expected_validation": "approved",
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_2"}},
+                     {"class2": {"transition_target":
+                                  "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+                 ]},
+                # timeout — does NOT count
+                {"status": "timeout", "pass_": False,
+                 "expected_validation": "approved"},
+            ],
+        }
+        result = _aggregate_cell(cell_dict)
+        # 1 strict pass + 1 reached-actuation-via-class2 → 2 / 4 = 0.5
+        assert result.outcome_match_rate == 0.5
+        # Strict pass_rate disagrees: only 1 / 3 completed = 0.3333
+        assert result.pass_rate == round(1 / 3, 4)
+
+    def test_cell_result_outcome_match_safe_deferral_intent(self):
+        """For a cell whose expected_validation is safe_deferral
+        (e.g. EXT_A_DIRECT_MAPPING, EXT_A_RULE_ONLY where the safety-correct
+        behaviour is to NOT actuate), outcome_match counts trials where
+        the system did not produce a catalog action."""
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "rule_only",
+            "scenarios": [],
+            "trials_snapshot": [
+                # strict pass: routed CLASS_2 + safe_deferral
+                {"status": "completed", "pass_": True,
+                 "expected_validation": "safe_deferral",
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_2"}},
+                     {"class2": {"transition_target":
+                                  "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+                 ]},
+                # strict fail (routed CLASS_1, table over-acted) — no
+                # safe_deferral observed → outcome_match=False
+                {"status": "completed", "pass_": False,
+                 "expected_validation": "safe_deferral",
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_1"},
+                      "ack": {"action": "light_on", "target_device": "living_room_light"}},
+                 ]},
+            ],
+        }
+        result = _aggregate_cell(cell_dict)
+        assert result.outcome_match_rate == 0.5
+
+    def test_cell_result_outcome_match_serialises(self):
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "llm_assisted",
+            "scenarios": [],
+            "trials_snapshot": [
+                {"status": "completed", "pass_": True,
+                 "expected_validation": "approved",
+                 "observation_history": [
+                     {"ack": {"action": "light_on", "target_device": "bedroom_light"}},
+                 ]},
+            ],
+        }
+        cells = [_aggregate_cell(cell_dict)]
+        agg = AggregatedMatrix(
+            matrix_version="v1", matrix_path="",
+            sweep_started_at_ms=0, sweep_finished_at_ms=0,
+            anchor_commits={}, cells=cells,
+        )
+        assert agg.to_dict()["cells"][0]["outcome_match_rate"] == 1.0
+
+    def test_cell_result_distributions_serialise(self):
+        """Distributions must round-trip through to_dict so the
+        aggregated_matrix.json carries them for the digest."""
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "rule_only",
+            "scenarios": [],
+            "trials_snapshot": [
+                {"status": "completed", "pass_": True,
+                 "observation_history": [
+                     {"route": {"route_class": "CLASS_2"}},
+                     {"class2": {"transition_target":
+                                  "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+                 ]},
+            ],
+        }
+        cells = [_aggregate_cell(cell_dict)]
+        agg = AggregatedMatrix(
+            matrix_version="v1", matrix_path="",
+            sweep_started_at_ms=0, sweep_finished_at_ms=0,
+            anchor_commits={}, cells=cells,
+        )
+        serialised = agg.to_dict()
+        cell_out = serialised["cells"][0]
+        assert "outcome_path_distribution" in cell_out
+        assert cell_out["outcome_path_distribution"]["class2_safe_deferral"] == 1
+        assert "final_action_distribution" in cell_out
+        assert "final_target_distribution" in cell_out

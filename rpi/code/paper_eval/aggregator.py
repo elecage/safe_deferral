@@ -57,6 +57,21 @@ class CellResult:
     scan_ordering_applied_present_count: int
     skipped: bool
     incomplete: bool
+    # Breakdown derived from each trial's observation_history
+    # (PR #149's Fix 2 enables this). The strict pass_rate above hides
+    # whether a 'fail' trial reached a useful outcome through CLASS_2;
+    # these distributions surface the actual trajectory so a paper-honest
+    # analysis can answer 'which path did the trial take' and 'what action
+    # did the system finally execute' alongside the binary verdict.
+    outcome_path_distribution: dict = field(default_factory=dict)  # path -> count
+    final_action_distribution: dict = field(default_factory=dict)  # action -> count
+    final_target_distribution: dict = field(default_factory=dict)  # target -> count
+    # Soft verdict: did each trial reach the action prescribed by the
+    # cell's expected_validation, regardless of which route_class got
+    # there? A cell where strict pass_rate=0 but outcome_match_rate=1.0
+    # is a system that worked as designed through CLASS_2 clarification.
+    # None when n_trials == 0 (no trials to score).
+    outcome_match_rate: Optional[float] = None
     notes: list = field(default_factory=list)  # human-readable diagnostics
 
 
@@ -106,6 +121,10 @@ class AggregatedMatrix:
                         c.scan_ordering_applied_present_count,
                     "skipped": c.skipped,
                     "incomplete": c.incomplete,
+                    "outcome_path_distribution": dict(c.outcome_path_distribution),
+                    "final_action_distribution": dict(c.final_action_distribution),
+                    "final_target_distribution": dict(c.final_target_distribution),
+                    "outcome_match_rate": c.outcome_match_rate,
                     "notes": c.notes,
                 }
                 for c in self.cells
@@ -216,6 +235,191 @@ def _scan_ordering_applied_present_count(trials: list) -> int:
     return n
 
 
+def _trial_outcome_path(trial: dict) -> str:
+    """Classify what trajectory this trial actually took, derived from
+    observation_history (PR #149 Fix 2). The strict pass_/observed_route_class
+    pair only tells you 'expected==observed'; this label tells you whether
+    the system reached a CLASS_1 actuation directly, escalated to CLASS_2 and
+    transitioned back to CLASS_1, escalated and stayed deferred, or never
+    produced an observation at all.
+
+    Categories (mutually exclusive, every completed trial maps to exactly
+    one):
+
+      timeout                 - trial timed out before any snapshot arrived
+      no_observation          - completed but observation_history is empty
+                                (defensive — should not happen in healthy runs)
+      class0_direct           - CLASS_0 emergency from the first snapshot
+      class1_direct           - CLASS_1 from the first snapshot (no CLASS_2
+                                escalation in the path)
+      class2_to_class1        - escalated to CLASS_2, ended with class2
+                                transition_target=CLASS_1 (i.e. recovered to
+                                a Class 1 actuation through clarification)
+      class2_to_class0        - escalated to CLASS_2, ended with class2
+                                transition_target=CLASS_0 (emergency
+                                confirmation through clarification)
+      class2_safe_deferral    - escalated to CLASS_2 and stayed deferred
+                                (transition_target=SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION)
+      class2_unresolved       - escalated to CLASS_2 but no terminal class2
+                                snapshot recorded (e.g. trial ended on initial
+                                routing snapshot before class2 update)
+
+    Operates on observation_history; falls back to observation_payload only
+    when history is empty so the function works on legacy trials too.
+    """
+    if trial.get("status") == "timeout":
+        return "timeout"
+    history = trial.get("observation_history") or []
+    if not history:
+        # Legacy fallback: derive from single-snapshot observation_payload.
+        op = trial.get("observation_payload")
+        history = [op] if isinstance(op, dict) else []
+    if not history:
+        return "no_observation"
+    first = history[0]
+    first_route = ((first.get("route") or {}).get("route_class")
+                   or first.get("route_class"))
+    if first_route == "CLASS_0":
+        return "class0_direct"
+    # Find the last class2 block in the history (post-transition snapshot).
+    last_class2 = None
+    for snap in history:
+        c2 = snap.get("class2") or {}
+        if c2.get("transition_target"):
+            last_class2 = c2
+    if first_route == "CLASS_1" and last_class2 is None:
+        return "class1_direct"
+    # If we reached CLASS_2 escalation, classify by transition target.
+    if last_class2 is not None:
+        target = last_class2.get("transition_target")
+        if target == "CLASS_1":
+            return "class2_to_class1"
+        if target == "CLASS_0":
+            return "class2_to_class0"
+        if target == "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION":
+            return "class2_safe_deferral"
+        # Unknown transition_target value — leave a discoverable bucket
+        # rather than silently lumping into class2_unresolved.
+        return f"class2_unknown:{target}"
+    # CLASS_2 in route but no class2 transition snapshot recorded.
+    if first_route == "CLASS_2":
+        return "class2_unresolved"
+    return "unknown"
+
+
+def _trial_final_action_target(trial: dict) -> tuple:
+    """Return (final_action, final_target_device) for a trial — the action
+    the system actually dispatched, derived from observation_history's ACK
+    block. Falls back to the class2 candidate's action_hint / target_hint
+    when no ACK was published, then to None when nothing was decided.
+
+    Returns ('none', 'none') for trials that timed out or where no
+    actionable snapshot was published; the strings are kept literal so they
+    appear as histogram buckets alongside light_on / light_off without
+    introducing a separate empty bucket.
+    """
+    if trial.get("status") == "timeout":
+        return ("none", "none")
+    history = trial.get("observation_history") or []
+    if not history:
+        op = trial.get("observation_payload")
+        history = [op] if isinstance(op, dict) else []
+    # Walk newest-first looking for an actionable snapshot.
+    for snap in reversed(history):
+        ack = snap.get("ack") or {}
+        if ack.get("action") and ack.get("target_device"):
+            return (ack["action"], ack["target_device"])
+        c2 = snap.get("class2") or {}
+        # class2 transition records the candidate's action_hint/target_hint
+        # before validator/dispatcher run; useful when ACK didn't fire
+        # (e.g. validator rejected, or transition_target=SAFE_DEFERRAL).
+        if c2.get("action_hint") and c2.get("target_hint"):
+            return (c2["action_hint"], c2["target_hint"])
+    return ("none", "none")
+
+
+def _outcome_path_distribution(trials: list) -> dict:
+    """Bucket trials by _trial_outcome_path. Every bucket the function can
+    emit appears in the result with at least 0; the canonical buckets are
+    always present so downstream rendering can show consistent columns."""
+    canonical = {
+        "class0_direct": 0,
+        "class1_direct": 0,
+        "class2_to_class1": 0,
+        "class2_to_class0": 0,
+        "class2_safe_deferral": 0,
+        "class2_unresolved": 0,
+        "no_observation": 0,
+        "timeout": 0,
+    }
+    out = dict(canonical)
+    for t in trials:
+        label = _trial_outcome_path(t)
+        out[label] = out.get(label, 0) + 1
+    return out
+
+
+_ACTUATOR_ACTIONS: frozenset[str] = frozenset(("light_on", "light_off"))
+
+
+def _trial_outcome_match(trial: dict) -> bool:
+    """Soft 'did the system reach the action this cell's expected_validation
+    prescribes' verdict, complementary to the strict expected_route_class
+    pass_. Outcome match is True when:
+
+    - the trial's strict pass_ is True (covers every cell type), OR
+    - expected_validation == 'approved' AND the trial's final action is a
+      catalog actuation (light_on / light_off) — i.e. the system reached
+      the dispatch goal even if it took the CLASS_2 clarification path
+      instead of the strict CLASS_1-direct path the matrix expected, OR
+    - expected_validation == 'safe_deferral' AND the trial's final action
+      is none / safe_deferral — i.e. the system correctly avoided
+      autonomous actuation regardless of which route the matrix expected.
+
+    Otherwise False. Operators get a 'system worked as designed' rate
+    alongside the strict pass_rate without conflating the two; a cell
+    where pass_rate=0 but outcome_match_rate=1.0 is a system that
+    consistently reached design intent through the CLASS_2 path.
+    """
+    if trial.get("pass_"):
+        return True
+    expected_validation = trial.get("expected_validation")
+    final_action, _ = _trial_final_action_target(trial)
+    if expected_validation == "approved":
+        return final_action in _ACTUATOR_ACTIONS
+    if expected_validation == "safe_deferral":
+        return final_action in ("none", "safe_deferral")
+    return False
+
+
+def _outcome_match_rate(trials: list) -> Optional[float]:
+    """Fraction of trials in this list that reach the design-intent action.
+    Returns None when the list is empty so the digest renders an em-dash
+    rather than 0/0=NaN."""
+    if not trials:
+        return None
+    matched = sum(1 for t in trials if _trial_outcome_match(t))
+    return round(matched / len(trials), 4)
+
+
+def _action_target_distributions(trials: list) -> tuple:
+    """Bucket trials by (final_action, final_target_device). Returns the
+    two histograms separately so a CSV column for each is straightforward.
+    Canonical buckets included with 0 so absent paper-eval actions still
+    render as zero-rows rather than disappear from the table."""
+    action_canon = {"light_on": 0, "light_off": 0, "safe_deferral": 0, "none": 0}
+    target_canon = {
+        "living_room_light": 0, "bedroom_light": 0, "none": 0,
+    }
+    actions = dict(action_canon)
+    targets = dict(target_canon)
+    for t in trials:
+        action, target = _trial_final_action_target(t)
+        actions[action] = actions.get(action, 0) + 1
+        targets[target] = targets.get(target, 0) + 1
+    return actions, targets
+
+
 def _class2_clarification_correctness(trials: list) -> Optional[float]:
     """For trials whose expected_route_class is CLASS_2, compute the
     fraction that ALSO routed to CLASS_2 AND emitted a clarification_payload
@@ -271,6 +475,14 @@ def _aggregate_cell(cell_dict: dict) -> CellResult:
     ]
     yes_first_rate, scan_history_count = _scan_history_yes_first_rate(completed)
 
+    # Distributions consider every trial (not just completed) so timeouts
+    # are visible — they're part of the cell's actual behaviour and would
+    # otherwise disappear from the picture.
+    all_trials = list(cell_dict.get("trials_snapshot") or [])
+    outcome_paths = _outcome_path_distribution(all_trials)
+    final_actions, final_targets = _action_target_distributions(all_trials)
+    outcome_match_rate_val = _outcome_match_rate(all_trials)
+
     return CellResult(
         cell_id=cell_dict.get("cell_id", "<unknown>"),
         comparison_condition=cell_dict.get("comparison_condition"),
@@ -288,6 +500,10 @@ def _aggregate_cell(cell_dict: dict) -> CellResult:
         ),
         skipped=bool(cell_dict.get("skipped")),
         incomplete=bool(cell_dict.get("incomplete")),
+        outcome_path_distribution=outcome_paths,
+        final_action_distribution=final_actions,
+        final_target_distribution=final_targets,
+        outcome_match_rate=outcome_match_rate_val,
         notes=notes,
     )
 

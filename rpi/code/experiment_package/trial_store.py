@@ -253,6 +253,34 @@ class TrialStore:
                 observation.get("ingest_timestamp_ms") or _route.get("timestamp_ms")
             )
 
+            # Derive latency_ms as the trial's full wall time. The runner's
+            # 'best match' observation is sometimes a post-transition
+            # snapshot whose own ingest_timestamp_ms equals the
+            # post-transition publish time (not the original trial publish),
+            # which collapses the diff to ~0 ms for CLASS_2-escalated
+            # trials. Walk observation_history to recover the true span:
+            # earliest ingest among all snapshots, latest snapshot_ts.
+            ingest_candidates = []
+            snap_candidates = []
+            for snap in trial.observation_history or []:
+                if not isinstance(snap, dict):
+                    continue
+                snap_route = snap.get("route") or {}
+                snap_ingest = (
+                    snap.get("ingest_timestamp_ms")
+                    or snap_route.get("timestamp_ms")
+                )
+                snap_ts = (
+                    snap.get("snapshot_ts_ms") or snap.get("generated_at_ms")
+                )
+                if snap_ingest:
+                    ingest_candidates.append(int(snap_ingest))
+                if snap_ts:
+                    snap_candidates.append(int(snap_ts))
+            if ingest_candidates and snap_candidates:
+                trial.ingest_timestamp_ms = min(ingest_candidates)
+                trial.snapshot_ts_ms = max(snap_candidates)
+
             if trial.snapshot_ts_ms and trial.ingest_timestamp_ms:
                 trial.latency_ms = float(
                     trial.snapshot_ts_ms - trial.ingest_timestamp_ms
