@@ -356,10 +356,16 @@ class TestEndToEnd:
 
         csv_path, md_path = write_digest(agg_dict, tmp_path / "digest",
                                          timestamp="t")
-        # CSV: 12 cells + header
+        # CSV: 12 cells + header (10 ran with pass_rate=1.0000; the 2
+        # MULTI_TURN cells were policy-skipped → empty pass_rate).
         rows = list(csv.DictReader(csv_path.open("r", encoding="utf-8")))
         assert len(rows) == 12
-        assert all(r["pass_rate"] == "1.0000" for r in rows)
+        ran = [r for r in rows if r["skipped"] == "false"]
+        skipped = [r for r in rows if r["skipped"] == "true"]
+        assert len(ran) == 10
+        assert len(skipped) == 2
+        assert all(r["pass_rate"] == "1.0000" for r in ran)
+        assert all(r["pass_rate"] == "" for r in skipped)
         # Markdown contains all three sub-grids and BASELINE row.
         md = md_path.read_text(encoding="utf-8")
         assert "BASELINE" in md
