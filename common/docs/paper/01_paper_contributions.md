@@ -34,6 +34,13 @@ Accordingly, the system is designed so that:
 - safe deferral is preferred over unsafe autonomous action,
 - and sensitive actuation is structurally constrained through escalation, approval, ACK verification, and audit logging.
 
+The architectural intuition behind this split is **perception scales, authority enumerates**:
+
+- the perception layer (LLM-based intent recovery) needs to handle inputs the system was not specifically programmed for — new event codes, new context combinations, new device hints — because assistive deployments accumulate novel input configurations over time;
+- the authority layer (policy router + deterministic validator + caregiver escalation + actuator catalog) is intentionally enumerated and audit-reviewable so that the safety boundary remains inspectable as the perception layer grows.
+
+This is why deterministic-only modes are not the right baseline to *replace* the LLM with — they are the right baseline to *bound* it.
+
 ---
 
 ## 3. Why This Is a Meaningful Research Problem
@@ -72,10 +79,13 @@ The contribution is not merely that an LLM is used, but that it is used specific
 - context matters,
 - and purely rule-based direct mapping would be too brittle or too limited.
 
+The "too brittle / too limited" wording deserves to be made concrete. In a deterministic-only baseline, every supported intent must be enumerated up front: every button event code, every context combination that should trigger an action, every device target. An assistive deployment cannot enumerate exhaustively — new sensors, new event patterns, and new devices keep arriving as the user's environment changes. **The LLM's role is to absorb that input-side variability so the system can keep operating without code changes when the input space grows.** The deterministic validator and actuator catalog still decide what is admissible; the LLM does not enlarge what the system is allowed to do.
+
 This contribution is strongest when framed as:
 
-- **bounded LLM-based intent recovery**,
-- rather than free-form autonomous decision making.
+- **bounded LLM-based intent recovery whose value is perception-side scalability**,
+- rather than free-form autonomous decision making,
+- and explicitly *not* as latency or efficiency improvement (see §7).
 
 ### Contribution 2. Policy- and schema-constrained actuation authority separation
 The paper proposes an authority-separated architecture in which:
@@ -91,6 +101,8 @@ Instead, it places **system-level deterministic constraints** around model outpu
 The main claim here is:
 
 > sensitive or policy-restricted physical actions are not controlled by model preference, but by explicit architectural boundaries.
+
+The complement to Contribution 1 is essential here: **perception is allowed to generalize precisely because authority is enumerated**. If the LLM proposes a novel device target that the actuator catalog does not list, the validator rejects it; if the LLM infers an emergency, the policy router still requires the canonical emergency-event topic; if the LLM tries to bypass caregiver review, the manual-confirmation path still gates the action. The two layers are not redundant — they are the load-bearing pieces of the safety story.
 
 ### Contribution 3. Safe deferral and caregiver-mediated handling of sensitive actuation
 The paper introduces a structured treatment of unresolved or sensitive decisions through:
@@ -216,6 +228,17 @@ Under the current architecture interpretation, it should be presented as:
 - caregiver-mediated,
 - and structurally blocked from unrestricted autonomous execution.
 
+### 7.4 Avoid claiming the LLM is faster or more efficient than rule-based intent recovery
+The paper-eval data (matrix_v1 sweep on M1 MacBook with real Ollama llama3.2, 2026-05-03) shows the opposite of a latency advantage:
+
+- `direct_mapping` (rule-only baseline): ~1 ms median, ~1 ms p95
+- `rule_only` (rule + context heuristic): ~1 ms median, ~1 ms p95
+- `llm_assisted` (real LLM call): ~1.6 s median, ~4.8 s p95
+
+The LLM-assisted path is roughly three orders of magnitude slower than the deterministic baselines on the same input. **The paper must not claim throughput, latency, or efficiency benefits for the LLM.** The LLM's value is perception-side scalability — handling input configurations that the deterministic table did not anticipate — not response time.
+
+The relevant comparison is therefore not "which mode is faster" but "what happens when the deployed input space drifts beyond what the deterministic table enumerates": deterministic modes degrade to safe-deferral (their fallback), while LLM-assisted continues to interpret the new context within the existing actuator catalog. The Phase C measurements above were made on input *that the deterministic table was specifically designed for* — a fair comparison of robustness under novel input requires a separate experiment package (see required_experiments §5.8).
+
 ---
 
 ## 8. Reviewer-Facing Value Proposition
@@ -265,6 +288,11 @@ Accordingly, the most meaningful doorlock-oriented results are:
 - approval path correctness,
 - ACK and audit completeness.
 
+### Extensibility-specific support value
+Contribution 1's perception-side scalability claim must be backed by an experiment that explicitly varies the input space rather than just the intent recovery mode on the same input. The required experiments document (§5.8) defines this — three axes of novel input (event_code, context combination, device-target inference), each tested under all three intent-recovery modes (direct_mapping / rule_only / llm_assisted).
+
+The expected pattern (deterministic modes degrade to safe-deferral while llm_assisted maintains a usable pass rate within the existing actuator catalog) is the load-bearing evidence for "perception scales, authority enumerates" in §2 and §4.
+
 ---
 
 ## 10. Recommended One-Sentence Thesis-Level Framing
@@ -276,6 +304,9 @@ This paper proposes a policy-constrained assistive smart-home architecture in wh
 
 ### Alternative version emphasizing doorlock as the representative case
 This paper shows how LLM-based intent recovery can improve interaction for users with constrained alternative input, while preventing unsafe autonomous execution of sensitive smart-home actions through policy-bounded validation and caregiver-mediated control.
+
+### Alternative version emphasizing perception-side scalability (recommended after extensibility experiment lands)
+This paper proposes an architecture where a local LLM extends the perception layer of an assistive smart home to handle input configurations the deterministic policy was not enumerated for, while the deterministic policy and validator continue to bound what the system is allowed to do — separating *perception scales* from *authority enumerates* so that operator-side extensibility does not translate into actuation-side risk.
 
 ---
 
