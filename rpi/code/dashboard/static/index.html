@@ -685,11 +685,16 @@
           <div class="card mb-20">
             <div class="card-title">Table 1 — Policy-routing Results (패키지 A)</div>
             <div id="pkg-a-metrics-grid" class="metrics-grid" style="margin-bottom:16px"></div>
+            <div class="text-dim" style="font-size:11px;margin-bottom:8px">
+              <b>Pass</b>는 strict (expected_route_class == observed_route_class). <b>Match</b>는 soft — system이 expected_validation에 맞는 action을 결국 수행했는지 (Class 2 경유 포함). <b>Final action</b>은 실제 ack로 dispatch된 action·target.
+            </div>
             <div style="overflow-x:auto">
               <table id="pkg-a-table">
                 <thead><tr>
                   <th>#</th><th>시나리오</th><th>폴트</th><th>조건</th>
-                  <th>기대</th><th>관찰</th><th>지연(ms)</th><th>Pass</th>
+                  <th>기대</th><th>관찰</th>
+                  <th>경로</th><th>Final action</th>
+                  <th>지연(ms)</th><th>Pass</th><th>Match</th>
                 </tr></thead>
                 <tbody id="pkg-a-tbody"></tbody>
               </table>
@@ -829,15 +834,20 @@
 
       <!-- Per-cell progress table -->
       <div class="card mb-20">
-        <div class="card-title">셀별 진행률</div>
+        <div class="card-title">셀별 진행률 + 결과 분석</div>
+        <div class="text-dim" style="font-size:11px;margin-bottom:8px">
+          sweep이 끝나면 strict pass_rate 외에 trajectory(실제 어느 경로로 갔는지)와 final action(시스템이 무엇을 실행했는지) 분포가 표시됩니다.
+        </div>
         <div style="overflow-x:auto">
           <table>
             <thead><tr>
               <th>#</th><th>cell_id</th><th>상태</th>
-              <th>진행</th><th>비고</th>
+              <th>진행</th><th>pass</th><th>match</th>
+              <th>trajectory</th><th>final action</th>
+              <th>비고</th>
             </tr></thead>
             <tbody id="pe-cells-tbody">
-              <tr><td colspan="5" class="empty">sweep을 시작하면 여기에 12개 셀이 나타납니다.</td></tr>
+              <tr><td colspan="9" class="empty">sweep을 시작하면 여기에 셀이 나타납니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1229,13 +1239,44 @@ async function paperEvalRefresh() {
     }
     if (!r.ok) return;
     const s = await r.json();
-    _renderPaperEvalState(s);
+    // Once the sweep finishes, the aggregated_matrix.json carries the
+    // observation_history-derived breakdowns (trajectory + final action
+    // + final target distributions). Fetch it lazily so trial-grade
+    // analysis is visible alongside the strict pass/fail.
+    let agg = null;
+    if (s.status === 'completed' && s.aggregated_path) {
+      try {
+        const ar = await fetch('/paper_eval/sweeps/current/aggregated');
+        if (ar.ok) agg = await ar.json();
+      } catch (e) { /* lazy fetch failure is non-fatal */ }
+    }
+    _renderPaperEvalState(s, agg);
   } catch (e) {
     // network blip — quietly ignore; next poll will retry
   }
 }
 
-function _renderPaperEvalState(s) {
+// Compact histogram → 'k1=n1, k2=n2' string. Zero-count buckets are
+// dropped so cells stay short. Used for the per-cell trajectory and
+// final-action columns.
+function _peFmtDist(dist, keys) {
+  if (!dist) return '—';
+  const parts = [];
+  for (const k of keys) {
+    const v = dist[k] || 0;
+    if (v) parts.push(`${k}=${v}`);
+  }
+  return parts.length ? parts.join(', ') : '—';
+}
+
+const _PE_PATH_KEYS = [
+  'class1_direct', 'class2_to_class1', 'class2_to_class0',
+  'class2_safe_deferral', 'class2_unresolved',
+  'class0_direct', 'timeout', 'no_observation',
+];
+const _PE_ACTION_KEYS = ['light_on', 'light_off', 'safe_deferral', 'none'];
+
+function _renderPaperEvalState(s, agg) {
   const status = s.status || 'idle';
   const statusEl = document.getElementById('pe-status');
   statusEl.textContent = status;
@@ -1263,10 +1304,19 @@ function _renderPaperEvalState(s) {
     (status === 'running' || status === 'cancelling');
   document.getElementById('btn-pe-cancel').disabled = (status !== 'running');
 
+  // Build a cell_id -> aggregated entry map so the per-cell row can show
+  // strict pass + trajectory + final action together.
+  const aggByCell = {};
+  if (agg && Array.isArray(agg.cells)) {
+    for (const a of agg.cells) {
+      aggByCell[a.cell_id] = a;
+    }
+  }
+
   // Per-cell table
   const tbody = document.getElementById('pe-cells-tbody');
   if (cells.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">${
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">${
       status === 'idle' ? 'sweep을 시작하면 여기에 셀이 나타납니다.' : '셀 정보 대기 중…'
     }</td></tr>`;
   } else {
@@ -1282,11 +1332,26 @@ function _renderPaperEvalState(s) {
       const note = c.skipped || c.skip_reason
         ? `<span style="color:var(--orange)">skipped: ${c.skip_reason || ''}</span>`
         : (c.incomplete ? '<span style="color:var(--orange)">incomplete</span>' : '');
+      const aggCell = aggByCell[c.cell_id];
+      const passCell = (aggCell && aggCell.pass_rate != null)
+        ? aggCell.pass_rate.toFixed(4) : '—';
+      const matchCell = (aggCell && aggCell.outcome_match_rate != null)
+        ? aggCell.outcome_match_rate.toFixed(4) : '—';
+      const traj = aggCell
+        ? _peFmtDist(aggCell.outcome_path_distribution, _PE_PATH_KEYS)
+        : '—';
+      const finalAction = aggCell
+        ? _peFmtDist(aggCell.final_action_distribution, _PE_ACTION_KEYS)
+        : '—';
       return `<tr>
         <td>${idx}</td>
         <td><code>${c.cell_id}</code></td>
         <td><span style="color:${stColor}">${c.status}</span></td>
         <td>${progress}</td>
+        <td style="font-variant-numeric:tabular-nums" title="strict pass: expected_route_class == observed_route_class">${passCell}</td>
+        <td style="font-variant-numeric:tabular-nums" title="outcome match: system reached the action prescribed by expected_validation, regardless of which route_class got there">${matchCell}</td>
+        <td style="font-size:11px">${traj}</td>
+        <td style="font-size:11px">${finalAction}</td>
         <td>${note}</td>
       </tr>`;
     }).join('');
@@ -2623,6 +2688,14 @@ function renderPkgA(metrics, trials) {
     const passIcon = t.status === 'pending' ? '⏳' : t.pass_ ? '✅' : '❌';
     const expColor = ROUTE_COLORS[t.expected_route_class] || 'var(--text)';
     const obsColor = ROUTE_COLORS[t.observed_route_class] || 'var(--text-dim)';
+    const path = _trialOutcomePath(t);
+    const [act, tgt] = _trialFinalActionTarget(t);
+    const finalAction = (act === 'none' && tgt === 'none')
+      ? '—' : `${act} ${tgt !== 'none' ? '→ ' + tgt : ''}`;
+    const matchVal = _trialOutcomeMatch(t);
+    const matchIcon = t.status === 'pending' ? '⏳'
+      : matchVal === null ? '—'
+      : matchVal ? '✅' : '❌';
     return `<tr style="cursor:pointer" onclick="togglePkgATrialDetail(${i})"
                 title="클릭하여 상세 보기">
       <td>${i+1}</td>
@@ -2631,13 +2704,81 @@ function renderPkgA(metrics, trials) {
       <td style="font-size:11px;color:var(--text-dim)">${t.comparison_condition||'—'}</td>
       <td style="color:${expColor};font-weight:700">${t.expected_route_class}</td>
       <td style="color:${obsColor};font-weight:700">${t.observed_route_class||'…'}</td>
+      <td style="font-size:11px">${path}</td>
+      <td style="font-size:11px">${finalAction}</td>
       <td style="font-family:monospace">${t.latency_ms != null ? Math.round(t.latency_ms)+'ms' : '—'}</td>
-      <td>${passIcon}</td>
+      <td title="strict pass: expected_route_class == observed_route_class">${passIcon}</td>
+      <td title="outcome match: system reached the action prescribed by expected_validation, regardless of route">${matchIcon}</td>
     </tr>
     <tr id="pkg-a-detail-${i}" style="display:none;background:var(--surface2)">
-      <td colspan="8" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
+      <td colspan="11" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+}
+
+// ── Per-trial derivations from observation_history ───────────
+// Mirror aggregator._trial_outcome_path / _trial_final_action_target /
+// _trial_outcome_match logic so per-trial rows in the 결과분석 tab show
+// the same trajectory + outcome_match the per-cell aggregate uses.
+function _trialOutcomePath(t) {
+  if (t.status === 'timeout') return 'timeout';
+  let history = t.observation_history || [];
+  if ((!history || history.length === 0) && t.observation_payload) {
+    history = [t.observation_payload];
+  }
+  if (!history || history.length === 0) return 'no_observation';
+  const first = history[0] || {};
+  const firstRoute = (first.route && first.route.route_class) || first.route_class;
+  if (firstRoute === 'CLASS_0') return 'class0_direct';
+  let lastClass2 = null;
+  for (const snap of history) {
+    const c2 = snap.class2;
+    if (c2 && c2.transition_target) lastClass2 = c2;
+  }
+  if (firstRoute === 'CLASS_1' && !lastClass2) return 'class1_direct';
+  if (lastClass2) {
+    const target = lastClass2.transition_target;
+    if (target === 'CLASS_1') return 'class2_to_class1';
+    if (target === 'CLASS_0') return 'class2_to_class0';
+    if (target === 'SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION') return 'class2_safe_deferral';
+    return `class2_unknown:${target}`;
+  }
+  if (firstRoute === 'CLASS_2') return 'class2_unresolved';
+  return 'unknown';
+}
+
+function _trialFinalActionTarget(t) {
+  if (t.status === 'timeout') return ['none', 'none'];
+  let history = t.observation_history || [];
+  if ((!history || history.length === 0) && t.observation_payload) {
+    history = [t.observation_payload];
+  }
+  for (let i = history.length - 1; i >= 0; i--) {
+    const snap = history[i] || {};
+    const ack = snap.ack;
+    if (ack && ack.action && ack.target_device) {
+      return [ack.action, ack.target_device];
+    }
+    const c2 = snap.class2;
+    if (c2 && c2.action_hint && c2.target_hint) {
+      return [c2.action_hint, c2.target_hint];
+    }
+  }
+  return ['none', 'none'];
+}
+
+function _trialOutcomeMatch(t) {
+  if (t.status === 'pending') return null;
+  if (t.pass_) return true;
+  const ev = t.expected_validation;
+  const [action] = _trialFinalActionTarget(t);
+  if (ev === 'approved') {
+    return action === 'light_on' || action === 'light_off';
+  }
+  if (ev === 'safe_deferral') {
+    return action === 'none' || action === 'safe_deferral';
+  }
+  return false;
 }
 
 // ── Per-trial detail row ────────────────────

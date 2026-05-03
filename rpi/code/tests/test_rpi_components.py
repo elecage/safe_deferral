@@ -3401,6 +3401,105 @@ class TestTrialResultObservationHistory:
         assert len(result.observation_history) == 1
 
 
+class TestTrialStoreLatencyFromHistory:
+    """latency_ms must reflect the trial's full wall time, not the diff
+    inside the runner's chosen 'best match' snapshot. For CLASS_2-escalated
+    trials the post-transition snapshot's own ingest_timestamp_ms equals
+    its own publish time, which collapses the diff to ~0 ms unless the
+    store walks observation_history to recover the earlier ingest."""
+
+    def _create_trial(self):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+            audit_correlation_id="c1",
+        )
+        return store, trial
+
+    def test_latency_from_full_history_span(self):
+        """When observation_history covers the trial's lifetime, latency_ms
+        is (latest snapshot_ts) − (earliest ingest_timestamp), regardless of
+        which snapshot the runner picked as best_match."""
+        store, trial = self._create_trial()
+        history = [
+            {"audit_correlation_id": "c1",
+             "ingest_timestamp_ms": 1000,
+             "snapshot_ts_ms": 1100,
+             "route": {"route_class": "CLASS_2"}},
+            {"audit_correlation_id": "c1",
+             "ingest_timestamp_ms": 1000,
+             "snapshot_ts_ms": 30100,
+             "class2": {"transition_target": "CLASS_1"}},
+            {"audit_correlation_id": "c1",
+             "ingest_timestamp_ms": 30200,
+             "snapshot_ts_ms": 30500,
+             "validation": {"validation_status": "approved"},
+             "ack": {"action": "light_on", "target_device": "bedroom_light"}},
+        ]
+        store.complete_trial(
+            trial_id=trial.trial_id,
+            observation=history[-1],
+            observation_history=history,
+        )
+        result = store.get_trial(trial.trial_id)
+        # earliest ingest = 1000, latest snapshot = 30500 → latency = 29500
+        assert result.latency_ms == 29500.0
+        assert result.ingest_timestamp_ms == 1000
+        assert result.snapshot_ts_ms == 30500
+
+    def test_latency_zero_problem_reproduction_fixed(self):
+        """Reproduces the user-reported 'CLASS_2 trials show 0 ms latency'
+        issue. The best_match snapshot's own ingest equals its snapshot_ts
+        (it's the post-transition publish, not the trial publish), which
+        collapsed the diff to 0 under the old contract. With history walk,
+        the earliest ingest from the initial CLASS_2 routing snapshot
+        recovers the real wall-time."""
+        store, trial = self._create_trial()
+        history = [
+            {"audit_correlation_id": "c1",
+             "ingest_timestamp_ms": 1000,
+             "snapshot_ts_ms": 1100,
+             "route": {"route_class": "CLASS_2"}},
+            {"audit_correlation_id": "c1",
+             "ingest_timestamp_ms": 31000,
+             "snapshot_ts_ms": 31000,
+             "class2": {"transition_target":
+                         "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+        ]
+        store.complete_trial(
+            trial_id=trial.trial_id,
+            observation=history[-1],
+            observation_history=history,
+        )
+        result = store.get_trial(trial.trial_id)
+        # 31000 − 1000 = 30000 ms (was reporting 0 before the fix)
+        assert result.latency_ms == 30000.0
+
+    def test_latency_falls_back_to_best_match_when_history_empty(self):
+        """Legacy / single-snapshot path still works when no history list
+        was passed (backward compat with callers that haven't migrated)."""
+        store, trial = self._create_trial()
+        store.complete_trial(
+            trial_id=trial.trial_id,
+            observation={
+                "audit_correlation_id": "c1",
+                "ingest_timestamp_ms": 1000,
+                "snapshot_ts_ms": 5000,
+                "route": {"route_class": "CLASS_1"},
+            },
+        )
+        result = store.get_trial(trial.trial_id)
+        assert result.latency_ms == 4000.0
+
+
 class TestRunnerLlmAssistedTrialTimeoutBudget:
     """Fix 1: llm_assisted trials may legitimately escalate from CLASS_1 to
     CLASS_2 when the LLM defers. They need the longer CLASS_2 budget even

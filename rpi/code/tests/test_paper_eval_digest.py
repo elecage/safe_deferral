@@ -406,3 +406,196 @@ class TestCLI:
         assert rc == 0
         assert (out_dir / "digest_v0_test_ts.csv").exists()
         assert (out_dir / "digest_v0_test_ts.md").exists()
+
+
+# ====================================================================
+# Distribution columns (Problem C — derived from observation_history)
+# ====================================================================
+
+class TestDigestDistributionColumns:
+    """The CSV columns and Markdown trajectory/final-action cells surface
+    the per-cell breakdown from the aggregator's
+    outcome_path_distribution / final_action_distribution / final_target_distribution.
+    Without these, an LLM_ASSISTED cell where the LLM legitimately
+    deferred and the system reached a useful action through CLASS_2
+    would be invisible — the strict pass_rate alone collapses the
+    information."""
+
+    def _matrix_with_distributions(self):
+        return {
+            "matrix_version": "v0",
+            "matrix_path": "x.json",
+            "anchor_commits": {},
+            "sweep_started_at_ms": 0,
+            "sweep_finished_at_ms": 0,
+            "cells": [
+                {
+                    "cell_id": "EXT_A_LLM_ASSISTED",
+                    "comparison_condition": "llm_assisted",
+                    "scenarios": ["s.json"],
+                    "n_trials": 5,
+                    "pass_rate": 0.6,
+                    "by_route_class": {
+                        "CLASS_0": 0, "CLASS_1": 3, "CLASS_2": 2, "unknown": 0,
+                    },
+                    "latency_ms_p50": 90000.0,
+                    "latency_ms_p95": 100000.0,
+                    "class2_clarification_correctness": None,
+                    "scan_history_yes_first_rate": None,
+                    "scan_history_present_count": 0,
+                    "scan_ordering_applied_present_count": 0,
+                    "skipped": False,
+                    "incomplete": False,
+                    "outcome_path_distribution": {
+                        "class1_direct": 3,
+                        "class2_safe_deferral": 2,
+                        "class2_to_class1": 0,
+                        "class2_to_class0": 0,
+                        "class2_unresolved": 0,
+                        "class0_direct": 0,
+                        "no_observation": 0,
+                        "timeout": 0,
+                    },
+                    "final_action_distribution": {
+                        "light_on": 3, "light_off": 0,
+                        "safe_deferral": 0, "none": 2,
+                    },
+                    "final_target_distribution": {
+                        "living_room_light": 1, "bedroom_light": 2, "none": 2,
+                    },
+                    "notes": [],
+                },
+            ],
+        }
+
+    def test_csv_carries_distribution_columns(self):
+        out = to_csv(self._matrix_with_distributions())
+        rows = list(csv.DictReader(io.StringIO(out)))
+        row = rows[0]
+        assert row["outcome_path_class1_direct"] == "3"
+        assert row["outcome_path_class2_safe_deferral"] == "2"
+        assert row["outcome_path_timeout"] == "0"
+        assert row["final_action_light_on"] == "3"
+        assert row["final_action_none"] == "2"
+        assert row["final_target_bedroom_light"] == "2"
+        assert row["final_target_living_room_light"] == "1"
+
+    def test_csv_distribution_columns_sum_to_n_trials_for_paths(self):
+        """Sanity invariant: the trajectory bucket counts must sum to
+        n_trials. The path distribution covers every trial including
+        timeouts."""
+        out = to_csv(self._matrix_with_distributions())
+        rows = list(csv.DictReader(io.StringIO(out)))
+        row = rows[0]
+        path_keys = [
+            "outcome_path_class1_direct",
+            "outcome_path_class2_to_class1",
+            "outcome_path_class2_to_class0",
+            "outcome_path_class2_safe_deferral",
+            "outcome_path_class2_unresolved",
+            "outcome_path_class0_direct",
+            "outcome_path_timeout",
+            "outcome_path_no_observation",
+        ]
+        total = sum(int(row[k]) for k in path_keys)
+        assert total == int(row["n_trials"])
+
+    def test_csv_columns_are_append_only_compatible(self):
+        """The original column ordering must be preserved (append-only
+        invariant from the file's docstring) so paper figure code that
+        indexes by column name keeps working."""
+        original_prefix = (
+            "cell_id,comparison_condition,scenarios,n_trials,pass_rate,"
+            "by_route_class_class0,by_route_class_class1,"
+            "by_route_class_class2,by_route_class_unknown,"
+            "latency_ms_p50,latency_ms_p95,"
+            "class2_clarification_correctness,"
+            "scan_history_yes_first_rate,scan_history_present_count,"
+            "scan_ordering_applied_present_count,skipped,incomplete,"
+        )
+        out = to_csv(self._matrix_with_distributions())
+        first_line = out.splitlines()[0]
+        assert first_line.startswith(original_prefix)
+        assert first_line.endswith(",notes")
+
+    def test_markdown_trajectory_column_renders_distribution(self):
+        out = to_markdown(self._matrix_with_distributions())
+        # Trajectory shows the non-zero buckets only.
+        assert "class1_direct=3" in out
+        assert "class2_safe_deferral=2" in out
+        # Final action column shows what was actually executed.
+        assert "light_on=3" in out
+        assert "none=2" in out
+        # Strict pass_rate is still present for binary verdict.
+        assert "0.6000" in out
+
+    def test_markdown_omits_zero_buckets_in_distribution_cells(self):
+        """Trajectory / final-action cells must omit zero-count buckets so
+        they don't get unreadably wide on cells that only exercise one or
+        two paths."""
+        out = to_markdown(self._matrix_with_distributions())
+        # 0-count buckets must NOT appear (would make the cell noisy).
+        assert "class2_to_class0=0" not in out
+        assert "no_observation=0" not in out
+
+
+class TestDigestOutcomeMatchColumn:
+    """outcome_match_rate is a soft 'system reached design intent' verdict
+    complementary to the strict pass_rate. Both must surface in the CSV
+    and the Markdown table so a reviewer can compare them at a glance."""
+
+    def _matrix_with_outcome_match(self, pass_rate, match_rate):
+        return {
+            "matrix_version": "v0",
+            "matrix_path": "x.json",
+            "anchor_commits": {},
+            "sweep_started_at_ms": 0,
+            "sweep_finished_at_ms": 0,
+            "cells": [
+                {
+                    "cell_id": "C", "comparison_condition": "llm_assisted",
+                    "scenarios": [], "n_trials": 5,
+                    "pass_rate": pass_rate,
+                    "outcome_match_rate": match_rate,
+                    "by_route_class": {"CLASS_0": 0, "CLASS_1": 3,
+                                       "CLASS_2": 2, "unknown": 0},
+                    "latency_ms_p50": None, "latency_ms_p95": None,
+                    "class2_clarification_correctness": None,
+                    "scan_history_yes_first_rate": None,
+                    "scan_history_present_count": 0,
+                    "scan_ordering_applied_present_count": 0,
+                    "skipped": False, "incomplete": False,
+                    "outcome_path_distribution": {},
+                    "final_action_distribution": {},
+                    "final_target_distribution": {},
+                    "notes": [],
+                },
+            ],
+        }
+
+    def test_csv_includes_outcome_match_rate_column(self):
+        out = to_csv(self._matrix_with_outcome_match(0.4, 0.8))
+        rows = list(csv.DictReader(io.StringIO(out)))
+        assert rows[0]["outcome_match_rate"] == "0.8000"
+        assert rows[0]["pass_rate"] == "0.4000"
+
+    def test_csv_outcome_match_rate_empty_when_none(self):
+        out = to_csv(self._matrix_with_outcome_match(None, None))
+        rows = list(csv.DictReader(io.StringIO(out)))
+        assert rows[0]["outcome_match_rate"] == ""
+
+    def test_markdown_renders_outcome_match_column(self):
+        """The Markdown table must show pass and match side by side so
+        a reviewer can spot the case where strict pass=0 but the system
+        consistently reached design intent through CLASS_2."""
+        out = to_markdown(self._matrix_with_outcome_match(0.0, 1.0))
+        # Header carries both columns.
+        assert "| pass | match |" in out
+        # Both values render with 4-digit precision.
+        assert "0.0000" in out
+        assert "1.0000" in out
+
+    def test_markdown_outcome_match_em_dash_when_none(self):
+        out = to_markdown(self._matrix_with_outcome_match(None, None))
+        # The pass/match cells render as em-dash, not 'None' or ''.
+        assert "| — | — |" in out
