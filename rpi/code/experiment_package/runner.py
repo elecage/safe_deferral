@@ -195,19 +195,29 @@ class PackageRunner:
         # validator re-entry contract that the scenario declared.
         eff_transition_target: Optional[str] = None
         eff_requires_validator_reentry: bool = False
-        if expected_route_class == "CLASS_2" and scenario_id:
+        eff_user_intent: Optional[dict] = None
+        if scenario_id:
             try:
                 scenario = self._loader.load_scenario(scenario_id)
-                c2_exp = scenario.get("class2_clarification_expectation") or {}
-                eff_transition_target = c2_exp.get("expected_transition_target") or None
-                eff_requires_validator_reentry = bool(
-                    c2_exp.get("requires_validator_reentry_when_class1", False)
-                )
             except Exception as exc:
                 log.warning(
-                    "Could not load class2_clarification_expectation from %s: %s",
+                    "Could not load scenario %s for trial enrichment: %s",
                     scenario_id, exc,
                 )
+                scenario = None
+            if scenario is not None:
+                if expected_route_class == "CLASS_2":
+                    c2_exp = scenario.get("class2_clarification_expectation") or {}
+                    eff_transition_target = c2_exp.get("expected_transition_target") or None
+                    eff_requires_validator_reentry = bool(
+                        c2_exp.get("requires_validator_reentry_when_class1", False)
+                    )
+                # Snapshot user_intent (paper-eval intent-match measurement).
+                # Optional — scenarios without this block produce no metric;
+                # the aggregator returns None for cells with no intent.
+                ui = scenario.get("user_intent")
+                if isinstance(ui, dict):
+                    eff_user_intent = dict(ui)
         # Apply the explicit override last so the scenario's boolean contract
         # is preserved.
         if expected_transition_target_override is not None:
@@ -249,6 +259,12 @@ class PackageRunner:
         # (current behaviour, caregiver fallback).
         if user_response_script is not None:
             trial.user_response_script = dict(user_response_script)
+
+        # Snapshot the scenario's user_intent for the intent-match metric.
+        # Frozen at trial creation so post-hoc scenario edits cannot
+        # retroactively change what the trial was scored against.
+        if eff_user_intent is not None:
+            trial.user_intent_snapshot = dict(eff_user_intent)
 
         t = threading.Thread(
             target=self._run_trial,

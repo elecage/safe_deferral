@@ -66,6 +66,12 @@ class TrialResult:
     # single-shot deferral. None means 'no auto-drive', matching the
     # caregiver-fallback baseline. Plan: PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md.
     user_response_script: Optional[dict] = None
+    # Scenario-declared user intent at the moment this trial was created.
+    # Snapshot rather than late-loaded so the aggregator does not need
+    # access to the scenarios directory and so changes to the scenario
+    # file after the run cannot retroactively reinterpret the recorded
+    # trial. Plan: PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md.
+    user_intent_snapshot: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
@@ -97,6 +103,10 @@ class TrialResult:
             "user_response_script": (
                 dict(self.user_response_script)
                 if self.user_response_script else None
+            ),
+            "user_intent_snapshot": (
+                dict(self.user_intent_snapshot)
+                if self.user_intent_snapshot else None
             ),
         }
 

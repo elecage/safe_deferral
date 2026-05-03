@@ -600,3 +600,63 @@ class TestDigestOutcomeMatchColumn:
         out = to_markdown(self._matrix_with_outcome_match(None, None))
         # The pass/match cells render as em-dash, not 'None' or ''.
         assert "| — | — |" in out
+
+
+class TestDigestIntentMatchColumn:
+    """intent_match_rate is the third level of the metric stack — semantic
+    fidelity. Like outcome_match_rate, it must surface in CSV and Markdown
+    side-by-side with the strict pass_rate. Plan:
+    PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md."""
+
+    def _matrix_with_intent(self, intent_rate, distribution):
+        return {
+            "matrix_version": "v0", "matrix_path": "x.json",
+            "anchor_commits": {}, "sweep_started_at_ms": 0,
+            "sweep_finished_at_ms": 0,
+            "cells": [{
+                "cell_id": "C", "comparison_condition": "llm_assisted",
+                "scenarios": [], "n_trials": 5,
+                "pass_rate": 0.4, "outcome_match_rate": 0.8,
+                "intent_match_rate": intent_rate,
+                "intent_match_distribution": distribution,
+                "by_route_class": {"CLASS_0": 0, "CLASS_1": 3,
+                                   "CLASS_2": 2, "unknown": 0},
+                "latency_ms_p50": None, "latency_ms_p95": None,
+                "class2_clarification_correctness": None,
+                "scan_history_yes_first_rate": None,
+                "scan_history_present_count": 0,
+                "scan_ordering_applied_present_count": 0,
+                "skipped": False, "incomplete": False,
+                "outcome_path_distribution": {},
+                "final_action_distribution": {},
+                "final_target_distribution": {},
+                "notes": [],
+            }],
+        }
+
+    def test_csv_includes_intent_match_rate_and_distribution(self):
+        out = to_csv(self._matrix_with_intent(
+            0.6, {"matched": 3, "not_matched": 1, "no_intent": 1},
+        ))
+        rows = list(csv.DictReader(io.StringIO(out)))
+        assert rows[0]["intent_match_rate"] == "0.6000"
+        assert rows[0]["intent_match_matched"] == "3"
+        assert rows[0]["intent_match_not_matched"] == "1"
+        assert rows[0]["intent_match_no_intent"] == "1"
+
+    def test_csv_intent_rate_empty_when_none(self):
+        """Cell with no intent-declared trials reports rate=None, which
+        must serialise as empty string in CSV (not 'None' literal)."""
+        out = to_csv(self._matrix_with_intent(
+            None, {"matched": 0, "not_matched": 0, "no_intent": 5},
+        ))
+        rows = list(csv.DictReader(io.StringIO(out)))
+        assert rows[0]["intent_match_rate"] == ""
+        assert rows[0]["intent_match_no_intent"] == "5"
+
+    def test_markdown_includes_intent_column(self):
+        out = to_markdown(self._matrix_with_intent(
+            0.6, {"matched": 3, "not_matched": 1, "no_intent": 1},
+        ))
+        assert "| pass | match | intent |" in out
+        assert "0.6000" in out

@@ -686,15 +686,16 @@
             <div class="card-title">Table 1 — Policy-routing Results (패키지 A)</div>
             <div id="pkg-a-metrics-grid" class="metrics-grid" style="margin-bottom:16px"></div>
             <div class="text-dim" style="font-size:11px;margin-bottom:8px">
-              <b>Pass</b>는 strict (expected_route_class == observed_route_class). <b>Match</b>는 soft — system이 expected_validation에 맞는 action을 결국 수행했는지 (Class 2 경유 포함). <b>Final action</b>은 실제 ack로 dispatch된 action·target.
+              세 layer로 비교: <b>Routing</b> (기대 route ↔ 관찰 route → Pass), <b>Actuation</b> (system이 actuation에 도달했는지 → Match), <b>Semantic</b> (기대 intent ↔ Final action 정확 일치 → Intent). scenario.user_intent가 없으면 intent 컬럼은 "—".
             </div>
             <div style="overflow-x:auto">
               <table id="pkg-a-table">
                 <thead><tr>
                   <th>#</th><th>시나리오</th><th>폴트</th><th>조건</th>
-                  <th>기대</th><th>관찰</th>
-                  <th>경로</th><th>Final action</th>
-                  <th>지연(ms)</th><th>Pass</th><th>Match</th>
+                  <th>기대 route</th><th>관찰 route</th>
+                  <th>경로</th>
+                  <th>기대 intent</th><th>Final action</th>
+                  <th>지연(ms)</th><th>Pass</th><th>Match</th><th>Intent</th>
                 </tr></thead>
                 <tbody id="pkg-a-tbody"></tbody>
               </table>
@@ -842,12 +843,12 @@
           <table>
             <thead><tr>
               <th>#</th><th>cell_id</th><th>상태</th>
-              <th>진행</th><th>pass</th><th>match</th>
+              <th>진행</th><th>pass</th><th>match</th><th>intent</th>
               <th>trajectory</th><th>final action</th>
               <th>비고</th>
             </tr></thead>
             <tbody id="pe-cells-tbody">
-              <tr><td colspan="9" class="empty">sweep을 시작하면 여기에 셀이 나타납니다.</td></tr>
+              <tr><td colspan="10" class="empty">sweep을 시작하면 여기에 셀이 나타납니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1316,7 +1317,7 @@ function _renderPaperEvalState(s, agg) {
   // Per-cell table
   const tbody = document.getElementById('pe-cells-tbody');
   if (cells.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty">${
+    tbody.innerHTML = `<tr><td colspan="10" class="empty">${
       status === 'idle' ? 'sweep을 시작하면 여기에 셀이 나타납니다.' : '셀 정보 대기 중…'
     }</td></tr>`;
   } else {
@@ -1337,6 +1338,8 @@ function _renderPaperEvalState(s, agg) {
         ? aggCell.pass_rate.toFixed(4) : '—';
       const matchCell = (aggCell && aggCell.outcome_match_rate != null)
         ? aggCell.outcome_match_rate.toFixed(4) : '—';
+      const intentCell = (aggCell && aggCell.intent_match_rate != null)
+        ? aggCell.intent_match_rate.toFixed(4) : '—';
       const traj = aggCell
         ? _peFmtDist(aggCell.outcome_path_distribution, _PE_PATH_KEYS)
         : '—';
@@ -1348,8 +1351,9 @@ function _renderPaperEvalState(s, agg) {
         <td><code>${c.cell_id}</code></td>
         <td><span style="color:${stColor}">${c.status}</span></td>
         <td>${progress}</td>
-        <td style="font-variant-numeric:tabular-nums" title="strict pass: expected_route_class == observed_route_class">${passCell}</td>
-        <td style="font-variant-numeric:tabular-nums" title="outcome match: system reached the action prescribed by expected_validation, regardless of which route_class got there">${matchCell}</td>
+        <td style="font-variant-numeric:tabular-nums" title="strict pass: expected_route_class == observed_route_class (routing fidelity)">${passCell}</td>
+        <td style="font-variant-numeric:tabular-nums" title="outcome match: system reached the action prescribed by expected_validation, regardless of route (actuation fidelity)">${matchCell}</td>
+        <td style="font-variant-numeric:tabular-nums" title="intent match: system reached the action declared by scenario.user_intent (semantic fidelity). — when scenario has no user_intent block.">${intentCell}</td>
         <td style="font-size:11px">${traj}</td>
         <td style="font-size:11px">${finalAction}</td>
         <td>${note}</td>
@@ -2696,6 +2700,24 @@ function renderPkgA(metrics, trials) {
     const matchIcon = t.status === 'pending' ? '⏳'
       : matchVal === null ? '—'
       : matchVal ? '✅' : '❌';
+    const intentVal = _trialIntentMatch(t);
+    const intentIcon = t.status === 'pending' ? '⏳'
+      : intentVal === null ? '—'
+      : intentVal ? '✅' : '❌';
+    const intent = t.user_intent_snapshot || {};
+    const intentText = intent.action
+      ? `${intent.action} → ${intent.target_device || 'none'}`
+      : '—';
+    const intentTitle = intent.action
+      ? `scenario.user_intent: ${intent.action}→${intent.target_device || 'none'}`
+      : 'scenario에 user_intent 없음 (legacy)';
+    // Color-code expected intent vs final action: green when they match,
+    // red when both are present but differ, dim when intent is unmeasured.
+    let intentTextColor = 'var(--text-dim)';
+    if (intent.action) {
+      intentTextColor = (act === intent.action && tgt === intent.target_device)
+        ? 'var(--green)' : 'var(--red)';
+    }
     return `<tr style="cursor:pointer" onclick="togglePkgATrialDetail(${i})"
                 title="클릭하여 상세 보기">
       <td>${i+1}</td>
@@ -2705,15 +2727,25 @@ function renderPkgA(metrics, trials) {
       <td style="color:${expColor};font-weight:700">${t.expected_route_class}</td>
       <td style="color:${obsColor};font-weight:700">${t.observed_route_class||'…'}</td>
       <td style="font-size:11px">${path}</td>
+      <td style="font-size:11px;color:${intentTextColor}" title="${intentTitle}">${intentText}</td>
       <td style="font-size:11px">${finalAction}</td>
       <td style="font-family:monospace">${t.latency_ms != null ? Math.round(t.latency_ms)+'ms' : '—'}</td>
-      <td title="strict pass: expected_route_class == observed_route_class">${passIcon}</td>
-      <td title="outcome match: system reached the action prescribed by expected_validation, regardless of route">${matchIcon}</td>
+      <td title="strict pass: expected_route_class == observed_route_class (routing fidelity)">${passIcon}</td>
+      <td title="outcome match: system reached the action prescribed by expected_validation, regardless of route (actuation fidelity)">${matchIcon}</td>
+      <td title="${intentTitle} — Intent match: scenario.user_intent와 final action·target 정확 일치 (semantic fidelity)">${intentIcon}</td>
     </tr>
     <tr id="pkg-a-detail-${i}" style="display:none;background:var(--surface2)">
-      <td colspan="11" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
+      <td colspan="13" style="padding:10px 14px"><div id="pkg-a-detail-body-${i}"></div></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+  }).join('') || '<tr><td colspan="13" style="text-align:center;color:var(--text-dim)">트라이얼 없음</td></tr>';
+}
+
+function _trialIntentMatch(t) {
+  if (t.status === 'pending') return null;
+  const intent = t.user_intent_snapshot;
+  if (!intent || typeof intent !== 'object') return null;
+  const [action, target] = _trialFinalActionTarget(t);
+  return action === intent.action && target === intent.target_device;
 }
 
 // ── Per-trial derivations from observation_history ───────────

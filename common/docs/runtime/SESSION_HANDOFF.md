@@ -20,6 +20,8 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md`
+1. `common/docs/runtime/PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md`
 1. `common/docs/runtime/PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-03_TRIAL_DATA_FIDELITY_DIAGNOSIS.md`

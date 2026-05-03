@@ -19,12 +19,15 @@ from paper_eval.aggregator import (
     _by_route_class,
     _class2_clarification_correctness,
     _completed_trials,
+    _intent_match_distribution,
+    _intent_match_rate,
     _outcome_match_rate,
     _outcome_path_distribution,
     _percentile,
     _scan_history_yes_first_rate,
     _scan_ordering_applied_present_count,
     _trial_final_action_target,
+    _trial_intent_match,
     _trial_outcome_match,
     _trial_outcome_path,
     aggregate,
@@ -754,6 +757,201 @@ class TestTrialOutcomeMatch:
 
     def test_outcome_match_rate_none_on_empty_input(self):
         assert _outcome_match_rate([]) is None
+
+
+class TestTrialIntentMatch:
+    """The semantic verdict — did the trial reach the action the SCENARIO
+    declared the user actually intended? Ternary (True/False/None) so
+    legacy scenarios without user_intent block return None and are
+    correctly excluded from intent_match_rate (paper-honest 'unmeasured'
+    rather than 'failed'). Plan: PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md."""
+
+    def test_no_intent_snapshot_returns_none(self):
+        """Legacy scenarios without user_intent block — verdict is None,
+        not False. The metric must NOT count these as failures."""
+        assert _trial_intent_match({"observation_history": []}) is None
+        assert _trial_intent_match({"user_intent_snapshot": None}) is None
+        assert _trial_intent_match({"user_intent_snapshot": {}}) is None
+
+    def test_intent_match_when_action_and_target_align(self):
+        assert _trial_intent_match({
+            "user_intent_snapshot": {
+                "action": "light_on", "target_device": "bedroom_light",
+            },
+            "observation_history": [
+                {"ack": {"action": "light_on", "target_device": "bedroom_light"}},
+            ],
+        }) is True
+
+    def test_intent_no_match_when_action_differs(self):
+        assert _trial_intent_match({
+            "user_intent_snapshot": {
+                "action": "light_on", "target_device": "bedroom_light",
+            },
+            "observation_history": [
+                {"ack": {"action": "light_off", "target_device": "bedroom_light"}},
+            ],
+        }) is False
+
+    def test_intent_no_match_when_target_differs(self):
+        """Trial 2 in the methodology table: system actuates correctly
+        (light_on) but on the WRONG device. outcome_match=True but
+        intent_match must be False."""
+        assert _trial_intent_match({
+            "user_intent_snapshot": {
+                "action": "light_on", "target_device": "bedroom_light",
+            },
+            "observation_history": [
+                {"ack": {"action": "light_on", "target_device": "living_room_light"}},
+            ],
+        }) is False
+
+    def test_intent_no_match_when_no_actuation(self):
+        """Safe deferral / caregiver fallback — no actuation reached.
+        The intent declares an action but the system did not perform it."""
+        assert _trial_intent_match({
+            "user_intent_snapshot": {
+                "action": "light_on", "target_device": "bedroom_light",
+            },
+            "observation_history": [
+                {"route": {"route_class": "CLASS_2"}},
+                {"class2": {"transition_target":
+                             "SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION"}},
+            ],
+        }) is False
+
+
+class TestIntentMatchRate:
+    """Cell-level aggregation. Trials without user_intent_snapshot are
+    excluded from BOTH the numerator and denominator — they belong to the
+    'no_intent' bucket of intent_match_distribution but do not affect the
+    rate. A cell with no intent-declared trials reports rate=None."""
+
+    def test_rate_none_when_no_trial_has_intent(self):
+        trials = [
+            {"observation_history": []},
+            {"observation_history": [{"ack": {"action": "light_on",
+                                                "target_device": "bedroom_light"}}]},
+        ]
+        assert _intent_match_rate(trials) is None
+
+    def test_rate_excludes_no_intent_trials_from_denominator(self):
+        intent = {"action": "light_on", "target_device": "bedroom_light"}
+        trials = [
+            # 1/2 intent-declared trials matches
+            {"user_intent_snapshot": intent,
+             "observation_history": [
+                 {"ack": {"action": "light_on", "target_device": "bedroom_light"}}]},
+            {"user_intent_snapshot": intent,
+             "observation_history": [
+                 {"ack": {"action": "light_off", "target_device": "living_room_light"}}]},
+            # No-intent trial does NOT pull the rate up or down
+            {"observation_history": [
+                {"ack": {"action": "light_on", "target_device": "bedroom_light"}}]},
+        ]
+        assert _intent_match_rate(trials) == 0.5
+
+    def test_distribution_three_buckets_always_present(self):
+        d = _intent_match_distribution([])
+        for k in ("matched", "not_matched", "no_intent"):
+            assert k in d
+            assert d[k] == 0
+
+    def test_distribution_counts_correctly(self):
+        intent = {"action": "light_on", "target_device": "bedroom_light"}
+        trials = [
+            {"user_intent_snapshot": intent,
+             "observation_history": [
+                 {"ack": {"action": "light_on", "target_device": "bedroom_light"}}]},
+            {"user_intent_snapshot": intent,
+             "observation_history": [
+                 {"ack": {"action": "light_off", "target_device": "living_room_light"}}]},
+            {"observation_history": []},
+        ]
+        d = _intent_match_distribution(trials)
+        assert d["matched"] == 1
+        assert d["not_matched"] == 1
+        assert d["no_intent"] == 1
+
+
+class TestAggregateCellWithIntent:
+    """End-to-end check: _aggregate_cell records intent_match_rate +
+    intent_match_distribution on the CellResult, and to_dict serialises
+    them (so manifest carries them for the digest + dashboard)."""
+
+    def test_cell_with_user_intent_records_rate(self):
+        intent = {"action": "light_on", "target_device": "bedroom_light"}
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "llm_assisted",
+            "scenarios": [],
+            "trials_snapshot": [
+                {"status": "completed", "pass_": True,
+                 "expected_validation": "approved",
+                 "user_intent_snapshot": intent,
+                 "observation_history": [
+                     {"ack": {"action": "light_on",
+                              "target_device": "bedroom_light"}}]},
+                # outcome=match (light_off living) but intent=NOT match
+                {"status": "completed", "pass_": False,
+                 "expected_validation": "approved",
+                 "user_intent_snapshot": intent,
+                 "observation_history": [
+                     {"ack": {"action": "light_off",
+                              "target_device": "living_room_light"}}]},
+            ],
+        }
+        result = _aggregate_cell(cell_dict)
+        # outcome_match=2/2 (both reached actuation), intent_match=1/2
+        assert result.outcome_match_rate == 1.0
+        assert result.intent_match_rate == 0.5
+        assert result.intent_match_distribution["matched"] == 1
+        assert result.intent_match_distribution["not_matched"] == 1
+        assert result.intent_match_distribution["no_intent"] == 0
+
+    def test_cell_without_user_intent_reports_rate_none(self):
+        """Legacy cell — no scenario declared user_intent. The aggregate
+        rate must be None (unmeasured), not 0.0."""
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "llm_assisted",
+            "scenarios": [],
+            "trials_snapshot": [
+                {"status": "completed", "pass_": True,
+                 "observation_history": [
+                     {"ack": {"action": "light_on",
+                              "target_device": "bedroom_light"}}]},
+            ],
+        }
+        result = _aggregate_cell(cell_dict)
+        assert result.intent_match_rate is None
+        assert result.intent_match_distribution["no_intent"] == 1
+        assert result.intent_match_distribution["matched"] == 0
+
+    def test_cell_intent_metric_serialises(self):
+        intent = {"action": "light_on", "target_device": "bedroom_light"}
+        cell_dict = {
+            "cell_id": "X",
+            "comparison_condition": "llm_assisted",
+            "scenarios": [],
+            "trials_snapshot": [
+                {"status": "completed", "pass_": True,
+                 "user_intent_snapshot": intent,
+                 "observation_history": [
+                     {"ack": {"action": "light_on",
+                              "target_device": "bedroom_light"}}]},
+            ],
+        }
+        cells = [_aggregate_cell(cell_dict)]
+        agg = AggregatedMatrix(
+            matrix_version="v1", matrix_path="",
+            sweep_started_at_ms=0, sweep_finished_at_ms=0,
+            anchor_commits={}, cells=cells,
+        )
+        serialised = agg.to_dict()
+        out = serialised["cells"][0]
+        assert out["intent_match_rate"] == 1.0
+        assert out["intent_match_distribution"]["matched"] == 1
 
 
 class TestDistributions:

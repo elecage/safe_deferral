@@ -4,6 +4,11 @@
   "description": "Paper-eval Extensibility Axis A scenario (required_experiments §5.8). The trigger is `single_click` — chosen because policy_table.json's C206 trigger automatically escalates any button event_code not in `recognized_class1_button_event_codes=['single_click']` to CLASS_2 before any intent-recovery mode can run (a deliberate safety feature). To differentiate intent-recovery modes, the experiment must therefore use single_click and put the differentiation pressure into the CONTEXT instead. The environmental_context (low illuminance, occupancy_detected, living_room_light=on already, bedroom_light=off) is engineered so that: (a) direct_mapping unconditionally returns light_on living_room (its only mapping for single_click), which is a context-blind action (the living_room light is already on); (b) rule_only correctly returns safe_deferral because its heuristic requires living_room_light=off, which this scenario violates; (c) the LLM, which receives the full context, should be able to infer that the user wants light_on bedroom_light. The scenario therefore measures perception-side extensibility (Contribution 1): direct_mapping over-acts because it cannot use context, rule_only correctly self-recognizes its limitation, and llm_assisted recovers the right intent within the existing actuator catalog (Contribution 2 boundary preserved). The matrix file (matrix_extensibility.json) sets per-cell expected_route_class to encode 'what the correct version of THIS mode should do given this input': deterministic modes expected to safe-defer, LLM expected to recover. This scenario does not authorize actuation; it is an evaluation asset only.",
   "category": "extensibility_a_novel_event_code",
   "mode": "deterministic",
+  "user_intent": {
+    "action": "light_on",
+    "target_device": "bedroom_light",
+    "rationale": "거실 등은 이미 켜져 있고 (living_room_light=on), 침실 등은 꺼져 있으며 (bedroom_light=off), 사람이 감지되고 (occupancy_detected=true), 조도가 낮음 (illuminance=30 lux). 사용자의 single_click 의도는 침실 등 켜기로 추정됨. PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md."
+  },
   "input_plane": {
     "protocol": "mqtt",
     "ingress_topic": "safe_deferral/context/input",

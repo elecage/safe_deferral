@@ -72,6 +72,20 @@ class CellResult:
     # is a system that worked as designed through CLASS_2 clarification.
     # None when n_trials == 0 (no trials to score).
     outcome_match_rate: Optional[float] = None
+    # Semantic verdict: did the trial reach the action the SCENARIO declared
+    # the user actually intended (scenario.user_intent)? Complementary to
+    # outcome_match_rate — a cell where outcome_match_rate > intent_match_rate
+    # is a system that actuates correctly *in aggregate* but routes to the
+    # wrong specific action (perception failure hidden by aggregate metrics).
+    # None when no trial in the cell had user_intent_snapshot recorded
+    # (legacy scenario without user_intent block — paper-honest 'unmeasured'
+    # rather than '0% match'). Plan: PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md.
+    intent_match_rate: Optional[float] = None
+    # Distribution of per-trial intent verdicts:
+    #   matched       — trial's final action+target == scenario user_intent
+    #   not_matched   — trial reached a different action/target (or none)
+    #   no_intent     — scenario did not declare user_intent (legacy)
+    intent_match_distribution: dict = field(default_factory=dict)
     notes: list = field(default_factory=list)  # human-readable diagnostics
 
 
@@ -125,6 +139,8 @@ class AggregatedMatrix:
                     "final_action_distribution": dict(c.final_action_distribution),
                     "final_target_distribution": dict(c.final_target_distribution),
                     "outcome_match_rate": c.outcome_match_rate,
+                    "intent_match_rate": c.intent_match_rate,
+                    "intent_match_distribution": dict(c.intent_match_distribution),
                     "notes": c.notes,
                 }
                 for c in self.cells
@@ -402,6 +418,69 @@ def _outcome_match_rate(trials: list) -> Optional[float]:
     return round(matched / len(trials), 4)
 
 
+def _trial_intent_match(trial: dict) -> Optional[bool]:
+    """Ternary verdict on whether the trial reached the user's declared intent.
+
+    Returns:
+      None  — the trial has no user_intent_snapshot (legacy scenario or
+              scenario without user_intent block). The aggregator must NOT
+              count this as a failure; it is unmeasured.
+      True  — final action AND final target match scenario user_intent.
+      False — final action / target differ, or no actuation reached.
+
+    The intent comparison is on the *executed* outcome (ack-derived final
+    action / target — see _trial_final_action_target). A trial whose final
+    action is `none` (timeout, safe_deferral) intent-matches only if the
+    scenario explicitly declared user_intent.action='none' (rare; usually
+    indicates the user wanted nothing to happen).
+
+    Plan: PLAN_2026-05-04_INTENT_DRIVEN_MEASUREMENT.md.
+    """
+    intent = trial.get("user_intent_snapshot")
+    if not intent or not isinstance(intent, dict):
+        return None
+    final_action, final_target = _trial_final_action_target(trial)
+    return (
+        final_action == intent.get("action")
+        and final_target == intent.get("target_device")
+    )
+
+
+def _intent_match_rate(trials: list) -> Optional[float]:
+    """Fraction of *intent-declared* trials that reach the declared intent.
+
+    Returns:
+      None if the cell has no intent-declared trials at all (the metric
+        is unmeasured for this cell — paper-honest 'no signal' instead of
+        '0% match' which would falsely suggest the system failed).
+      Float in [0, 1] otherwise — denominator is intent-declared trials,
+        numerator is matching trials. Trials without user_intent_snapshot
+        are excluded from both counts.
+    """
+    declared = [t for t in trials if t.get("user_intent_snapshot")]
+    if not declared:
+        return None
+    matched = sum(1 for t in declared if _trial_intent_match(t))
+    return round(matched / len(declared), 4)
+
+
+def _intent_match_distribution(trials: list) -> dict:
+    """Three-bucket distribution: matched / not_matched / no_intent.
+
+    Buckets always present (zero-counts included) so the digest can render
+    a stable column shape across cells with mixed intent-declaration."""
+    out = {"matched": 0, "not_matched": 0, "no_intent": 0}
+    for t in trials:
+        verdict = _trial_intent_match(t)
+        if verdict is None:
+            out["no_intent"] += 1
+        elif verdict:
+            out["matched"] += 1
+        else:
+            out["not_matched"] += 1
+    return out
+
+
 def _action_target_distributions(trials: list) -> tuple:
     """Bucket trials by (final_action, final_target_device). Returns the
     two histograms separately so a CSV column for each is straightforward.
@@ -482,6 +561,8 @@ def _aggregate_cell(cell_dict: dict) -> CellResult:
     outcome_paths = _outcome_path_distribution(all_trials)
     final_actions, final_targets = _action_target_distributions(all_trials)
     outcome_match_rate_val = _outcome_match_rate(all_trials)
+    intent_match_rate_val = _intent_match_rate(all_trials)
+    intent_match_dist = _intent_match_distribution(all_trials)
 
     return CellResult(
         cell_id=cell_dict.get("cell_id", "<unknown>"),
@@ -504,6 +585,8 @@ def _aggregate_cell(cell_dict: dict) -> CellResult:
         final_action_distribution=final_actions,
         final_target_distribution=final_targets,
         outcome_match_rate=outcome_match_rate_val,
+        intent_match_rate=intent_match_rate_val,
+        intent_match_distribution=intent_match_dist,
         notes=notes,
     )
 
