@@ -75,6 +75,13 @@ _CSV_COLUMNS = (
     # strict pass_rate. See aggregator._trial_outcome_match for the
     # definition. None when n_trials == 0.
     "outcome_match_rate",
+    # Semantic 'system reached the user's declared intent' verdict.
+    # None when no trial in the cell carried user_intent_snapshot
+    # (legacy scenario without user_intent block).
+    "intent_match_rate",
+    "intent_match_matched",
+    "intent_match_not_matched",
+    "intent_match_no_intent",
     "notes",
 )
 
@@ -196,6 +203,18 @@ def _flatten_cell_for_csv(cell: dict) -> dict:
         "outcome_match_rate": _format_optional_number(
             cell.get("outcome_match_rate")
         ),
+        "intent_match_rate": _format_optional_number(
+            cell.get("intent_match_rate")
+        ),
+        "intent_match_matched": (
+            (cell.get("intent_match_distribution") or {}).get("matched", 0)
+        ),
+        "intent_match_not_matched": (
+            (cell.get("intent_match_distribution") or {}).get("not_matched", 0)
+        ),
+        "intent_match_no_intent": (
+            (cell.get("intent_match_distribution") or {}).get("no_intent", 0)
+        ),
         "notes": " | ".join(cell.get("notes") or []),
     }
 
@@ -254,8 +273,8 @@ def _md_table_for_cells(cells: list) -> list:
     if not cells:
         return ["_(no cells in this sub-grid)_", ""]
     lines = [
-        "| cell_id | condition | n | pass | match | p50 ms | p95 ms | trajectory | final action | notes |",
-        "|---|---|---:|---:|---:|---:|---:|---|---|---|",
+        "| cell_id | condition | n | pass | match | intent | p50 ms | p95 ms | trajectory | final action | notes |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---|---|---|",
     ]
     _path_keys = (
         "class1_direct", "class2_to_class1", "class2_to_class0",
@@ -272,12 +291,13 @@ def _md_table_for_cells(cells: list) -> list:
             c.get("final_action_distribution") or {}, _action_keys,
         )
         lines.append(
-            "| `{cid}` | {cond} | {n} | {pr} | {om} | {p50} | {p95} | {traj} | {fa} | {notes} |".format(
+            "| `{cid}` | {cond} | {n} | {pr} | {om} | {im} | {p50} | {p95} | {traj} | {fa} | {notes} |".format(
                 cid=c.get("cell_id", ""),
                 cond=c.get("comparison_condition") or "_(default)_",
                 n=c.get("n_trials", 0),
                 pr=_md_format_optional(c.get("pass_rate")),
                 om=_md_format_optional(c.get("outcome_match_rate")),
+                im=_md_format_optional(c.get("intent_match_rate")),
                 p50=_md_format_optional(c.get("latency_ms_p50")),
                 p95=_md_format_optional(c.get("latency_ms_p95")),
                 traj=trajectory,
