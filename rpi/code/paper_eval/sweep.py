@@ -392,6 +392,64 @@ def _validate_cell_scenario_tags(cell: Cell,
     return None
 
 
+def _validate_cell_policy_overrides(cell: Cell,
+                                    effective_policy: Optional[dict]) -> Optional[str]:
+    """Return a human-readable error string if the cell declares
+    `_policy_overrides` (e.g. {class2_multi_turn_enabled: true}) that the
+    currently-loaded canonical policy_table.json does not satisfy.
+
+    Why this matters: matrix_v1's MULTI_TURN cells require the multi-turn
+    flag to be on at deployment time. Without this check the orchestrator
+    silently runs them via the default direct-select path and the digest
+    looks like a valid multi-turn measurement when it is not (Phase C
+    2026-05-03 archive shows refinement_history present in 0/360 trials —
+    proof that the previous unguarded behaviour mislabelled cells).
+
+    Returns None when (a) the cell has no overrides, (b) the orchestrator
+    has no effective_policy to check against (defensive — never silently
+    runs in that case; caller should construct effective_policy = {} to
+    mean 'enforce against empty defaults' or pass None to mean 'no
+    enforcement available').
+    """
+    overrides = cell.policy_overrides or {}
+    if not overrides:
+        return None
+    if effective_policy is None:
+        # Defensive: no policy snapshot means we can't verify. Skip with
+        # a clear reason rather than risk corrupting paper-eval data.
+        return (
+            "policy_overrides declared but no effective policy snapshot "
+            "available — orchestrator cannot verify cell can run safely"
+        )
+    gc = effective_policy.get("global_constraints", {}) or {}
+    mismatches = []
+    for key, required in overrides.items():
+        actual = gc.get(key)
+        if actual != required:
+            mismatches.append(
+                f"{key}: required={required!r} actual={actual!r}"
+            )
+    if mismatches:
+        return (
+            "policy mismatch — cell requires overrides not present in "
+            f"current common/policies/policy_table.json: {'; '.join(mismatches)}. "
+            "Flip the policy flag(s) at deployment and re-run."
+        )
+    return None
+
+
+def _load_effective_policy(repo_root: pathlib.Path) -> Optional[dict]:
+    """Load common/policies/policy_table.json from the repo root. Returns
+    None on failure so the orchestrator can fall back to a defensive skip
+    rather than crashing."""
+    policy_path = repo_root / "common" / "policies" / "policy_table.json"
+    try:
+        return json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        log.warning("Could not load %s: %s", policy_path, exc)
+        return None
+
+
 class Sweeper:
     """Orchestrate a paper-eval matrix sweep against a running dashboard.
 
@@ -478,6 +536,14 @@ class Sweeper:
             )
 
         anchors = resolve_anchor_commits(self.repo_root, self.matrix_path)
+        # Snapshot the effective policy ONCE per sweep so each cell's
+        # _policy_overrides can be checked against it. Phase C 2026-05-03
+        # ran 60 trials (2 cells × 30) of supposedly multi-turn behaviour
+        # against a policy where class2_multi_turn_enabled=false; the cells
+        # silently fell through to the default direct-select path and
+        # mislabelled their results. _validate_cell_policy_overrides closes
+        # that loophole by skipping any mismatched cell with a clear reason.
+        effective_policy = _load_effective_policy(self.repo_root)
         result = SweepResult(
             matrix_version=spec.matrix_version,
             matrix_path=str(self.matrix_path),
@@ -492,7 +558,8 @@ class Sweeper:
         for idx, cell in enumerate(spec.cells):
             self._check_cancelled()
             cell_result = self._run_cell(spec, cell, cell_index=idx,
-                                         total_cells=total)
+                                         total_cells=total,
+                                         effective_policy=effective_policy)
             result.cells.append(cell_result)
         result.finished_at_ms = _now_ms()
         self._emit(
@@ -508,7 +575,8 @@ class Sweeper:
 
     def _run_cell(self, spec: MatrixSpec, cell: Cell,
                   cell_index: Optional[int] = None,
-                  total_cells: Optional[int] = None) -> CellRunResult:
+                  total_cells: Optional[int] = None,
+                  effective_policy: Optional[dict] = None) -> CellRunResult:
         """Validate, create run, fire trials, poll to completion."""
         started = _now_ms()
         self._emit(
@@ -518,7 +586,40 @@ class Sweeper:
             total_cells=total_cells,
             requested_trials=cell.trials_per_cell,
         )
-        # Pre-validation: scenario tagging (P2.6 invariant)
+        # Pre-validation 1/2: cell's _policy_overrides must already match the
+        # currently-deployed policy (orchestrator does NOT mutate policy itself
+        # — that would be a new authority surface). Mismatch → skip with
+        # explicit reason. Closes the data-integrity hole that mislabelled
+        # Phase C's two MULTI_TURN cells (refinement_history present in 0/60
+        # trials despite the cells being labelled multi-turn).
+        policy_err = _validate_cell_policy_overrides(cell, effective_policy)
+        if policy_err is not None:
+            log.warning("Skipping cell %s: %s", cell.cell_id, policy_err)
+            self._emit(
+                event_type="cell_skipped",
+                cell_id=cell.cell_id,
+                cell_index=cell_index,
+                total_cells=total_cells,
+                skip_reason=policy_err,
+            )
+            return CellRunResult(
+                cell_id=cell.cell_id,
+                comparison_condition=cell.comparison_condition,
+                run_id=None,
+                requested_trials=cell.trials_per_cell,
+                completed_trials=0,
+                incomplete=False,
+                skipped=True,
+                skip_reason=policy_err,
+                metrics_snapshot=None,
+                trials_snapshot=None,
+                scenarios=list(cell.scenarios),
+                expected_route_class=cell.expected_route_class,
+                expected_validation=cell.expected_validation,
+                started_at_ms=started,
+                finished_at_ms=_now_ms(),
+            )
+        # Pre-validation 2/2: scenario tagging (P2.6 invariant)
         tag_err = _validate_cell_scenario_tags(cell, self.scenarios_dir)
         if tag_err is not None:
             log.warning("Skipping cell %s: %s", cell.cell_id, tag_err)

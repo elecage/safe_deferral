@@ -448,16 +448,21 @@ class TestEndToEnd:
 
         assert matrix.matrix_version == "v1"
         assert len(matrix.cells) == 12
-        # Every cell's trials_snapshot was populated by sweep, so n_trials
-        # should equal requested (30) for non-skipped cells.
-        for cell in matrix.cells:
-            assert cell.skipped is False
-            assert cell.n_trials == 30
-            assert cell.pass_rate == 1.0
-        # Class 2 cells should have non-None clarification correctness.
+        # 10 cells run + 2 multi-turn skip (canonical policy has
+        # class2_multi_turn_enabled=False — Sweeper enforces).
+        ran = [c for c in matrix.cells if not c.skipped]
+        skipped = [c for c in matrix.cells if c.skipped]
+        assert len(ran) == 10
+        assert len(skipped) == 2
+        for c in ran:
+            assert c.n_trials == 30
+            assert c.pass_rate == 1.0
+        for c in skipped:
+            assert "MULTI_TURN" in c.cell_id
+            assert c.n_trials == 0
+        # Class 2 scanning cell still has clarification correctness.
         c2 = matrix.cell_by_id("C2_D4_SCANNING_INPUT")
         assert c2.class2_clarification_correctness == 1.0
-        # Scanning-tagged cells should report scan_history presence.
         assert c2.scan_history_present_count == 30
 
 

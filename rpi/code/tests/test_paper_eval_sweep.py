@@ -22,6 +22,8 @@ from paper_eval.sweep import (
     SweepProgressEvent,
     Sweeper,
     SweepResult,
+    _load_effective_policy,
+    _validate_cell_policy_overrides,
     _validate_cell_scenario_tags,
     load_matrix,
     main,
@@ -244,19 +246,28 @@ class TestSweeperHappyPath:
     """Full real matrix v1 sweep against a fake dashboard."""
 
     def test_real_matrix_v1_sweep_completes(self, fast_sweeper):
+        """matrix_v1 has 12 cells but the canonical policy_table.json keeps
+        class2_multi_turn_enabled=False, so the 2 MULTI_TURN cells are
+        correctly skipped via Sweeper's policy-overrides enforcement.
+        The other 10 cells run end-to-end."""
         s, client = fast_sweeper()
         result = s.run()
         assert isinstance(result, SweepResult)
         assert result.matrix_version == "v1"
         assert len(result.cells) == 12
-        # All cells should be non-skipped (matrix v1 was tagged in P2.6).
-        assert all(not c.skipped for c in result.cells)
-        # All cells should be non-incomplete (fake client completes after 1 poll).
-        assert all(not c.incomplete for c in result.cells)
-        # Each cell created one run + 30 trials (per matrix_v1.json default).
-        assert client.create_package_run.call_count == 12
-        # 12 cells × 30 trials each = 360 start_trial calls.
-        assert client.start_trial.call_count == 12 * 30
+        # 10 cells run; 2 multi-turn cells skipped by policy enforcement.
+        skipped = [c for c in result.cells if c.skipped]
+        ran = [c for c in result.cells if not c.skipped]
+        assert len(ran) == 10
+        assert len(skipped) == 2
+        assert {c.cell_id for c in skipped} == {
+            "C2_MULTI_TURN_REFINEMENT_USER_PICK",
+            "C2_MULTI_TURN_REFINEMENT_TIMEOUT",
+        }
+        # The 10 cells that ran each created one run + 30 trials.
+        assert all(not c.incomplete for c in ran)
+        assert client.create_package_run.call_count == 10
+        assert client.start_trial.call_count == 10 * 30
 
     def test_manifest_writes_valid_json(self, fast_sweeper, tmp_path):
         s, _ = fast_sweeper()
@@ -443,6 +454,10 @@ class TestProgressCallback:
         assert events[0].total_cells == 12
 
     def test_each_cell_emits_started_and_completed(self, tmp_path):
+        """All 12 cells emit cell_started; only the 10 that pass policy
+        check emit cell_completed (the 2 multi-turn cells emit cell_skipped
+        instead). Verified against the canonical policy_table.json which
+        has class2_multi_turn_enabled=False."""
         events = []
         client = _fake_client()
         s = Sweeper(
@@ -454,9 +469,11 @@ class TestProgressCallback:
         s.run()
         started = [e for e in events if e.event_type == "cell_started"]
         completed = [e for e in events if e.event_type == "cell_completed"]
-        assert len(started) == 12
-        assert len(completed) == 12
-        # cell_index is 0-based and contiguous.
+        skipped = [e for e in events if e.event_type == "cell_skipped"]
+        assert len(started) == 12       # every cell still emits cell_started
+        assert len(completed) == 10     # 10 ran end-to-end
+        assert len(skipped) == 2        # 2 multi-turn cells policy-skipped
+        # cell_index is 0-based and contiguous across started events.
         assert [e.cell_index for e in started] == list(range(12))
 
     def test_skipped_cell_emits_cell_skipped_with_reason(self, tmp_path):
@@ -556,3 +573,104 @@ class TestCancelHook:
         s, _ = fast_sweeper()   # cancel_check defaults to no-op
         result = s.run()
         assert len(result.cells) == 12
+
+
+# ==================================================================
+# Item 1 fix — _policy_overrides enforcement
+# ==================================================================
+
+class TestValidateCellPolicyOverrides:
+    """Sweeper must skip any cell whose declared `_policy_overrides` is
+    not satisfied by the currently-loaded canonical policy. Without this
+    Phase C 2026-05-03 silently ran 60 trials of supposedly multi-turn
+    behaviour against a policy where the multi-turn flag was off; the
+    cells fell through to default direct-select and mislabelled their
+    results (refinement_history present in 0/60)."""
+
+    def test_no_overrides_returns_none(self):
+        cell = Cell(cell_id="X", description="", comparison_condition=None,
+                    scenarios=[], trials_per_cell=1,
+                    expected_route_class="CLASS_1", expected_validation="approved",
+                    policy_overrides=None)
+        assert _validate_cell_policy_overrides(cell, {"global_constraints": {}}) is None
+
+    def test_empty_overrides_returns_none(self):
+        cell = Cell(cell_id="X", description="", comparison_condition=None,
+                    scenarios=[], trials_per_cell=1,
+                    expected_route_class="CLASS_1", expected_validation="approved",
+                    policy_overrides={})
+        assert _validate_cell_policy_overrides(cell, {"global_constraints": {}}) is None
+
+    def test_matching_override_returns_none(self):
+        cell = Cell(cell_id="X", description="", comparison_condition=None,
+                    scenarios=[], trials_per_cell=1,
+                    expected_route_class="CLASS_2", expected_validation="safe_deferral",
+                    policy_overrides={"class2_multi_turn_enabled": True})
+        policy = {"global_constraints": {"class2_multi_turn_enabled": True}}
+        assert _validate_cell_policy_overrides(cell, policy) is None
+
+    def test_mismatched_override_returns_skip_reason(self):
+        cell = Cell(cell_id="X", description="", comparison_condition=None,
+                    scenarios=[], trials_per_cell=1,
+                    expected_route_class="CLASS_2", expected_validation="safe_deferral",
+                    policy_overrides={"class2_multi_turn_enabled": True})
+        policy = {"global_constraints": {"class2_multi_turn_enabled": False}}
+        err = _validate_cell_policy_overrides(cell, policy)
+        assert err is not None
+        assert "class2_multi_turn_enabled" in err
+        assert "required=True" in err
+        assert "actual=False" in err
+
+    def test_missing_policy_key_returns_skip(self):
+        cell = Cell(cell_id="X", description="", comparison_condition=None,
+                    scenarios=[], trials_per_cell=1,
+                    expected_route_class="CLASS_2", expected_validation="safe_deferral",
+                    policy_overrides={"class2_multi_turn_enabled": True})
+        policy = {"global_constraints": {}}   # key absent → actual=None
+        err = _validate_cell_policy_overrides(cell, policy)
+        assert err is not None
+        assert "actual=None" in err
+
+    def test_none_effective_policy_returns_defensive_skip(self):
+        """If the orchestrator could not load the policy at all, every
+        cell with overrides must skip rather than silently run."""
+        cell = Cell(cell_id="X", description="", comparison_condition=None,
+                    scenarios=[], trials_per_cell=1,
+                    expected_route_class="CLASS_2", expected_validation="safe_deferral",
+                    policy_overrides={"class2_multi_turn_enabled": True})
+        err = _validate_cell_policy_overrides(cell, None)
+        assert err is not None
+        assert "no effective policy snapshot" in err
+
+    def test_real_matrix_v1_multi_turn_cells_skip_under_default_policy(self):
+        """End-to-end: load real matrix_v1.json + real policy_table.json.
+        The two MULTI_TURN cells must be flagged as skip-needed because
+        the canonical default has class2_multi_turn_enabled=False."""
+        spec = load_matrix(_REAL_MATRIX, _REAL_SCENARIOS)
+        repo_root = pathlib.Path(__file__).resolve().parents[3]
+        policy = _load_effective_policy(repo_root)
+        assert policy is not None
+        skip_count = 0
+        for cell in spec.cells:
+            err = _validate_cell_policy_overrides(cell, policy)
+            if err is not None:
+                skip_count += 1
+                assert "MULTI_TURN" in cell.cell_id, (
+                    f"unexpectedly skipped non-multi-turn cell {cell.cell_id}: {err}"
+                )
+        assert skip_count == 2, f"expected 2 multi-turn cells to skip, got {skip_count}"
+
+
+class TestLoadEffectivePolicy:
+    def test_loads_canonical_policy_table(self):
+        repo_root = pathlib.Path(__file__).resolve().parents[3]
+        p = _load_effective_policy(repo_root)
+        assert p is not None
+        # Sanity: canonical default for the multi-turn flag is False
+        # (intentional safety posture).
+        gc = p.get("global_constraints", {})
+        assert gc.get("class2_multi_turn_enabled") is False
+
+    def test_missing_repo_returns_none(self, tmp_path):
+        # tmp_path has no common/policies/policy_table.json
+        assert _load_effective_policy(tmp_path) is None

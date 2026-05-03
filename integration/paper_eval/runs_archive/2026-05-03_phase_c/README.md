@@ -1,5 +1,25 @@
 # Paper-Eval Phase C Run — 2026-05-03
 
+> ⚠️ **CRITICAL CAVEAT — multi-turn cells are MISLABELLED**
+>
+> `C2_MULTI_TURN_REFINEMENT_USER_PICK` (n=28, pass=0.964) and
+> `C2_MULTI_TURN_REFINEMENT_TIMEOUT` (n=30, pass=1.000) **did not
+> exercise the multi-turn refinement code path**. The Sweeper that
+> produced this run did NOT enforce the cells' `_policy_overrides:
+> {class2_multi_turn_enabled: true}`, and the canonical policy default
+> is `false` — so both cells silently fell through to the regular
+> direct-select path. Verification: across all 360 trials, the
+> `clarification_payload.refinement_history` field is present in 0,
+> and neither cell ever emitted `REFINE_LIVING_ROOM` / `REFINE_BEDROOM`
+> candidate IDs.
+>
+> **Do not cite either MULTI_TURN cell in the paper as multi-turn
+> refinement evidence.** The other 10 cells are valid measurements.
+> The Sweeper bug is fixed in the PR alongside this caveat (Item 1
+> code change adds `_validate_cell_policy_overrides`); a fresh run
+> with the policy flag flipped is needed to recover real multi-turn
+> data for the paper.
+
 **Source**: First full `matrix_v1.json` sweep (12 cells × 30 trials = 360 trials) executed end-to-end on a single M1 MacBook against real Ollama llama3.2.
 
 **Hardware**: M1 MacBook (no separate Mac mini / RPi nodes).
@@ -45,8 +65,8 @@ To reproduce: check out the commit set above and re-run
 | C2_D3_SCAN_DETERMINISTIC | 28 | 1.000 | 2 timeouts (incomplete) |
 | C2_D4_DIRECT_SELECT_INPUT | 30 | 1.000 | clean baseline for D4 |
 | C2_D4_SCANNING_INPUT | 29 | **0.966** | scan_history_yes_first_rate **0.474** (19 of 30 had history) |
-| C2_MULTI_TURN_REFINEMENT_USER_PICK | 28 | **0.964** | 1 wrong-reason + 2 timeouts |
-| C2_MULTI_TURN_REFINEMENT_TIMEOUT | 30 | 1.000 | clean |
+| ⚠️ C2_MULTI_TURN_REFINEMENT_USER_PICK | 28 | 0.964 | **NOT actual multi-turn** — direct-select path; do not cite |
+| ⚠️ C2_MULTI_TURN_REFINEMENT_TIMEOUT | 30 | 1.000 | **NOT actual multi-turn** — direct-select path; do not cite |
 
 **Aggregate**: 351/360 trials reached terminal status (97.5%); pass-rate-weighted average ~98.5%.
 
