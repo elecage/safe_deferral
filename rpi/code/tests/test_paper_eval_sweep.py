@@ -32,6 +32,7 @@ from paper_eval.sweep import (
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 _REAL_MATRIX = _REPO_ROOT / "integration" / "paper_eval" / "matrix_v1.json"
+_EXTENSIBILITY_MATRIX = _REPO_ROOT / "integration" / "paper_eval" / "matrix_extensibility.json"
 _REAL_SCENARIOS = _REPO_ROOT / "integration" / "scenarios"
 
 
@@ -674,3 +675,58 @@ class TestLoadEffectivePolicy:
     def test_missing_repo_returns_none(self, tmp_path):
         # tmp_path has no common/policies/policy_table.json
         assert _load_effective_policy(tmp_path) is None
+
+
+# ==================================================================
+# Step 2 — Extensibility experiment matrix structural tests
+# ==================================================================
+
+class TestExtensibilityMatrix:
+    """matrix_extensibility.json defines the v1 Axis A experiment for
+    Contribution 1 (perception scalability). Structural invariants here
+    catch drift between the matrix file, its scenario, and the Sweeper's
+    pre-flight checks."""
+
+    def test_matrix_loads_with_three_cells(self):
+        spec = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
+        assert spec.matrix_version == "v1-extensibility-axis-a"
+        assert len(spec.cells) == 3
+        # Three modes, same scenario file across all three cells.
+        assert {c.comparison_condition for c in spec.cells} == {
+            "direct_mapping", "rule_only", "llm_assisted",
+        }
+        scenarios = {tuple(c.scenarios) for c in spec.cells}
+        assert len(scenarios) == 1, "all 3 cells should use the same scenario file"
+
+    def test_each_cell_passes_scenario_tag_check(self):
+        """The shared scenario must declare all three comparison_conditions
+        so the P2.6 invariant holds for every cell that runs against it."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
+        for cell in spec.cells:
+            err = _validate_cell_scenario_tags(cell, _REAL_SCENARIOS)
+            assert err is None, (
+                f"cell {cell.cell_id} failed P2.6 tag check: {err}"
+            )
+
+    def test_each_cell_passes_policy_overrides_check(self):
+        """Extensibility cells must not declare policy_overrides — this
+        experiment doesn't require any flag flips."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
+        repo_root = pathlib.Path(__file__).resolve().parents[3]
+        policy = _load_effective_policy(repo_root)
+        for cell in spec.cells:
+            err = _validate_cell_policy_overrides(cell, policy)
+            assert err is None, (
+                f"cell {cell.cell_id} failed policy check: {err}"
+            )
+
+    def test_expected_route_class_is_class1_across_all_cells(self):
+        """Expected reflects the user's actual intent (light_on bedroom).
+        Deterministic modes should register pass_rate≈0 against this
+        expected (they correctly safe-defer); llm_assisted should register
+        a high pass_rate. Per-cell expected stays uniform so by_route_class
+        differentiates rather than expected."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
+        for cell in spec.cells:
+            assert cell.expected_route_class == "CLASS_1"
+            assert cell.expected_validation == "approved"
