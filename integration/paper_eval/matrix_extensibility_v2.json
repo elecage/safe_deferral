@@ -9,6 +9,9 @@
     "B: OLLAMA_MODEL=gemma4:e4b (env-only, no canonical change)",
     "C: prompt_builder _SYSTEM_HEADER line 9 (general guidance to use context and prefer catalog action over safe_deferral when signals are sufficient)"
   ],
+  "_required_operator_policy_changes": [
+    "global_constraints.llm_request_timeout_ms must be temporarily raised from 8000 to 120000 in policy_table.json before the LLM_ASSISTED cell can run; the cell declares this in its _policy_overrides and the Sweeper enforces the match. Reason: gemma4:e4b inference for the structured paper-eval prompt takes ~89s (vs llama3.2's 6-8s), so the canonical 8s OllamaClient timeout cuts every LLM call short and forces 100% fallback. Revert to 8000 after the sweep so the production default stays tight."
+  ],
   "_levers_deferred": [
     "A: pure_context_payload enrichment (user_state.inferred_attention, recent_events) — deferred pending canonical context_schema extension"
   ],
@@ -38,7 +41,11 @@
       "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
       "trials_per_cell": 30,
       "expected_route_class": "CLASS_1",
-      "expected_validation": "approved"
+      "expected_validation": "approved",
+      "_policy_overrides": {
+        "llm_request_timeout_ms": 120000
+      },
+      "_policy_overrides_note": "v2 sweep diagnostic finding (2026-05-03): the canonical llm_request_timeout_ms=8000 was set for llama3.2 (~6-8s for the structured prompt) and is too tight for gemma4:e4b which takes ~89s for the same prompt. A direct adapter test with the canonical 8s budget produced is_fallback=True on every call (raw response empty due to requests.Timeout). Operators running this matrix MUST temporarily set global_constraints.llm_request_timeout_ms=120000 in policy_table.json before starting the sweep, then restart the mac_mini stack so the new value is read at Pipeline.__init__. The Sweeper enforces this match via _validate_cell_policy_overrides and will skip the cell if the policy is not bumped. Restore the canonical 8000 default after the sweep so production deployments keep the tight budget. This override is only on the LLM_ASSISTED cell because direct_mapping and rule_only do not exercise the LLM at the Class 1 path; their Class 2 candidate generation also runs under the bumped budget but they do not depend on it for pass."
     }
   ],
   "anchor_commits": {

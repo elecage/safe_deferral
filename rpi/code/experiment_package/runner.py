@@ -402,9 +402,21 @@ class PackageRunner:
             # The trial completes naturally when the Mac mini publishes the final
             # class2 observation (after user response, caregiver response, or the
             # full Phase-2 timeout).
+            # llm_assisted trials may legitimately escalate from CLASS_1 to
+            # CLASS_2 when the LLM returns safe_deferral. They need the longer
+            # CLASS_2 budget even when the matrix expects CLASS_1, otherwise
+            # the trial times out before the class2 update / post-transition
+            # snapshot arrives. Deterministic comparison_conditions
+            # (direct_mapping, rule_only) keep the short budget — they do not
+            # perform an LLM call on the Class 1 path so their wall-time is
+            # bounded by the table / heuristic, not by inference latency.
+            needs_class2_budget = (
+                trial.expected_route_class == "CLASS_2"
+                or trial.comparison_condition == "llm_assisted"
+            )
             trial_timeout = (
                 self._class2_trial_timeout_s
-                if trial.expected_route_class == "CLASS_2"
+                if needs_class2_budget
                 else _TRIAL_TIMEOUT_S
             )
             observation = self._match_observation(
@@ -413,6 +425,17 @@ class PackageRunner:
 
             notification = self._await_notification(correlation_id, observation)
             clarification = self._await_clarification(correlation_id, observation)
+
+            # Capture every snapshot the Mac mini published with this
+            # correlation_id, in arrival order. observation_payload (the
+            # 'best match' the runner's polling loop chose) drives the
+            # pass/fail verdict; observation_history preserves the full
+            # path so analysis can reconstruct what happened — e.g. for
+            # CLASS_2-escalated trials the history typically holds the
+            # initial routing snapshot, the class2 update, and (when the
+            # selection routes back to a Class 1 / Class 0 action) the
+            # post-transition outcome snapshot.
+            observation_history = self._obs.find_all_by_correlation_id(correlation_id)
 
             if observation is None:
                 log.warning(
@@ -423,12 +446,14 @@ class PackageRunner:
                     trial.trial_id,
                     notification_payload=notification,
                     clarification_payload=clarification,
+                    observation_history=observation_history,
                 )
             else:
                 self._store.complete_trial(
                     trial.trial_id, observation,
                     notification_payload=notification,
                     clarification_payload=clarification,
+                    observation_history=observation_history,
                 )
                 log.info(
                     "Trial %s completed: route=%s validation=%s pass=%s latency=%.1fms",

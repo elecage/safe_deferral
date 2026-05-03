@@ -1,0 +1,37 @@
+{
+  "matrix_version": "v2-extensibility-axis-a-llm-only",
+  "matrix_description": "DEBUG/ITERATE matrix — runs ONLY the LLM_ASSISTED cell from matrix_extensibility_v2.json. DIRECT_MAPPING and RULE_ONLY are deterministic and fully validated by prior archives, so iterating on dashboard / observation / class2-transition fixes does not need to repeat them (saves ~70 min per iteration). Use matrix_extensibility_v2.json (the full 3-cell matrix) for final paper-archive runs that establish v1↔v2 comparability. All other settings (_recommended_per_trial_timeout_s=480, _recommended_ollama_model=gemma4:e4b, _required_operator_policy_changes) are inherited from v2 by reference — do not change them here without also changing v2.",
+  "trials_per_cell_default": 30,
+  "package_id": "A",
+  "_recommended_per_trial_timeout_s": 480,
+  "_recommended_ollama_model": "gemma4:e4b",
+  "_levers_active": [
+    "B: OLLAMA_MODEL=gemma4:e4b",
+    "C: prompt_builder _SYSTEM_HEADER line 9 (subordinate to rules 1-8)"
+  ],
+  "_required_operator_policy_changes": [
+    "global_constraints.llm_request_timeout_ms must be set to 120000 (vs canonical 8000) before this matrix can run; the LLM_ASSISTED cell asserts this via _policy_overrides. Restore to 8000 after."
+  ],
+  "_iteration_intent": "Fast feedback loop for observation-payload / dashboard breakdown fixes. Each run captures only the LLM-side data (which is the sole place that varies) and skips the deterministic baseline cells.",
+  "cells": [
+    {
+      "cell_id": "EXT_A_LLM_ASSISTED",
+      "description": "Axis A v2 LLM_ASSISTED only. Same scenario, fixture, and expected as the full v2 matrix; same _policy_overrides. Pass criteria identical (CLASS_1 + approved). Use the resulting digest's by_route_class breakdown plus per-trial class2 transition fields to analyse where the LLM's safe_deferral choices end up — the goal of running this iteratively is to make those downstream outcomes visible in the dashboard.",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved",
+      "_policy_overrides": {
+        "llm_request_timeout_ms": 120000
+      },
+      "_policy_overrides_note": "Inherited from matrix_extensibility_v2.json LLM_ASSISTED cell — see that file for the full operator runbook."
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}

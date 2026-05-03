@@ -20,6 +20,8 @@ For current implementation status, experiment readiness, hardware validation,
 setup documentation, and all prior architecture/policy/schema/MQTT work, read
 in this order:
 
+1. `common/docs/runtime/SESSION_HANDOFF_2026-05-03_TRIAL_DATA_FIDELITY_DIAGNOSIS.md`
+1. `common/docs/runtime/PLAN_2026-05-03_PAPER_EVAL_TRIAL_DATA_FIDELITY_FIXES.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-03_STEP4_AXIS_A_V2_BUILD_LEVERS_B_C.md`
 1. `common/docs/runtime/SESSION_HANDOFF_2026-05-03_STEP4_AXIS_A_V2_QUEUED.md`
 1. `common/docs/runtime/PLAN_2026-05-03_AXIS_A_V2_RICHER_CONTEXT_AND_LARGER_MODEL.md`
