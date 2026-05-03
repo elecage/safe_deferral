@@ -28,6 +28,7 @@ _SYSTEM_HEADER = """\
 6. 비상 상황, 도어락, 민감한 장치는 이 스키마의 범위 밖입니다 — 항상 safe_deferral로 처리합니다.
 7. 방문자 감지(도어벨)가 True이면 반드시 safe_deferral로 처리합니다. 방문자 상황은 자율 조명 판단 범위를 벗어나며 보호자 확인이 필요합니다.
 8. 이것은 후보 제안입니다. 최종 실행 결정권은 없습니다.
+9. device_states와 environmental_context를 명시적으로 활용해 트리거의 의도를 해석하세요. 충분한 신호가 있으면 safe_deferral보다 actuator catalog 안의 행동을 우선 고려합니다.
 
 출력 JSON 두 형식 중 하나만 사용하세요:
 

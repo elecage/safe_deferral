@@ -33,6 +33,7 @@ from paper_eval.sweep import (
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 _REAL_MATRIX = _REPO_ROOT / "integration" / "paper_eval" / "matrix_v1.json"
 _EXTENSIBILITY_MATRIX = _REPO_ROOT / "integration" / "paper_eval" / "matrix_extensibility.json"
+_EXTENSIBILITY_MATRIX_V2 = _REPO_ROOT / "integration" / "paper_eval" / "matrix_extensibility_v2.json"
 _REAL_SCENARIOS = _REPO_ROOT / "integration" / "scenarios"
 
 
@@ -736,3 +737,74 @@ class TestExtensibilityMatrix:
         # LLM mode: expected to recover and successfully route a Class 1 action
         assert by_id["EXT_A_LLM_ASSISTED"].expected_route_class == "CLASS_1"
         assert by_id["EXT_A_LLM_ASSISTED"].expected_validation == "approved"
+
+
+class TestExtensibilityMatrixV2:
+    """matrix_extensibility_v2.json reuses the v1 scenario/fixture but is
+    swept under Lever B (OLLAMA_MODEL=gemma4:e4b) and Lever C (prompt_builder
+    rule 9). Same structural invariants as v1 — deterministic modes safe-defer,
+    LLM mode recovers — and the cell ids must stay aligned with v1 so v1↔v2
+    side-by-side comparison is straightforward."""
+
+    def test_matrix_loads_with_three_cells_and_v2_version(self):
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V2, _REAL_SCENARIOS)
+        assert spec.matrix_version == "v2-extensibility-axis-a"
+        assert len(spec.cells) == 3
+        assert {c.comparison_condition for c in spec.cells} == {
+            "direct_mapping", "rule_only", "llm_assisted",
+        }
+        scenarios = {tuple(c.scenarios) for c in spec.cells}
+        assert len(scenarios) == 1, "all 3 cells should use the same scenario file"
+
+    def test_v2_reuses_v1_scenario_and_cell_ids(self):
+        """v2 must reuse the v1 scenario file and the same cell_ids so the
+        side-by-side comparison in the v2 archive README is unambiguous."""
+        v1 = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
+        v2 = load_matrix(_EXTENSIBILITY_MATRIX_V2, _REAL_SCENARIOS)
+        v1_scenarios = {tuple(c.scenarios) for c in v1.cells}
+        v2_scenarios = {tuple(c.scenarios) for c in v2.cells}
+        assert v1_scenarios == v2_scenarios, (
+            "v2 must reuse the v1 scenario file so the only sweep-time deltas "
+            "are Lever B (model) and Lever C (prompt rule 9)"
+        )
+        assert {c.cell_id for c in v1.cells} == {c.cell_id for c in v2.cells}
+
+    def test_v2_cells_pass_scenario_tag_and_policy_overrides_checks(self):
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V2, _REAL_SCENARIOS)
+        repo_root = pathlib.Path(__file__).resolve().parents[3]
+        policy = _load_effective_policy(repo_root)
+        for cell in spec.cells:
+            tag_err = _validate_cell_scenario_tags(cell, _REAL_SCENARIOS)
+            assert tag_err is None, (
+                f"v2 cell {cell.cell_id} failed P2.6 tag check: {tag_err}"
+            )
+            policy_err = _validate_cell_policy_overrides(cell, policy)
+            assert policy_err is None, (
+                f"v2 cell {cell.cell_id} failed policy check: {policy_err}"
+            )
+
+    def test_v2_per_cell_expected_matches_v1(self):
+        """The comparison pivot is unchanged across v2; only the LLM-side
+        levers move. Per-cell expected MUST therefore match v1 cell-for-cell
+        so any drift in this file fails CI."""
+        v1 = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
+        v2 = load_matrix(_EXTENSIBILITY_MATRIX_V2, _REAL_SCENARIOS)
+        v1_by_id = {c.cell_id: c for c in v1.cells}
+        v2_by_id = {c.cell_id: c for c in v2.cells}
+        for cell_id, v1_cell in v1_by_id.items():
+            v2_cell = v2_by_id[cell_id]
+            assert v2_cell.expected_route_class == v1_cell.expected_route_class
+            assert v2_cell.expected_validation == v1_cell.expected_validation
+
+    def test_v2_documents_recommended_timeout_and_model(self):
+        """The v2 matrix doesn't carry per_trial_timeout_s as a runtime field
+        (timeout is set at sweep POST time), but the matrix file must surface
+        the recommended values so an operator running the sweep doesn't
+        re-use v1's 120s budget against the larger model."""
+        raw = json.loads(_EXTENSIBILITY_MATRIX_V2.read_text())
+        assert raw["_recommended_per_trial_timeout_s"] >= 240, (
+            "gemma4:e4b is ~4× larger than llama3.2; v1's 120s budget "
+            "produced 12 timeouts, so the recommended v2 budget must be "
+            "noticeably higher than v1's recommended 240s re-run value"
+        )
+        assert raw["_recommended_ollama_model"] == "gemma4:e4b"

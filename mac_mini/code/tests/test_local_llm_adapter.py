@@ -303,6 +303,18 @@ class TestPromptBuilder:
         assert "routing_metadata" not in prompt
         assert "network_status" not in prompt
 
+    def test_system_header_contains_context_use_guidance(self):
+        # Lever C (Axis A v2): rule 9 instructs the LLM to lean on
+        # device_states/environmental_context and prefer catalog actions
+        # over safe_deferral when signals are sufficient. Regression guard so
+        # future prompt edits don't drop the line silently — the v2 sweep's
+        # paper claim depends on this rule being present.
+        prompt = build_prompt(_ctx(), "single_click")
+        assert "9." in prompt
+        assert "device_states" in prompt
+        assert "environmental_context" in prompt
+        assert "actuator catalog" in prompt
+
     def test_event_code_override(self):
         adapter = _mock_adapter(_valid_light_on_json())
         # event_code supplied explicitly should override what's in the payload
