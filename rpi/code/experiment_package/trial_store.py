@@ -44,6 +44,14 @@ class TrialResult:
     status: str = "pending"               # "pending" | "completed" | "timeout"
     timestamp_ms: int = field(default_factory=lambda: int(time.time() * 1000))
     observation_payload: Optional[dict] = None
+    # Full ordered list of every observation snapshot that arrived with this
+    # trial's audit_correlation_id (oldest first). A CLASS_2-escalated trial
+    # may publish initial-routing, class2-update, and post-transition
+    # snapshots; observation_payload keeps the single 'best match' the runner
+    # picked, while observation_history preserves the full path so analysis
+    # can reconstruct what happened. Empty list when the trial timed out
+    # before any snapshot arrived.
+    observation_history: list = field(default_factory=list)
     notification_payload: Optional[dict] = None  # safe_deferral/escalation/class2
     clarification_payload: Optional[dict] = None  # safe_deferral/clarification/interaction
     # CLASS_2 phase budgets at the moment this trial was created. Set by the
@@ -75,6 +83,7 @@ class TrialResult:
             "status": self.status,
             "timestamp_ms": self.timestamp_ms,
             "observation_payload": self.observation_payload,
+            "observation_history": list(self.observation_history),
             "notification_payload": self.notification_payload,
             "clarification_payload": self.clarification_payload,
             "class2_phase_budgets_snapshot": self.class2_phase_budgets_snapshot,
@@ -205,14 +214,25 @@ class TrialStore:
         observation: dict,
         notification_payload: Optional[dict] = None,
         clarification_payload: Optional[dict] = None,
+        observation_history: Optional[list] = None,
     ) -> Optional[TrialResult]:
-        """Fill observed values from an ObservationStore payload and compute verdict."""
+        """Fill observed values from an ObservationStore payload and compute verdict.
+
+        observation_history (optional) is the full ordered list of every
+        snapshot that arrived with this trial's audit_correlation_id. The
+        single 'observation' parameter remains the runner's chosen best-match
+        snapshot used for pass/fail verdict; the history is preserved
+        verbatim for downstream reconstruction. When the caller does not
+        provide history, the field stays as the dataclass default ([]).
+        """
         with self._lock:
             trial = self._trials.get(trial_id)
             if trial is None:
                 return None
 
             trial.observation_payload = observation
+            if observation_history is not None:
+                trial.observation_history = list(observation_history)
             trial.notification_payload = notification_payload
             trial.clarification_payload = clarification_payload
             # Observation payload uses nested structure from Mac mini telemetry:
@@ -247,12 +267,15 @@ class TrialStore:
         trial_id: str,
         notification_payload: Optional[dict] = None,
         clarification_payload: Optional[dict] = None,
+        observation_history: Optional[list] = None,
     ) -> Optional[TrialResult]:
         with self._lock:
             trial = self._trials.get(trial_id)
             if trial:
                 trial.status = "timeout"
                 trial.pass_ = False
+                if observation_history is not None:
+                    trial.observation_history = list(observation_history)
                 if notification_payload is not None:
                     trial.notification_payload = notification_payload
                 if clarification_payload is not None:

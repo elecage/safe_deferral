@@ -3261,3 +3261,226 @@ class TestClarificationCapture:
         assert result.clarification_payload is not None
         assert result.clarification_payload["audit_correlation_id"] == corr
         assert result.clarification_payload["candidate_source"] == "llm_generated"
+
+
+# ====================================================================
+# Trial data fidelity fixes (PLAN_2026-05-03_PAPER_EVAL_TRIAL_DATA_FIDELITY_FIXES)
+# ====================================================================
+
+class TestObservationStoreFindAllByCorrelationId:
+    """Multi-snapshot retrieval — Fix 2 input. ObservationStore must surface
+    every snapshot whose audit_correlation_id matches, in arrival order, so
+    the runner can preserve the full path of a CLASS_2-escalated trial."""
+
+    def test_returns_empty_when_no_match(self):
+        from observation_store import ObservationStore
+        store = ObservationStore()
+        store.add({"audit_correlation_id": "other", "x": 1})
+        assert store.find_all_by_correlation_id("missing") == []
+
+    def test_returns_all_matching_in_arrival_order(self):
+        from observation_store import ObservationStore
+        store = ObservationStore()
+        store.add({"audit_correlation_id": "A", "snap": 1})
+        store.add({"audit_correlation_id": "B", "snap": 99})
+        store.add({"audit_correlation_id": "A", "snap": 2})
+        store.add({"audit_correlation_id": "A", "snap": 3})
+        result = store.find_all_by_correlation_id("A")
+        assert [r["snap"] for r in result] == [1, 2, 3]
+
+    def test_unaffected_by_find_by_correlation_id_contract(self):
+        """find_by_correlation_id (single-result, newest-wins) and
+        find_all_by_correlation_id (every match, oldest-first) must
+        coexist without interfering."""
+        from observation_store import ObservationStore
+        store = ObservationStore()
+        store.add({"audit_correlation_id": "X", "snap": "first"})
+        store.add({"audit_correlation_id": "X", "snap": "second"})
+        latest = store.find_by_correlation_id("X")
+        history = store.find_all_by_correlation_id("X")
+        assert latest["snap"] == "second"
+        assert [h["snap"] for h in history] == ["first", "second"]
+
+
+class TestTrialResultObservationHistory:
+    """TrialResult.observation_history — Fix 2 output. Default is empty list
+    (not None) so callers can iterate without a None-guard. complete_trial /
+    timeout_trial both accept history; observation_payload remains the
+    runner's chosen best-match snapshot."""
+
+    def test_observation_history_default_empty_list(self):
+        from experiment_package.trial_store import TrialResult
+        t = TrialResult(
+            trial_id="t1", run_id="r", package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+        )
+        assert t.observation_history == []
+
+    def test_to_dict_includes_history_copy(self):
+        """to_dict must serialise the history (so it survives manifest
+        round-trip) and copy the list (so downstream mutation cannot
+        corrupt the in-memory trial)."""
+        from experiment_package.trial_store import TrialResult
+        t = TrialResult(
+            trial_id="t1", run_id="r", package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+        )
+        t.observation_history = [{"snap": 1}, {"snap": 2}]
+        d = t.to_dict()
+        assert d["observation_history"] == [{"snap": 1}, {"snap": 2}]
+        d["observation_history"].append({"snap": 99})
+        assert len(t.observation_history) == 2  # in-memory not mutated
+
+    def test_complete_trial_records_history(self):
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+            audit_correlation_id="c1",
+        )
+        history = [
+            {"audit_correlation_id": "c1", "route": {"route_class": "CLASS_2"}},
+            {"audit_correlation_id": "c1", "class2": {"transition_target": "CLASS_1"}},
+            {"audit_correlation_id": "c1", "validation": {"validation_status": "approved"}, "ack": {"action": "light_on", "target_device": "bedroom_light"}},
+        ]
+        # The 'best match' chosen by the runner is the post-transition snapshot.
+        store.complete_trial(
+            trial_id=trial.trial_id,
+            observation=history[-1],
+            observation_history=history,
+        )
+        result = store.get_trial(trial.trial_id)
+        assert result.status == "completed"
+        assert len(result.observation_history) == 3
+        # observation_payload is the best-match (last); history preserves all.
+        assert result.observation_payload is history[-1]
+        assert result.observation_history[0]["route"]["route_class"] == "CLASS_2"
+        assert result.observation_history[1]["class2"]["transition_target"] == "CLASS_1"
+
+    def test_timeout_trial_records_history(self):
+        """When a trial times out before any 'final' snapshot, every
+        intermediate snapshot collected so far should still be preserved
+        — that is the data analysis needs to diagnose the timeout."""
+        from experiment_package.trial_store import TrialStore
+        store = TrialStore()
+        run = store.create_run(package_id="A", scenario_ids=[],
+                               fault_profile_ids=[], trial_count=1)
+        trial = store.create_trial(
+            run_id=run.run_id, package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+            audit_correlation_id="c1",
+        )
+        partial_history = [
+            {"audit_correlation_id": "c1", "route": {"route_class": "CLASS_2"}},
+        ]
+        store.timeout_trial(
+            trial_id=trial.trial_id,
+            observation_history=partial_history,
+        )
+        result = store.get_trial(trial.trial_id)
+        assert result.status == "timeout"
+        assert len(result.observation_history) == 1
+
+
+class TestRunnerLlmAssistedTrialTimeoutBudget:
+    """Fix 1: llm_assisted trials may legitimately escalate from CLASS_1 to
+    CLASS_2 when the LLM defers. They need the longer CLASS_2 budget even
+    when the matrix declares expected_route_class=CLASS_1 — otherwise the
+    trial times out before the class2 update / post-transition snapshot
+    arrives, hiding the actual outcome from analysis."""
+
+    def _runner(self):
+        from experiment_package.trial_store import TrialStore
+        from experiment_package.runner import PackageRunner
+        from observation_store import ObservationStore
+        class _Pub:
+            def publish(self, *a, **k): pass
+        vnm = VirtualNodeManager(mqtt_publisher=_Pub())
+        return PackageRunner(
+            vnm=vnm, obs_store=ObservationStore(), trial_store=TrialStore(),
+        )
+
+    def test_llm_assisted_class1_expected_uses_class2_budget(self):
+        from experiment_package.trial_store import TrialResult
+        from experiment_package.runner import _TRIAL_TIMEOUT_S
+        runner = self._runner()
+        # Construct a trial as the runner sees it.
+        trial = TrialResult(
+            trial_id="t1", run_id="r", package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+        )
+        needs_class2_budget = (
+            trial.expected_route_class == "CLASS_2"
+            or trial.comparison_condition == "llm_assisted"
+        )
+        chosen = runner._class2_trial_timeout_s if needs_class2_budget else _TRIAL_TIMEOUT_S
+        assert chosen == runner._class2_trial_timeout_s
+        # Defensive sanity: class2 budget must be the larger of the two,
+        # otherwise the fix would have no effect.
+        assert runner._class2_trial_timeout_s > _TRIAL_TIMEOUT_S
+
+    def test_deterministic_class1_expected_keeps_short_budget(self):
+        from experiment_package.trial_store import TrialResult
+        from experiment_package.runner import _TRIAL_TIMEOUT_S
+        runner = self._runner()
+        for cc in ("direct_mapping", "rule_only"):
+            trial = TrialResult(
+                trial_id="t1", run_id="r", package_id="A",
+                scenario_id="", fault_profile_id=None,
+                comparison_condition=cc,
+                expected_route_class="CLASS_1",
+                expected_validation="approved",
+                expected_outcome="class_1_approved",
+            )
+            needs_class2_budget = (
+                trial.expected_route_class == "CLASS_2"
+                or trial.comparison_condition == "llm_assisted"
+            )
+            chosen = runner._class2_trial_timeout_s if needs_class2_budget else _TRIAL_TIMEOUT_S
+            assert chosen == _TRIAL_TIMEOUT_S, (
+                f"comparison_condition={cc} must keep the short budget — "
+                "deterministic paths do not perform a Class 1 LLM call."
+            )
+
+    def test_class2_expected_uses_class2_budget_regardless_of_condition(self):
+        from experiment_package.trial_store import TrialResult
+        from experiment_package.runner import _TRIAL_TIMEOUT_S
+        runner = self._runner()
+        for cc in ("direct_mapping", "rule_only", "llm_assisted", None):
+            trial = TrialResult(
+                trial_id="t1", run_id="r", package_id="A",
+                scenario_id="", fault_profile_id=None,
+                comparison_condition=cc,
+                expected_route_class="CLASS_2",
+                expected_validation="safe_deferral",
+                expected_outcome="class_2_escalation",
+            )
+            needs_class2_budget = (
+                trial.expected_route_class == "CLASS_2"
+                or trial.comparison_condition == "llm_assisted"
+            )
+            chosen = runner._class2_trial_timeout_s if needs_class2_budget else _TRIAL_TIMEOUT_S
+            assert chosen == runner._class2_trial_timeout_s

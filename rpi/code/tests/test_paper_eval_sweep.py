@@ -769,18 +769,38 @@ class TestExtensibilityMatrixV2:
         )
         assert {c.cell_id for c in v1.cells} == {c.cell_id for c in v2.cells}
 
-    def test_v2_cells_pass_scenario_tag_and_policy_overrides_checks(self):
+    def test_v2_cells_pass_scenario_tag_check(self):
         spec = load_matrix(_EXTENSIBILITY_MATRIX_V2, _REAL_SCENARIOS)
-        repo_root = pathlib.Path(__file__).resolve().parents[3]
-        policy = _load_effective_policy(repo_root)
         for cell in spec.cells:
             tag_err = _validate_cell_scenario_tags(cell, _REAL_SCENARIOS)
             assert tag_err is None, (
                 f"v2 cell {cell.cell_id} failed P2.6 tag check: {tag_err}"
             )
-            policy_err = _validate_cell_policy_overrides(cell, policy)
-            assert policy_err is None, (
-                f"v2 cell {cell.cell_id} failed policy check: {policy_err}"
+
+    def test_v2_llm_assisted_declares_required_policy_override(self):
+        """The LLM_ASSISTED cell declares _policy_overrides on
+        llm_request_timeout_ms because gemma4:e4b inference for the
+        structured paper-eval prompt takes ~89s and the canonical 8000ms
+        budget cuts every call short (diagnosed during the 2026-05-03 v2
+        sweep first attempt: all LLM trials returned is_fallback=True with
+        empty raw response). The override is asserted as a documentation
+        regression guard so future matrix edits cannot drop it silently —
+        operators MUST temporarily bump global_constraints.llm_request_timeout_ms
+        to the override value before running the sweep, then revert after.
+        Live-policy match is NOT asserted here because the canonical default
+        (8000) is intentionally the operational value; the Sweeper's runtime
+        check is what enforces the bump at sweep start."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V2, _REAL_SCENARIOS)
+        llm_cell = next(c for c in spec.cells if c.cell_id == "EXT_A_LLM_ASSISTED")
+        assert llm_cell.policy_overrides is not None
+        assert llm_cell.policy_overrides.get("llm_request_timeout_ms") == 120000
+        # Deterministic cells must NOT carry the override — they should
+        # remain comparable to v1 with no policy assumption.
+        for cell_id in ("EXT_A_DIRECT_MAPPING", "EXT_A_RULE_ONLY"):
+            cell = next(c for c in spec.cells if c.cell_id == cell_id)
+            assert not cell.policy_overrides, (
+                f"{cell_id} must not declare policy_overrides "
+                "(deterministic cells do not depend on the LLM timeout)"
             )
 
     def test_v2_per_cell_expected_matches_v1(self):
