@@ -43,7 +43,10 @@
         "class2_caregiver_confirmation",
         "fault_stale",
         "fault_conflict",
-        "fault_missing_state"
+        "fault_missing_state",
+        "extensibility_a_novel_event_code",
+        "extensibility_b_novel_context_combination",
+        "extensibility_c_novel_device_target_inference"
       ]
     },
     "mode": {

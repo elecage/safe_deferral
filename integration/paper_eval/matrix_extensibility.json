@@ -1,0 +1,45 @@
+{
+  "matrix_version": "v1-extensibility-axis-a",
+  "matrix_description": "Paper-eval Extensibility experiment — Axis A only (v1). One scenario whose input deliberately drifts past what direct_mapping (table miss: triple_hit not enumerated) and rule_only (only handles living_room; here living_room_light is already on) can handle. The user's actual intent is light_on bedroom_light, which an LLM-assisted intent recovery layer can infer from context. Each of the three intent-recovery modes is run as its own cell. Expected pattern: direct_mapping/rule_only pass_rate ≈ 0 (they correctly safe-defer, observed_route_class=CLASS_2 ≠ expected CLASS_1); llm_assisted pass_rate high (it recovers the correct intent within the existing actuator catalog). Cross-references: required_experiments §5.8, paper/01_paper_contributions §2/§4/§7.4. v2 will add Axis B (novel context combination) and Axis C (novel device-target inference) once a target-device-correctness metric is available — current pass_ logic only checks observed_route_class match, which is sufficient for Axis A but blunts the signal in B/C.",
+  "trials_per_cell_default": 30,
+  "package_id": "A",
+  "_axes_planned_for_v2": [
+    "Axis B: Novel context combination (existing event_code with context the rule heuristic cannot cover)",
+    "Axis C: Novel device-target inference (same event_code, context-driven target selection)"
+  ],
+  "cells": [
+    {
+      "cell_id": "EXT_A_DIRECT_MAPPING",
+      "description": "Axis A under direct_mapping. Expected behaviour: triple_hit is not in _DIRECT_MAPPING_TABLE so the candidate is safe_deferral, observed_route_class becomes CLASS_2 via safe-deferral handler, pass_rate ≈ 0 against expected CLASS_1.",
+      "comparison_condition": "direct_mapping",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "EXT_A_RULE_ONLY",
+      "description": "Axis A under rule_only. Expected behaviour: rule fires only when living_room_light is off; here it is on so the rule does not propose anything, candidate is safe_deferral, observed_route_class becomes CLASS_2, pass_rate ≈ 0.",
+      "comparison_condition": "rule_only",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    },
+    {
+      "cell_id": "EXT_A_LLM_ASSISTED",
+      "description": "Axis A under llm_assisted. Expected behaviour: the LLM reads the full pure_context_payload (low illuminance + occupancy_detected + living_room_light=on + bedroom_light=off) and proposes light_on bedroom_light. Validator approves (in canonical low-risk catalog), dispatcher fires, ACK closes the loop, observed_route_class=CLASS_1, pass_rate high. This pass_rate is the evidence that perception generalises past the deterministic table.",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}
