@@ -165,8 +165,8 @@ log "ollama up at :$OLLAMA_PORT"
 
 # Check model is available; soft warning if not.
 if ! curl -sf "http://localhost:${OLLAMA_PORT}/api/tags" 2>/dev/null \
-     | grep -q '"name":"llama3.2'; then
-  log "WARN: llama3.2 model not found in 'ollama list'. Run: ollama pull llama3.2"
+     | grep -q '"name":"llama3.1'; then
+  log "WARN: llama3.1 model not found in 'ollama list'. Run: ollama pull llama3.1"
 fi
 
 # ----------------------------------------------------------------------
@@ -187,7 +187,7 @@ MQTT_USER=
 MQTT_PASS=
 
 OLLAMA_URL=http://localhost:11434/api/generate
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=llama3.1
 
 # LLM sampling parameters — paper-eval sweeps may override these to vary
 # stochasticity. Defaults match historic hardcoded values.

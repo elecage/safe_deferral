@@ -10,17 +10,35 @@
 
 ## 1. Scope (in this plan)
 
-**In scope (별 PR — Step 4):**
-- Fixture enrichment with currently-unused-but-canonical context fields
+**Step 4 PR scope reduction (2026-05-03):** Lever A was deferred during Step 4
+implementation when the canonical `context_schema.json` was confirmed to NOT
+permit `user_state.inferred_attention` or `recent_events`
+(`additionalProperties: false`, only `trigger_event`/`environmental_context`/
+`device_states` declared). This plan originally claimed those fields were
+already canonical — that was incorrect. Per CLAUDE.md ("Canonical policy/schema
+assets are not casual edit targets"), the schema change was extracted into a
+separate follow-up PR so it can be reviewed independently. Step 4 ships Levers
+B + C only; Lever A becomes Step 5 once the schema extension lands.
+
+**In scope (Step 4 PR — Levers B + C):**
 - Model swap to gemma4:e4b via env (no canonical change)
-- Minor general-purpose prompt hint (no scenario-specific cherry-picking)
-- Re-run sweep with `per_trial_timeout_s=240` (recovers Step 3's 12 timeouts)
+- Minor general-purpose prompt hint — `_SYSTEM_HEADER` rule 9
+- New v2 matrix `matrix_extensibility_v2.json` reusing v1 scenario/fixture
+- Re-run sweep with `per_trial_timeout_s=480` (gemma4:e4b is ~4× larger than
+  llama3.2; v1's 120s budget produced 12 timeouts; the v1 README's 240s
+  recommendation was sized for llama3.2, so v2 doubles it as headroom)
 - Archive as `runs_archive/2026-05-03_extensibility_axis_a_v2/`
 - Side-by-side v1 vs v2 README
 
-**Out of scope:**
-- Schema modifications (use what's already in canonical schema)
-- New scenarios (same scenario file, different fixture context detail)
+**Deferred to Step 5 (separate PR):**
+- Canonical `context_schema.json` extension to allow optional `user_state`
+  (with `inferred_attention` enum) and `recent_events` (array of
+  `{event_type, event_code, timestamp_ms}`)
+- `prompt_builder` extension to surface those fields in the LLM prompt
+- v2 fixture and scenario manifest using the enriched fields
+- Re-run of Axis A under Lever A only (or A+B+C combined) for paper
+
+**Out of scope (still):**
 - Larger models (gemma4:26b, gemma4:31b) — laptop OOM risk per user
 - Axes B and C (still v3 / future, awaits target-device-correctness metric)
 - Prompt rewrite of rules 1-8 — only one *additional* general guidance line
@@ -42,7 +60,7 @@ These fields are sent to the LLM in `prompt_builder` (currently it includes what
 
 User confirmed `gemma4:e4b` (~9.6 GB, 8B parameters) is OK on this M1 laptop. `gemma4:31b` rejected as too heavy.
 
-Swap mechanism: `OLLAMA_MODEL` env var (already parameterized in #141). Launcher's `.env` template gets the new value before the v2 sweep, restored to llama3.2 default after.
+Swap mechanism: `OLLAMA_MODEL` env var (already parameterized in #141). Launcher's `.env` template gets the new value before the v2 sweep, restored to llama3.1 default after (llama3.2 is being phased out of the operational default because of Korean-output quality issues; v1 archives that ran on llama3.2 keep their historical reproducibility intact through their archive snapshots).
 
 **Honest framing:** model size is independent of Axes A/B/C — it's an "ablation factor". Paper can present "Axis A under llama3.2 vs gemma4:e4b" as a model-size sensitivity study. Does NOT change the LLM-vs-deterministic comparison structure.
 
@@ -145,7 +163,7 @@ The plan succeeds even if outcomes are negative:
 
 - **No retroactive Phase C overwrite.** Phase C archive (PR #140) stays as is. v2 results are an *additional* data point, not a correction.
 - **No cherry-picking the scenario.** Same Axis A semantic (single_click + living_on + bedroom_off) — only the *amount of context* and the *model* and *prompt-doctrine line* change.
-- **No silent rollback of llama3.2 default.** After v2 sweep, restore `.env` to OLLAMA_MODEL=llama3.2 so other operations remain comparable to Phase C / smoke / Phase B archives.
+- **No silent rollback to a stale default.** After v2 sweep, restore `.env` to `OLLAMA_MODEL=llama3.1` (llama3.2 is being retired from the operational default because of Korean-output quality issues; v1 Phase C / smoke / Phase B archives that ran under llama3.2 retain reproducibility through their archive snapshots, not through the live default).
 
 ## 7. Phase split
 

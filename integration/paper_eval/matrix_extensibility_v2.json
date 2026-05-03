@@ -1,0 +1,50 @@
+{
+  "matrix_version": "v2-extensibility-axis-a",
+  "matrix_description": "Paper-eval Extensibility experiment — Axis A v2 (Levers B+C only). Reuses the v1 scenario and fixture (extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton + sample_policy_router_input_extensibility_a_novel_event_code) so the SAME novel-context input drives all three modes. v2 differs from v1 along two orthogonal levers held constant across this matrix: Lever B = OLLAMA_MODEL=gemma4:e4b (≈9.6 GB / 8B params, vs v1's llama3.2 3B); Lever C = an additional general-purpose line 9 in prompt_builder._SYSTEM_HEADER instructing the LLM to lean on device_states/environmental_context and prefer catalog actions when signals are sufficient (vs defaulting to safe_deferral). Lever A (richer pure_context_payload fields like user_state.inferred_attention and recent_events) is deferred to a separate PR because the canonical context_schema currently rejects those fields and a schema change should be reviewed independently. Sweep operation: run with per_trial_timeout_s=480 because gemma4:e4b is roughly 4× larger than llama3.2 and v1's 120s budget produced 12 timeouts in the LLM cell; 240s is the v1 README's recommended re-run value, and 480s adds margin for the larger model. The interpretation of v2 is paper-honest under all three outcomes (richer pass_rate ⇒ Levers B/C effective; ≈ v1 ⇒ deferral was prompt-doctrine not capacity; < v1 ⇒ regression, investigate Lever C). Cross-references: PLAN_2026-05-03_AXIS_A_V2_RICHER_CONTEXT_AND_LARGER_MODEL.md, required_experiments §5.8, paper/01_paper_contributions §2/§4/§7.4. Per-cell expected_route_class/expected_validation are unchanged from v1 because the comparison pivot is unchanged: deterministic modes correctly safe-defer, llm_assisted is expected to recover the bedroom-light intent within the existing actuator catalog.",
+  "trials_per_cell_default": 30,
+  "package_id": "A",
+  "_recommended_per_trial_timeout_s": 480,
+  "_recommended_ollama_model": "gemma4:e4b",
+  "_levers_active": [
+    "B: OLLAMA_MODEL=gemma4:e4b (env-only, no canonical change)",
+    "C: prompt_builder _SYSTEM_HEADER line 9 (general guidance to use context and prefer catalog action over safe_deferral when signals are sufficient)"
+  ],
+  "_levers_deferred": [
+    "A: pure_context_payload enrichment (user_state.inferred_attention, recent_events) — deferred pending canonical context_schema extension"
+  ],
+  "cells": [
+    {
+      "cell_id": "EXT_A_DIRECT_MAPPING",
+      "description": "Axis A v2 under direct_mapping. Identical scenario/fixture as v1; the table is context-blind so v1 behaviour is expected to repeat. Per-cell expected here is CLASS_2 + safe_deferral (the safety-correct behaviour), and direct_mapping will likely instead route CLASS_1 (table fires unconditionally) so pass_rate ≈ 0 — same evidence as v1 that a context-blind table over-acts when input drifts. Included to keep the comparison frame intact across v2.",
+      "comparison_condition": "direct_mapping",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "EXT_A_RULE_ONLY",
+      "description": "Axis A v2 under rule_only. Identical scenario/fixture as v1; the heuristic does not consult device_states beyond the living_room_light=off precondition, so v1 behaviour is expected to repeat. Per-cell expected here is CLASS_2 + safe_deferral; rule_only's narrow heuristic correctly self-recognises its limitation. Included to keep the comparison frame intact across v2.",
+      "comparison_condition": "rule_only",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral"
+    },
+    {
+      "cell_id": "EXT_A_LLM_ASSISTED",
+      "description": "Axis A v2 under llm_assisted. Same input as v1, but the LLM runs under gemma4:e4b (Lever B) and reads the v2 _SYSTEM_HEADER with line 9 (Lever C). v1 measured pass_rate=28% (5 of 18 completed CLASS_1; 13 chose safe_deferral; 12 timed out @ 120s). v2 expected outcome is one of three (all paper-valid): pass_rate ≫ v1 ⇒ Levers B/C lift recovery; pass_rate ≈ v1 ⇒ LLM deferral was prompt-doctrine not capacity, strengthening §7.4 framing; pass_rate < v1 ⇒ regression, lever C suspect. Per-cell expected stays CLASS_1 + approved (the design-correct recovery behaviour); pass_rate measures whether the LLM under v2 conditions actually performs that recovery.",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 30,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved"
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}

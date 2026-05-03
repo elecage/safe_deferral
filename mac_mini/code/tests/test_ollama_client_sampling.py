@@ -24,11 +24,11 @@ def _mock_ollama_response(text: str = "{}"):
 
 class TestDefaults:
     def test_default_temperature_is_0_2(self):
-        client = OllamaClient(model="llama3.2")
+        client = OllamaClient(model="llama3.1")
         assert client._temperature == 0.2
 
     def test_default_top_p_is_none(self):
-        client = OllamaClient(model="llama3.2")
+        client = OllamaClient(model="llama3.1")
         assert client._top_p is None
 
 

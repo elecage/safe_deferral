@@ -303,6 +303,27 @@ class TestPromptBuilder:
         assert "routing_metadata" not in prompt
         assert "network_status" not in prompt
 
+    def test_system_header_contains_context_use_guidance(self):
+        # Lever C (Axis A v2): rule 9 instructs the LLM to lean on
+        # device_states/environmental_context and prefer catalog actions
+        # over safe_deferral when signals are sufficient. Regression guard so
+        # future prompt edits don't drop the line silently — the v2 sweep's
+        # paper claim depends on this rule being present.
+        prompt = build_prompt(_ctx(), "single_click")
+        assert "9." in prompt
+        assert "device_states" in prompt
+        assert "environmental_context" in prompt
+        assert "actuator catalog" in prompt
+
+    def test_system_header_rule_9_subordinate_to_safety_rules(self):
+        # Codex P1 review (PR #148): rule 9 must NOT override rules 1-8
+        # (visitor/doorbell/emergency/sensitive-device safe_deferral). The
+        # subordinate framing is the safety guard that prevents the LLM from
+        # reading rule 9 as license to actuate in a doorbell-context input.
+        prompt = build_prompt(_ctx(), "single_click")
+        assert "1-8" in prompt
+        assert "강제" in prompt or "우선" in prompt
+
     def test_event_code_override(self):
         adapter = _mock_adapter(_valid_light_on_json())
         # event_code supplied explicitly should override what's in the payload

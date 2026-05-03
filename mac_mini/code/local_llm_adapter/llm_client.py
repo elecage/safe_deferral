@@ -36,7 +36,7 @@ class OllamaClient:
 
     def __init__(
         self,
-        model: str = "llama3.2",
+        model: str = "llama3.1",
         base_url: str = _DEFAULT_URL,
         timeout_s: int = 60,
         temperature: float = _DEFAULT_TEMPERATURE,

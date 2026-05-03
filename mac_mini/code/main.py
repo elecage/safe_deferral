@@ -21,7 +21,7 @@ Environment variables (loaded from ~/smarthome_workspace/.env):
   TELEGRAM_CHAT_ID            required for live Telegram notifications
   CAREGIVER_RESPONSE_TIMEOUT_S  CLASS_2 inline-keyboard wait (default: 300)
   OLLAMA_URL         default: http://localhost:11434/api/generate
-  OLLAMA_MODEL       default: llama3.2
+  OLLAMA_MODEL       default: llama3.1
   AUDIT_DB_PATH      default: ~/smarthome_workspace/audit.db
   TTS_ENABLED        "true" (default) | "false"
   TTS_VOICE          macOS voice name, default "Yuna" (Korean)

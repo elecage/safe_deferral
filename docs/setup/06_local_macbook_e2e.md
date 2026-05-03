@@ -13,7 +13,7 @@
 | Homebrew | https://brew.sh | for `brew install` to work |
 | Mosquitto MQTT broker | `brew install mosquitto` | Started automatically by the launcher in daemon mode (`mosquitto -d -p 1883`). The launcher does NOT use `brew services` because Homebrew 2.x ships mosquitto without a `mosquitto.conf` (only `.example`) and the launchd plist references the missing file → `brew services start` exits with error code 3 on fresh installs. Direct daemon mode uses mosquitto's built-in defaults (local-only listener, which is exactly the security posture we want here). |
 | Ollama | https://ollama.com | Download the macOS app and run it. |
-| llama3.2 model | `ollama pull llama3.2` | The Mac mini stack defaults to this model (#128 verified 0% fallback). |
+| llama3.1 model | `ollama pull llama3.1` | The Mac mini stack defaults to this model. (Previously llama3.2; switched because llama3.2's Korean output quality is degraded. v1 archives that ran on llama3.2 keep their reproducibility through their archive snapshots.) |
 | Python ≥ 3.9 | macOS-bundled is fine | The launcher checks for `paho.mqtt`, `fastapi`, `jsonschema`, `requests`. |
 | Python deps | `pip install paho-mqtt fastapi uvicorn jsonschema requests python-dotenv` | One-time. |
 
@@ -101,7 +101,7 @@ This addresses doc 13 §11 open question #1 (variance measurement on actual data
 
 | Layer | Real on M1 MacBook | Simulated |
 |---|---|---|
-| LLM (Ollama llama3.2) | ✓ real | — |
+| LLM (Ollama llama3.1) | ✓ real | — |
 | Policy router / validator / dispatcher | ✓ real (Mac mini Python code) | — |
 | MQTT broker (mosquitto) | ✓ real | — |
 | Dashboard / sweep runner / aggregator / digest | ✓ real (RPi Python code) | — |
@@ -124,7 +124,7 @@ pip install paho-mqtt fastapi uvicorn jsonschema requests python-dotenv
 **Smoke test fails at step 4 (sweep didn't complete):**
 - Check `/tmp/safe_deferral_e2e/macmini.log` for LLM call errors.
 - Increase budget: `SMOKE_SWEEP_TIMEOUT_S=180 ./scripts/local_e2e_smoke_test.sh`
-- Confirm Ollama llama3.2 model is installed: `ollama list | grep llama3.2`
+- Confirm Ollama llama3.1 model is installed: `ollama list | grep llama3.1`
 
 **Mosquitto already running but on a different port:**
 - Use `--no-mosquitto-start` and ensure your broker is on the port `MQTT_PORT` env var points to.
