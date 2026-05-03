@@ -77,7 +77,7 @@
     "model_id": {
       "type": "string",
       "minLength": 1,
-      "description": "LLM model identifier (e.g. 'llama3.2', 'mock'). For default_fallback this should be the literal 'static_default_fallback'."
+      "description": "LLM model identifier (e.g. 'llama3.1', 'mock'). For default_fallback this should be the literal 'static_default_fallback'."
     },
     "prompt_constraints_applied": {
       "type": "object",

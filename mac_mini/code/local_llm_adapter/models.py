@@ -27,7 +27,7 @@ class LLMCandidateResult:
     is_fallback: bool                  # True when LLM output was invalid/unparseable
     audit_correlation_id: str
     llm_raw_response: Optional[str]    # raw text for audit; None in mock mode
-    model_id: str                      # e.g. "llama3.2" or "mock"
+    model_id: str                      # e.g. "llama3.1" or "mock"
     llm_boundary: dict = field(default_factory=lambda: dict(_LLM_BOUNDARY))
 
     @property
