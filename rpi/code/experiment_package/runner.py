@@ -173,6 +173,7 @@ class PackageRunner:
         expected_validation: str = "approved",
         expected_outcome: Optional[str] = None,
         expected_transition_target_override: Optional[str] = None,
+        user_response_script: Optional[dict] = None,
     ) -> TrialResult:
         """Create a TrialResult record, launch background thread, return immediately."""
         profile: Optional[FaultProfile] = (
@@ -241,6 +242,13 @@ class PackageRunner:
                 "trial_timeout_s": self._class2_trial_timeout_s,
                 "source": "policy_table.global_constraints + runner module defaults",
             }
+
+        # Stash the cell-level user_response_script onto the trial so the
+        # background _match_observation loop can decide whether to drive
+        # a Class 2 selection when the LLM defers. Default None = no drive
+        # (current behaviour, caregiver fallback).
+        if user_response_script is not None:
+            trial.user_response_script = dict(user_response_script)
 
         t = threading.Thread(
             target=self._run_trial,
@@ -667,12 +675,36 @@ class PackageRunner:
                 drive_target = "single_click"
             elif accepted_targets == {"CLASS_0"}:
                 drive_target = "triple_hit"
+        # Cell-level user_response_script extension (PLAN_2026-05-03_CLASS2_
+        # CLARIFICATION_MEASUREMENT.md): when the cell declares a script,
+        # drive the equivalent simulated user response after the trial enters
+        # CLASS_2 — even on cells whose expected_route_class=CLASS_1 (the
+        # 'LLM defers under ambiguity → user recovers via Class 2 dialogue'
+        # path). The script value is preserved verbatim on TrialResult so the
+        # manifest captures what the simulator did.
+        script: dict = {}
+        if trial is not None and trial.user_response_script:
+            script = trial.user_response_script
+        script_mode = script.get("mode")
+        if script_mode == "first_candidate_accept" and drive_target is None:
+            drive_target = "single_click"
         drive_done = drive_target is None  # if no drive target, treat as already done
         # Final-snapshot completion criteria (mirrors _is_pass):
         # require validation evidence when the only accepted target is CLASS_1,
         # require escalation evidence when the only accepted target is CLASS_0.
         require_validation = accepted_targets == {"CLASS_1"}
         require_escalation = accepted_targets == {"CLASS_0"}
+        # When the cell scripts the user to ACCEPT a Class 2 candidate, the
+        # interesting outcome is the POST-transition snapshot (class2 +
+        # validation + ack), not the selection snapshot. Setting
+        # require_validation forces the loop to wait for the validator's
+        # output. Trade-off: if the user-accepted candidate happens to be
+        # CAREGIVER_CONFIRMATION (no transition published), the loop will
+        # idle until trial_timeout and return best_match — paper-honest
+        # rather than declaring premature success on the selection
+        # snapshot.
+        if script_mode in ("first_candidate_accept", "first_candidate_then_yes"):
+            require_validation = True
 
         while time.monotonic() < deadline:
             obs = self._obs.find_by_correlation_id(correlation_id)

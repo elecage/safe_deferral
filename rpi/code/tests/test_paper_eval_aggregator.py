@@ -406,7 +406,8 @@ def _fake_client_with_trial_data():
 
     def _start_trial(run_id, node_id, scenario_id,
                      expected_route_class, expected_validation,
-                     comparison_condition=None):
+                     comparison_condition=None,
+                     user_response_script=None):
         tid = f"trial-{run_id}-{len(started_trials[run_id]) + 1:03d}"
         started_trials[run_id].append({
             "trial_id": tid,

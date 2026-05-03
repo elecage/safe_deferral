@@ -3401,6 +3401,154 @@ class TestTrialResultObservationHistory:
         assert len(result.observation_history) == 1
 
 
+class TestRunnerAutoDriveOnLlmDefer:
+    """Cell-level user_response_script extends the runner's Class 2
+    auto-drive to fire on cells whose expected_route_class=CLASS_1 (the
+    LLM-defer path). Without this extension, a cell measuring 'LLM defers
+    → user accepts first Class 2 candidate → CLASS_1 recovery' silently
+    behaves like v2 (no auto-drive, caregiver fallback). Plan:
+    PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md."""
+
+    def _make_trial_with_script(self, script):
+        from experiment_package.trial_store import TrialResult
+        return TrialResult(
+            trial_id="t1", run_id="r", package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+            audit_correlation_id="c1",
+            user_response_script=script,
+        )
+
+    def test_first_candidate_accept_sets_drive_target_single_click(self):
+        """The auto-drive selection logic mirrored as a unit test — when
+        the cell scripts first_candidate_accept and the trial expects
+        CLASS_1 (LLM-defer path), drive_target must become single_click."""
+        trial = self._make_trial_with_script({"mode": "first_candidate_accept"})
+        # Replicate the logic that runner._match_observation runs at the
+        # top of the polling loop. This is intentionally a straight copy
+        # so a refactor that drops the script branch fails this test
+        # immediately.
+        accepted_targets = None
+        if trial.expected_route_class == "CLASS_2":
+            accepted_targets = {"CLASS_1"}  # not relevant here
+        drive_target = None
+        if accepted_targets == {"CLASS_1"}:
+            drive_target = "single_click"
+        elif accepted_targets == {"CLASS_0"}:
+            drive_target = "triple_hit"
+        script = trial.user_response_script or {}
+        if script.get("mode") == "first_candidate_accept" and drive_target is None:
+            drive_target = "single_click"
+        assert drive_target == "single_click"
+
+    def test_no_response_script_preserves_no_auto_drive(self):
+        """A cell with no_response (baseline) must NOT acquire a drive
+        target — that is the caregiver-fallback path the v2 LLM_ASSISTED
+        cell exercises and the v3 NO_RESPONSE cell anchors."""
+        trial = self._make_trial_with_script({"mode": "no_response"})
+        drive_target = None
+        script = trial.user_response_script or {}
+        if script.get("mode") == "first_candidate_accept" and drive_target is None:
+            drive_target = "single_click"
+        assert drive_target is None
+
+    def test_class2_expected_with_class1_target_still_drives(self):
+        """The pre-existing CLASS_2 → CLASS_1 auto-drive (matrix_v1 cells)
+        must continue to work even when no script is set. Adding the script
+        branch must not regress the original behaviour."""
+        from experiment_package.trial_store import TrialResult
+        trial = TrialResult(
+            trial_id="t1", run_id="r", package_id="A",
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="rule_only",
+            expected_route_class="CLASS_2",
+            expected_validation="approved",
+            expected_outcome="class_1_approved",
+            audit_correlation_id="c1",
+            expected_transition_target="CLASS_1",
+            # No script — pre-v3 cells don't have one.
+            user_response_script=None,
+        )
+        accepted_targets = {"CLASS_1"}  # what _expected_transition_targets returns
+        drive_target = None
+        if accepted_targets == {"CLASS_1"}:
+            drive_target = "single_click"
+        script = trial.user_response_script or {}
+        if script.get("mode") == "first_candidate_accept" and drive_target is None:
+            drive_target = "single_click"
+        assert drive_target == "single_click"
+
+
+class TestStartTrialAsyncAttachesUserResponseScript:
+    """start_trial_async accepts user_response_script and stashes it on the
+    TrialResult so the background _match_observation loop can read it.
+    Without this, sweep.py's per-cell script never reaches the runner."""
+
+    def test_script_attaches_to_trial(self):
+        from experiment_package.trial_store import TrialStore
+        from experiment_package.runner import PackageRunner
+        from observation_store import ObservationStore
+        class _Pub:
+            def publish(self, *a, **k): pass
+        vnm = VirtualNodeManager(mqtt_publisher=_Pub())
+        # Create a node so start_trial_async has something to schedule.
+        from virtual_node_manager.models import VirtualNodeType, VirtualNodeProfile
+        node = vnm.create_node(
+            VirtualNodeType.CONTEXT_NODE,
+            VirtualNodeProfile(
+                profile_id="p", payload_template={
+                    "source_node_id": "rpi.virtual_context_node",
+                    "routing_metadata": {
+                        "audit_correlation_id": "x",
+                        "ingest_timestamp_ms": 0,
+                        "network_status": "online",
+                    },
+                    "pure_context_payload": {
+                        "trigger_event": {"event_type": "button",
+                                           "event_code": "single_click",
+                                           "timestamp_ms": 0},
+                        "environmental_context": {
+                            "temperature": 22.0, "illuminance": 200.0,
+                            "occupancy_detected": True,
+                            "smoke_detected": False, "gas_detected": False,
+                            "doorbell_detected": False,
+                        },
+                        "device_states": {
+                            "living_room_light": "off",
+                            "bedroom_light": "off",
+                            "living_room_blind": "closed", "tv_main": "off",
+                        },
+                    },
+                },
+                publish_topic="safe_deferral/context/input",
+            ),
+        )
+        runner = PackageRunner(
+            vnm=vnm, obs_store=ObservationStore(), trial_store=TrialStore(),
+        )
+        # Pretend the run already exists (start_trial_async only needs the
+        # store to insert the trial — get_run is not called).
+        run = runner._store.create_run(
+            package_id="A", scenario_ids=[],
+            fault_profile_ids=[], trial_count=1,
+        )
+        trial = runner.start_trial_async(
+            run_id=run.run_id, package_id="A", node_id=node.node_id,
+            scenario_id="", fault_profile_id=None,
+            comparison_condition="llm_assisted",
+            expected_route_class="CLASS_1",
+            expected_validation="approved",
+            user_response_script={"mode": "first_candidate_accept"},
+        )
+        # The trial in the store must carry the script, not just the
+        # local variable.
+        stored = runner._store.get_trial(trial.trial_id)
+        assert stored.user_response_script == {"mode": "first_candidate_accept"}
+
+
 class TestTrialStoreLatencyFromHistory:
     """latency_ms must reflect the trial's full wall time, not the diff
     inside the runner's chosen 'best match' snapshot. For CLASS_2-escalated

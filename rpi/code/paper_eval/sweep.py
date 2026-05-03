@@ -106,6 +106,20 @@ class Cell:
     expected_route_class: str
     expected_validation: str
     policy_overrides: Optional[dict] = None  # _policy_overrides — operator must apply before sweep
+    # Cell-level user-response simulation script. Drives the runner's
+    # Class 2 auto-drive when the LLM defers and the trial enters
+    # CLASS_2 escalation — so a cell can measure 'LLM defer + 1-step
+    # user accept → CLASS_1 recovery' instead of always falling
+    # through to caregiver. Shape:
+    #   {"mode": "no_response"} (default behaviour, no auto-drive)
+    #   {"mode": "first_candidate_accept"} (single_click immediately
+    #     after initial CLASS_2 routing snapshot)
+    #   {"mode": "first_candidate_then_yes"} (scanning mode, yes at
+    #     option 0)
+    #   {"mode": "scan_until_yes", "yes_at": <int>} (scanning mode,
+    #     no for indices < yes_at, yes at yes_at)
+    # Plan reference: PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md.
+    user_response_script: Optional[dict] = None  # _user_response_script in matrix JSON
 
 
 @dataclass
@@ -250,6 +264,7 @@ def load_matrix(matrix_path: pathlib.Path,
             expected_route_class=raw.get("expected_route_class", "CLASS_1"),
             expected_validation=raw.get("expected_validation", "approved"),
             policy_overrides=raw.get("_policy_overrides"),
+            user_response_script=raw.get("_user_response_script"),
         ))
     return MatrixSpec(
         matrix_version=data["matrix_version"],
@@ -333,7 +348,8 @@ class DashboardClient:
 
     def start_trial(self, run_id: str, node_id: str, scenario_id: str,
                     expected_route_class: str, expected_validation: str,
-                    comparison_condition: Optional[str] = None) -> dict:
+                    comparison_condition: Optional[str] = None,
+                    user_response_script: Optional[dict] = None) -> dict:
         body = {
             "node_id": node_id,
             "scenario_id": scenario_id,
@@ -342,6 +358,10 @@ class DashboardClient:
         }
         if comparison_condition is not None:
             body["comparison_condition"] = comparison_condition
+        if user_response_script is not None:
+            # Cell-level user-response script (paper-eval Class 2 clarification
+            # measurement). Plan: PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md.
+            body["user_response_script"] = user_response_script
         r = requests.post(self._url(f"/package_runs/{run_id}/trial"),
                           json=body, timeout=self.timeout_s)
         r.raise_for_status()
@@ -684,6 +704,7 @@ class Sweeper:
                     expected_route_class=cell.expected_route_class,
                     expected_validation=cell.expected_validation,
                     comparison_condition=cell.comparison_condition,
+                    user_response_script=cell.user_response_script,
                 )
                 trial_id = t["trial_id"]
                 trial_ids.append(trial_id)
