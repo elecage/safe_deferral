@@ -117,6 +117,7 @@ Reference asset은 communication/payload consistency와 governance/verification 
 - additional low-risk action coverage beyond the current authoritative catalog
 - formalized governance report schemas
 - richer MQTT/payload contract validation coverage
+- **input-space extensibility under novel event codes / context combinations / device-target inferences** (§5.8) — supporting evidence for `01_paper_contributions.md` Contribution 1's perception-side scalability claim
 
 이 확장 범위는 별도 표기 없이 현재 구현 범위와 혼용해서 해석해서는 안 된다.
 
@@ -355,6 +356,103 @@ Table X. Intent recovery comparison under constrained input
 - escalation 여부
 - safe deferral 여부
 - notes
+
+### 5.8 Contribution 1 보강용: Extensibility Under Novel Input Configurations
+
+#### 5.8.1 목적과 동기
+
+`paper/01_paper_contributions.md` §4 Contribution 1과 §7.4가 LLM-assisted intent recovery의 가치를 **속도가 아니라 perception-side scalability**로 framing한다. 이 framing을 paper에 인용하려면 evidence가 필요하다.
+
+§5.7의 Table X (intent recovery comparison)은 **rule이 cover하는 동일 input 영역**에서 세 모드를 비교한다. 이는 "rule이 cover하는 안에서의 정확성"을 측정하는 것이지, "rule이 cover하지 못하는 영역에서 LLM이 얼마나 우아하게 일반화하는가"를 측정하지 않는다.
+
+Phase C 2026-05-03 (PR #140) 측정값이 이를 직접 보여준다:
+
+- direct_mapping pass_rate 1.000, p50 latency ~1ms
+- rule_only pass_rate 1.000, p50 latency ~1ms
+- llm_assisted pass_rate 0.966, p50 latency ~1.6s
+
+**deterministic 모드가 더 빠르고 비슷하게 정확하다** — 이 입력 영역에서는. 이 측정만으로는 "왜 LLM을 쓰는가"라는 질문에 답할 수 없다. 답은 다른 입력 영역에서 발견된다.
+
+§5.8 실험은 그 영역을 명시적으로 측정한다.
+
+#### 5.8.2 핵심 가설
+
+> 자동화된 deterministic intent recovery (`direct_mapping`, `rule_only`) 는 시스템이 명시적으로 enumerate한 input 공간 안에서만 정확성을 유지한다. Input 공간이 **시스템이 사전에 enumerate하지 않은 방향으로 드리프트**하면, deterministic 모드는 safe-deferral fallback으로 떨어지고, LLM-assisted 모드는 자연어 perception을 통해 actuator catalog 안에서 합리적 후보를 도출한다.
+
+이 가설이 입증되면 paper의 "perception scales, authority enumerates" 주장이 측정으로 뒷받침된다.
+
+#### 5.8.3 실험 설계 — 세 가지 novel input 축
+
+각 axis는 별도 시나리오 그룹으로 구성한다.
+
+**Axis A — Novel event_code**
+- 시스템의 `_DIRECT_MAPPING_TABLE`에 등록되지 않은 button event_code (예: `triple_click`, `long_long_press`)
+- context는 라이트 켜기를 시사 (저조도 + 거주, 거실 라이트 off)
+- direct_mapping: 테이블 미스 → safe_deferral
+- rule_only: illuminance 룰은 통과할 수 있으나 event_code unknown이면 보수적 reject 가능
+- llm_assisted: button press + low illuminance + occupancy → light_on 추론 기대
+
+**Axis B — Novel context combination**
+- 기존 fields의 **새 조합** (예: `time_of_day=late_night` + `inferred_attention=transition` + `living_room_light=off`)
+- direct_mapping은 event_code만 보므로 무관 — context 영향 0
+- rule_only는 illuminance 임계값 1차원만 보므로 새 조합 활용 불가
+- llm_assisted는 자연어로 "야간 거실 진입" 패턴 인지 가능
+
+**Axis C — Novel device-target inference**
+- 같은 button event_code에 대해 context가 시사하는 target device가 시나리오마다 다름 (어떤 trial은 거실, 어떤 trial은 침실)
+- direct_mapping: event_code → target 1:1 mapping — context 무관, 항상 같은 device
+- rule_only: 룰이 living_room만 cover (현 구현) — 침실 시사 시 fallback
+- llm_assisted: device_states + occupancy + bedtime context 조합으로 target 선택 기대
+
+#### 5.8.4 매트릭스 구성
+
+`integration/paper_eval/matrix_extensibility.json` (Step 2에서 작성):
+
+| cell_id | axis | comparison_condition |
+|---|---|---|
+| EXT_A_DIRECT_MAPPING | novel event_code | direct_mapping |
+| EXT_A_RULE_ONLY | novel event_code | rule_only |
+| EXT_A_LLM_ASSISTED | novel event_code | llm_assisted |
+| EXT_B_DIRECT_MAPPING | novel context combination | direct_mapping |
+| EXT_B_RULE_ONLY | novel context combination | rule_only |
+| EXT_B_LLM_ASSISTED | novel context combination | llm_assisted |
+| EXT_C_DIRECT_MAPPING | novel device-target inference | direct_mapping |
+| EXT_C_RULE_ONLY | novel device-target inference | rule_only |
+| EXT_C_LLM_ASSISTED | novel device-target inference | llm_assisted |
+
+총 9 cells × 30 trials = 270 trials.
+
+#### 5.8.5 권장 결과 표 구성
+
+Table Y. Intent recovery extensibility under novel input
+
+| axis | mode | n | pass_rate | route distribution | notes |
+
+기대 패턴 (가설 입증 시):
+- direct_mapping: pass_rate < 0.30 across all axes
+- rule_only: pass_rate < 0.50, with high variance per axis
+- llm_assisted: pass_rate > 0.80 across all axes
+
+수치 자체보다 **패턴**이 paper claim을 뒷받침한다. 정확한 수치는 측정으로 결정.
+
+#### 5.8.6 안전 invariant 동시 검증
+
+Novel input 실험은 동시에 다음 안전 invariant도 검증한다:
+
+- LLM이 actuator catalog 밖의 device를 제안할 경우 → validator 거부
+- LLM이 sensitive 경로 (doorlock 등)를 제안할 경우 → caregiver escalation
+- LLM이 hallucinate한 event_code를 emergency로 분류할 경우 → policy router의 emergency 경로 (canonical event topic 미보유 시 거부)
+
+즉 perception-side extensibility가 authority-side enlargement로 이어지지 않음을 함께 보인다 — Contribution 2의 직접 evidence.
+
+#### 5.8.7 운영 절차 (Step 2 ship 후)
+
+1. `common/schemas/context_schema.json`의 button event_code enum에 1-2 값 추가 (`triple_click`, `long_long_press`).
+2. `integration/tests/data/sample_*_novel_*.json` — Axis별 1-2 fixtures.
+3. `integration/scenarios/*_extensibility_*.json` — 매트릭스 cell당 1 scenario, `comparison_conditions[]` 정확 태그.
+4. `matrix_extensibility.json` — 매트릭스 정의.
+5. Sweep 운영 (paper-eval Phase 4 dashboard UI 또는 sweep CLI로) — ~30-60min real LLM with sequential trials.
+6. Archive → digest → paper Table Y.
 
 ---
 
