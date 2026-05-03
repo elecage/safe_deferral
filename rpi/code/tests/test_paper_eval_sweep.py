@@ -720,13 +720,19 @@ class TestExtensibilityMatrix:
                 f"cell {cell.cell_id} failed policy check: {err}"
             )
 
-    def test_expected_route_class_is_class1_across_all_cells(self):
-        """Expected reflects the user's actual intent (light_on bedroom).
-        Deterministic modes should register pass_rate≈0 against this
-        expected (they correctly safe-defer); llm_assisted should register
-        a high pass_rate. Per-cell expected stays uniform so by_route_class
-        differentiates rather than expected."""
+    def test_per_cell_expected_encodes_mode_specific_correct_behaviour(self):
+        """Per-cell expected encodes 'what the correct version of THIS mode
+        should do given this novel input'. Deterministic modes are expected
+        to safe-defer (their context-blind output cannot be relied on);
+        llm_assisted is expected to recover the right intent. This shape
+        is what makes pass_rate informative across modes — uniform
+        expected would hide the differentiation we're trying to measure."""
         spec = load_matrix(_EXTENSIBILITY_MATRIX, _REAL_SCENARIOS)
-        for cell in spec.cells:
-            assert cell.expected_route_class == "CLASS_1"
-            assert cell.expected_validation == "approved"
+        by_id = {c.cell_id: c for c in spec.cells}
+        # Deterministic modes: expected to safe-defer
+        for cell_id in ("EXT_A_DIRECT_MAPPING", "EXT_A_RULE_ONLY"):
+            assert by_id[cell_id].expected_route_class == "CLASS_2"
+            assert by_id[cell_id].expected_validation == "safe_deferral"
+        # LLM mode: expected to recover and successfully route a Class 1 action
+        assert by_id["EXT_A_LLM_ASSISTED"].expected_route_class == "CLASS_1"
+        assert by_id["EXT_A_LLM_ASSISTED"].expected_validation == "approved"
