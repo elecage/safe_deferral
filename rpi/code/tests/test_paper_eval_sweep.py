@@ -34,6 +34,7 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 _REAL_MATRIX = _REPO_ROOT / "integration" / "paper_eval" / "matrix_v1.json"
 _EXTENSIBILITY_MATRIX = _REPO_ROOT / "integration" / "paper_eval" / "matrix_extensibility.json"
 _EXTENSIBILITY_MATRIX_V2 = _REPO_ROOT / "integration" / "paper_eval" / "matrix_extensibility_v2.json"
+_EXTENSIBILITY_MATRIX_V3 = _REPO_ROOT / "integration" / "paper_eval" / "matrix_extensibility_v3_clarification.json"
 _REAL_SCENARIOS = _REPO_ROOT / "integration" / "scenarios"
 
 
@@ -194,7 +195,8 @@ def _fake_client(node_id: str = "node-001",
 
     def _start_trial(run_id, node_id, scenario_id,
                      expected_route_class, expected_validation,
-                     comparison_condition=None):
+                     comparison_condition=None,
+                     user_response_script=None):
         tid = f"trial-{run_id}-{len(started_trials[run_id]) + 1:03d}"
         started_trials[run_id].append(tid)
         return {"trial_id": tid, "run_id": run_id,
@@ -828,3 +830,129 @@ class TestExtensibilityMatrixV2:
             "noticeably higher than v1's recommended 240s re-run value"
         )
         assert raw["_recommended_ollama_model"] == "gemma4:e4b"
+
+
+# ====================================================================
+# Class 2 clarification measurement matrix (PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md)
+# ====================================================================
+
+class TestExtensibilityMatrixV3Clarification:
+    """matrix_extensibility_v3_clarification.json measures the Class 2
+    clarification dialogue's recovery rate after the LLM defers,
+    complementary to v2's single-shot LLM measurement. Each cell carries
+    a `_user_response_script` that the runner replays as a simulated user
+    reaction to the LLM-driven Class 2 candidate set."""
+
+    def test_v3_loads_with_clarification_cells(self):
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V3, _REAL_SCENARIOS)
+        assert spec.matrix_version == "v3-extensibility-axis-a-clarification"
+        assert len(spec.cells) >= 2  # NO_RESPONSE baseline + FIRST_CANDIDATE_ACCEPT
+        for c in spec.cells:
+            assert c.comparison_condition == "llm_assisted", (
+                "v3 measures the clarification dialogue, which only fires under "
+                "llm_assisted; deterministic conditions are excluded by design"
+            )
+
+    def test_v3_every_cell_declares_user_response_script(self):
+        """Every v3 cell must declare _user_response_script — that is the
+        whole point of the matrix. A cell without one would silently fall
+        through to the no-auto-drive caregiver path and not measure the
+        clarification dialogue."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V3, _REAL_SCENARIOS)
+        for c in spec.cells:
+            assert c.user_response_script is not None, (
+                f"v3 cell {c.cell_id} missing _user_response_script"
+            )
+            assert "mode" in c.user_response_script
+
+    def test_v3_baseline_cell_uses_no_response_mode(self):
+        """The NO_RESPONSE cell anchors the comparison — it must declare
+        no_response so the dialogue script does NOT auto-drive (matches
+        v2's LLM_ASSISTED behaviour)."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V3, _REAL_SCENARIOS)
+        baseline = next(
+            c for c in spec.cells if c.cell_id == "EXT_A_LLM_DEFER_NO_RESPONSE"
+        )
+        assert baseline.user_response_script["mode"] == "no_response"
+        # Baseline expects safe_deferral because no user response is
+        # simulated; the design-correct behaviour is caregiver fallback.
+        assert baseline.expected_route_class == "CLASS_2"
+        assert baseline.expected_validation == "safe_deferral"
+
+    def test_v3_first_candidate_accept_cell_expects_class1(self):
+        """The FIRST_CANDIDATE_ACCEPT cell scripts the user to accept the
+        first Class 2 candidate. When that candidate is a CLASS_1 lighting
+        target, the system should validate + dispatch + ack — so the cell
+        encodes CLASS_1 + approved as design-correct."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V3, _REAL_SCENARIOS)
+        cell = next(
+            c for c in spec.cells if c.cell_id == "EXT_A_LLM_DEFER_FIRST_CANDIDATE_ACCEPT"
+        )
+        assert cell.user_response_script["mode"] == "first_candidate_accept"
+        assert cell.expected_route_class == "CLASS_1"
+        assert cell.expected_validation == "approved"
+
+    def test_v3_cells_carry_required_policy_overrides(self):
+        """Every v3 cell asserts llm_request_timeout_ms=120000 — gemma4:e4b
+        cannot run under the canonical 8000ms budget."""
+        spec = load_matrix(_EXTENSIBILITY_MATRIX_V3, _REAL_SCENARIOS)
+        for c in spec.cells:
+            assert c.policy_overrides is not None
+            assert c.policy_overrides.get("llm_request_timeout_ms") == 120000
+
+
+class TestCellUserResponseScriptLoader:
+    """The matrix loader must round-trip _user_response_script onto the
+    Cell dataclass — without this, the Sweeper's cell.user_response_script
+    is always None and v3 silently degrades to v2 behaviour."""
+
+    def test_user_response_script_roundtrips(self, tmp_path):
+        """Cell.user_response_script reflects the JSON _user_response_script
+        verbatim, including arbitrary keys like rationale."""
+        m = {
+            "matrix_version": "v0", "matrix_description": "test",
+            "trials_per_cell_default": 1, "package_id": "A",
+            "cells": [{
+                "cell_id": "X",
+                "comparison_condition": "llm_assisted",
+                "scenarios": [],
+                "trials_per_cell": 1,
+                "expected_route_class": "CLASS_1",
+                "expected_validation": "approved",
+                "_user_response_script": {
+                    "mode": "first_candidate_accept",
+                    "rationale": "explanation",
+                },
+            }],
+        }
+        mp = tmp_path / "m.json"
+        mp.write_text(json.dumps(m))
+        scenarios_dir = tmp_path / "sc"
+        scenarios_dir.mkdir()
+        spec = load_matrix(mp, scenarios_dir)
+        assert spec.cells[0].user_response_script == {
+            "mode": "first_candidate_accept",
+            "rationale": "explanation",
+        }
+
+    def test_user_response_script_defaults_to_none(self, tmp_path):
+        """Cells without _user_response_script keep the field as None
+        (backward compatible — v1/v2 matrices don't break)."""
+        m = {
+            "matrix_version": "v0", "matrix_description": "test",
+            "trials_per_cell_default": 1, "package_id": "A",
+            "cells": [{
+                "cell_id": "X",
+                "comparison_condition": "llm_assisted",
+                "scenarios": [],
+                "trials_per_cell": 1,
+                "expected_route_class": "CLASS_1",
+                "expected_validation": "approved",
+            }],
+        }
+        mp = tmp_path / "m.json"
+        mp.write_text(json.dumps(m))
+        scenarios_dir = tmp_path / "sc"
+        scenarios_dir.mkdir()
+        spec = load_matrix(mp, scenarios_dir)
+        assert spec.cells[0].user_response_script is None

@@ -881,6 +881,7 @@ def create_app(
                 expected_route_class=body.get("expected_route_class", "CLASS_1"),
                 expected_validation=body.get("expected_validation", "approved"),
                 expected_outcome=body.get("expected_outcome"),
+                user_response_script=body.get("user_response_script"),
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))

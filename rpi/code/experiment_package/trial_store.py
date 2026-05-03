@@ -59,6 +59,13 @@ class TrialResult:
     # reinterpret the trial's wait windows. Allows the dashboard to render
     # truthful phase information even for older trials.
     class2_phase_budgets_snapshot: Optional[dict] = None
+    # Cell-level user-response simulation script (paper-eval only). When
+    # set, the runner's _match_observation auto-drives a synthetic user
+    # response after the trial enters CLASS_2 — used to measure the Class 2
+    # clarification dialogue's recovery rate, not just the LLM's
+    # single-shot deferral. None means 'no auto-drive', matching the
+    # caregiver-fallback baseline. Plan: PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md.
+    user_response_script: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
@@ -87,6 +94,10 @@ class TrialResult:
             "notification_payload": self.notification_payload,
             "clarification_payload": self.clarification_payload,
             "class2_phase_budgets_snapshot": self.class2_phase_budgets_snapshot,
+            "user_response_script": (
+                dict(self.user_response_script)
+                if self.user_response_script else None
+            ),
         }
 
 

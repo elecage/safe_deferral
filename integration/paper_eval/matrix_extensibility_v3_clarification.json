@@ -1,0 +1,52 @@
+{
+  "matrix_version": "v3-extensibility-axis-a-clarification",
+  "matrix_description": "Paper-eval Extensibility Axis A v3 — measures the Class 2 clarification dialogue's recovery rate after the LLM defers, complementary to v2's single-shot LLM measurement. Same scenario / fixture / LLM model (gemma4:e4b) as v2; the new dimension is `_user_response_script` per cell, which the runner replays as a simulated user reaction to the LLM-driven Class 2 candidate set. Without this, every CLASS_2-escalated trial collapses to `class2_safe_deferral` because the simulated user (context_node) never responds to the candidate set — and the paper's perception-scalability claim, which is fundamentally a multi-turn property, is invisible. Cells: NO_RESPONSE (baseline; same as v2 LLM_ASSISTED — caregiver fallback), FIRST_CANDIDATE_ACCEPT (single_click immediately after CLASS_2 announcement, simulating a user who accepts the LLM's first proposed option), and two scanning modes (input_mode=scanning + scan_until_yes script — measure progressive yes/no clarification). The signal of interest is the gap between strict pass_rate and outcome_match_rate per cell: a cell where pass_rate=0 but outcome_match_rate>0 is the system reaching design intent through CLASS_2 dialogue rather than through a strict CLASS_1-direct path. Plan: PLAN_2026-05-03_CLASS2_CLARIFICATION_MEASUREMENT.md.",
+  "trials_per_cell_default": 5,
+  "package_id": "A",
+  "_recommended_per_trial_timeout_s": 480,
+  "_recommended_ollama_model": "gemma4:e4b",
+  "_required_operator_policy_changes": [
+    "global_constraints.llm_request_timeout_ms must be raised to 120000 (canonical 8000 too tight for gemma4:e4b)."
+  ],
+  "_iteration_intent": "Measure the Class 2 clarification dialogue's effectiveness — not the LLM's single-shot recovery (that's v2). Each cell scripts a different simulated user reaction so the matrix sweeps the dialogue path independently from the LLM input.",
+  "cells": [
+    {
+      "cell_id": "EXT_A_LLM_DEFER_NO_RESPONSE",
+      "description": "Baseline: same as v2's LLM_ASSISTED cell. LLM defers under ambiguity → CLASS_2 escalation → simulated user does not respond → user_phase 30s timeout → caregiver phase begins → trial ends in SAFE_DEFERRAL_OR_CAREGIVER_CONFIRMATION. Per-cell expected encodes 'this is the design-correct behaviour when the user is unresponsive': CLASS_2 + safe_deferral. pass_rate measures whether the safe-degradation path executes correctly. Comparison anchor for the active-script cells below.",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 5,
+      "expected_route_class": "CLASS_2",
+      "expected_validation": "safe_deferral",
+      "_user_response_script": {
+        "mode": "no_response",
+        "rationale": "Baseline — no auto-drive, exercises the caregiver fallback path."
+      },
+      "_policy_overrides": {
+        "llm_request_timeout_ms": 120000
+      }
+    },
+    {
+      "cell_id": "EXT_A_LLM_DEFER_FIRST_CANDIDATE_ACCEPT",
+      "description": "LLM defers under ambiguity → CLASS_2 escalation → simulated user immediately accepts the LLM-generated first candidate via single_click. Per-cell expected is CLASS_1 + approved: when the LLM's first Class 2 candidate is a CLASS_1 lighting target, the system should validate, dispatch, and ACK. pass_rate measures the recovery rate THROUGH the clarification dialogue. The interesting paper signal is the gap between this cell's pass_rate and the v2 LLM_ASSISTED cell's pass_rate — both run the same LLM input, but only this cell exercises the dialogue. outcome_match_rate ≥ pass_rate gives the upper bound: any trial whose final action is light_on / light_off matches design intent regardless of whether observed_route_class was CLASS_1 (direct) or CLASS_2 (via clarification).",
+      "comparison_condition": "llm_assisted",
+      "scenarios": ["extensibility_a_novel_event_code_bedroom_needed_scenario_skeleton.json"],
+      "trials_per_cell": 5,
+      "expected_route_class": "CLASS_1",
+      "expected_validation": "approved",
+      "_user_response_script": {
+        "mode": "first_candidate_accept",
+        "rationale": "Simulate the user accepting whatever the LLM proposed first. Drives single_click after the initial CLASS_2 routing snapshot."
+      },
+      "_policy_overrides": {
+        "llm_request_timeout_ms": 120000
+      }
+    }
+  ],
+  "anchor_commits": {
+    "_purpose": "Filled in by the orchestrator at sweep start.",
+    "matrix_file_sha": null,
+    "scenarios_dir_sha": null,
+    "policy_table_sha": null
+  }
+}
